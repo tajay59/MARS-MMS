@@ -62,6 +62,7 @@ A feature is done when:
 - [ ] OpenAPI is regenerated; event schemas in `mms_common.events` and the audit mapping are updated
 - [ ] Screens work in light and dark themes and pass an axe check (WCAG 2.2 AA)
 - [ ] New or changed screens have passed a `web-design-guidelines` review
+- [ ] The developer docs site (`docs/index.html`) describes what was built, with the phase's chosen charts and a changelog entry (CLAUDE.md, "Developer documentation site")
 - [ ] CI is green and the build is deployed to staging
 
 ## Timeline at a glance
@@ -116,8 +117,8 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 | Production host | 8 vCPU, 32 GB RAM, 200 GB SSD + 1 TB RAID-1 (TRD §16.2). OS, Docker, LUKS disk encryption, firewall, SSH keys | B1 |
 | Second host | Staging stack and backup target, same OS and Docker setup | — |
 | DNS | `mms.` and `files.mms.` records for production and staging | T6 |
-| Repository | Push the local `main` branch to a GitHub repo `aws-mms`, with branch protection on `main`, GHCR, and a project board with one milestone per phase | T2 |
-| SeaweedFS spike | Half a day: run the pinned SeaweedFS image and check presigned multipart uploads through the `files.` host, browser CORS with `ETag` exposed, `ListMultipartUploads` / `AbortMultipartUpload`, and versioning and object lock. Fall back to Garage if a must-have fails (R6) | T7 (confirm), R6 |
+| Repository | GitHub repo `tajay59/MARS-MMS`. Done 2026-10-16: `main` pushed, with line-ending rules (`.gitattributes`, `.editorconfig`) and a frontend CI workflow (lint, type-check, build). Still to do: branch protection on `main` (PR + green CI), GHCR, and a project board with one milestone per phase | T2 |
+| SeaweedFS spike | **Passed 2026-10-16** (`infra/spikes/seaweedfs/`, SeaweedFS 4.48): all 15 server-side checks (7 MUST, 2 NICE, 3 INFO) and the browser checks in Chrome 155 (20 MiB in 3 parts, a 50.9 MiB video in 7 parts in 2.0 s, abandon and abort). Versioning and object lock work. A 152.8 MiB phone video uploaded from Android Chrome over Wi-Fi in 20 parts in 47.5 s, read back intact. Firefox 158 passed the same browser checks (20 MiB in 1.0 s, the 50.9 MiB video in 2.5 s, abandon and abort). All checks done; an iPhone run is optional. Results in the spike README | T7 (confirmed), R6 |
 | Requests to the organization | Sent with a due date: SMTP relay details (T3), station and sensor export (T4, Q4), branding (Q1, D1, D5), checklist templates (Q5), request categories (Q6), signature wording and jurisdictions (Q2, Q3) | Tracked in *Decision deadlines* |
 
 **Weekly milestone**
@@ -368,7 +369,7 @@ Every phase is on the critical path. With one developer, phases run one after an
 | ID | Decision or input | Owner | Needed by | Blocks |
 |---|---|---|---|---|
 | T1, T2, T5, T6, T8 | Outbound internet, Git and registry, single-node Mongo/Kafka, domains and TLS, host RAM | Organization IT | W1 | Phase 1 |
-| T7 | SeaweedFS confirmed by the spike (decided; Garage is the fallback) | Developer | W1 | Phase 1 |
+| T7 | SeaweedFS confirmed by the spike (**confirmed 2026-10-16**; Garage stays the fallback) | Developer | W1 | Phase 1 |
 | B1 | Disk encryption on both hosts | Organization IT | W1 | Host build |
 | A1–A6, A8 | App Flow defaults (routes, queue page, landings, field layout) | Product owner | W1 sign-off | Frontend from W4 |
 | T3 | SMTP relay and sending domain (SPF, DKIM, DMARC) | Organization IT | W4 | Staging email; Phase 3 |
@@ -412,6 +413,7 @@ A phase closes only when:
 4. Coverage is at least 90% for `domain/` packages and 70% overall (TRD §17).
 5. The tests the Test Plan assigns to the phase exist and pass, and the nightly jobs are green.
 6. The product owner has seen the demo and logged feedback.
+7. The developer docs site is updated for the phase, including the diagrams chosen from its suggestions.
 
 ### Schedule risks
 

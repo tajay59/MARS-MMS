@@ -219,7 +219,7 @@ Invited users skip steps 1–4: the invitation email opens `/invite/:token`, the
 
 ### J2 · Log in and reset a password
 
-Login sends each user to their dashboard, or back to the page they were trying to open.
+Login sends each user to their dashboard, or back to the page they were trying to open. The request-level sequence, including throttling and session refresh, is in [TRD §6.1.1](TRD.md#611-login-sequence).
 
 | # | On page | User does | What happens / next page |
 |---|---|---|---|

@@ -2,11 +2,70 @@
 
 AWS-MMS (Automatic Weather Station Maintenance Management System). A self-hosted web app for maintaining weather stations the organization runs for external client organizations in several countries. Clients request work and sign it off. Staff plan, record (offline as well) and report site visits.
 
+## Think like a PWA expert first (required)
+
+AWS-MMS is a PWA: technicians record whole visits on iPhones and Android phones with no signal, and nothing may be lost or duplicated. **Before starting any task in this repo (code, review, plan or document), load the `pwa` skill ([.claude/skills/pwa/](.claude/skills/pwa/SKILL.md)) with the Skill tool and answer its pre-flight questions.** For back-end-only work this takes seconds, but still check the effect on the device: sync contracts, idempotency, auth refresh, caching headers, CSP, presigned uploads. The skill holds the PWA rules from the TRD, verified browser facts (iOS Safari first), the vite-plugin-pwa, Workbox and Dexie patterns, PWA work per phase, the open findings (F1–F13) and the sources. When browser reality and a planning document disagree, raise it as a finding; don't work around it silently. A `SessionStart` hook in [.claude/settings.json](.claude/settings.json) repeats this reminder at the start of every session and after `/clear` or compaction (text in [.claude/hooks/pwa-session-start.json](.claude/hooks/pwa-session-start.json)).
+
 ## Current state
 
-**Planning is done; build has not started.** The repo holds the planning documents, the design reference library, project skills and the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet). There are no backend services yet.
+**Planning is done; Phase 0 (readiness) is under way; build has not started.** The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill) and the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet). There are no backend services yet.
 
-The folder is a git repository on branch `main` with **no commits yet** and no remote. Phase 0 of the [Implementation Plan](docs/IP.md) pushes it to the GitHub repo `aws-mms`. When code is added, follow the rules below and update this file.
+- **Repository:** GitHub `tajay59/MARS-MMS`, branch `main` (remote `origin`). Text files are LF (`.gitattributes`, `.editorconfig`); keep it that way, because shell scripts and configs run in Linux containers.
+- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, type-check and build on changes under `frontend/`. Phase 1 replaces it with the full pipeline.
+- **SeaweedFS spike:** [infra/spikes/seaweedfs/](infra/spikes/seaweedfs/) (throwaway, Phase 0). Not part of the app stack. **Passed 2026-10-16** on SeaweedFS 4.48 (T7 confirmed); Chrome, Firefox 158 and a 152.8 MiB video from an Android phone all passed the same day. All checks done; an iPhone run is optional.
+- **Tools installed:** Docker Desktop 29.8.2 (Compose v5.6.0) and draw.io desktop 32.4.1. Docker's CLI is at `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin`; terminals opened before the install don't have it on PATH.
+- **Information requested from the organization:** [Claude Doc](https://claude.ai/code/artifact/245278ff-5250-48fb-859d-6bcdba80d911) listing every open input (T, B, P, Q, V items) with owner, due week and default.
+- **Developer docs site:** [docs/index.html](docs/index.html), the interactive reference for how the app is wired. **It must be updated every phase** (see "Developer documentation site" below).
+
+When code is added, follow the rules below and update this file.
+
+## Developer documentation site (required)
+
+[docs/index.html](docs/index.html) is the living, interactive reference that lets any future developer see how AWS-MMS is wired: architecture, services and routes, gateway, data and schemas, events, each feature's flows, frontend, security, configuration, infrastructure, CI/CD, decisions, a diagram guide and a changelog. The planning documents say what to build; this site describes what was built.
+
+**Requirement: every phase updates it, and a phase is not done until it has** (it is in the definition of done below). Also update it in any change that alters how the system is wired. Each phase:
+
+1. Update "Build status", the section badges (`badge built` / `progress` / `planned`) and the sidebar dots (`dot built` / `dot progress`).
+2. Replace designed shapes with built ones: schemas from the Pydantic models, routes from OpenAPI, events from `mms_common.events`, settings with their real env var names, file and folder tables.
+3. Add the diagrams chosen for the phase (see "Charts" below) and update any diagram the phase changed.
+4. Record new decisions in the "Decisions" section and in the source document.
+5. Add a "Changelog" entry.
+6. Open the page in a browser in light and dark and check that no diagram shows "could not be drawn". If the code and the TRD disagree, fix one of them in the same change.
+
+**Constraints:** the page opens straight from disk (`file://`) with **no server, no build step and no network**. Mermaid is vendored and pinned (`docs/assets/vendor/mermaid-11.17.2.min.js`), and the fonts are copied into `docs/assets/fonts/`. Content lives in `index.html` (one `section.doc` per sidebar entry; `.sub[id]` blocks are what search finds); behaviour lives in `docs/assets/docs.js`, styles (brand tokens, light and dark) in `docs/assets/docs.css`. The site is developer tooling, not an app screen, so the UI-skills workflow doesn't apply to it; it still uses the DBD tokens and fonts. The "Maintaining these docs" section in the page has copy-paste snippets.
+
+### Diagrams
+
+- **Mermaid is the default.** Write the source inside `<pre class="mermaid-def">` in a `figure.diagram` with `data-title` (the answer, in a few words) and `data-kind` (a chart type from the catalogue below). Escape `<` as `&lt;` and `&` as `&amp;`. Don't put `;` in sequence messages, or raw `<host>`-style text in labels (it's read as HTML).
+- **draw.io** for hand-laid diagrams: true swimlanes, deployment pictures, anything for clients or training. Save as `docs/diagrams/<name>.drawio.svg` (an SVG with the editable diagram inside; GitHub shows it as an image). Edit it in draw.io desktop, app.diagrams.net or VS Code's Draw.io Integration (`hediet.vscode-drawio`). Show it in the site as an `<img>` view; when a Mermaid and a draw.io version of one flow both exist, they are tabs on one figure and must match.
+- Use names exactly as in the code and specs. One question per diagram. Brand colours only; status colours only for statuses.
+
+### Charts: suggest them every phase
+
+**At the start of each phase, propose which charts to add to the site** from this catalogue (the 17 types in Figma's [types of flow charts](https://www.figma.com/resource-library/types-of-flow-charts/), plus the UML and data diagrams below). The user picks; the chosen charts are added before the phase closes. The full catalogue with status, and the per-phase suggestions, are in the site's "Diagram guide".
+
+| Chart type | Use it in AWS-MMS for |
+|---|---|
+| Process flow diagram | One actor's steps and decisions: field visit (J6), CI pipeline, station import |
+| Workflow diagram | Staff routines outside the app's flow: hypercare triage, calibration follow-up, release routine |
+| Data flow diagram | Event wiring, where secrets and tokens live, notification fan-out, backups |
+| Swimlane flowchart | Hand-offs between roles and services: J1 registration, J4 approve and assign, J8 client review (draw.io for true lanes) |
+| Decision tree diagram | Rules with many branches: `derive_status`, sync conflicts, client document access |
+| System flowchart | Inputs processed by the system: gateway routing, media pipeline, report rendering |
+| Document flowchart | Documents that collect signatures: visit report → final → client sign-off; client report form → PDF |
+| Product flowchart | Sensor inventory: stock → installed → repair or lab calibration → stock or retired |
+| PERT chart | IP phases, dependencies and decision deadlines (Mermaid gantt) |
+| Use case flowchart | Roles × actions per service (mirrors the authorization matrix) |
+| Event storming flowchart | Commands → domain events → consumers and read models per module |
+| Customer journey flowchart | The client's path: invited → first request → follow progress → sign off |
+| Production flowchart | Not used (covered by the request swimlane and lifecycle) |
+| Logical model flowchart | Summary reports and dashboards: read-model inputs → aggregation → PDF/CSV |
+| Code flowchart | Branch-by-branch logic worth a test each: `/login`, `/refresh`, sensor action apply/reverse, sync op apply, finalize retry |
+| E-commerce flowchart | Not used (no sales flow) |
+| Website flowchart | Pages, shells, route guards and redirects |
+| *Beyond Figma:* sequence, state, ER, architecture (C4), gantt | Calls over time; every status field; collections; containers; schedules |
+
+Suggested per phase (adjust to what was built): **P1** J1 swimlane (draw.io), credentials data flow, `/login` and `/refresh` code flowcharts, auth use cases, auth event storming, outbox leader handover sequence, shells and guards website flowchart, local stack architecture. **P2** sensor inventory product flowchart, sensor unit state, document upload and model-document download sequence, station import process flow. **P3** request state (as built), `derive_status` decision tree, J4 swimlane, WebSocket fan-out sequence, request event storming. **P4** visit state, visit-end transaction sequence, sensor action code flowchart, media pipeline system flowchart, media state. **P5** prepare-for-field sequence, offline op state, conflict decision tree, device storage data flow. **P6** visit report document flowchart, finalize saga (as built), client review customer journey, reminders and auto-close state. **P7** summary reports logical model, backup and restore data flow, monitoring system flowchart, production architecture. **P8** hypercare workflow, client onboarding customer journey, go-live gantt.
 
 ## Planning documents
 
@@ -167,6 +226,7 @@ Claude Code has **no image-generation tool**. The skills that generate images (`
 | `gpt-taste` | Composition ideas for public pages | No GSAP scroll effects or AIDA structure in app screens; respect reduced motion |
 | `image-to-code` | Its implementation and quality rules only (matching a design closely, no cards inside cards), applied to approved HTML mock-ups | Its image-generation step can't run here |
 | `redesign-existing-projects` | Audit and upgrade passes on built screens | Must not break behaviour or role rules |
+| `pwa` | Loaded first for every task (see "Think like a PWA expert first"); field screens, install and update prompts, `/unlock`, `/sync` | Project skill; TRD and AFD win over it |
 | `web-design-guidelines` | Required review of every screen | — |
 | `writing-guidelines` | Microcopy, empty states, errors and emails | DBD voice wins |
 | `imagegen-frontend-web`, `imagegen-frontend-mobile`, `brandkit` | Not used: they need an image-generation tool | Revisit only if one becomes available (for example for D1 branding) |
@@ -174,6 +234,12 @@ Claude Code has **no image-generation tool**. The skills that generate images (`
 `design-taste-frontend-v1` and `design-taste-frontend-v2-experimental` are older versions kept for compatibility. Use `design-taste-frontend` instead.
 
 ## Commands
+
+Developer docs: open [docs/index.html](docs/index.html) in a browser (no server needed). To check every diagram renders, with Edge:
+
+```sh
+msedge --headless=new --virtual-time-budget=40000 --dump-dom "file:///<repo>/docs/index.html" | grep -c 'id="mmd-'   # = number of diagrams
+```
 
 Frontend (run in `frontend/`):
 
@@ -183,6 +249,14 @@ npm run dev          # dev server on http://localhost:3000
 npm run type-check   # vue-tsc
 npm run lint         # ESLint (eslint-config-vuetify); lint:fix to fix
 npm run build        # type-check + production build
+```
+
+SeaweedFS spike (run in `infra/spikes/seaweedfs/`; needs Docker):
+
+```sh
+docker compose up -d --build
+docker compose run --rm spike python check.py   # then open http://localhost:8080
+docker compose down -v
 ```
 
 Not yet available. Add these when the repo is scaffolded (IP Phase 1):
@@ -204,6 +278,8 @@ A feature is done when:
 - OpenAPI is regenerated, and the event schemas in `mms_common.events` and the audit mapping (PRD AUD-1) are updated
 - screens work in light and dark themes and pass an axe check (WCAG 2.2 AA)
 - new or changed screens have passed a `web-design-guidelines` review
+- changes to `frontend/src/sw/`, `frontend/src/offline/`, caching headers or the CSP pass the `pwa` skill's merge checklist ([checklists.md](.claude/skills/pwa/references/checklists.md))
+- the developer docs site ([docs/index.html](docs/index.html)) describes what was built: status, schemas, routes, events, config, decisions, the phase's chosen charts and a changelog entry (see "Developer documentation site")
 - CI is green and the build is deployed to staging
 
 Coverage targets: 90% for `domain/`, 70% overall.
