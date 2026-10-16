@@ -8,10 +8,9 @@ on:
     paths:
       - frontend/**
       - .github/workflows/frontend.yml
+  # Every pull request runs it, with no path filter: `check` is a required
+  # status on main, and a filtered-out run would never report and block the PR.
   pull_request:
-    paths:
-      - frontend/**
-      - .github/workflows/frontend.yml
 
 permissions:
   contents: read
@@ -22,7 +21,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
