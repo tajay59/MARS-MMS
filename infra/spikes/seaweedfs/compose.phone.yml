@@ -1,0 +1,24 @@
+# Phone mode: run the browser test from a phone on the same Wi-Fi as this PC.
+#
+#   LAN_IP=192.168.1.20 docker compose -f compose.yml -f compose.phone.yml up -d --build
+#   then open http://<LAN_IP>:8080 on the phone (and on the PC, if you like)
+#
+# The page is http://<LAN_IP>:8080. Presigned part URLs point at http://<LAN_IP>.sslip.io:8080:
+# sslip.io is a public DNS name that resolves to <LAN_IP>, so it reaches this PC on the same port
+# (which the firewall already lets in) but is a different origin, so uploads stay cross-origin.
+# The phone needs working DNS (most Wi-Fi does). Run check.py in normal mode, not this one.
+
+services:
+  seaweedfs:
+    command:
+      - server
+      - -dir=/data
+      - -master.volumeSizeLimitMB=1024
+      - -s3
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -s3.allowedOrigins=http://localhost:8080,http://${LAN_IP:?set LAN_IP to this PC's LAN address}:8080
+
+  spike:
+    environment:
+      S3_FILES_URL: http://${LAN_IP:?set LAN_IP to this PC's LAN address}.sslip.io:8080
+      EXTRA_ORIGINS: http://${LAN_IP:?set LAN_IP to this PC's LAN address}:8080

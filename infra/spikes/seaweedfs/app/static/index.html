@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SeaweedFS spike: browser upload</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 760px; margin: 32px auto; padding: 0 16px; color: #0f172a; }
+    h1 { font-size: 20px; }
+    p { color: #475569; }
+    fieldset { border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin: 0 0 16px; }
+    button { font: inherit; padding: 6px 12px; margin: 4px 8px 4px 0; }
+    #log { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; min-height: 160px;
+           font: 13px/1.6 ui-monospace, monospace; white-space: pre-wrap; }
+    .pass { color: #4ade80; } .fail { color: #f87171; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    td, th { text-align: left; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <h1>SeaweedFS spike: browser upload</h1>
+  <p>
+    This page is the app origin (<code>http://localhost:8080</code>, or the PC's address on port 8080 in phone mode).
+    Parts go straight to the files host (<code>http://files.localhost:8080</code>, or <code>&lt;PC address&gt;.sslip.io:8080</code> in phone mode) on
+    presigned URLs, so every request below is cross-origin.
+    The upload passes only if the browser can read each part's <code>ETag</code>.
+  </p>
+
+  <fieldset>
+    <legend>1. Multipart upload (8 MiB parts)</legend>
+    <input type="file" id="file">
+    <button id="upload">Upload chosen file</button>
+    <button id="generated">Upload a generated 20 MiB file</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>2. Abandoned uploads (for the abort_stale_uploads job)</legend>
+    <button id="abandon">Start an upload and abandon it</button>
+    <button id="list">List open uploads</button>
+    <table id="open" hidden><thead><tr><th>Key</th><th>Started</th><th></th></tr></thead><tbody></tbody></table>
+  </fieldset>
+
+  <div id="log" role="log" aria-live="polite"></div>
+
+  <script src="/upload.js"></script>
+</body>
+</html>
