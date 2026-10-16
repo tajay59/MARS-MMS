@@ -1,0 +1,5 @@
+/* Vuetify reads its fonts from these variables, so it never asks for Roboto (TRD §13.2) */
+:root {
+  --v-font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --v-font-heading: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

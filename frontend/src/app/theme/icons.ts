@@ -1,0 +1,82 @@
+import {
+  mdiAccountOutline,
+  mdiAlertOutline,
+  mdiBellOutline,
+  mdiBookOpenOutline,
+  mdiCalendarBlankOutline,
+  mdiCameraOutline,
+  mdiCancel,
+  mdiCarOutline,
+  mdiCheck,
+  mdiCheckCircleOutline,
+  mdiChip,
+  mdiClose,
+  mdiCloseCircleOutline,
+  mdiCloudUploadOutline,
+  mdiCogOutline,
+  mdiEyeOffOutline,
+  mdiFileDocumentEditOutline,
+  mdiFilePdfBox,
+  mdiHistory,
+  mdiInboxOutline,
+  mdiMapMarkerOutline,
+  mdiMapOutline,
+  mdiMinusCircleOutline,
+  mdiQrcodeScan,
+  mdiReplay,
+  mdiSignatureFreehand,
+  mdiThemeLightDark,
+  mdiTuneVariant,
+  mdiVideoOutline,
+  mdiWeatherNight,
+  mdiWhiteBalanceSunny,
+  mdiWrenchOutline,
+} from '@mdi/js'
+
+/*
+  Material Design Icons as SVG paths (no icon font). Only icons imported here are bundled.
+  Each meaning has one icon everywhere (DBD Iconography). Use the -outline variant where one exists.
+*/
+
+export const icons = {
+  station: mdiMapMarkerOutline,
+  request: mdiFileDocumentEditOutline,
+  visit: mdiCarOutline,
+  visitReport: mdiFilePdfBox,
+  scanQr: mdiQrcodeScan,
+  photo: mdiCameraOutline,
+  video: mdiVideoOutline,
+  notifications: mdiBellOutline,
+  map: mdiMapOutline,
+  calibration: mdiTuneVariant,
+  configuration: mdiCogOutline,
+  document: mdiBookOpenOutline,
+  sensor: mdiChip,
+  sync: mdiCloudUploadOutline,
+  signature: mdiSignatureFreehand,
+  history: mdiHistory,
+  internalComment: mdiEyeOffOutline,
+  themeLight: mdiWhiteBalanceSunny,
+  themeDark: mdiWeatherNight,
+  themeSystem: mdiThemeLightDark,
+} as const
+
+export const requestStatusIcons = {
+  submitted: mdiInboxOutline,
+  approved: mdiCheck,
+  assigned: mdiAccountOutline,
+  scheduled: mdiCalendarBlankOutline,
+  in_progress: mdiWrenchOutline,
+  client_review: mdiSignatureFreehand,
+  reopened: mdiReplay,
+  closed: mdiCheckCircleOutline,
+  denied: mdiCancel,
+  cancelled: mdiCloseCircleOutline,
+} as const
+
+export const stationStatusIcons = {
+  operational: mdiCheckCircleOutline,
+  degraded: mdiAlertOutline,
+  offline: mdiClose,
+  decommissioned: mdiMinusCircleOutline,
+} as const

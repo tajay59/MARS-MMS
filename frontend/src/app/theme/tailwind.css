@@ -1,0 +1,110 @@
+/*
+  Tailwind CSS 4 for layout and spacing (TRD §13.2, ADR-11).
+  Theme and utilities go in the `tailwind` layer declared in layers.css.
+  Preflight is not imported: Vuetify has its own reset.
+*/
+@import "tailwindcss/theme" layer(tailwind);
+@import "tailwindcss/utilities" layer(tailwind);
+
+/*
+  Colours come only from the brand tokens, through Vuetify's theme variables, so bg-primary and
+  text-surface-700 follow the active theme with no dark: variant. Tailwind's default palette is
+  removed so status and decoration colours can't creep in (DBD rules).
+*/
+@theme {
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+
+  --color-background: rgb(var(--v-theme-background));
+  --color-on-background: rgb(var(--v-theme-on-background));
+  --color-surface: rgb(var(--v-theme-surface));
+  --color-on-surface: rgb(var(--v-theme-on-surface));
+  --color-primary: rgb(var(--v-theme-primary));
+  --color-on-primary: rgb(var(--v-theme-on-primary));
+
+  --color-primary-50: rgb(var(--v-theme-primary-50));
+  --color-primary-100: rgb(var(--v-theme-primary-100));
+  --color-primary-200: rgb(var(--v-theme-primary-200));
+  --color-primary-300: rgb(var(--v-theme-primary-300));
+  --color-primary-400: rgb(var(--v-theme-primary-400));
+  --color-primary-500: rgb(var(--v-theme-primary-500));
+  --color-primary-600: rgb(var(--v-theme-primary-600));
+  --color-primary-700: rgb(var(--v-theme-primary-700));
+  --color-primary-800: rgb(var(--v-theme-primary-800));
+  --color-primary-900: rgb(var(--v-theme-primary-900));
+  --color-primary-950: rgb(var(--v-theme-primary-950));
+
+  --color-surface-0: rgb(var(--v-theme-surface-0));
+  --color-surface-50: rgb(var(--v-theme-surface-50));
+  --color-surface-100: rgb(var(--v-theme-surface-100));
+  --color-surface-200: rgb(var(--v-theme-surface-200));
+  --color-surface-300: rgb(var(--v-theme-surface-300));
+  --color-surface-500: rgb(var(--v-theme-surface-500));
+  --color-surface-600: rgb(var(--v-theme-surface-600));
+  --color-surface-700: rgb(var(--v-theme-surface-700));
+  --color-surface-900: rgb(var(--v-theme-surface-900));
+
+  --color-success: rgb(var(--v-theme-success));
+  --color-success-container: rgb(var(--v-theme-success-container));
+  --color-on-success-container: rgb(var(--v-theme-on-success-container));
+  --color-info: rgb(var(--v-theme-info));
+  --color-info-container: rgb(var(--v-theme-info-container));
+  --color-on-info-container: rgb(var(--v-theme-on-info-container));
+  --color-warning: rgb(var(--v-theme-warning));
+  --color-warning-container: rgb(var(--v-theme-warning-container));
+  --color-on-warning-container: rgb(var(--v-theme-on-warning-container));
+  --color-error: rgb(var(--v-theme-error));
+  --color-error-container: rgb(var(--v-theme-error-container));
+  --color-on-error-container: rgb(var(--v-theme-on-error-container));
+
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  /* DBD type scale; text-sm (14/20) and text-xs (12/16) are Tailwind's own */
+  --text-display: 1.875rem;
+  --text-display--line-height: 2.375rem;
+  --text-display--font-weight: 600;
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.75rem;
+  --text-h2--font-weight: 600;
+  --text-h3: 1rem;
+  --text-h3--line-height: 1.5rem;
+  --text-h3--font-weight: 600;
+  --text-body: 1rem;
+  --text-body--line-height: 1.5rem;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.25rem;
+  --text-label--font-weight: 500;
+  --text-kpi: 2rem;
+  --text-kpi--line-height: 2.5rem;
+  --text-kpi--font-weight: 600;
+  --text-field-action: 1.125rem;
+  --text-field-action--line-height: 1.5rem;
+  --text-field-action--font-weight: 600;
+
+  /* 6 px inputs and buttons = Tailwind rounded-md; 10 px cards and dialogs */
+  --radius-card: 10px;
+
+  /* Vuetify's elevation="n" maps to three shadow steps; only floating things use shadows (DBD) */
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --elevation-2: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --elevation-4: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --elevation-6: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --elevation-8: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --elevation-12: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --elevation-16: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --elevation-24: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Dark mode follows the .app-dark class on <html>, switched with Vuetify's theme (DBD D2) */
+@custom-variant dark (&:where(.app-dark, .app-dark *));
+
+@utility elevation-* {
+  box-shadow: --value(--elevation-*);
+}
+
+/* Classes Vuetify adds from props (rounded="md", elevation="8"), which Tailwind can't see in source */
+@source inline('rounded-{none,sm,md,lg,xl,card,full}');
+@source inline('elevation-{0,1,2,4,6,8,12,16,24}');

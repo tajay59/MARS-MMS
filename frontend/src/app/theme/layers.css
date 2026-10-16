@@ -1,0 +1,6 @@
+/*
+  Cascade layer order (TRD §13.2, ADR-11). Imported first, before vuetify/styles.
+  Tailwind sits after Vuetify's utilities and before vuetify-final,
+  or Vuetify's transitions break.
+*/
+@layer vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final;
