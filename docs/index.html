@@ -1,0 +1,2393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AWS-MMS Developer Docs</title>
+  <meta name="description" content="How AWS-MMS is wired: architecture, services, data, events, flows, configuration and decisions.">
+  <link rel="stylesheet" href="assets/docs.css">
+  <script src="assets/theme-init.js"></script>
+</head>
+<body>
+<!--
+  AWS-MMS developer documentation. Open this file directly in a browser: it needs no server,
+  no build step and no network. Maintained phase by phase (see "Maintaining these docs" and CLAUDE.md).
+  Diagrams: Mermaid source inside <pre class="mermaid-def"> (escape < as &lt; and & as &amp;),
+  draw.io files in docs/diagrams/*.drawio.svg shown with <img>.
+-->
+<button class="btn menu-toggle" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar" aria-label="Documentation">
+    <div class="brand">
+      <span class="brand-name">AWS-MMS</span>
+      <span class="brand-sub">Developer docs · how the app is wired</span>
+    </div>
+
+    <div class="search" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 3a6.5 6.5 0 0 1 5.2 10.4l5 5-1.4 1.4-5-5A6.5 6.5 0 1 1 9.5 3m0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9"/></svg>
+      <label class="sr-only" for="search">Search the docs</label>
+      <input id="search" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false">
+      <ul class="search-results" id="search-results" hidden></ul>
+    </div>
+
+    <div class="toc">
+      <div class="toc-group">
+        <span class="toc-label">Start here</span>
+        <a href="#overview">Overview</a>
+        <a href="#status">Build status</a>
+      </div>
+      <div class="toc-group">
+        <span class="toc-label">System</span>
+        <a href="#architecture">Architecture <span class="dot" title="Planned"></span></a>
+        <a href="#services">Services and endpoints <span class="dot" title="Planned"></span></a>
+        <a href="#gateway">Gateway and routing <span class="dot" title="Planned"></span></a>
+        <a href="#data">Data and schemas <span class="dot" title="Planned"></span></a>
+        <a href="#events">Events and outbox <span class="dot" title="Planned"></span></a>
+      </div>
+      <div class="toc-group">
+        <span class="toc-label">Features</span>
+        <a href="#auth">Authentication <span class="dot" title="Planned"></span></a>
+        <a href="#requests">Requests <span class="dot" title="Planned"></span></a>
+        <a href="#visits">Visits and offline sync <span class="dot" title="Planned"></span></a>
+        <a href="#media">Files and media <span class="dot progress" title="In progress"></span></a>
+        <a href="#reports">Reports and signatures <span class="dot" title="Planned"></span></a>
+        <a href="#platform">Notifications and audit <span class="dot" title="Planned"></span></a>
+      </div>
+      <div class="toc-group">
+        <span class="toc-label">Client</span>
+        <a href="#frontend">Frontend <span class="dot progress" title="In progress"></span></a>
+      </div>
+      <div class="toc-group">
+        <span class="toc-label">Operations</span>
+        <a href="#security">Security and access <span class="dot" title="Planned"></span></a>
+        <a href="#config">Configuration <span class="dot" title="Planned"></span></a>
+        <a href="#infrastructure">Infrastructure <span class="dot" title="Planned"></span></a>
+        <a href="#cicd">CI/CD and testing <span class="dot progress" title="In progress"></span></a>
+      </div>
+      <div class="toc-group">
+        <span class="toc-label">Reference</span>
+        <a href="#decisions">Decisions</a>
+        <a href="#diagram-guide">Diagram guide</a>
+        <a href="#changelog">Changelog</a>
+        <a href="#maintaining">Maintaining these docs</a>
+      </div>
+    </div>
+
+    <div class="theme-switch" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+    </div>
+  </nav>
+
+  <main id="top">
+    <div class="content">
+
+<!-- =====================================================================
+     OVERVIEW
+     ===================================================================== -->
+      <section class="doc" id="overview">
+        <div class="hero">
+          <span class="eyebrow">AWS-MMS · Automatic Weather Station Maintenance Management System</span>
+          <h1>How the app is wired</h1>
+          <p class="lead">AWS-MMS is a self-hosted web app for maintaining weather stations that the organization runs for client organizations in several countries. Clients request work and sign it off. Staff plan visits, record them on a phone with or without signal, and produce signed reports.</p>
+          <p class="muted">This page is the developer's map of the system: services, data, events, flows, configuration and the decisions behind them. Each build phase updates it. Requirements live in the planning documents linked in each section's <span class="src">Sources</span> line.</p>
+        </div>
+
+        <div class="stats" aria-label="System at a glance">
+          <div class="stat"><b>5</b><span>FastAPI services</span></div>
+          <div class="stat"><b>6</b><span>MongoDB databases</span></div>
+          <div class="stat"><b>4</b><span>Kafka topics</span></div>
+          <div class="stat"><b>4</b><span>S3 buckets</span></div>
+          <div class="stat"><b>3</b><span>UI shells</span></div>
+          <div class="stat"><b>20</b><span>Architecture decisions</span></div>
+        </div>
+
+        <div class="sub" id="overview-roles">
+          <h3>Who uses it</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Role</th><th>Does</th><th>Shell</th><th>Can write?</th></tr></thead>
+              <tbody>
+                <tr><td>Client</td><td>Reports faults, follows requests, reviews and signs off completed work, adds client reports. Sees only their own organization's records.</td><td>Client (top navigation)</td><td>Own organization only</td></tr>
+                <tr><td>Technician</td><td>Claims and schedules requests, carries out visits (offline in the field), signs visit reports.</td><td>Staff (sidebar); field (phone)</td><td>Yes</td></tr>
+                <tr><td>Admin</td><td>Approves registrations and requests, assigns staff, manages users, organizations, checklists and labels, reads the audit log.</td><td>Staff (sidebar)</td><td>Yes</td></tr>
+                <tr><td>Viewer</td><td>Reads everything staff can read. Never changes anything.</td><td>Staff (sidebar)</td><td>Never (tested)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="overview-reading">
+          <h3>Reading this page</h3>
+          <ul>
+            <li><span class="badge built">Built</span> describes code that exists in the repository. <span class="badge progress">In progress</span> is partly built. <span class="badge planned">Planned</span> describes the design in the planning documents, not yet built.</li>
+            <li>Every diagram has <b>Source</b> (the Mermaid definition) and <b>Expand</b> (full screen). Some also have a draw.io view.</li>
+            <li>Press <kbd>/</kbd> to search: routes, collections, event names and ADR numbers all work.</li>
+            <li>Requirement IDs (AUTH-1, REQ-2, VIS-7) are from the PRD. ADR-n are in <a href="#decisions">Decisions</a>.</li>
+          </ul>
+        </div>
+
+        <div class="sub" id="overview-sources">
+          <h3>Planning documents</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Document</th><th>Covers</th><th>Version</th></tr></thead>
+              <tbody>
+                <tr><td><a href="PRD.md">PRD.md</a></td><td>Product requirements and their IDs</td><td>1.1</td></tr>
+                <tr><td><a href="TRD.md">TRD.md</a></td><td>Technical requirements: services, data model, events, security, infrastructure</td><td>2.0</td></tr>
+                <tr><td><a href="AFD.md">AFD.md</a></td><td>App flow: journeys J1–J10, routes, menus, edge states</td><td>1.1</td></tr>
+                <tr><td><a href="DBD.md">DBD.md</a></td><td>Design brief: colour, type, shells, components</td><td>1.2</td></tr>
+                <tr><td><a href="BSD.md">BSD.md</a></td><td>Background schema: where data lives, access, retention</td><td>1.1</td></tr>
+                <tr><td><a href="IP.md">IP.md</a></td><td>Implementation plan: phases 0–8</td><td>1.1 draft</td></tr>
+                <tr><td><a href="TP.md">TP.md</a></td><td>Test plan</td><td>1.1 draft</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     BUILD STATUS
+     ===================================================================== -->
+      <section class="doc" id="status">
+        <div class="doc-head">
+          <h2 id="status-h">Build status</h2>
+          <p>Phase 0 (readiness) is under way. No backend service exists yet. The frontend theme foundation, a frontend CI workflow and the SeaweedFS spike are in the repository.</p>
+          <span class="src">Sources: <a href="IP.md">IP.md</a> · updated 2026-10-16</span>
+        </div>
+
+        <div class="phases">
+          <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
+          <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P7</span><div><div class="phase-name">Summaries and hardening</div><div class="phase-meta">W19–W20 · summary reports, dashboards, audit viewer, production stack, backups, security review · release 0.7</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge planned">Planned</span></div>
+        </div>
+
+        <div class="sub" id="status-built">
+          <h3>What exists in the repository</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Path</th><th>What it is</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 theme foundation: brand themes (light and dark), cascade layers, global defaults, MDI icons, Inter and JetBrains Mono, <code>theme-init.js</code>. No shells or pages yet.</td><td><span class="badge built">Built</span></td></tr>
+                <tr><td><code>.github/workflows/frontend.yml</code></td><td>Frontend CI: lint, type-check and build on Node 24.</td><td><span class="badge built">Built</span></td></tr>
+                <tr><td><code>infra/spikes/seaweedfs/</code></td><td>Phase 0 spike: SeaweedFS 4.48 behind Nginx, server-side checks and a browser upload page. Throwaway.</td><td><span class="badge built">Passed 2026-10-16</span></td></tr>
+                <tr><td><code>docs/</code></td><td>Planning documents, this site, and draw.io diagrams in <code>docs/diagrams/</code>.</td><td><span class="badge built">Built</span></td></tr>
+                <tr><td><code>services/</code>, <code>libs/mms_common/</code>, <code>infra/compose*.yml</code></td><td>The five services, the shared library and the Compose stack.</td><td><span class="badge planned">Phase 1+</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     ARCHITECTURE
+     ===================================================================== -->
+      <section class="doc" id="architecture">
+        <div class="doc-head">
+          <div class="row"><h2 id="architecture-h">Architecture</h2><span class="badge planned">Planned</span></div>
+          <p>Five FastAPI services, split by business capability, behind Nginx. One MongoDB replica set with a database per service, Kafka for events between services, Redis for jobs and leases, and SeaweedFS for files. Everything runs with Docker Compose on the organization's own servers.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §1, §2</a> · ADR-1 to ADR-10</span>
+        </div>
+
+        <figure class="diagram" data-title="System context and containers" data-kind="Architecture (flowchart)">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TB
+    PWA["Vue 3 PWA&lt;br/&gt;clients + staff · offline field mode"]
+    NGX["Nginx&lt;br/&gt;TLS · SPA · API gateway · files host"]
+
+    subgraph Services["FastAPI services"]
+        AU[auth]
+        OP["operations&lt;br/&gt;stations · requests · visits"]
+        MD[media + media-worker]
+        RP[report + report-worker]
+        PF["platform&lt;br/&gt;notification · audit"]
+    end
+
+    subgraph Infra["Shared infrastructure"]
+        MG[("MongoDB rs0&lt;br/&gt;db per service")]
+        KF[("Kafka&lt;br/&gt;domain events")]
+        RD[("Redis&lt;br/&gt;jobs · leases · pub/sub")]
+        S3[("SeaweedFS&lt;br/&gt;S3 buckets")]
+        CV[ClamAV]
+        SMTP[SMTP relay]
+    end
+
+    PWA -->|https app host| NGX
+    PWA -. "presigned upload/download&lt;br/&gt;files host" .-> NGX
+    NGX -->|/api, /ws by path| AU &amp; OP &amp; MD &amp; RP &amp; PF
+    NGX -->|files host| S3
+    Services --> MG
+    Services &lt;--> KF
+    Services &lt;--> RD
+    MD &amp; RP --> S3
+    MD --> CV
+    PF --> SMTP
+</pre>
+          </div>
+          <figcaption>The browser talks to one origin for the app and API, and to the separate <code>files.</code> host only through presigned URLs. Services never call each other's databases.</figcaption>
+        </figure>
+
+        <div class="sub" id="architecture-rules">
+          <h3>Rules the architecture depends on</h3>
+          <p>These are enforced by tests in CI (TP "Rule-enforcement tests"). Breaking one is a bug, not a style choice.</p>
+          <ol>
+            <li><b>Never access another service's database.</b> Call its <code>/internal/*</code> endpoint with a service token, or consume its events. Modules inside <code>operations</code> share its database.</li>
+            <li><b>Every state change goes through the domain state machine and the outbox</b>, in one Mongo transaction. Request handlers never produce to Kafka directly. The relay runs only under the service's Redis leader lease.</li>
+            <li><b>Org scoping lives in the repository layer.</b> A client's queries are always merged with their <code>org_id</code> (<code>owner_org_id</code> for stations, <code>current_org_id</code> for sensor units).</li>
+            <li><b>Out-of-scope records return 404, not 403</b> (ADR-16).</li>
+            <li><b>Viewers never mutate.</b> Every mutating route uses <code>require_roles(...)</code> without <code>viewer</code>.</li>
+            <li>Internal comments, draft reports, staff-only documents and config versions are filtered out for clients in the repository layer. <b>Files start staff-only.</b></li>
+            <li><code>domain/</code> imports no FastAPI, Mongo or Kafka.</li>
+            <li>Times are stored in UTC; each station's IANA time zone is for display.</li>
+            <li>IDs are UUIDv7, generated on the client for anything created offline. Sync operations carry idempotency keys (<code>op_id</code>).</li>
+            <li>The audit collection is insert-only and hash-chained.</li>
+            <li>Finalized visit-report versions are immutable; a change reopens the report as a new version.</li>
+            <li>Mongo queries are built from typed values only.</li>
+          </ol>
+        </div>
+
+        <div class="sub" id="architecture-stack">
+          <h3>Technology stack</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+              <tbody>
+                <tr><td>Frontend</td><td>Vue 3.5 (TypeScript), Vite, Vuetify 4, Tailwind CSS 4, <code>@mdi/js</code>, Pinia, Vue Router, Dexie, vite-plugin-pwa (Workbox <code>injectManifest</code>), Web Locks, Leaflet + markercluster, qr-scanner, signature_pad, date-fns + @date-fns/tz, ApexCharts (<code>vue3-apexcharts</code>)</td></tr>
+                <tr><td>Backend</td><td>Python 3.13, FastAPI, Pydantic v2, PyMongo async (<code>AsyncMongoClient</code>), httpx, aiokafka, structlog</td></tr>
+                <tr><td>Jobs</td><td>arq (Redis-backed workers and cron)</td></tr>
+                <tr><td>Database</td><td>MongoDB 8 replica set <code>rs0</code></td></tr>
+                <tr><td>Events</td><td>Apache Kafka 4.x, KRaft mode</td></tr>
+                <tr><td>Cache, queues, pub/sub</td><td>Redis 7.4+ (AOF)</td></tr>
+                <tr><td>Object storage</td><td>SeaweedFS (S3 API)</td></tr>
+                <tr><td>Media</td><td>ffmpeg, Pillow + pillow-heif, pdftoppm; ClamAV</td></tr>
+                <tr><td>PDF</td><td>WeasyPrint + Jinja2, segno (QR), ApexCharts in headless Chromium (Playwright) for summary charts</td></tr>
+                <tr><td>Edge</td><td>Nginx: TLS, SPA, path routing, rate limits, request IDs, files host</td></tr>
+                <tr><td>Deployment</td><td>Docker Compose, self-hosted</td></tr>
+                <tr><td>Observability</td><td>Prometheus, Grafana, Loki, Grafana Alloy, exporters</td></tr>
+                <tr><td>CI/CD</td><td>GitHub Actions, GitHub Container Registry</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="architecture-layout">
+          <h3>Repository layout</h3>
+<pre class="code"><code>MARS-MMS/
+  services/
+    auth/ operations/ media/ report/ platform/
+  libs/mms_common/        auth, events, outbox, kafka, consumer, mongo, logging, errors, ids, time, snapshot
+  templates/service/      copier template for new services
+  frontend/
+  infra/
+    compose.yml compose.dev.yml compose.prod.yml
+    nginx/ kafka/ seaweedfs/ prometheus/ grafana/ loki/ alloy/
+    scripts/ (backup.sh, restore.sh, seed.py, import_stations.py, backfill.py)
+    spikes/seaweedfs/     Phase 0 spike (throwaway)
+  docs/
+    index.html            this site
+    assets/ diagrams/     site assets; draw.io diagrams (*.drawio.svg)
+    PRD.md TRD.md AFD.md DBD.md BSD.md IP.md TP.md drafts/
+  CLAUDE.md
+  .github/workflows/</code></pre>
+        </div>
+
+        <div class="sub" id="architecture-service-layout">
+          <h3>Inside every service</h3>
+<pre class="code"><code>services/&lt;name&gt;/
+  app/
+    main.py          FastAPI app; lifespan starts DB, Redis, Kafka producer, outbox relay (leader lease), consumers
+    config.py        pydantic-settings (env prefix per service, e.g. OPS_)
+    api/             public routers (/api/v1/...), internal routers (/internal/...), schemas
+    domain/          business rules and state machines (no FastAPI/Mongo/Kafka imports)
+    repo/            data access; organization scoping applied here
+    events/          event publishers (via outbox) and consumers
+    jobs/            arq tasks and cron jobs (where used)
+    migrations/      forward-only scripts NNNN_*.py
+  tests/             unit (domain), api (httpx + testcontainers), contract (events)
+  Dockerfile
+  pyproject.toml</code></pre>
+          <p><code>operations</code> groups each layer by module (<code>stations/</code>, <code>requests/</code>, <code>visits/</code>); modules call each other inside one transaction, never over HTTP. Every service exposes <code>GET /health</code>, <code>GET /ready</code>, <code>GET /metrics</code>, OpenAPI at <code>/docs</code> (off in production) and, if it produces events, <code>GET /internal/snapshot/{entity}</code>.</p>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     SERVICES
+     ===================================================================== -->
+      <section class="doc" id="services">
+        <div class="doc-head">
+          <div class="row"><h2 id="services-h">Services and endpoints</h2><span class="badge planned">Planned</span></div>
+          <p>What each service owns, what it publishes and consumes, and every public and internal route. Literal paths (<code>/geo</code>, <code>/mine</code>, <code>/due</code>) are declared before <code>/{id}</code>; <code>{id}</code> is a UUIDv7.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3</a></span>
+        </div>
+
+        <div class="cards">
+          <article class="card">
+            <h3>auth</h3>
+            <p>Users, roles, client organizations, registration approval, login, tokens, password reset, invitations, JWKS, service tokens.</p>
+            <dl><dt>Database</dt><dd><code>auth</code></dd><dt>Emits</dt><dd><code>user.*</code>, <code>org.*</code>, <code>auth.*</code></dd><dt>Consumes</dt><dd>—</dd><dt>Cron</dt><dd>Purge pending registrations (30 days); purge expired tokens</dd><dt>Env prefix</dt><dd><code>AUTH_</code></dd><dt>Phase</dt><dd>1</dd></dl>
+          </article>
+          <article class="card">
+            <h3>operations</h3>
+            <p>Stations, sensors, calibrations, documents, config versions, QR; requests, comments, client reports; visits, work records, checklists, sync.</p>
+            <dl><dt>Database</dt><dd><code>operations</code></dd><dt>Emits</dt><dd><code>station.*</code>, <code>sensor.*</code>, <code>request.*</code>, <code>visit.*</code>, <code>media.visibility_requested</code>, …</dd><dt>Consumes</dt><dd><code>report.finalized</code>, <code>report.reopened</code>, <code>report.generated</code>, <code>org.*</code></dd><dt>Cron</dt><dd>Review reminders (7, 21, 28), auto-close (30), calibration digest</dd><dt>Env prefix</dt><dd><code>OPS_</code></dd><dt>Phase</dt><dd>2 (stations), 3 (requests), 4–5 (visits)</dd></dl>
+          </article>
+          <article class="card">
+            <h3>media <small class="muted">+ media-worker</small></h3>
+            <p>Presigned multipart uploads, file metadata, visibility, image and video processing, virus scanning.</p>
+            <dl><dt>Database</dt><dd><code>media</code></dd><dt>Emits</dt><dd><code>media.uploaded</code>, <code>.processed</code>, <code>.failed</code>, <code>.deleted</code></dd><dt>Consumes</dt><dd><code>media.visibility_requested</code></dd><dt>Cron</dt><dd><code>purge_originals</code>, <code>abort_stale_uploads</code>, <code>reconcile</code></dd><dt>Env prefix</dt><dd><code>MEDIA_</code></dd><dt>Phase</dt><dd>2 (documents), 4 (images, video)</dd></dl>
+          </article>
+          <article class="card">
+            <h3>report <small class="muted">+ report-worker</small></h3>
+            <p>Visit-report drafts and versions, signatures, finalize saga, close-out, client-form and label PDFs, summaries, dashboard read model.</p>
+            <dl><dt>Database</dt><dd><code>report</code></dd><dt>Emits</dt><dd><code>report.*</code></dd><dt>Consumes</dt><dd><code>visit.ended</code>, <code>visit.work_updated</code>, <code>media.processed</code>, <code>request.closed</code>, read-model events</dd><dt>Cron</dt><dd>Finalize reminders; resume stuck sagas</dd><dt>Env prefix</dt><dd><code>REPORT_</code></dd><dt>Phase</dt><dd>2 (skeleton, labels), 6, 7</dd></dl>
+          </article>
+          <article class="card">
+            <h3>platform</h3>
+            <p>Two modules with separate databases and users: notification (in-app, WebSocket, email) and audit (hash-chained, insert-only).</p>
+            <dl><dt>Databases</dt><dd><code>notification</code>, <code>audit</code></dd><dt>Emits</dt><dd>— (produces no events)</dd><dt>Consumes</dt><dd>User-facing events (notification); every topic (audit)</dd><dt>Cron</dt><dd>Weekly audit integrity check</dd><dt>Env prefix</dt><dd><code>PLATFORM_</code></dd><dt>Phase</dt><dd>1 (audit, account email), 3 (notifications)</dd></dl>
+          </article>
+        </div>
+
+        <div class="sub" id="services-endpoints">
+          <h3>All routes</h3>
+          <div class="table-tools" data-for="endpoints-table">
+            <label class="sr-only" for="endpoints-filter">Filter routes</label>
+            <input id="endpoints-filter" type="search" placeholder="Filter routes, roles or purpose">
+            <label class="sr-only" for="endpoints-service">Service</label>
+            <select id="endpoints-service" data-col="0">
+              <option value="">All services</option>
+              <option>auth</option><option>operations</option><option>media</option><option>report</option><option>platform</option>
+            </select>
+            <span class="count"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="endpoints-table">
+              <thead><tr><th>Service</th><th>Method</th><th>Path</th><th>Roles</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/register</code></td><td>public</td><td>Client self-registration → Pending (AUTH-1)</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/login</code></td><td>public</td><td>Returns an access token and sets the refresh cookie</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/refresh</code></td><td>cookie</td><td>Rotates the refresh token; new access token (30 s grace)</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/logout</code></td><td>any</td><td>Revokes the refresh token family</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/password-reset/request</code></td><td>public</td><td>Emails a reset link (always 202)</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/password-reset/confirm</code></td><td>public</td><td>Sets a new password and revokes all sessions</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/invitations/accept</code></td><td>public (token)</td><td>Sets the password for an invited user</td></tr>
+                <tr><td>auth</td><td>GET / PATCH</td><td><code>/api/v1/auth/me</code></td><td>any</td><td>Current user; update name, phone, password, time zone, theme</td></tr>
+                <tr><td>auth</td><td>GET</td><td><code>/api/v1/users</code></td><td>admin</td><td>List and filter users</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/users</code></td><td>admin</td><td>Invite a staff or client user (AUTH-6)</td></tr>
+                <tr><td>auth</td><td>PATCH</td><td><code>/api/v1/users/{id}</code></td><td>admin</td><td>Update roles, status, org; disable revokes all sessions</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/users/{id}/approve</code></td><td>admin</td><td>Approve a pending client (existing or new org)</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/users/{id}/reject</code></td><td>admin</td><td>Reject with a reason</td></tr>
+                <tr><td>auth</td><td>GET / POST / PATCH</td><td><code>/api/v1/organizations[/{id}]</code></td><td>admin (read: staff)</td><td>Manage client organizations</td></tr>
+                <tr><td>auth</td><td>GET</td><td><code>/.well-known/jwks.json</code></td><td>internal network</td><td>Public signing keys; not routed by Nginx</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/internal/service-token</code></td><td>service secret</td><td>Short-lived service token</td></tr>
+                <tr><td>auth</td><td>GET</td><td><code>/internal/snapshot/{users|organizations}</code></td><td>service</td><td>Read-model backfill</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations</code></td><td>any (client: own org)</td><td>List, filter, search, paginate</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations</code></td><td>technician, admin</td><td>Create a station</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/geo</code></td><td>any (scoped)</td><td>GeoJSON for the map</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}</code></td><td>any (scoped)</td><td>Detail with installed units and calibration status</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/stations/{id}</code></td><td>technician, admin</td><td>Update (owner organization never changes)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/installations</code></td><td>any (scoped)</td><td>Sensor installation history</td></tr>
+                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/stations/{id}/config-versions</code></td><td>staff / technician, admin</td><td>List; create a config version</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/config-versions/{v}/diff</code></td><td>staff</td><td>File-level diff by checksum (CFG-3)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/import</code></td><td>admin</td><td>Bulk import CSV/XLSX with dry run (STN-8)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/qr/{token}</code></td><td>any (scoped)</td><td>Resolve a QR token</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/{id}/qr/regenerate</code></td><td>admin</td><td>New QR token; old one revoked</td></tr>
+                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/sensor-models[/{id}]</code></td><td>staff (write: technician, admin)</td><td>Sensor model catalogue</td></tr>
+                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/sensor-units[/{id}]</code></td><td>staff</td><td>Units by serial; status; <code>needs_review</code></td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/calibrations/due</code></td><td>staff</td><td>Units due or overdue (CAL-4)</td></tr>
+                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/calibrations</code></td><td>staff</td><td>List; record a lab calibration</td></tr>
+                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/documents[/{id}]</code></td><td>scoped (client: visible only)</td><td>Model and station documents, versioned</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/documents/{id}/download</code></td><td>scoped</td><td>Access check, then a presigned URL from media</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests</code></td><td>any (scoped)</td><td>List and filter (REQ-15)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests</code></td><td>client, admin</td><td>Create; admin-created → Approved</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests/{id}</code></td><td>any (scoped)</td><td>Detail with status history and visits</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/requests/{id}</code></td><td>client (own, until Scheduled), admin</td><td>Edit fields and stations</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/approve</code></td><td>admin</td><td>Submitted → Approved</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/deny</code></td><td>admin</td><td>Submitted → Denied (reason)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/assign</code></td><td>admin</td><td>Set staff → Assigned</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/claim</code></td><td>technician, admin</td><td>Claim from the queue → Assigned</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/cancel</code></td><td>client (early states), admin</td><td>→ Cancelled; planned visits cancelled too</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/verify</code></td><td>client</td><td>Accept (with signature) or reject</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/queue</code></td><td>staff</td><td>Approved, unassigned requests</td></tr>
+                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/requests/{id}/comments</code></td><td>scoped</td><td>Flat thread; internal hidden from clients</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/requests/{id}/comments/{cid}</code></td><td>author, within 15 min</td><td>Edit a comment</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/attachments</code></td><td>scoped</td><td>Attach a <code>media_id</code></td></tr>
+                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/client-reports</code></td><td>client (own org), staff (read)</td><td>List; create a draft</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/client-reports/{id}</code></td><td>client (own, draft)</td><td>Update the form draft</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/client-reports/{id}/submit</code></td><td>client</td><td>Submit (form → PDF by report)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/my-work</code></td><td>staff</td><td>My assigned requests</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits</code></td><td>assigned staff, admin</td><td>Schedule a visit with station owners</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/mine</code></td><td>staff</td><td>My upcoming and active visits</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits</code></td><td>scoped</td><td>List by request, staff, dates</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/{id}</code></td><td>scoped</td><td>Visit with stations, owners, work, media</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/visits/{id}</code></td><td>assigned staff, admin</td><td>Reschedule; change staff, lead, owners</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/cancel</code></td><td>assigned staff, admin</td><td>Planned → Cancelled</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/restore</code></td><td>admin</td><td>Cancelled → Planned (work recorded offline)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/start</code></td><td>attending staff</td><td>Planned → Started</td></tr>
+                <tr><td>operations</td><td>PUT</td><td><code>/api/v1/visits/{id}/stations/{sid}/work</code></td><td>station owner</td><td>Save a work record (<code>base_version</code>)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/stations/{sid}/media</code></td><td>attending staff</td><td>Link media with phase and caption</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/end</code></td><td>attending staff</td><td>End; another visit needed?</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/{id}/field-bundle</code></td><td>attending staff</td><td>Offline package; records the device</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/sync</code></td><td>staff</td><td>Apply a batch of offline operations</td></tr>
+                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/checklist-templates[/{id}]</code></td><td>admin (read: staff)</td><td>Versioned checklist templates</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/lock</code></td><td>service (report)</td><td>Lock work records; idempotent per report version</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/unlock</code></td><td>service (report)</td><td>Unlock for correction or failed finalize</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/internal/visits/{id}</code></td><td>service</td><td>Full visit for report rendering</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/internal/requests/{id}</code></td><td>service</td><td>Request, org, stations, staff, status</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/internal/attachable</code></td><td>service (media)</td><td>May this user attach here? Returns <code>org_id</code></td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/internal/snapshot/{stations|requests|visits|sensor_units|calibrations}</code></td><td>service</td><td>Read-model backfill</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads</code></td><td>any (owner check)</td><td>Create media record; multipart upload + presigned part URLs</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/parts</code></td><td>uploader</td><td>More part URLs (resume); parts already uploaded</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/complete</code></td><td>uploader</td><td>Complete, verify checksum, enqueue processing</td></tr>
+                <tr><td>media</td><td>GET</td><td><code>/api/v1/media/{id}</code></td><td>scoped</td><td>Metadata + presigned URLs</td></tr>
+                <tr><td>media</td><td>GET</td><td><code>/api/v1/media</code></td><td>scoped</td><td>List media for an <code>owner_ref</code></td></tr>
+                <tr><td>media</td><td>PATCH</td><td><code>/api/v1/media/{id}</code></td><td>uploader, staff</td><td>Caption</td></tr>
+                <tr><td>media</td><td>DELETE</td><td><code>/api/v1/media/{id}</code></td><td>uploader (until locked), admin</td><td>Soft delete, audited</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/internal/media/{id}/url</code></td><td>service</td><td>Presigned URL after the caller's own access check</td></tr>
+                <tr><td>report</td><td>GET</td><td><code>/api/v1/reports</code></td><td>scoped (clients: final only)</td><td>List reports and versions</td></tr>
+                <tr><td>report</td><td>GET</td><td><code>/api/v1/reports/{id}</code></td><td>scoped</td><td>Report with content and signatures</td></tr>
+                <tr><td>report</td><td>PATCH</td><td><code>/api/v1/reports/{id}/content</code></td><td>attending staff, admin (draft)</td><td>Edit narrative and photos (<code>content_version</code>)</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/{id}/preview</code></td><td>staff</td><td>Render a draft PDF (job)</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/{id}/sign</code></td><td>attending staff</td><td>Sign the draft</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/{id}/finalize</code></td><td>lead technician, admin</td><td>Start the finalize saga</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/{id}/reopen</code></td><td>admin</td><td>New draft version; unlocks the visit</td></tr>
+                <tr><td>report</td><td>GET</td><td><code>/api/v1/reports/{id}/download</code></td><td>scoped</td><td>Presigned URL to the PDF</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/verify</code></td><td>public, rate-limited</td><td>Match a PDF or hash to a report version</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/labels</code></td><td>admin</td><td>Label sheet PDF (job)</td></tr>
+                <tr><td>report</td><td>POST</td><td><code>/api/v1/reports/summary</code></td><td>staff, viewer (client: limited)</td><td>Summary report PDF or CSV (job)</td></tr>
+                <tr><td>report</td><td>GET</td><td><code>/api/v1/reports/jobs/{id}</code></td><td>requester</td><td>Job status and result</td></tr>
+                <tr><td>report</td><td>GET</td><td><code>/api/v1/dashboard</code></td><td>role-appropriate</td><td>Dashboard figures from the read model</td></tr>
+                <tr><td>platform</td><td>WS</td><td><code>/ws</code></td><td>any</td><td>Real-time channel; first message authenticates</td></tr>
+                <tr><td>platform</td><td>GET</td><td><code>/api/v1/notifications</code></td><td>any</td><td>List, with catch-up after reconnecting</td></tr>
+                <tr><td>platform</td><td>POST</td><td><code>/api/v1/notifications/{id}/read</code>, <code>/read-all</code></td><td>any</td><td>Mark as read</td></tr>
+                <tr><td>platform</td><td>GET / PUT</td><td><code>/api/v1/notifications/preferences</code></td><td>any</td><td>Email preferences per type</td></tr>
+                <tr><td>platform</td><td>GET</td><td><code>/api/v1/audit/events</code></td><td>admin</td><td>Search, cursor-paginated</td></tr>
+                <tr><td>platform</td><td>GET</td><td><code>/api/v1/audit/events/export.csv</code></td><td>admin</td><td>CSV export of a search</td></tr>
+                <tr><td>platform</td><td>GET</td><td><code>/api/v1/audit/resources/{type}/{id}</code></td><td>staff (incl. viewer)</td><td>History tab for one resource</td></tr>
+                <tr><td>platform</td><td>POST</td><td><code>/api/v1/audit/verify</code></td><td>admin</td><td>Hash-chain integrity check (job)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     GATEWAY
+     ===================================================================== -->
+      <section class="doc" id="gateway">
+        <div class="doc-head">
+          <div class="row"><h2 id="gateway-h">Gateway and routing</h2><span class="badge planned">Planned</span></div>
+          <p>Nginx is the edge and the API gateway (ADR-5). It terminates TLS, serves the SPA, routes by path prefix, rate-limits and adds request IDs. It does not verify JWTs; each service does (ADR-7).</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §2.1, §15</a> · config in <code>infra/nginx/</code> (Phase 1)</span>
+        </div>
+
+        <figure class="diagram" data-title="How a request reaches a service" data-kind="System flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    B["Browser&lt;br/&gt;PWA"] -->|"https://mms.example.org"| N{"Nginx&lt;br/&gt;mms host"}
+    N -->|"/"| SPA["Static SPA&lt;br/&gt;index.html, sw.js no-cache"]
+    N -->|"/api/v1/auth, /users, /organizations"| AU[auth:8000]
+    N -->|"/api/v1/stations … /sync"| OP[operations:8000]
+    N -->|"/api/v1/media, /uploads"| MD[media:8000]
+    N -->|"/api/v1/reports, /dashboard"| RP[report:8000]
+    N -->|"/api/v1/notifications, /audit, /ws"| PF[platform:8000]
+    N -->|"/api/v1/integrations/"| X501["501 problem details"]
+    N -->|"/internal/, /.well-known/, other /api/"| X404["404"]
+    B -->|"https://files.mms.example.org&lt;br/&gt;presigned URLs only"| F{"Nginx&lt;br/&gt;files host"}
+    F -->|"Host preserved"| S3["seaweedfs:8333&lt;br/&gt;S3 API"]
+</pre>
+          </div>
+          <figcaption>Services mount their own <code>/api/v1/...</code> prefix and Nginx passes the path unchanged.</figcaption>
+        </figure>
+
+        <div class="sub" id="gateway-routes">
+          <h3>Routing table (<code>mms.</code> host)</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Path prefix</th><th>Target</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td><code>/</code></td><td>Static SPA build</td><td><code>try_files … /index.html</code>; <code>sw.js</code>, <code>index.html</code>, <code>theme-init.js</code> no-cache; hashed assets cached 1 year</td></tr>
+                <tr><td><code>/api/v1/auth</code>, <code>/api/v1/users</code>, <code>/api/v1/organizations</code></td><td><code>auth:8000</code></td><td>Login, register and reset use the <code>auth</code> rate-limit zone</td></tr>
+                <tr><td><code>/api/v1/stations</code>, <code>/sensor-models</code>, <code>/sensor-units</code>, <code>/calibrations</code>, <code>/documents</code>, <code>/qr</code>, <code>/requests</code>, <code>/queue</code>, <code>/client-reports</code>, <code>/my-work</code>, <code>/visits</code>, <code>/checklist-templates</code>, <code>/sync</code></td><td><code>operations:8000</code></td><td></td></tr>
+                <tr><td><code>/api/v1/media</code>, <code>/api/v1/uploads</code></td><td><code>media:8000</code></td><td></td></tr>
+                <tr><td><code>/api/v1/reports</code>, <code>/api/v1/dashboard</code></td><td><code>report:8000</code></td><td><code>/reports/verify</code> uses the <code>auth</code> zone (public)</td></tr>
+                <tr><td><code>/api/v1/notifications</code>, <code>/api/v1/audit</code></td><td><code>platform:8000</code></td><td></td></tr>
+                <tr><td><code>/ws</code></td><td><code>platform:8000</code></td><td>WebSocket upgrade; 1 h read timeout</td></tr>
+                <tr><td><code>/api/v1/integrations/</code></td><td><code>return 501</code></td><td>Reserved for the integrations release</td></tr>
+                <tr><td><code>/internal/</code>, <code>/.well-known/</code>, other <code>/api/</code></td><td><code>return 404</code></td><td>Never reachable from outside</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="gateway-edge">
+          <h3>Edge settings</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Feature</th><th>Setting</th></tr></thead>
+              <tbody>
+                <tr><td>Request ID</td><td><code>X-Request-ID</code> from the request or <code>$request_id</code>; passed upstream, echoed back, becomes the event <code>correlation_id</code></td></tr>
+                <tr><td>Rate limits</td><td>Zone <code>api</code>: 300/min per IP, burst 100 (office IPs allowlisted higher). Zone <code>auth</code>: 10/min per IP, burst 5 on login, register, reset, report verify</td></tr>
+                <tr><td>Body size</td><td>10 MB on <code>/api/</code>; 16 MB on the files host (8 MiB parts)</td></tr>
+                <tr><td>CORS</td><td>None on the API (same origin). Files host: app origin only, <code>GET</code>/<code>PUT</code>/<code>HEAD</code>, exposes <code>ETag</code></td></tr>
+                <tr><td>TLS and headers</td><td>TLS 1.2+, HTTP → HTTPS, HSTS 1 year, gzip, security headers and CSP (see <a href="#security">Security</a>)</td></tr>
+                <tr><td>Logs and metrics</td><td>JSON access log to Loki; <code>stub_status</code> for nginx-prometheus-exporter</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     DATA
+     ===================================================================== -->
+      <section class="doc" id="data">
+        <div class="doc-head">
+          <div class="row"><h2 id="data-h">Data and schemas</h2><span class="badge planned">Planned</span></div>
+          <p>MongoDB and the S3 store are the only systems of record. Each service owns its database and has a Mongo user that can reach only that database; <code>platform</code> owns two. Kafka, Redis and the browser store are working copies.</p>
+          <span class="src">Sources: <a href="BSD.md">BSD</a> · <a href="TRD.md">TRD §5, §7.1, §10</a> · ADR-2</span>
+        </div>
+
+        <div class="sub" id="data-databases">
+          <h3>Databases by owning service</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Database</th><th>Service</th><th>Collections</th><th>Outbox</th><th>Consumes events</th></tr></thead>
+              <tbody>
+                <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code></td><td>Yes</td><td>No</td></tr>
+                <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code>, <code>sensor_applications</code>, <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>checklist_templates</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
+                <tr><td><code>media</code></td><td>media</td><td><code>media</code> (files are in S3)</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td><code>report</code></td><td>report</td><td><code>reports</code>, <code>signatures</code>, <code>report_jobs</code>; read model <code>request_facts</code>, <code>visit_facts</code>, <code>sensor_events</code>, <code>calibration_facts</code>, <code>station_facts</code></td><td>Yes</td><td>Yes</td></tr>
+                <tr><td><code>notification</code></td><td>platform</td><td><code>notifications</code>, <code>preferences</code>, <code>user_directory</code></td><td>No</td><td>Yes</td></tr>
+                <tr><td><code>audit</code></td><td>platform</td><td><code>audit_events</code>, <code>audit_state</code></td><td>No</td><td>Yes</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Every database also has <code>_migrations</code>; producing databases have <code>outbox</code> (published rows kept 7 days), consuming databases have <code>processed_events</code> (TTL 30 days). Every document has <code>_id</code> (UUIDv7), <code>created_at</code>, <code>updated_at</code>, <code>created_by</code> and <code>version</code> (optimistic concurrency, carried as <code>aggregate_version</code> in events).</p>
+        </div>
+
+        <figure class="diagram" data-title="Entity model across all databases" data-kind="Entity relationship diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+erDiagram
+    ORGANIZATION ||--o{ USER : "org_id (clients)"
+    ORGANIZATION ||--o{ STATION : "owner_org_id"
+    ORGANIZATION ||--o{ REQUEST : "org_id"
+    REQUEST }o--|{ STATION : "station_ids[]"
+    REQUEST ||--o{ COMMENT : "request_id"
+    REQUEST ||--o{ CLIENT_REPORT : "request_id"
+    REQUEST ||--o{ SITE_VISIT : "request_id"
+    SITE_VISIT }o--|{ STATION : "stations[] (owner + work record each)"
+    SITE_VISIT ||--o{ REPORT : "subject_ref = visit"
+    REQUEST ||--o{ REPORT : "subject_ref = request (close-out)"
+    REPORT ||--o{ SIGNATURE : "report_id"
+    REPORT |o--o| REPORT : "supersedes_id"
+    SENSOR_MODEL ||--o{ SENSOR_UNIT : "model_id"
+    STATION |o--o{ SENSOR_UNIT : "current_station_id"
+    SENSOR_UNIT ||--o{ INSTALLATION : "sensor_unit_id"
+    STATION ||--o{ INSTALLATION : "station_id"
+    SENSOR_UNIT ||--o{ CALIBRATION : "sensor_unit_id"
+    SITE_VISIT |o--o{ CALIBRATION : "visit_id"
+    SITE_VISIT ||--o{ SENSOR_APPLICATION : "visit_id"
+    STATION ||--o{ CONFIG_VERSION : "station_id"
+    STATION ||--o{ DOCUMENT : "scope_id (station)"
+    SENSOR_MODEL ||--o{ DOCUMENT : "scope_id (model)"
+    SITE_VISIT ||--o{ MEDIA : "owner_ref"
+    REQUEST ||--o{ MEDIA : "owner_ref (attachments)"
+    DOCUMENT ||--|| MEDIA : "media_id"
+    CONFIG_VERSION ||--|{ MEDIA : "files[]"
+    USER ||--o{ NOTIFICATION : "user_id"
+    USER ||--o{ AUDIT_EVENT : "actor.user_id"
+</pre>
+          </div>
+          <figcaption>Relationships cross databases by ID only: a service never joins into another service's database. Field-level keys are in the schemas below and in <a href="BSD.md">BSD</a> "Entity model".</figcaption>
+        </figure>
+
+        <div class="sub" id="data-schemas">
+          <h3>Collection schemas</h3>
+          <p>Shapes as designed in TRD §5. When a service is built, its Pydantic models become the reference and this block is updated to match.</p>
+
+          <details class="fold">
+            <summary>auth <span class="src">TRD §5.1</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>users {
+  _id, email /*unique, lowercase*/, password_hash, name, phone, time_zone,
+  theme: "system"|"light"|"dark" /*default system*/,
+  roles: ["client"|"technician"|"admin"|"viewer"],
+  org_id /*clients*/, proposed_org_name /*pending*/,
+  status: "pending"|"invited"|"active"|"rejected"|"disabled",
+  rejection_reason, last_login_at
+}
+organizations { _id, name /*unique*/, country /*ISO 3166-1 alpha-2*/, contact_email, phone, address, status: "active"|"inactive" }
+refresh_tokens { _id, user_id, token_hash, family_id, expires_at /*TTL*/, revoked_at, replaced_by, rotated_at, device_label }
+password_resets { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
+invitations { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
+signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }</code></pre>
+              <p class="small muted">Indexes: <code>users.email</code> unique; <code>users.status</code>; <code>users.org_id</code>; <code>refresh_tokens.token_hash</code> unique; TTL on <code>expires_at</code>. A <code>client</code> role cannot be combined with a staff role.</p>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>operations · stations module <span class="src">TRD §5.2</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>stations {
+  _id, code /*unique, e.g. BB-CHR-014*/, name, type,
+  owner_org_id /*never changes: BSD B5*/, owner_org_name,
+  country /*ISO alpha-2*/, time_zone /*IANA*/, region,
+  location: { type: "Point", coordinates: [lon, lat] }, elevation_m,
+  parameters: ["AT","RH","BP","RAIN","WS","WD","SR", ...],
+  logger: { model, serial, firmware }, comms: { type, provider, identifier },
+  power: { panel_w, battery_ah, controller },
+  install_date, status: "operational"|"degraded"|"offline"|"decommissioned",
+  access_notes, photos: [media_id], qr_token /*unique*/, current_config_version
+}
+sensor_models { _id, kind: "sensor"|"logger"|"modem"|"battery"|"solar_panel"|"other",
+                manufacturer, model, parameters: [], default_calibration_interval_days }
+sensor_units {
+  _id, model_id, serial, status: "in_stock"|"installed"|"in_repair"|"retired",
+  current_station_id, current_org_id /*copied from the station*/, current_parameter,
+  calibration_interval_days, last_calibrated_at, calibration_due_at, last_calibration_result,
+  needs_review: bool, flags: [], notes
+}
+installations { _id, sensor_unit_id, station_id, org_id, parameter, installed_at, removed_at,
+                removal_reason, installed_visit_id, removed_visit_id, source_action_id }
+calibrations { _id /*= sensor action id when from a visit*/, sensor_unit_id, station_id, org_id, visit_id,
+               at, method: "field_check"|"field_adjust"|"lab", reference_instrument: {...},
+               readings: [{ reference, before, after, unit }], result: "pass"|"adjusted"|"fail",
+               certificate_media_id, performed_by, notes }
+sensor_applications { _id /*= sensor action id*/, visit_id, station_id, action_hash,
+                      effects: { installations_opened, installations_closed, unit_status, calibration_id, unit_created } }
+documents { _id, scope: "model"|"station", scope_id, doc_type, title, version_label, language,
+            description, client_visible: bool, media_id, supersedes_id, is_current: bool }
+config_versions { _id, station_id, version /*1..n*/, files: [{ media_id, filename, sha256, size_bytes }], notes, visit_id }</code></pre>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>operations · requests module <span class="src">TRD §5.2</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>requests {
+  _id, ref /*MR-YYYY-NNNN, unique*/, org_id, station_ids: [],
+  title, description,
+  category: "fault"|"communications"|"power"|"calibration"|"relocation"|"inspection"|"other",
+  priority: "low"|"normal"|"high"|"urgent",
+  status: "submitted"|"approved"|"denied"|"assigned"|"scheduled"|"in_progress"|
+          "client_review"|"reopened"|"closed"|"cancelled",
+  status_history: [{ from, to, by, at, note, event_id }],
+  assigned_staff_ids: [], denial_reason, cancel_reason,
+  rework_since, review_started_at, reminders_sent: [7, 21],
+  client_verification: { outcome: "accepted"|"rejected"|"auto_closed", by, at, comment,
+                         signature: { typed_name, image_png_b64, attestation, ip, user_agent } },
+  reopen_count, attachments: [media_id],
+  milestones: { submitted_at, approved_at, assigned_at, first_visit_at, review_started_at, closed_at }
+}
+comments { _id, request_id, org_id, author_id, author_name, author_role, body, attachments: [], internal, edited_at }
+client_reports { _id, request_id, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
+                 media_id, report_id, form: {...}, submitted_by, submitted_at }</code></pre>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>operations · visits module <span class="src">TRD §5.2</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>site_visits {
+  _id, ref /*VR-YYYY-NNNN-NN*/, request_id, org_id,
+  staff_ids: [], lead_staff_id, planned_start, planned_end, notes,
+  status: "planned"|"started"|"ended"|"cancelled",
+  locked: bool, report_status: "none"|"draft"|"final", report_version,
+  prepared_on: [{ user_id, device_id, at }],
+  started_at, ended_at, additional_visit_required, follow_up_notes,
+  stations: [{ station_id, station_code, station_name, time_zone, owner_staff_id,
+               arrived_at, departed_at,
+               media: [{ media_id, phase: "before"|"during"|"after", caption, captured_at, added_by }],
+               media_override_reason, work: WorkRecord }]
+}
+WorkRecord {
+  checklist_template: { id, version, items } /*copied*/,
+  condition_on_arrival: { status, notes },
+  checklist: [{ item_id, label, result: "ok"|"fixed"|"issue"|"na", note, ad_hoc }],
+  sensor_actions: [{ id, action: "replace"|"calibrate"|"clean"|"repair"|"remove"|"install",
+                     parameter, sensor_model_id, old_serial, new_serial, removal_reason, calibration, note }],
+  config_versions: [{ id, files: [media_id], notes }],
+  parts_used, issues_found, data_downloaded, condition_on_departure, notes,
+  version, updated_by, updated_at, device_id
+}
+checklist_templates { _id, name, station_type, sensor_model_id, version, items: [{ id, label, help }], active }
+sync_operations { _id /*client op id*/, user_id, device_id, type, result, applied_at /*TTL 90d*/ }
+counters { _id /*"MR-2026" or "VR-2026-0042"*/, seq }</code></pre>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>media <span class="src">TRD §5.3</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>media {
+  _id, owner_service, owner_ref /*e.g. "visit:{id}:station:{sid}:before"*/, org_id /*null for model documents*/,
+  visibility: "staff"|"org", visibility_version,
+  kind: "image"|"video"|"pdf"|"config"|"document",
+  filename, mime, size_bytes, checksum_sha256,
+  original_key, processed_key, thumbnail_key, original_purged_at,
+  width, height, duration_s, captured_at, caption,
+  status: "pending"|"uploaded"|"processing"|"ready"|"failed"|"deleted",
+  error, upload_id /*S3 multipart*/, upload_started_at, uploaded_by
+}</code></pre>
+              <p class="small muted">Indexes: <code>owner_ref</code>; <code>(org_id, kind)</code>; <code>status</code>; <code>upload_id</code>.</p>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>report <span class="src">TRD §5.4</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>reports {
+  _id, type: "visit"|"closeout"|"client_form"|"summary"|"labels",
+  subject_ref /*"visit:{id}", "request:{id}"*/, request_id, org_id,
+  number /*VR-2026-0042-02*/, version /*1..n*/,
+  status: "draft"|"finalizing"|"final"|"superseded",
+  content: { facts, narrative: { summary, stations, recommendations, follow_up }, media_selection },
+  content_version, content_hash, template_version, pdf_key, pdf_sha256,
+  finalize_attempts, finalize_error, finalized_at, finalized_by, supersedes_id
+}
+signatures { _id, report_id, report_version, signer_id, signer_role, typed_name,
+             image_png_b64 /*≤ 100 KB*/, attestation, signed_at, ip, user_agent, content_hash }
+report_jobs { _id, type, params, status, report_id, error, requested_by }
+// read model (from events and backfill); each row keeps its aggregate_version
+request_facts, visit_facts, sensor_events, calibration_facts, station_facts</code></pre>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>notification and audit (platform) <span class="src">TRD §5.5, §5.6</span></summary>
+            <div class="fold-body">
+<pre class="code"><code>notifications { _id, user_id, type, title, body, link, read_at, created_at /*TTL 1 year*/ }
+preferences { _id /*user_id*/, email: { "&lt;type&gt;": bool } }
+user_directory { _id /*user_id*/, email, name, roles, org_id, status, aggregate_version }
+
+audit_events {
+  _id /*= source event_id*/, seq /*monotonic*/, at, received_at,
+  actor: { user_id, name, roles, ip, user_agent, device_id },
+  action, resource: { type, id }, org_id, before, after, metadata, correlation_id, source_service,
+  prev_hash, hash /*sha256(prev_hash + canonical(record without hash))*/
+}
+audit_state { _id: "chain", last_seq, last_hash }</code></pre>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>Device store (IndexedDB via Dexie) <span class="src">TRD §7.1</span></summary>
+            <div class="fold-body">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Table</th><th>Contents</th></tr></thead>
+                  <tbody>
+                    <tr><td><code>bundles</code></td><td>Prepared visits and station bundles (JSON), per user</td></tr>
+                    <tr><td><code>files</code></td><td>Manuals, documents and latest config files, as blobs (never as URLs)</td></tr>
+                    <tr><td><code>visits</code></td><td>Local working copy of visits and the work records this user owns</td></tr>
+                    <tr><td><code>outbox</code></td><td>Ordered operations <code>{op_id, user_id, visit_id, type, payload, created_at, attempts, status}</code></td></tr>
+                    <tr><td><code>blobs</code></td><td>Captured media and config files with upload progress</td></tr>
+                    <tr><td><code>meta</code></td><td>Device ID, offline profile, PIN verifier, <code>offline_until</code>, failed PIN count, last sync, storage estimate</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="sub" id="data-retention">
+          <h3>Retention</h3>
+          <p>Business and audit records are kept indefinitely and never hard-deleted through the app. Only these expire:</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Kept for</th><th>Mechanism</th></tr></thead>
+              <tbody>
+                <tr><td>Raw photo and video originals</td><td>30 days after processing</td><td><code>purge_originals</code> cron (media)</td></tr>
+                <tr><td>Incomplete multipart uploads</td><td>48 hours</td><td><code>abort_stale_uploads</code> cron (media)</td></tr>
+                <tr><td>Notifications</td><td>1 year</td><td>TTL on <code>created_at</code></td></tr>
+                <tr><td>Sync operation log</td><td>90 days</td><td>TTL on <code>applied_at</code></td></tr>
+                <tr><td><code>processed_events</code></td><td>30 days</td><td>TTL</td></tr>
+                <tr><td>Published <code>outbox</code> rows</td><td>7 days</td><td>TTL</td></tr>
+                <tr><td>Refresh, reset, invitation tokens</td><td>30 days, 1 hour, 7 days</td><td>TTL on <code>expires_at</code></td></tr>
+                <tr><td>Pending client registrations</td><td>30 days (AUTH-5)</td><td>Daily cron (auth)</td></tr>
+                <tr><td>Kafka events; dead letters</td><td>14 days; 30 days</td><td>Topic retention</td></tr>
+                <tr><td>Device offline profile</td><td>Until logout or <code>offline_until</code></td><td>Removed by the app</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     EVENTS
+     ===================================================================== -->
+      <section class="doc" id="events">
+        <div class="doc-head">
+          <div class="row"><h2 id="events-h">Events and outbox</h2><span class="badge planned">Planned</span></div>
+          <p>Services tell each other about changes only through Kafka events, written to a transactional outbox in the same Mongo transaction as the change. A relay running under a Redis leader lease publishes them. Consumers apply each event exactly once.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §4.2, §8</a> · ADR-3, ADR-13</span>
+        </div>
+
+        <figure class="diagram" data-title="Who publishes and who consumes" data-kind="Data flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    subgraph P["Producers"]
+        AU[auth]
+        OP[operations]
+        MD[media]
+        RP[report]
+    end
+    subgraph T["Topics (3 partitions, 14 days)"]
+        TA[("mms.auth.events")]
+        TO[("mms.operations.events")]
+        TM[("mms.media.events")]
+        TR[("mms.report.events")]
+    end
+    subgraph C["Consumer groups"]
+        COP["operations"]
+        CMD["media"]
+        CRP["report"]
+        CNO["notification (platform)"]
+        CAU["audit (platform)"]
+    end
+    AU --> TA
+    OP --> TO
+    MD --> TM
+    RP --> TR
+    TA -->|"org.*"| COP
+    TA -->|"org.*"| CRP
+    TA -->|"user.*, org.*"| CNO
+    TO -->|"media.visibility_requested"| CMD
+    TO -->|"request.*, visit.*, station.*, sensor.*, calibration.*, config.*"| CRP
+    TO -->|"user-facing events"| CNO
+    TM -->|"media.*"| CRP
+    TM -->|"media.*"| CNO
+    TR -->|"report.finalized, .reopened, .generated"| COP
+    TR -->|"report.finalized (read model)"| CRP
+    TR -->|"report.*"| CNO
+    TA &amp; TO &amp; TM &amp; TR -->|"every event"| CAU
+</pre>
+          </div>
+          <figcaption><code>platform</code> produces no events. Dead letters go to <code>mms.dlq.&lt;consumer-service&gt;</code> (30 days).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="From state change to consumer: outbox, relay and exactly-once handling" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant H as Request handler
+    participant D as domain/ state machine
+    participant M as Service DB (Mongo)
+    participant R as Redis
+    participant L as Outbox relay (leader only)
+    participant K as Kafka
+    participant C as Consumer (other service)
+
+    H->>D: Command, e.g. approve request
+    D-->>H: New state + event (or a rule violation)
+    H->>M: One transaction: update record (version + 1) and insert outbox row
+    L->>R: SET outbox-leader:service NX PX 10000, renewed every 3 s
+    M--)L: Change stream wakes the relay (1 s polling fallback)
+    L->>M: Read unpublished rows, oldest first
+    L->>K: Produce (idempotent, acks=all), key = root aggregate ID
+    L->>M: Set published_at (row kept 7 days)
+    K--)C: Deliver to the consumer group
+    C->>C: Validate envelope for (type, version), unknown goes to DLQ
+    C->>C: One transaction: insert processed_events + apply effect (aggregate_version guard)
+    C->>K: Commit offset
+</pre>
+          </div>
+          <figcaption>If the leader dies, another worker takes the lease within 10 s, so relays never run in parallel or out of order. A consumer retries transient errors 5 times (1 s → 30 s) before the DLQ; nothing is dropped silently.</figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="events-topology">
+            <h3>Topology</h3>
+            <div class="table-wrap">
+              <table>
+                <tbody>
+                  <tr><td>Broker</td><td>Kafka 4.x, KRaft combined mode, single node in v1</td></tr>
+                  <tr><td>Topics</td><td><code>mms.auth.events</code>, <code>mms.operations.events</code>, <code>mms.media.events</code>, <code>mms.report.events</code></td></tr>
+                  <tr><td>Partitions</td><td>3 per topic</td></tr>
+                  <tr><td>Message key</td><td>Root aggregate: <code>user_id</code>/<code>org_id</code> (auth); <code>request_id</code> for request, comment, client-report and visit events; <code>station_id</code> for station, sensor, calibration, document, config; <code>media_id</code>; <code>request_id</code> for report events</td></tr>
+                  <tr><td>Retention</td><td>14 days; DLQ 30 days (Mongo is the system of record)</td></tr>
+                  <tr><td>Producer</td><td>aiokafka, <code>enable_idempotence=True</code>, <code>acks="all"</code></td></tr>
+                  <tr><td>Consumers</td><td>Group = service name; platform runs <code>notification</code> and <code>audit</code>. Manual commit after handling</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" id="events-envelope">
+            <h3>Envelope</h3>
+<pre class="code"><code>{
+  "event_id": "0192f0c4-…",
+  "type": "visit.ended",
+  "version": 1,
+  "occurred_at": "2026-10-15T14:02:11Z",
+  "source": "operations",
+  "key": "&lt;root aggregate id&gt;",
+  "aggregate_version": 7,
+  "actor": { "user_id": "…", "roles": ["technician"],
+             "ip": "…", "user_agent": "…", "device_id": "…" },
+  "org_id": "…",
+  "resource": { "type": "visit", "id": "…" },
+  "correlation_id": "…",
+  "audit": { "before": { }, "after": { } },
+  "data": { }
+}</code></pre>
+            <p class="small muted">Schemas are Pydantic models in <code>mms_common.events</code>, keyed by <code>(type, version)</code>. A breaking change publishes a new <code>version</code>.</p>
+          </div>
+        </div>
+
+        <div class="sub" id="events-catalogue">
+          <h3>Event catalogue</h3>
+          <div class="table-tools" data-for="events-table">
+            <label class="sr-only" for="events-filter">Filter events</label>
+            <input id="events-filter" type="search" placeholder="Filter by event, consumer or field">
+            <label class="sr-only" for="events-producer">Producer</label>
+            <select id="events-producer" data-col="1">
+              <option value="">All producers</option>
+              <option>auth</option><option>operations</option><option>media</option><option>report</option>
+            </select>
+            <span class="count"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="events-table">
+              <thead><tr><th>Event</th><th>Producer</th><th>Consumers</th><th>Key data fields</th></tr></thead>
+              <tbody>
+                <tr><td><code>auth.login_succeeded</code> / <code>auth.login_failed</code> / <code>auth.logout</code> / <code>auth.password_reset</code></td><td>auth</td><td>platform (audit)</td><td>user_id?, email_hash, reason?</td></tr>
+                <tr><td><code>user.registered</code></td><td>auth</td><td>platform</td><td>user_id, name, proposed_org_name</td></tr>
+                <tr><td><code>user.invited</code></td><td>auth</td><td>platform</td><td>user_id, roles, org_id?</td></tr>
+                <tr><td><code>user.approved</code> / <code>user.rejected</code></td><td>auth</td><td>platform</td><td>user_id, org_id?, reason?</td></tr>
+                <tr><td><code>user.updated</code> / <code>user.disabled</code></td><td>auth</td><td>platform</td><td>user_id, roles, status, org_id</td></tr>
+                <tr><td><code>org.created</code> / <code>org.updated</code></td><td>auth</td><td>operations, report, platform</td><td>org_id, name, country, status</td></tr>
+                <tr><td><code>station.created</code> / <code>station.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, code, name, org_id, country, status</td></tr>
+                <tr><td><code>qr.regenerated</code></td><td>operations</td><td>platform (audit)</td><td>station_id</td></tr>
+                <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code></td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, needs_review</td></tr>
+                <tr><td><code>sensor.installed</code> / <code>sensor.removed</code> / <code>sensor.application_reversed</code></td><td>operations</td><td>report, platform (audit)</td><td>unit_id, serial, model_id, station_id, parameter, visit_id, action_id</td></tr>
+                <tr><td><code>calibration.recorded</code> / <code>calibration.voided</code></td><td>operations</td><td>report, platform (audit)</td><td>calibration_id, unit_id, station_id, result, due_at</td></tr>
+                <tr><td><code>calibration.due_digest</code></td><td>operations</td><td>platform (notification)</td><td>units[]</td></tr>
+                <tr><td><code>document.uploaded</code> / <code>document.updated</code></td><td>operations</td><td>platform (audit)</td><td>document_id, scope, scope_id, doc_type, client_visible</td></tr>
+                <tr><td><code>config.version_created</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, version, file_count, visit_id?</td></tr>
+                <tr><td><code>media.visibility_requested</code></td><td>operations</td><td>media</td><td>media_ids, visibility, visibility_version</td></tr>
+                <tr><td><code>request.submitted</code></td><td>operations</td><td>platform, report</td><td>request_id, ref, station_ids, priority</td></tr>
+                <tr><td><code>request.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>request_id, changed_fields</td></tr>
+                <tr><td><code>request.approved</code> / <code>request.denied</code></td><td>operations</td><td>platform, report</td><td>request_id, reason?</td></tr>
+                <tr><td><code>request.assigned</code></td><td>operations</td><td>platform, report</td><td>request_id, staff_ids, claimed</td></tr>
+                <tr><td><code>request.status_changed</code></td><td>operations</td><td>platform, report</td><td>request_id, from, to, reason?</td></tr>
+                <tr><td><code>request.client_review_started</code></td><td>operations</td><td>platform, report</td><td>request_id</td></tr>
+                <tr><td><code>request.review_reminder</code></td><td>operations</td><td>platform (notification)</td><td>request_id, day</td></tr>
+                <tr><td><code>request.reopened</code></td><td>operations</td><td>platform, report</td><td>request_id, comment</td></tr>
+                <tr><td><code>request.closed</code></td><td>operations</td><td>platform, report</td><td>request_id, outcome, auto_closed, signature?</td></tr>
+                <tr><td><code>request.cancelled</code></td><td>operations</td><td>platform, report</td><td>request_id, reason?</td></tr>
+                <tr><td><code>comment.added</code> / <code>comment.edited</code></td><td>operations</td><td>platform</td><td>request_id, comment_id, internal</td></tr>
+                <tr><td><code>client_report.submitted</code></td><td>operations</td><td>report, platform</td><td>client_report_id, request_id, kind, form?</td></tr>
+                <tr><td><code>visit.scheduled</code> / <code>visit.rescheduled</code></td><td>operations</td><td>platform, report</td><td>visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners</td></tr>
+                <tr><td><code>visit.cancelled</code> / <code>visit.restored</code></td><td>operations</td><td>platform, report</td><td>visit_id, request_id</td></tr>
+                <tr><td><code>visit.started</code></td><td>operations</td><td>report, platform (audit)</td><td>visit_id, request_id, started_at</td></tr>
+                <tr><td><code>visit.ended</code></td><td>operations</td><td>report, platform</td><td>visit_id, request_id, station_ids, sensor_actions[], config_versions[], additional_visit_required, overrides[]</td></tr>
+                <tr><td><code>visit.work_updated</code></td><td>operations</td><td>report, platform (audit)</td><td>visit_id, station_id, sensor_actions[], config_versions[]</td></tr>
+                <tr><td><code>visit.station_owner_changed</code></td><td>operations</td><td>platform</td><td>visit_id, station_id, from, to</td></tr>
+                <tr><td><code>visit.sync_conflict</code></td><td>operations</td><td>platform (notification)</td><td>visit_id, user_id, reason</td></tr>
+                <tr><td><code>visit.locked</code> / <code>visit.unlocked</code></td><td>operations</td><td>platform (audit)</td><td>visit_id, report_id</td></tr>
+                <tr><td><code>media.uploaded</code> / <code>media.processed</code> / <code>media.failed</code> / <code>media.deleted</code></td><td>media</td><td>report, platform</td><td>media_id, owner_ref, kind, error?</td></tr>
+                <tr><td><code>report.draft_ready</code></td><td>report</td><td>platform</td><td>report_id, visit_id</td></tr>
+                <tr><td><code>report.signed</code></td><td>report</td><td>platform (audit)</td><td>report_id, version, signer_id, signer_role</td></tr>
+                <tr><td><code>report.finalized</code></td><td>report</td><td>operations, platform, report (read model)</td><td>report_id, type, subject_ref, request_id, version</td></tr>
+                <tr><td><code>report.finalize_failed</code></td><td>report</td><td>platform</td><td>report_id, version, error</td></tr>
+                <tr><td><code>report.reopened</code></td><td>report</td><td>operations, platform</td><td>report_id, new_version, reason</td></tr>
+                <tr><td><code>report.generated</code></td><td>report</td><td>operations, platform</td><td>report_id, type, subject_ref</td></tr>
+                <tr><td><code>report.finalize_reminder</code></td><td>report</td><td>platform (notification)</td><td>report_id, working_days</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="events-backfill">
+          <h3>Read-model backfill</h3>
+          <p>Read models (report's facts, platform's <code>user_directory</code>, operations' copied organization names) are rebuilt from current state, never by replaying the outbox: Kafka keeps 14 days and the outbox 7. Each producer exposes <code>GET /internal/snapshot/{entity}?after=&amp;limit=500</code>; <code>infra/scripts/backfill.py --consumer &lt;service&gt;</code> pages through it with the same <code>aggregate_version</code> guard, then the consumer continues from its committed offset.</p>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     AUTH
+     ===================================================================== -->
+      <section class="doc" id="auth">
+        <div class="doc-head">
+          <div class="row"><h2 id="auth-h">Authentication</h2><span class="badge planned">Planned · Phase 1</span></div>
+          <p>Email and password login issues a 15-minute EdDSA access token, held in memory only, and a 30-day rotating refresh token in an httpOnly cookie. Every service verifies the JWT locally against auth's JWKS. Staff in the field reopen their work offline with a device PIN.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.1, §6</a> · <a href="AFD.md">AFD J1, J2</a> · AUTH-1 to AUTH-13 · ADR-7, ADR-20</span>
+        </div>
+
+        <div class="sub" id="auth-tokens">
+          <h3>Tokens</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Token</th><th>Format</th><th>Lifetime</th><th>Stored</th></tr></thead>
+              <tbody>
+                <tr><td>Access</td><td>JWT, EdDSA (Ed25519). Claims <code>sub</code>, <code>roles</code>, <code>org_id</code>, <code>name</code>, <code>iat</code>, <code>exp</code>, <code>jti</code>, <code>kid</code></td><td>15 min</td><td>Memory only (Pinia); never persisted</td></tr>
+                <tr><td>Refresh</td><td>256-bit random; SHA-256 hash in <code>refresh_tokens</code></td><td>30 days, rotated on each use</td><td>httpOnly, Secure, SameSite=Strict cookie, path <code>/api/v1/auth</code></td></tr>
+                <tr><td>Service</td><td>JWT, <code>roles:["service"]</code>, <code>sub:&lt;service&gt;</code></td><td>5 min</td><td>Service memory</td></tr>
+                <tr><td>Reset / invitation</td><td>256-bit, hashed, single use</td><td>1 hour / 7 days</td><td><code>password_resets</code>, <code>invitations</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <figure class="diagram" id="auth-login" data-title="Log in with email and password" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant P as PWA (/login)
+    participant N as Nginx
+    participant A as auth
+    participant R as Redis
+    participant M as auth DB (Mongo)
+    participant K as Kafka → platform audit
+
+    U->>P: Email and password, Log in
+    P->>N: POST /api/v1/auth/login
+    N->>N: Per-IP limit_req, add X-Request-ID
+    N->>A: Forward
+    A->>R: Failure count for hash(normalized email)
+    alt 5 failures in the last 15 minutes
+        A-->>P: 429 Too many attempts
+        P-->>U: "Too many attempts, try again in 15 minutes"
+    else Not throttled
+        A->>M: Find user by email
+        A->>A: Argon2id verify (dummy hash if no such user)
+        alt Wrong email or password
+            A->>R: Count the failure
+            A->>M: Outbox auth.login_failed
+            A-->>P: 401
+            P-->>U: "Email or password is incorrect"
+        else Password matches, account pending
+            A->>M: Outbox auth.login_failed (reason pending)
+            A-->>P: 403 pending
+            P-->>U: /register/pending
+        else Rejected, disabled, or organization deactivated
+            A->>M: Outbox auth.login_failed (reason)
+            A-->>P: 403 blocked
+            P-->>U: "This account cannot sign in. Contact the service desk."
+        else Active
+            A->>R: Clear the failure count
+            A->>M: One transaction: refresh token hash (new family_id) + outbox auth.login_succeeded
+            A-->>P: Access JWT (EdDSA, 15 min) + Set-Cookie refresh (httpOnly, Secure, SameSite=Strict, path /api/v1/auth, 30 days)
+            P->>P: Keep the access token in memory (Pinia), never persisted
+            P-->>U: Saved next page (deep link, QR), else /dashboard for the role
+        end
+    end
+    M--)K: Outbox relay (leader lease) publishes the auth.* event
+</pre>
+          </div>
+          <div class="view" data-label="draw.io">
+            <div class="canvas sheet"><img src="diagrams/login-password.drawio.svg" width="1300" height="1456" loading="lazy" alt="Login sequence drawn in draw.io: the same 25 steps as the Mermaid view."></div>
+          </div>
+          <figcaption>The throttle and the dummy Argon2 check run before anything about the account is revealed (AUTH-10). Status codes 401, 403 and 429 are proposed; error bodies are RFC 9457 problem details (TP V1).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-refresh" data-title="Return to the app: silent session refresh" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant T as Tab or service worker
+    participant L as Web Lock mms-auth-refresh
+    participant O as Other tabs (BroadcastChannel)
+    participant A as auth
+
+    alt No signal, staff user with an offline session
+        T->>T: /unlock, the device PIN opens field data (AUTH-12)
+    else Online
+        T->>L: Request the lock
+        L-->>T: Granted (others wait)
+        T->>A: POST /api/v1/auth/refresh (refresh cookie)
+        alt Valid token, or rotated less than 30 s ago
+            A->>A: Rotate in the same family (inside the grace window, return the same successor pair)
+            A-->>T: Access JWT + new refresh cookie
+            T->>O: Share the access token
+        else Revoked token reused after the grace window
+            A->>A: Revoke the whole family
+            A-->>T: 401
+            T->>T: /login, current page saved as next
+        else Expired (30 days), user disabled, or organization deactivated
+            A-->>T: 401
+            T->>T: /login with a reason banner, then back to the same page
+        end
+        T->>L: Release
+    end
+</pre>
+          </div>
+          <div class="view" data-label="draw.io">
+            <div class="canvas sheet"><img src="diagrams/login-refresh.drawio.svg" width="1026" height="869" loading="lazy" alt="Session refresh sequence drawn in draw.io: the same 13 steps as the Mermaid view."></div>
+          </div>
+          <figcaption>The access token is never stored, so every app start or reload gets one from <code>/refresh</code>. The 30-second grace window stops two tabs refreshing at once from logging the user out.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-status" data-title="Account status" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> Pending : client self-registers (AUTH-1)
+    [*] --> Invited : admin invites staff or client (AUTH-6)
+    Pending --> Active : admin approves and links an organization (AUTH-3)
+    Pending --> Rejected : admin rejects with a reason
+    Pending --> [*] : purged after 30 days without a decision (AUTH-5)
+    Invited --> Active : user sets a password from the invitation link
+    Active --> Disabled : admin disables, every session revoked (AUTH-11)
+    Disabled --> Active : admin changes the status back
+    Rejected --> [*]
+</pre>
+          </div>
+          <figcaption><code>users.status</code>. Only <b>Active</b> users in an active organization can log in: Pending sees the waiting page; Rejected, Disabled or an inactive organization sees "This account cannot sign in". The re-enable transition is an admin <code>PATCH /users/{id}</code> status change; confirm when auth is built.</figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="auth-passwords">
+            <h3>Passwords and throttling</h3>
+            <ul>
+              <li>Argon2id (<code>argon2-cffi</code>, time ≥ 3, memory ≥ 64 MiB).</li>
+              <li>At least 10 characters, checked against a breached-password list (HIBP range API, or a local k-anonymity file if there is no outbound internet, T1).</li>
+              <li>5 failures per account → 15-minute delay, keyed by the hash of the normalized email whether or not the account exists. Nginx adds the per-IP limit.</li>
+              <li>A successful reset revokes all refresh tokens.</li>
+              <li>Signing keys rotate yearly: a new <code>kid</code> joins JWKS; services cache JWKS in Redis for 10 minutes and refetch on an unknown <code>kid</code>.</li>
+            </ul>
+          </div>
+          <div class="sub" id="auth-offline">
+            <h3>Offline PIN session (staff)</h3>
+            <ul>
+              <li>Set on first "prepare for field": a 4–6 digit PIN.</li>
+              <li>Dexie <code>meta</code> stores the profile, a PBKDF2-SHA-256 verifier (310,000 iterations, random salt) and <code>offline_until</code>. No token is ever stored.</li>
+              <li>No signal and no access token → <code>/unlock</code>. Five wrong PINs turn offline unlock off until the next online login; data is kept.</li>
+              <li>Sync still needs a successful <code>/refresh</code>. Logout removes the profile and bundles; queued work stays for the same user.</li>
+              <li>Clients have no offline session.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="sub" id="auth-authorization">
+          <h3>Authorization in every service</h3>
+<pre class="code"><code>@router.post("/api/v1/requests/{id}/approve")
+async def approve(id: str, user: User = Depends(require_roles("admin"))): ...
+
+# Role groups (mms_common.auth)
+STAFF = {"technician", "admin", "viewer"}        # require_staff(): reads only for viewer
+STAFF_WRITE = {"technician", "admin"}            # every mutating route; a test asserts viewer never passes</code></pre>
+          <p>Org scoping is applied by the repository, not the endpoint. Clients see staff only as <code>{id, name}</code>, never email or phone (D4). Out-of-scope records are 404.</p>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     REQUESTS
+     ===================================================================== -->
+      <section class="doc" id="requests">
+        <div class="doc-head">
+          <div class="row"><h2 id="requests-h">Requests</h2><span class="badge planned">Planned · Phase 3</span></div>
+          <p>A maintenance request moves through explicit actions (submit, approve, deny, assign, cancel, verify) until it is assigned. From then until closure its status is derived from its visits and visit reports by one pure function, recomputed in the same transaction as every change (ADR-17).</p>
+          <span class="src">Sources: <a href="PRD.md">PRD §5.1</a> · <a href="TRD.md">TRD §3.2, §4.1</a> · <a href="AFD.md">AFD §4</a> · REQ-1 to REQ-16</span>
+        </div>
+
+        <figure class="diagram" data-title="Request status" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> Submitted : client creates
+    [*] --> Approved : admin creates
+    Submitted --> Denied : admin denies (reason)
+    Submitted --> Approved : admin approves
+    Approved --> Assigned : admin assigns / technician claims
+    Assigned --> Scheduled : a visit is planned
+    Scheduled --> Assigned : all planned visits cancelled
+    Scheduled --> InProgress : a visit starts (may be offline)
+    InProgress --> Scheduled : no visit under way, another planned
+    InProgress --> Assigned : visits ended, another visit needed
+    Assigned --> InProgress : a visit report reopened
+    InProgress --> ClientReview : no further visit needed and every visit report final
+    ClientReview --> InProgress : a visit report reopened
+    ClientReview --> Closed : client accepts (signature)
+    ClientReview --> Closed : auto-closed day 30
+    ClientReview --> Reopened : client rejects (reason)
+    Reopened --> Assigned : returns to same staff
+    Submitted --> Cancelled : client / admin
+    Approved --> Cancelled : client / admin
+    Assigned --> Cancelled : client / admin
+    Scheduled --> Cancelled : admin only (reason)
+    InProgress --> Cancelled : admin only (reason)
+    ClientReview --> Cancelled : admin only (reason)
+    Denied --> [*]
+    Closed --> [*]
+    Cancelled --> [*]
+</pre>
+          </div>
+          <figcaption>Status chips use the reserved status colours from DBD. Every change appends <code>status_history</code> and emits <code>request.status_changed</code>.</figcaption>
+        </figure>
+
+        <div class="sub" id="requests-derive">
+          <h3>Derived status (<code>domain/requests/state.py</code>)</h3>
+<pre class="code"><code>def derive_status(req, visits) -&gt; Status:
+    # Only while req.status in {assigned, scheduled, in_progress, client_review}
+    live = [v for v in visits if v.status != "cancelled"]
+    if any(v.status == "started" for v in live):
+        return IN_PROGRESS
+    if any(v.status == "planned" for v in live):
+        return SCHEDULED
+    ended = sorted((v for v in live if v.status == "ended"), key=lambda v: v.ended_at)
+    if not ended or ended[-1].additional_visit_required:
+        return ASSIGNED
+    if any(v.report_status != "final" for v in ended):
+        return IN_PROGRESS                      # awaiting a visit report
+    if req.rework_since and not activity_after(ended, req.rework_since):
+        return ASSIGNED                         # client rejected; nothing new since
+    return CLIENT_REVIEW</code></pre>
+          <ul>
+            <li><b>Parallel visits:</b> the status follows the busiest visit.</li>
+            <li><b>Report reopened in Client Review</b> → In progress; reminders and auto-close stop. <b>After Closed</b> the request stays Closed and the close-out report is regenerated.</li>
+            <li><b>Cancel</b> cancels planned visits in the same transaction; a started visit's work is still accepted.</li>
+          </ul>
+        </div>
+
+        <figure class="diagram" data-title="Who moves a request forward" data-kind="Swimlane flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    subgraph CL["Client"]
+        R["Report a problem&lt;br/&gt;J3 · status Submitted"]
+        RV["Review and sign off&lt;br/&gt;J8 · status Client Review"]
+        CLOSED(["Closed&lt;br/&gt;or auto-closed on day 30"])
+    end
+    subgraph AM["Admin"]
+        AP["Approve or deny&lt;br/&gt;J4 · deny ends the request"]
+        AS["Assign staff&lt;br/&gt;J4 · status Assigned"]
+    end
+    subgraph TE["Technician"]
+        CQ["Claim from queue&lt;br/&gt;J5 · status Assigned"]
+        SC["Schedule and prepare&lt;br/&gt;J5 · status Scheduled"]
+        VI["Carry out the visit&lt;br/&gt;J6 · offline, then sync"]
+        NV{"Another visit&lt;br/&gt;needed?"}
+        SG["Sign the visit report&lt;br/&gt;J7 · lead signs to finalize"]
+    end
+    R --> AP
+    AP --> AS
+    AP -->|or left in queue| CQ
+    AS --> SC
+    CQ --> SC
+    SC --> VI
+    VI --> NV
+    NV -->|"yes: schedule the next visit"| SC
+    NV -->|no| SG
+    SG -->|client notified| RV
+    RV -->|accepts and signs| CLOSED
+    RV -->|rejects with a reason| SC
+</pre>
+          </div>
+          <figcaption>From <a href="AFD.md">AFD §4</a>. Lanes are approximated with Mermaid subgraphs; a true swimlane version belongs in draw.io.</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Request to closure across services" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant C as Client (PWA)
+    participant OP as operations
+    participant RP as report
+    participant T as Technician (PWA)
+
+    C->>OP: POST /requests
+    OP-->>C: Submitted (request.submitted)
+    Note over OP: Admin approves, assigns / technician claims
+    T->>OP: POST /visits (dates, staff, station owners)
+    Note over OP: visit planned + request Scheduled (one transaction)
+    T->>OP: start / work / media (online or via /sync)
+    Note over OP: visit started + request In progress
+    T->>OP: end (no further visit)
+    Note over OP: sensor inventory + configs + request status (one transaction)
+    OP--)RP: visit.ended → draft report
+    T->>RP: edit content, sign, finalize
+    RP->>OP: POST /internal/visits/{id}/lock
+    RP--)OP: report.finalized → derive → Client Review
+    C->>OP: POST /requests/{id}/verify (accepted + signature)
+    OP--)RP: request.closed → close-out report
+</pre>
+          </div>
+        </figure>
+
+        <div class="sub" id="requests-jobs">
+          <h3>Scheduled jobs (operations, Redis-locked)</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Job</th><th>When</th><th>Emits</th><th>Setting</th></tr></thead>
+              <tbody>
+                <tr><td>Client-review reminders</td><td>Days 7, 21 and 28 of Client Review</td><td><code>request.review_reminder</code></td><td><code>OPS_REVIEW_REMINDER_DAYS</code></td></tr>
+                <tr><td>Auto-close</td><td>Day 30 of Client Review</td><td><code>request.closed</code> (<code>auto_closed: true</code>)</td><td><code>OPS_AUTO_CLOSE_DAYS</code></td></tr>
+                <tr><td>Calibration-due digest</td><td>Weekly</td><td><code>calibration.due_digest</code></td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     VISITS AND OFFLINE
+     ===================================================================== -->
+      <section class="doc" id="visits">
+        <div class="doc-head">
+          <div class="row"><h2 id="visits-h">Visits and offline sync</h2><span class="badge planned">Planned · Phases 4–5</span></div>
+          <p>A visit covers one or more stations; each station has one owner who records its work (ADR-18), and any attending staff can add media. In the field the phone works with no signal: operations queue in IndexedDB and sync later through <code>/sync</code>, idempotently. There is no merge; conflicts come back with a reason code and the device keeps its copy.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.2.1, §3.2.3, §7</a> · <a href="AFD.md">AFD J5, J6</a> · VIS-*, OFF-*</span>
+        </div>
+
+        <figure class="diagram" data-title="Carry out a visit with no signal (J6)" data-kind="Process flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    U{"App reopened&lt;br/&gt;with no signal?"} -->|yes| K["Unlock with PIN&lt;br/&gt;/unlock"]
+    U -->|no| O
+    K --> O["Open the visit&lt;br/&gt;scan QR or tap it on the dashboard"]
+    O --> P{"Prepared&lt;br/&gt;for offline?"}
+    P -->|no| W["Warning shown&lt;br/&gt;prepare now or continue anyway"]
+    P -->|yes| S["Start visit&lt;br/&gt;actual start time recorded"]
+    W --> S
+    S --> A["Arrive at a station I own&lt;br/&gt;pick it from the visit's list"]
+    A --> R["Record the station&lt;br/&gt;Before → Work → After → Review"]
+    R --> I{"Before and After&lt;br/&gt;images taken?"}
+    I -->|no| X["Add photos&lt;br/&gt;or override with a reason"]
+    I -->|yes| D["Depart station&lt;br/&gt;departure time recorded"]
+    X --> D
+    D --> M{"More&lt;br/&gt;stations?"}
+    M -->|yes| A
+    M -->|no| E["End visit&lt;br/&gt;answer: another visit needed?"]
+    E --> Y(["Sync when signal returns&lt;br/&gt;draft report ready within 10 min"])
+</pre>
+          </div>
+        </figure>
+
+        <figure class="diagram" data-title="Sync protocol" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    participant P as PWA sync worker
+    participant A as auth
+    participant MD as media
+    participant S3 as SeaweedFS (files host)
+    participant OP as operations
+
+    P->>A: POST /api/v1/auth/refresh (under Web Lock)
+    A-->>P: access token
+    loop each queued blob
+        P->>MD: POST /uploads (media_id, owner_ref, size, sha256)
+        MD-->>P: upload_id + presigned part URLs
+        P->>S3: PUT parts (8 MiB, resumable)
+        P->>MD: POST /uploads/{id}/complete
+    end
+    P->>OP: POST /api/v1/sync {device_id, ops:[...]}
+    OP-->>P: per op_id: applied | duplicate | conflict | error
+    P->>P: remove confirmed ops and blobs
+</pre>
+          </div>
+          <figcaption>Media first, so <code>media.attach</code> references media that exists. At most 100 ops per request, one transaction per op. Triggers: <code>online</code>, Background Sync (not iOS), app start, every 5 minutes, and "Sync now".</figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="visits-ops">
+            <h3>Offline operation types</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Type</th><th>Who</th></tr></thead>
+                <tbody>
+                  <tr><td><code>visit.start</code></td><td>attending staff</td></tr>
+                  <tr><td><code>station.arrive</code></td><td>station owner</td></tr>
+                  <tr><td><code>work.save</code></td><td>station owner (<code>base_version</code>)</td></tr>
+                  <tr><td><code>media.attach</code></td><td>attending staff, after upload</td></tr>
+                  <tr><td><code>station.depart</code></td><td>station owner</td></tr>
+                  <tr><td><code>visit.end</code></td><td>attending staff</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">Sensor swaps, calibrations and config versions travel inside <code>work.save</code> with device-generated IDs, so applying them is idempotent.</p>
+          </div>
+          <div class="sub" id="visits-conflicts">
+            <h3>Conflict codes</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Code</th><th>When</th></tr></thead>
+                <tbody>
+                  <tr><td><code>not_owner</code></td><td>Station owner changed while offline</td></tr>
+                  <tr><td><code>stale_version</code></td><td>Owner edited on another device</td></tr>
+                  <tr><td><code>locked</code></td><td>Visit locked (report final)</td></tr>
+                  <tr><td><code>visit_cancelled</code></td><td>Visit cancelled while offline; admin may restore</td></tr>
+                  <tr><td><code>already_ended</code></td><td>Another technician ended it first</td></tr>
+                  <tr><td><code>duplicate</code></td><td><code>op_id</code> already applied (no-op)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub" id="visits-reconcile">
+          <h3>Sensor reconciliation on end and later edits</h3>
+          <ol>
+            <li>Each applied sensor action has a <code>sensor_applications</code> record (<code>_id</code> = action ID) listing its effects.</li>
+            <li>New action → applied and recorded. Unchanged → skipped. Changed → reversed exactly, then re-applied. Removed → reversed.</li>
+            <li>Reversal is refused with <code>409 sensor_changed_later</code> if a later visit or manual change touched the same unit or station parameter.</li>
+            <li>Unknown serials are created once and flagged <code>needs_review</code>. Config versions are created at <code>end</code> and never change.</li>
+          </ol>
+          <p>VIS-6 (≥1 Before and ≥1 After image per station, or an override reason) is enforced in the domain layer on depart and on end.</p>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     MEDIA
+     ===================================================================== -->
+      <section class="doc" id="media">
+        <div class="doc-head">
+          <div class="row"><h2 id="media-h">Files and media</h2><span class="badge progress">Spike passed · Phases 2 and 4</span></div>
+          <p>Files never pass through the Python services: the browser uploads 8 MiB parts straight to SeaweedFS on presigned URLs through the <code>files.</code> host (ADR-6). Every file starts staff-only and becomes visible to a client only when the owning service says so (ADR-19).</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.3, §10</a> · <a href="BSD.md">BSD "How visibility is set on files"</a> · spike in <code>infra/spikes/seaweedfs/</code></span>
+        </div>
+
+        <figure class="diagram" data-title="Upload, process and share a file" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant P as PWA
+    participant MD as media
+    participant OW as Owning service (operations)
+    participant S3 as SeaweedFS (files host)
+    participant W as media-worker
+
+    P->>MD: POST /api/v1/uploads (media_id, owner_ref, kind, size, sha256)
+    MD->>OW: GET /internal/attachable?owner_ref=...&amp;user=...
+    OW-->>MD: Allowed, org_id
+    MD-->>P: upload_id + presigned part URLs (1 h), visibility = staff
+    loop each 8 MiB part
+        P->>S3: PUT part on its presigned URL, read the ETag
+    end
+    P->>MD: POST /uploads/{id}/complete (part ETags)
+    MD->>S3: CompleteMultipartUpload, verify sha256
+    MD->>W: Enqueue process_image, process_video or process_document
+    W->>S3: Write the processed file and thumbnail
+    W->>MD: status = ready + outbox media.processed
+    OW--)MD: media.visibility_requested (org), emitted when the file is attached
+</pre>
+          </div>
+          <figcaption>Clients read a file only when <code>media.org_id</code> equals their <code>org_id</code> and <code>visibility = org</code>, checked locally by media. Model documents stay <code>staff</code> and are reached through operations' download endpoint.</figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="media-buckets">
+            <h3>Buckets</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Bucket</th><th>Contents</th><th>Policy</th></tr></thead>
+                <tbody>
+                  <tr><td><code>mms-originals</code></td><td>Raw image and video uploads</td><td>Purged 30 days after <code>ready</code></td></tr>
+                  <tr><td><code>mms-media</code></td><td>Processed images, videos, thumbnails</td><td>Kept</td></tr>
+                  <tr><td><code>mms-documents</code></td><td>Manuals, datasheets, config files, client PDFs, certificates</td><td>Kept; versioning and object lock on configs if supported</td></tr>
+                  <tr><td><code>mms-reports</code></td><td>Generated PDFs</td><td>Kept; versioning and object lock on finals if supported</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">Keys: <code>&lt;org_id or "shared"&gt;/&lt;owner_type&gt;/&lt;owner_id&gt;/&lt;media_id&gt;/&lt;variant&gt;.&lt;ext&gt;</code>, never reused. Presigned URLs: 10 minutes for GET, 1 hour per upload part.</p>
+          </div>
+          <div class="sub" id="media-processing">
+            <h3>Processing and limits</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Input</th><th>Output</th></tr></thead>
+                <tbody>
+                  <tr><td>Image (JPEG, PNG, HEIC), ≤ 25 MB</td><td>EXIF/GPS stripped; WebP q80 at 2048 px + 400 px thumbnail</td></tr>
+                  <tr><td>Video (MP4, MOV, WebM), ≤ 200 MB</td><td>H.264/AAC MP4 at ≤ 1280 px, faststart; poster thumbnail</td></tr>
+                  <tr><td>PDF, ≤ 50 MB</td><td>ClamAV scan; page-1 thumbnail; original kept</td></tr>
+                  <tr><td>Config / other</td><td>ClamAV scan; checksum check</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">Type checked by magic bytes. Infected → <code>failed</code>, quarantined, admin notified.</p>
+          </div>
+        </div>
+
+        <div class="note"><strong>Phase 0 spike: passed 2026-10-16.</strong> <code>infra/spikes/seaweedfs/</code> checked SeaweedFS 4.48 behind Nginx: presigned PUT and GET through the files host, expired and edited URLs refused, multipart with presigned parts, list and abort of open uploads, CORS limited to the app origin with <code>ETag</code> exposed, versioning and COMPLIANCE object lock. All 15 server-side checks and the browser upload checks in Chrome 155 passed (a 50.9 MiB video in 7 parts took 2.0 s locally). For the media service: the global <code>-s3.allowedOrigins</code> flag is enough for CORS, and boto3's default checksums work. From an Android phone in Chrome over Wi-Fi, a 152.8 MiB video went up in 20 parts in 47.5 s and read back intact. The phone's earlier failed attempts left open multipart uploads on the server, which is what the <code>abort_stale_uploads</code> job is for. Firefox 158 passed the same browser checks. All planned checks are done; an iPhone run is optional. Garage stays the fallback.</div>
+      </section>
+
+<!-- =====================================================================
+     REPORTS
+     ===================================================================== -->
+      <section class="doc" id="reports">
+        <div class="doc-head">
+          <div class="row"><h2 id="reports-h">Reports and signatures</h2><span class="badge planned">Planned · Phases 2, 6, 7</span></div>
+          <p>A draft visit report is created automatically when a visit ends. Staff edit the narrative and sign; the lead finalizes through a resumable saga that locks the visit, renders the PDF and fixes a content hash. Finalized versions never change; a correction reopens the report as a new version (ADR-14).</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.4, §11</a> · RPT-1 to RPT-11 · AFD J7</span>
+        </div>
+
+        <figure class="diagram" data-title="Visit report status" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> Draft : visit.ended creates the draft
+    Draft --> Draft : content edited or facts refreshed (signatures cleared)
+    Draft --> Finalizing : lead has signed, Finalize
+    Finalizing --> Draft : facts changed at lock, or render failed 3 times
+    Finalizing --> Final : PDF stored, report.finalized
+    Final --> Superseded : admin reopens (new draft, version + 1)
+    Superseded --> [*]
+</pre>
+          </div>
+          <figcaption>A cron resumes any report left in <code>finalizing</code> for more than 15 minutes.</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Finalize saga" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    actor L as Lead technician
+    participant RP as report
+    participant OP as operations
+    participant W as report-worker
+    participant S3 as SeaweedFS
+
+    L->>RP: POST /api/v1/reports/{id}/finalize
+    RP->>RP: Check the lead's signature, status = finalizing (edits blocked)
+    RP->>OP: POST /internal/visits/{id}/lock (idempotent per report version)
+    OP-->>RP: Locked, final work version
+    RP->>RP: Re-snapshot facts
+    alt Facts changed since signing
+        RP->>OP: POST /internal/visits/{id}/unlock
+        RP-->>L: Back to draft, sign again
+    else Facts unchanged
+        RP->>RP: content_hash = SHA-256 of canonical content + signature metadata
+        RP->>W: render_final
+        alt Render succeeds
+            W->>S3: Store the PDF (footer shows the hash prefix)
+            W->>RP: One transaction: pdf_sha256, status = final, outbox report.finalized
+            RP--)OP: report.finalized, request status derived (Client Review)
+        else Render fails 3 times
+            W->>RP: status = draft, signatures kept, finalize_error stored
+            RP->>OP: POST /internal/visits/{id}/unlock
+            RP--)L: report.finalize_failed notification
+        end
+    end
+</pre>
+          </div>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="reports-rendering">
+            <h3>Rendering</h3>
+            <ul>
+              <li>WeasyPrint + Jinja2 templates in <code>services/report/app/templates/</code>, shared <code>base.html.j2</code> and <code>print.css</code> (A4, running header and footer, DRAFT watermark).</li>
+              <li>Up to 6 images per station section at 1024 px; the rest in the appendix. Videos get a QR link into the app.</li>
+              <li>Times in the station's zone with its abbreviation; signature blocks show UTC and local.</li>
+              <li>Summary charts: ApexCharts in one headless Chromium, exported to SVG. A chart over 30 s is left out; its table still prints.</li>
+              <li><code>template_version</code> is stored so old reports can be reproduced.</li>
+            </ul>
+          </div>
+          <div class="sub" id="reports-signatures">
+            <h3>Signatures</h3>
+            <ul>
+              <li><code>signature_pad</code> drawing (PNG ≤ 100 KB), typed name and an attestation checkbox.</li>
+              <li>Server records signer, role, server time, IP, user agent and the <code>content_hash</code> signed. Any later content change clears signatures.</li>
+              <li>Client acceptance is signed on <code>POST /requests/{id}/verify</code> and printed on the close-out report.</li>
+              <li>Signing needs a connection. A PAdES certificate signature can be added at the render step later (PRD Q3).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     PLATFORM
+     ===================================================================== -->
+      <section class="doc" id="platform">
+        <div class="doc-head">
+          <div class="row"><h2 id="platform-h">Notifications and audit</h2><span class="badge planned">Planned · Phases 1, 3, 7</span></div>
+          <p><code>platform</code> consumes events and never produces them. Its notification module turns user-facing events into in-app, WebSocket and email messages. Its audit module writes every event into an insert-only, hash-chained log.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.5, §12, §13.4</a> · NOT-1 to NOT-5 · AUD-1 to AUD-6 · ADR-13</span>
+        </div>
+
+        <figure class="diagram" data-title="Notification pipeline" data-kind="Data flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    E["User-facing event&lt;br/&gt;from Kafka"] --> R["Resolve recipients&lt;br/&gt;user_directory + event data"]
+    R --> S[("Store notification")]
+    S --> P["Redis publish&lt;br/&gt;ws:user:id"]
+    P --> W["Every platform instance&lt;br/&gt;pushes to its open sockets"]
+    S --> M{"Email on&lt;br/&gt;for this type?"}
+    M -->|yes| SMTP["Send email"]
+    M -->|no| Done(["In-app only"])
+</pre>
+          </div>
+          <figcaption>Entity changes are also pushed as <code>entity.updated</code> for live pages. The WebSocket client authenticates with its first message within 5 s, reconnects with backoff (1 s → 30 s) and catches up with <code>/notifications?after=</code>. Account emails come first, in Phase 1.</figcaption>
+        </figure>
+
+        <div class="sub" id="platform-audit">
+          <h3>Audit chain</h3>
+          <ul>
+            <li>Consumer group <code>audit</code> reads every <code>mms.*.events</code> topic and skips notification-only events (<code>*.reminder</code>, <code>*.digest</code>, <code>visit.sync_conflict</code>).</li>
+            <li>A single writer assigns <code>seq = last_seq + 1</code> and <code>hash = SHA-256(prev_hash ‖ canonical(record))</code>, updating <code>audit_state</code> in the same transaction. Duplicates fail on <code>_id = event_id</code>.</li>
+            <li>The audit Mongo user can only <code>find</code> and <code>insert</code> on <code>audit_events</code>. No API updates or deletes records.</li>
+            <li><code>POST /api/v1/audit/verify</code> recomputes the chain and reports the first broken <code>seq</code>; it also runs weekly with an alert.</li>
+            <li>A contract test checks that every AUD-1 action maps to an event type.</li>
+          </ul>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     FRONTEND
+     ===================================================================== -->
+      <section class="doc" id="frontend">
+        <div class="doc-head">
+          <div class="row"><h2 id="frontend-h">Frontend</h2><span class="badge progress">Theme foundation built</span></div>
+          <p>A Vue 3.5 + TypeScript PWA built with Vite. Vuetify 4 supplies components; Tailwind CSS 4 supplies layout and spacing; both read one set of brand tokens. Three shells: client (top navigation), staff (sidebar) and field (phone stepper with bottom navigation and a sync badge).</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §13</a> · <a href="DBD.md">DBD</a> · <a href="AFD.md">AFD §3, §5</a> · ADR-11 · code in <code>frontend/</code></span>
+        </div>
+
+        <figure class="diagram" data-title="How the theme is wired (built)" data-kind="Data flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    L["layers.css&lt;br/&gt;first import in main.ts"] -.->|"declares the cascade layer order"| TW
+    B["brand.ts&lt;br/&gt;light and dark tokens"] --> V["vuetify.ts&lt;br/&gt;createVuetify: themes, global defaults, mdi-svg icons"]
+    V --> CV["--v-theme-* CSS variables"]
+    CV --> TW["tailwind.css @theme&lt;br/&gt;bg-primary, text-surface-700"]
+    P["preference.ts&lt;br/&gt;localStorage mms-theme"] --> S["stores/theme.ts"]
+    S -->|"useTheme().change()"| V
+    S -->|"toggle .app-dark on html"| D["Tailwind dark: variant"]
+    I["public/theme-init.js&lt;br/&gt;runs before first paint"] -->|".app-dark"| D
+</pre>
+          </div>
+          <figcaption>One switch changes Vuetify's theme and the <code>.app-dark</code> class together. <code>theme-init.js</code> is an external file because the CSP is <code>script-src 'self'</code>.</figcaption>
+        </figure>
+
+        <div class="sub" id="frontend-files">
+          <h3>Files that exist today</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>File</th><th>Role</th></tr></thead>
+              <tbody>
+                <tr><td><code>src/main.ts</code></td><td>Entry. CSS import order is deliberate: <code>layers.css</code> first, then fonts, <code>tailwind.css</code>, <code>base.css</code></td></tr>
+                <tr><td><code>src/app/theme/brand.ts</code></td><td>Brand tokens for the <code>light</code> and <code>dark</code> Vuetify themes (Horizon blue primary is a placeholder until D1)</td></tr>
+                <tr><td><code>src/app/theme/vuetify.ts</code></td><td><code>createVuetify</code>: themes, global defaults (the DBD look), <code>mdi-svg</code> icon set, display thresholds equal to Tailwind's breakpoints</td></tr>
+                <tr><td><code>src/app/theme/settings.scss</code></td><td>Vuetify Sass settings: <code>$utilities: false</code>, <code>$color-pack: false</code></td></tr>
+                <tr><td><code>src/app/theme/layers.css</code></td><td><code>vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final</code></td></tr>
+                <tr><td><code>src/app/theme/tailwind.css</code></td><td>Tailwind theme + utilities in the <code>tailwind</code> layer, no preflight; default palette removed; colours mapped to <code>--v-theme-*</code>; <code>dark:</code> uses <code>.app-dark</code>; safelist for prop-generated classes</td></tr>
+                <tr><td><code>src/app/theme/base.css</code></td><td>Sets Vuetify's body and heading fonts to Inter</td></tr>
+                <tr><td><code>src/app/theme/icons.ts</code></td><td>The MDI icons the app uses, as SVG paths from <code>@mdi/js</code></td></tr>
+                <tr><td><code>src/app/theme/preference.ts</code>, <code>src/stores/theme.ts</code></td><td>Light / Dark / System preference and the store that applies it</td></tr>
+                <tr><td><code>public/theme-init.js</code></td><td>Sets <code>.app-dark</code> before first paint</td></tr>
+                <tr><td><code>src/app/router/index.ts</code>, <code>src/features/dashboard/DashboardPage.vue</code></td><td>Placeholder route and page; shells, guards and real pages arrive in Phase 1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <figure class="diagram" data-title="Pages and who can reach them" data-kind="Website flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    subgraph PUB["Public — no login needed"]
+        direction LR
+        P1[Log in] ~~~ P2[Register] ~~~ P3[Waiting for approval] ~~~ P4[Forgot password]
+        P5[Set new password] ~~~ P6[Accept invitation] ~~~ P7["QR landing /s/:token"] ~~~ P8[Verify a report]
+        P9["Unlock (offline PIN)"]
+    end
+
+    PUB -->|log in| DASH(["Dashboard&lt;br/&gt;one variant per role · /dashboard"])
+
+    DASH --> SH
+    DASH --> ST
+    DASH --> FD
+    DASH --> AD
+
+    subgraph SH["Shared — all roles, scoped by organization"]
+        S1[Stations list]
+        S2[Station page]
+        S3[Map]
+        S4[Requests list]
+        S5[New request]
+        S6[Request page]
+        S7[Review and sign off]
+        S8[New client report]
+        S9[Visit page]
+        S10[Media viewer]
+        S11[Visit report]
+        S12[Summary reports]
+        S13[Notifications]
+        S14[My profile]
+    end
+
+    subgraph ST["Staff — no clients"]
+        T1[Queue]
+        T2[Sensors]
+        T3[Sensor unit]
+        T4[Calibration due]
+    end
+
+    subgraph FD["Field — staff on phones"]
+        F1[QR scanner]
+        F2[Field visit]
+        F3[Sync status]
+    end
+
+    subgraph AD["Admin — admins only"]
+        A1[Registrations]
+        A2[Users]
+        A3[Organizations]
+        A4[Checklists]
+        A5[QR labels, import]
+        A6[Audit log]
+    end
+</pre>
+          </div>
+          <figcaption>Route paths are in <a href="AFD.md">AFD §3</a>. The router saves the target page as <code>next</code> for logged-out users and returns there after login.</figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="frontend-structure">
+            <h3>Planned structure</h3>
+<pre class="code"><code>frontend/src/
+  app/          router, guards, layouts (client, staff, field, public), theme/
+  api/          typed clients (openapi-typescript), auth interceptor (Web Lock refresh)
+  features/     auth/ dashboard/ requests/ visits/ stations/ sensors/ calibration/
+                documents/ reports/ client-reports/ admin/ audit/ notifications/
+  offline/      db.ts (Dexie), session.ts (PIN), outbox.ts, sync.ts, blobs.ts, bundles.ts
+  charts/       ApexCharts presets (also built into the report image)
+  components/   SignaturePad, MediaCapture, StationCard, StatusChip, SyncBadge, ...
+  stores/       Pinia
+  sw/           service worker (Workbox injectManifest)</code></pre>
+          </div>
+          <div class="sub" id="frontend-sw">
+            <h3>Service worker and live updates</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Resource</th><th>Strategy</th></tr></thead>
+                <tbody>
+                  <tr><td>App shell, JS, CSS, fonts, <code>theme-init.js</code></td><td>Precache</td></tr>
+                  <tr><td>Map tiles (OSM)</td><td>Cache-first, 2,000 entries, 30 days; never bulk-prefetched</td></tr>
+                  <tr><td>API requests</td><td><b>Never cached</b>; offline data comes only from Dexie</td></tr>
+                  <tr><td>Mutations, uploads</td><td>Never cached; sent through the outbox</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">WebSocket <code>wss://&lt;host&gt;/ws</code>: auth message within 5 s, server heartbeat every 25 s, messages <code>notification</code> and <code>entity.updated</code>.</p>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     SECURITY
+     ===================================================================== -->
+      <section class="doc" id="security">
+        <div class="doc-head">
+          <div class="row"><h2 id="security-h">Security and access</h2><span class="badge planned">Planned</span></div>
+          <p>A client sees only records whose organization matches the <code>org_id</code> in their token; the filter is added in each service's repository, and anything outside it is 404. Staff see everything; viewers see what staff see and never write.</p>
+          <span class="src">Sources: <a href="BSD.md">BSD "Access control", "Data classification"</a> · <a href="TRD.md">TRD §6.3, §15</a></span>
+        </div>
+
+        <div class="sub" id="security-matrix">
+          <h3>Who can read and write what</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Client</th><th>Technician</th><th>Admin</th><th>Viewer</th></tr></thead>
+              <tbody>
+                <tr><td>Own user profile</td><td>Read, edit</td><td>Same</td><td>Same</td><td>Same</td></tr>
+                <tr><td>Other users</td><td>Staff <code>{id, name}</code> on their requests and visits only</td><td>Read</td><td>Read, write</td><td>Read</td></tr>
+                <tr><td>Organizations</td><td>Own org, read</td><td>Read</td><td>Read, write</td><td>Read</td></tr>
+                <tr><td>Stations, sensors, calibration status</td><td>Own org, read summary</td><td>Read, write</td><td>Read, write</td><td>Read</td></tr>
+                <tr><td>Configuration versions</td><td>None</td><td>Read, write (never delete)</td><td>Read, write (never delete)</td><td>Read</td></tr>
+                <tr><td>Documents</td><td>Own <code>client_visible</code> docs, and visible model docs for installed models</td><td>Read, write</td><td>Read, write</td><td>Read</td></tr>
+                <tr><td>Requests</td><td>Own org: create, edit and cancel until Scheduled, verify</td><td>Read; claim; write when assigned</td><td>Read, write, approve, assign, cancel</td><td>Read</td></tr>
+                <tr><td>Comments</td><td>Own org, non-internal; write</td><td>Read, write, mark internal</td><td>Read, write</td><td>Read</td></tr>
+                <tr><td>Site visits</td><td>Own org, read</td><td>Read; add media when attending</td><td>Read; schedule, change owners, restore</td><td>Read</td></tr>
+                <tr><td>Work records</td><td>Own org, read</td><td>Write stations they own, until locked</td><td>Write any, until locked</td><td>Read</td></tr>
+                <tr><td>Media</td><td>Own org, <code>visibility = org</code></td><td>Read; write as uploader or attending</td><td>Read, write, delete</td><td>Read</td></tr>
+                <tr><td>Reports</td><td>Own org, final versions only</td><td>Read; edit and sign when attending</td><td>Read, write, finalize, reopen</td><td>Read</td></tr>
+                <tr><td>Client reports</td><td>Own org: create, edit draft, submit</td><td>Read</td><td>Read</td><td>Read</td></tr>
+                <tr><td>Audit trail</td><td>None</td><td>History tab per resource</td><td>Search, export, verify</td><td>History tab per resource</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="security-layers">
+          <h3>Enforcement layers</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Layer</th><th>Enforces</th></tr></thead>
+              <tbody>
+                <tr><td>Nginx</td><td>Path routing, rate limits, request IDs; 404 for <code>/internal/</code> and <code>/.well-known/</code>. No token checks; same-origin API</td></tr>
+                <tr><td>Each service</td><td>Verifies the EdDSA JWT locally; <code>require_roles(...)</code>; org filter in the repository; hides internal and draft data from clients; station ownership on work records</td></tr>
+                <tr><td>MongoDB</td><td>One user per database; the audit user can only <code>find</code> and <code>insert</code> on <code>audit_events</code></td></tr>
+                <tr><td>S3 store</td><td>One access key per service, limited to its buckets; all buckets private; presigned URLs only; CORS limited to the app origin</td></tr>
+                <tr><td>Device</td><td>Offline field data opens only after PIN unlock for the cached staff user</td></tr>
+                <tr><td>Infrastructure</td><td>Only ports 80 and 443 public; SeaweedFS, Kafka UI and Grafana via VPN or SSH tunnel</td></tr>
+                <tr><td>Service to service</td><td><code>/internal/*</code> needs a 5-minute service token; never routed by Nginx</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="security-csp">
+          <h3>Content Security Policy and headers (Nginx)</h3>
+<pre class="code"><code>Content-Security-Policy: default-src 'self';
+  img-src 'self' https://files.&lt;host&gt; https://tile.openstreetmap.org data: blob:;
+  media-src 'self' https://files.&lt;host&gt; blob:;
+  connect-src 'self' https://files.&lt;host&gt; https://tile.openstreetmap.org wss://&lt;host&gt;;
+  script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(self), microphone=(self), geolocation=()
+X-Frame-Options: DENY
+Strict-Transport-Security: max-age=31536000</code></pre>
+          <p>No inline scripts anywhere in the app. Secrets live in Docker secrets or <code>.env</code> files outside the repository and rotate yearly. CI runs <code>pip-audit</code>, <code>npm audit</code> and Trivy.</p>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     CONFIG
+     ===================================================================== -->
+      <section class="doc" id="config">
+        <div class="doc-head">
+          <div class="row"><h2 id="config-h">Configuration</h2><span class="badge planned">Planned</span></div>
+          <p>Each service reads environment variables through <code>pydantic-settings</code>, with its own prefix. The values below are the designed defaults; when a service is built, its variable names go in the last column and this table becomes the reference.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §16.3 and the sections named per row</a></span>
+        </div>
+
+        <div class="sub" id="config-prefixes">
+          <h3>Environment prefixes and files</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Service</th><th>Prefix</th><th>Example</th></tr></thead>
+              <tbody>
+                <tr><td>auth</td><td><code>AUTH_</code></td><td><code>AUTH_MONGO_URI</code></td></tr>
+                <tr><td>operations</td><td><code>OPS_</code></td><td><code>OPS_MONGO_URI</code>, <code>OPS_AUTO_CLOSE_DAYS</code></td></tr>
+                <tr><td>media</td><td><code>MEDIA_</code></td><td><code>MEDIA_MONGO_URI</code></td></tr>
+                <tr><td>report</td><td><code>REPORT_</code></td><td><code>REPORT_MONGO_URI</code></td></tr>
+                <tr><td>platform</td><td><code>PLATFORM_</code></td><td><code>PLATFORM_MONGO_URI</code></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Environments: <code>local</code> = <code>compose.yml</code> + <code>compose.dev.yml</code> (hot reload, seeded data, Mailpit, self-signed TLS); <code>staging</code> and <code>production</code> = <code>compose.yml</code> + <code>compose.prod.yml</code>, images tagged with the commit SHA. Only <code>OPS_MONGO_URI</code>, <code>OPS_AUTO_CLOSE_DAYS</code> and <code>OPS_REVIEW_REMINDER_DAYS</code> are named in the TRD so far; the other examples follow the convention.</p>
+        </div>
+
+        <div class="sub" id="config-values">
+          <h3>Tunable values</h3>
+          <div class="table-tools" data-for="config-table">
+            <label class="sr-only" for="config-filter">Filter settings</label>
+            <input id="config-filter" type="search" placeholder="Filter settings">
+            <span class="count"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="config-table">
+              <thead><tr><th>Setting</th><th>Default</th><th>Owner</th><th>Source</th><th>Env var</th></tr></thead>
+              <tbody>
+                <tr><td>Access token lifetime</td><td>15 min</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
+                <tr><td>Refresh token lifetime</td><td>30 days</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
+                <tr><td>Refresh rotation grace window</td><td>30 s</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
+                <tr><td>Login throttle</td><td>5 failures → 15 min</td><td>auth</td><td>TRD §6.2</td><td>Phase 1</td></tr>
+                <tr><td>Password minimum length</td><td>10</td><td>auth</td><td>AUTH-9</td><td>Phase 1</td></tr>
+                <tr><td>Reset / invitation token expiry</td><td>1 hour / 7 days</td><td>auth</td><td>TRD §6.2</td><td>Phase 1</td></tr>
+                <tr><td>Pending registration purge</td><td>30 days</td><td>auth</td><td>AUTH-5</td><td>Phase 1</td></tr>
+                <tr><td>JWKS cache</td><td>10 min</td><td>all services</td><td>TRD §6.1</td><td>Phase 1</td></tr>
+                <tr><td>Service token lifetime</td><td>5 min</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
+                <tr><td>Outbox leader lease / renewal</td><td>10 s / 3 s</td><td>all producers</td><td>TRD §8.2</td><td>Phase 1</td></tr>
+                <tr><td>Consumer retries</td><td>5, backoff 1 s → 30 s, then DLQ</td><td>all consumers</td><td>TRD §8.1</td><td>Phase 1</td></tr>
+                <tr><td>Rate limit <code>api</code> / <code>auth</code> zones</td><td>300/min burst 100 / 10/min burst 5</td><td>Nginx</td><td>TRD §2.1</td><td><code>infra/nginx/</code></td></tr>
+                <tr><td>API body size</td><td>10 MB</td><td>Nginx</td><td>TRD §2.1</td><td><code>infra/nginx/</code></td></tr>
+                <tr><td>Review reminders</td><td>Days 7, 21, 28</td><td>operations</td><td>TRD §3.2</td><td><code>OPS_REVIEW_REMINDER_DAYS</code></td></tr>
+                <tr><td>Auto-close</td><td>Day 30</td><td>operations</td><td>TRD §3.2</td><td><code>OPS_AUTO_CLOSE_DAYS</code></td></tr>
+                <tr><td>Comment edit window</td><td>15 min</td><td>operations</td><td>TRD §3.2</td><td>Phase 3</td></tr>
+                <tr><td>Sync batch size / interval</td><td>100 ops / 5 min</td><td>operations, PWA</td><td>TRD §7.3</td><td>Phase 5</td></tr>
+                <tr><td>Device PIN</td><td>4–6 digits, PBKDF2 310,000 iterations, 5 attempts</td><td>PWA</td><td>TRD §6.1</td><td>Phase 5</td></tr>
+                <tr><td>Multipart part size</td><td>8 MiB</td><td>media, PWA</td><td>TRD §10.2</td><td>Phase 2</td></tr>
+                <tr><td>Presigned URL lifetime</td><td>GET 10 min / part 1 hour</td><td>media</td><td>TRD §10.1</td><td>Phase 2</td></tr>
+                <tr><td>File size limits</td><td>Video 200 MB, image 25 MB, PDF or document 50 MB</td><td>media</td><td>TRD §10.2</td><td>Phase 2</td></tr>
+                <tr><td>Original purge</td><td>30 days after <code>ready</code></td><td>media</td><td>NFR-8</td><td>Phase 4</td></tr>
+                <tr><td>Abort stale uploads</td><td>48 hours</td><td>media</td><td>TRD §3.3</td><td>Phase 2</td></tr>
+                <tr><td>Media-worker concurrency</td><td>4 image, 2 video; video timeout 10 min</td><td>media-worker</td><td>TRD §9</td><td>Phase 4</td></tr>
+                <tr><td>Report-worker concurrency</td><td>2 jobs; timeout 5 min</td><td>report-worker</td><td>TRD §9</td><td>Phase 2</td></tr>
+                <tr><td>Finalize reminders</td><td>After 2 and 5 working days</td><td>report</td><td>TRD §3.4</td><td>Phase 6</td></tr>
+                <tr><td>Resume stuck finalize</td><td>15 min</td><td>report</td><td>TRD §11.2</td><td>Phase 6</td></tr>
+                <tr><td>Dashboard cache</td><td>60 s</td><td>report</td><td>TRD §9</td><td>Phase 7</td></tr>
+                <tr><td>Kafka partitions / retention</td><td>3 / 14 days; DLQ 30 days</td><td>infra</td><td>TRD §8.1</td><td><code>infra/kafka/topics.yml</code></td></tr>
+                <tr><td>Notification retention</td><td>1 year</td><td>platform</td><td>TRD §5.5</td><td>Phase 3</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="config-ports">
+          <h3>Ports</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Component</th><th>Port</th><th>Exposed</th></tr></thead>
+              <tbody>
+                <tr><td>Nginx</td><td>80, 443</td><td>Public</td></tr>
+                <tr><td>Each FastAPI service</td><td>8000</td><td>Internal network</td></tr>
+                <tr><td>SeaweedFS S3 gateway</td><td>8333</td><td>Internal; reached through the <code>files.</code> host</td></tr>
+                <tr><td>Frontend dev server</td><td>3000</td><td>Local only</td></tr>
+                <tr><td>SeaweedFS spike</td><td>8080</td><td>Local only</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     INFRASTRUCTURE
+     ===================================================================== -->
+      <section class="doc" id="infrastructure">
+        <div class="doc-head">
+          <div class="row"><h2 id="infrastructure-h">Infrastructure</h2><span class="badge planned">Planned · Phases 1, 7</span></div>
+          <p>Docker Compose on the organization's own production host, with a second host for staging and backups. Only Nginx is published; everything else is on an internal Docker network.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §16</a> · ADR-10</span>
+        </div>
+
+        <div class="sub" id="infrastructure-containers">
+          <h3>Containers</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Container</th><th>Image</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td>nginx</td><td>nginx:alpine + SPA build</td><td>Ports 80/443; gateway config in <code>infra/nginx/</code></td></tr>
+                <tr><td>auth, operations, platform</td><td>python:3.13-slim</td><td>uvicorn, 2 workers</td></tr>
+                <tr><td>media</td><td>python:3.13-slim + ffmpeg, libmagic</td><td>API</td></tr>
+                <tr><td>media-worker</td><td>same image as media</td><td>arq; <code>cpus: 2</code></td></tr>
+                <tr><td>report</td><td>python:3.13-slim + WeasyPrint deps + Chromium</td><td>API</td></tr>
+                <tr><td>report-worker</td><td>same image as report</td><td>arq</td></tr>
+                <tr><td>mongo</td><td>mongo:8</td><td>Single-node replica set <code>rs0</code></td></tr>
+                <tr><td>kafka</td><td>apache/kafka:4.x</td><td>KRaft combined mode</td></tr>
+                <tr><td>kafka-ui</td><td>kafbat/kafka-ui</td><td>Internal only</td></tr>
+                <tr><td>redis</td><td>redis:7.4</td><td><code>appendonly yes</code></td></tr>
+                <tr><td>seaweedfs</td><td>chrislusf/seaweedfs (pinned; spike uses 4.48)</td><td><code>weed server -s3</code>; data on a dedicated disk</td></tr>
+                <tr><td>clamav</td><td>clamav/clamav</td><td>Daily signature updates</td></tr>
+                <tr><td>prometheus, grafana, loki, alloy, exporters</td><td>official</td><td>Monitoring</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="split">
+          <div class="sub" id="infrastructure-hosts">
+            <h3>Hosts and memory</h3>
+            <p><b>Production:</b> 8 vCPU, 32 GB RAM, 200 GB SSD, plus 1 TB+ RAID-1 for SeaweedFS. <b>Second host:</b> staging and backups.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Component</th><th class="num">Memory</th></tr></thead>
+                <tbody>
+                  <tr><td>MongoDB</td><td class="num">4 GB</td></tr>
+                  <tr><td>ClamAV</td><td class="num">3 GB</td></tr>
+                  <tr><td>Python services</td><td class="num">2.5 GB</td></tr>
+                  <tr><td>Kafka</td><td class="num">2 GB</td></tr>
+                  <tr><td>media-worker</td><td class="num">2 GB</td></tr>
+                  <tr><td>Monitoring</td><td class="num">2 GB</td></tr>
+                  <tr><td>report-worker (incl. Chromium)</td><td class="num">1.5 GB</td></tr>
+                  <tr><td>SeaweedFS</td><td class="num">1 GB</td></tr>
+                  <tr><td>Redis</td><td class="num">0.5 GB</td></tr>
+                  <tr><td><b>Total</b></td><td class="num"><b>18.5 GB</b></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" id="infrastructure-backups">
+            <h3>Backups</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Data</th><th>Method</th><th>Kept</th></tr></thead>
+                <tbody>
+                  <tr><td>MongoDB, 6 databases</td><td>Nightly <code>mongodump --oplog</code>, encrypted, to the backup host</td><td>14 daily, 12 monthly</td></tr>
+                  <tr><td>Object store</td><td>Continuous <code>weed filer.sync</code>; nightly <code>rclone check</code></td><td>Replica + versioning</td></tr>
+                  <tr><td>Config and secrets</td><td>Encrypted archive on change</td><td>Last 10</td></tr>
+                  <tr><td>Kafka</td><td>Not backed up; rebuilt with <code>backfill.py</code></td><td>—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">Restore is tested quarterly into staging with an audit chain check. RPO ≤ 24 h, RTO ≤ 8 h.</p>
+          </div>
+        </div>
+
+        <div class="sub" id="infrastructure-observability">
+          <h3>Observability and alerts</h3>
+          <ul>
+            <li><b>Logs:</b> JSON via structlog with <code>service</code>, <code>request_id</code>, <code>correlation_id</code>, <code>user_id</code>, <code>event_id</code>; Alloy ships them to Loki.</li>
+            <li><b>Metrics:</b> per-service FastAPI instrumentator plus exporters; custom metrics for outbox lag, lease changes, consumer lag, DLQ size, media job time, sync results by conflict reason, report render time.</li>
+            <li><b>Alerts (email):</b> service down &gt; 2 min; 5xx &gt; 2% for 5 min; any DLQ non-empty; oldest unpublished outbox row &gt; 5 min; consumer lag &gt; 5 min; a report in <code>finalizing</code> &gt; 30 min; disk &gt; 80%; backup failed or missing; audit integrity failed; ClamAV signatures &gt; 3 days old.</li>
+          </ul>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     CI/CD
+     ===================================================================== -->
+      <section class="doc" id="cicd">
+        <div class="doc-head">
+          <div class="row"><h2 id="cicd-h">CI/CD and testing</h2><span class="badge progress">Frontend CI built</span></div>
+          <p>GitHub Actions tests only what changed, builds images tagged with the commit SHA, deploys <code>main</code> to staging and promotes the same images to production after a manual approval. Today only the frontend workflow exists.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §17, §18</a> · <a href="TP.md">TP.md</a> · <code>.github/workflows/</code></span>
+        </div>
+
+        <figure class="diagram" data-title="Pipeline" data-kind="Process flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    PR["Push or PR"] --> CH{"Changed paths"}
+    CH -->|"services/name"| PY["Ruff · mypy · pytest"]
+    CH -->|"libs/mms_common"| ALL["Test every service"]
+    CH -->|"frontend"| FE["ESLint · vue-tsc · Vitest · build"]
+    CH -->|"infra/nginx"| NG["nginx -t"]
+    PY &amp; ALL &amp; FE &amp; NG --> IMG["Build images sha-commit&lt;br/&gt;Trivy scan"]
+    IMG -->|"main only"| STG["Push to GHCR&lt;br/&gt;deploy to staging&lt;br/&gt;Playwright smoke"]
+    STG --> NIGHT["Nightly on staging&lt;br/&gt;Playwright in 3 browsers,&lt;br/&gt;visual regression, ZAP"]
+    NIGHT -->|"manual approval"| PROD["Production&lt;br/&gt;same images + smoke"]
+</pre>
+          </div>
+          <figcaption>A nightly failure blocks the next production deploy. Rollback is redeploying the previous tag. Weekly: restore drill with the audit chain check, and mutation tests on the state machines.</figcaption>
+        </figure>
+
+        <div class="split">
+          <div class="sub" id="cicd-workflows">
+            <h3>Workflows today</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Workflow</th><th>Runs</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td><code>frontend.yml</code></td><td>On changes under <code>frontend/</code>: <code>npm ci</code>, lint, type-check + build on Node 24</td><td><span class="badge built">Built</span></td></tr>
+                  <tr><td>Per-service pipeline</td><td>Ruff, mypy, pytest, images, Trivy, staging deploy</td><td><span class="badge planned">Phase 1</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sub" id="cicd-tests">
+            <h3>Test levels</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Level</th><th>Tooling</th></tr></thead>
+                <tbody>
+                  <tr><td>Unit (domain)</td><td>pytest, Hypothesis</td></tr>
+                  <tr><td>API</td><td>pytest + httpx + testcontainers</td></tr>
+                  <tr><td>Contract (events)</td><td>pytest against <code>mms_common.events</code></td></tr>
+                  <tr><td>Integration</td><td>pytest against the Compose stack</td></tr>
+                  <tr><td>Frontend unit</td><td>Vitest + Vue Test Utils + MSW</td></tr>
+                  <tr><td>End-to-end</td><td>Playwright, J1–J10, axe and CSP checks</td></tr>
+                  <tr><td>Load</td><td>Locust</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">Coverage: 90% for <code>domain/</code>, 70% overall. Tests carry requirement IDs (<code>@pytest.mark.req("REQ-3")</code>, Playwright <code>@REQ-3</code>).</p>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     DECISIONS
+     ===================================================================== -->
+      <section class="doc" id="decisions">
+        <div class="doc-head">
+          <h2 id="decisions-h">Decisions</h2>
+          <p>Architecture decision records from the TRD, and project decisions that closed open questions. Decided items are not reopened without a new decision recorded here and in the source document.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §1.2, §22</a> · <a href="../CLAUDE.md">CLAUDE.md</a> · open questions in each planning document</span>
+        </div>
+
+        <div class="sub" id="decisions-adr">
+          <h3>Architecture decisions (ADR)</h3>
+          <div class="table-tools" data-for="adr-table">
+            <label class="sr-only" for="adr-filter">Filter decisions</label>
+            <input id="adr-filter" type="search" placeholder="Filter decisions">
+            <span class="count"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="adr-table">
+              <thead><tr><th>#</th><th>Decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>ADR-1</td><td>Five services by business capability: auth, operations, media, report, platform</td><td>Stations, requests and visits change together; five is what one developer can build and run</td></tr>
+                <tr><td>ADR-2</td><td>One Mongo replica set; one database and user per service (platform has two)</td><td>Transactions for the outbox; ownership enforced; audit user stays insert-only</td></tr>
+                <tr><td>ADR-3</td><td>Kafka with a transactional outbox between services; direct calls inside operations</td><td>Durable, ordered, replayable events; no eventual consistency where none is needed</td></tr>
+                <tr><td>ADR-4</td><td>Redis for jobs, cache, leases, throttle, WebSocket pub/sub; not domain events</td><td>Queues need retry, timeout and cron semantics</td></tr>
+                <tr><td>ADR-5</td><td>Nginx is the edge and API gateway (Kong removed)</td><td>Kong OSS has no releases since 3.9.x; Nginx covers routing, limits and request IDs</td></tr>
+                <tr><td>ADR-6</td><td>Presigned direct uploads to SeaweedFS on a separate <code>files.</code> host</td><td>Large files never pass through Python; resumable multipart</td></tr>
+                <tr><td>ADR-7</td><td>EdDSA JWT verified locally in each service via JWKS</td><td>No auth round-trip per request</td></tr>
+                <tr><td>ADR-8</td><td>Client-generated UUIDv7 IDs and idempotency keys</td><td>Offline records keep their identity; sync is safe to retry</td></tr>
+                <tr><td>ADR-9</td><td>Monorepo with shared <code>mms_common</code></td><td>Consistent patterns, atomic cross-service changes</td></tr>
+                <tr><td>ADR-10</td><td>Docker Compose on one host</td><td>Small load; stateless services scale with <code>--scale</code></td></tr>
+                <tr><td>ADR-11</td><td>Vuetify 4 for components, Tailwind 4 for layout, ordered with cascade layers</td><td>One token set feeds both; Tailwind is the only utility system</td></tr>
+                <tr><td>ADR-12</td><td>Media and report run API and worker from one image as two containers</td><td>ffmpeg and PDF rendering never compete with API latency</td></tr>
+                <tr><td>ADR-13</td><td>Audit consumes every event into a hash-chained, insert-only collection</td><td>One complete, tamper-evident trail</td></tr>
+                <tr><td>ADR-14</td><td>Report content stored as structured JSON; finals immutable</td><td>Edit → sign → finalize; reproducible PDFs</td></tr>
+                <tr><td>ADR-15</td><td>UTC storage; IANA zone per station for display</td><td>Stations span several countries</td></tr>
+                <tr><td>ADR-16</td><td>Out-of-scope resources return 404, not 403</td><td>Doesn't reveal other organizations' records</td></tr>
+                <tr><td>ADR-17</td><td>Request status derived from visits and reports after assignment; parallel visits allowed</td><td>No status drift; idempotent transitions</td></tr>
+                <tr><td>ADR-18</td><td>One owner per station on a visit; no offline merge</td><td>No edit is ever silently overwritten</td></tr>
+                <tr><td>ADR-19</td><td>Files start staff-only; owning service shares them via outbox event</td><td>Fail closed: a missed update hides a file rather than leaking it</td></tr>
+                <tr><td>ADR-20</td><td>Offline field session: cached profile unlocked by a device PIN; no tokens on the device</td><td>Reopen work after a restart with no signal, without long-lived credentials</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="decisions-project">
+          <h3>Project decisions</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Decision</th><th>Date</th></tr></thead>
+              <tbody>
+                <tr><td>D2</td><td>Dark mode ships in v1; Light / Dark / System stored per user</td><td>2026-10-16</td></tr>
+                <tr><td>D3</td><td>ApexCharts for dashboards and summary-report charts (headless Chromium in PDFs)</td><td>2026-10-16</td></tr>
+                <tr><td>D4 / A7</td><td>Clients see staff names (<code>{id, name}</code>), never email or phone</td><td>2026-10-16</td></tr>
+                <tr><td>A9</td><td>Offline restart is unlocked with a device PIN on <code>/unlock</code> (AUTH-12)</td><td>2026-10-16</td></tr>
+                <tr><td>A10</td><td>One owner per station records the work; others add media (OFF-11)</td><td>2026-10-16</td></tr>
+                <tr><td>B5</td><td>Stations never change owner organization</td><td>2026-10-16</td></tr>
+                <tr><td>B6</td><td>No personal-data erasure requests</td><td>2026-10-16</td></tr>
+                <tr><td>T7</td><td>SeaweedFS replaces MinIO; confirmed by the Phase 0 spike (every MUST check passed). Garage stays the fallback</td><td>2026-10-16</td></tr>
+                <tr><td>P5</td><td>Notification email moves to Phase 1</td><td>2026-10-16</td></tr>
+                <tr><td>UI</td><td>Vuetify 4 + Tailwind 4 replace PrimeVue 4; Material Design Icons replace PrimeIcons</td><td>Before 2026-10-16</td></tr>
+                <tr><td>Docs</td><td>This site (<code>docs/index.html</code>) is the living wiring reference, updated every phase; Mermaid by default, draw.io for hand-laid diagrams</td><td>2026-10-16</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="decisions-open">
+          <h3>Open questions</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Prefix</th><th>Document</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Q</td><td><a href="PRD.md">PRD §12</a></td><td>Open (branding, attestation wording, jurisdictions, countries, checklists, categories, document visibility)</td></tr>
+                <tr><td>T</td><td><a href="TRD.md">TRD §22</a></td><td>Open with defaults; T7 decided</td></tr>
+                <tr><td>A</td><td><a href="AFD.md">AFD §7</a></td><td>A7, A9, A10 decided</td></tr>
+                <tr><td>D</td><td><a href="DBD.md">DBD</a></td><td>D2–D4 decided; D1, D5, D6 open</td></tr>
+                <tr><td>B</td><td><a href="BSD.md">BSD</a></td><td>B2–B6 closed or decided; B1 open</td></tr>
+                <tr><td>P</td><td><a href="IP.md">IP</a></td><td>P5 decided; P1–P4 open</td></tr>
+                <tr><td>V</td><td><a href="TP.md">TP</a></td><td>V1–V5 open with defaults</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     DIAGRAM GUIDE
+     ===================================================================== -->
+      <section class="doc" id="diagram-guide">
+        <div class="doc-head">
+          <h2 id="diagram-guide-h">Diagram guide</h2>
+          <p>Which chart to draw for which question, and the tool for it. The catalogue covers the 17 flowchart types in Figma's <a href="https://www.figma.com/resource-library/types-of-flow-charts/" rel="noopener">types of flow charts</a> guide, plus the UML and data diagrams this project also uses. At the start of each phase, pick from the suggestions below.</p>
+          <span class="src">Source: Figma resource library, read 2026-10-16 · conventions in <a href="../CLAUDE.md">CLAUDE.md</a></span>
+        </div>
+
+        <div class="split">
+          <div class="sub" id="diagram-tools">
+            <h3>Tools</h3>
+            <ul>
+              <li><b>Mermaid (default).</b> Source lives in this page (<code>&lt;pre class="mermaid-def"&gt;</code>) and in the Markdown specs, so it changes in the same commit as the code and diffs as text. Rendered by the vendored <code>assets/vendor/mermaid-11.17.2.min.js</code>.</li>
+              <li><b>draw.io</b> for hand-laid diagrams: true swimlanes, deployment pictures, anything shown to clients or used in training. Save as <code>docs/diagrams/&lt;name&gt;.drawio.svg</code> (an SVG with the editable diagram inside). Edit with draw.io desktop, app.diagrams.net, or VS Code's Draw.io Integration (<code>hediet.vscode-drawio</code>). Show it here as an <code>&lt;img&gt;</code> view.</li>
+              <li>When both exist for one flow, they show as tabs on one figure and must tell the same story; update both or delete one.</li>
+            </ul>
+          </div>
+          <div class="sub" id="diagram-rules">
+            <h3>Rules for every diagram</h3>
+            <ul>
+              <li>Use names from the code and specs: service, route, collection, event and status names exactly as written.</li>
+              <li>One question per diagram. Title it with that question's answer, and add a one-line caption.</li>
+              <li>Set its <code>data-kind</code> to a type from the catalogue below.</li>
+              <li>Mark what is built and what is planned in the section badge, not in the diagram.</li>
+              <li>Brand colours only; status colours only for statuses.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="sub" id="diagram-catalogue">
+          <h3>Catalogue: the 17 Figma flowchart types</h3>
+          <div class="table-tools" data-for="chart-table">
+            <label class="sr-only" for="chart-filter">Filter chart types</label>
+            <input id="chart-filter" type="search" placeholder="Filter chart types">
+            <label class="sr-only" for="chart-status">Status</label>
+            <select id="chart-status" data-col="4">
+              <option value="">Any status</option>
+              <option value="In these docs">In these docs</option>
+              <option value="Suggested">Suggested</option>
+              <option value="Not used">Not used</option>
+            </select>
+            <span class="count"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="chart-table">
+              <thead><tr><th>Type</th><th>Figma: best for</th><th>In AWS-MMS, use it for</th><th>Tool</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Process flow diagram</td><td>Outlining steps and decisions in a process</td><td>One actor's steps with decisions: field visit (J6), CI pipeline, station import</td><td>Mermaid flowchart</td><td>In these docs (J6, pipeline)</td></tr>
+                <tr><td>Workflow diagram</td><td>Illustrating and refining team workflows</td><td>Staff routines outside the app's own flow: hypercare triage, calibration-due follow-up, release routine</td><td>Mermaid or draw.io</td><td>Suggested · Phase 7–8</td></tr>
+                <tr><td>Data flow diagram</td><td>How data moves through a process or system</td><td>Event wiring between services, where secrets and tokens live, theme tokens, notification fan-out, backups</td><td>Mermaid flowchart</td><td>In these docs (events, theme, notifications) · Suggested · Phase 1 (credentials)</td></tr>
+                <tr><td>Swimlane flowchart</td><td>Cross-functional processes between teams</td><td>Hand-offs between roles and services: J1 registration and approval, J4 approve and assign, J8 client review</td><td>draw.io (true lanes); Mermaid subgraphs as a stand-in</td><td>In these docs (request roles, approximated) · Suggested · Phase 1 (J1)</td></tr>
+                <tr><td>Decision tree diagram</td><td>Branching decisions (Figma: process improvement)</td><td>Rules with many branches: <code>derive_status</code>, sync conflict handling, document access for clients</td><td>Mermaid flowchart</td><td>Suggested · Phase 3, 5</td></tr>
+                <tr><td>System flowchart</td><td>How external inputs get processed in a system</td><td>Requests through the gateway, the media processing pipeline, report rendering</td><td>Mermaid flowchart</td><td>In these docs (gateway) · Suggested · Phase 4 (media)</td></tr>
+                <tr><td>Document flowchart</td><td>Forms needing multiple approvals</td><td>Documents that collect signatures: visit report (staff signatures → final → client sign-off), client report form → PDF</td><td>Mermaid or draw.io</td><td>Suggested · Phase 6</td></tr>
+                <tr><td>Product flowchart</td><td>Manufacturing or supply chain</td><td>Sensor inventory: stock → installed at a station → repair or lab calibration → stock or retired</td><td>Mermaid flowchart</td><td>Suggested · Phase 2</td></tr>
+                <tr><td>PERT chart</td><td>Keeping projects on schedule</td><td>The Implementation Plan's phases, dependencies and decision deadlines</td><td>Mermaid gantt or draw.io</td><td>Suggested · any phase, if the plan changes</td></tr>
+                <tr><td>Use case flowchart</td><td>User experiences within a product or system</td><td>Roles × actions for each service; mirrors the authorization matrix</td><td>Mermaid flowchart</td><td>Suggested · Phase 1 (auth), then each phase</td></tr>
+                <tr><td>Event storming flowchart</td><td>Requirements a program or process needs</td><td>Commands → domain events → consumers and read models for each module; checks the AUD-1 mapping</td><td>draw.io (sticky-note layout) or Mermaid</td><td>Suggested · Phases 1, 3, 4</td></tr>
+                <tr><td>Customer journey flowchart</td><td>Customer interactions leading to a conversion</td><td>The client's own path: invited → first request → follow progress → review and sign off</td><td>draw.io</td><td>Suggested · Phase 6, Phase 8 (client guide)</td></tr>
+                <tr><td>Production flowchart</td><td>Steps between customer orders and delivery</td><td>Covered by the request swimlane and lifecycle; draw only if a step-by-step operations view is asked for</td><td>—</td><td>Not used</td></tr>
+                <tr><td>Logical model flowchart</td><td>Inputs, processes and outputs leading to outcomes</td><td>Summary reports: read-model inputs → aggregation → PDF / CSV outputs; dashboards</td><td>Mermaid flowchart</td><td>Suggested · Phase 7</td></tr>
+                <tr><td>Code flowchart</td><td>How a program or block of code functions</td><td>Branch-by-branch logic worth one test each: <code>/login</code>, <code>/refresh</code> rotation, sensor action apply and reverse, sync op apply, finalize retry</td><td>Mermaid flowchart</td><td>Suggested · Phases 1, 4, 5, 6</td></tr>
+                <tr><td>E-commerce flowchart</td><td>An e-commerce sales pipeline</td><td>No sales flow in this app</td><td>—</td><td>Not used</td></tr>
+                <tr><td>Website flowchart</td><td>Website architecture</td><td>Pages, shells and who can reach them; route guards and redirects</td><td>Mermaid flowchart</td><td>In these docs (pages) · Suggested · Phase 1 (shells, guards)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="diagram-beyond">
+          <h3>Beyond Figma's list</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Type</th><th>Use it for</th><th>In these docs</th></tr></thead>
+              <tbody>
+                <tr><td>Sequence diagram</td><td>Calls and events between components over time</td><td>Login, refresh, outbox, request to closure, sync, upload, finalize saga</td></tr>
+                <tr><td>State diagram</td><td>Every status field: request, account, visit, report, media, sensor unit, sync op</td><td>Request, account, visit report</td></tr>
+                <tr><td>Entity relationship diagram</td><td>Collections and references</td><td>Entity model</td></tr>
+                <tr><td>Architecture / C4</td><td>Containers and what calls what; per-service components when a service grows</td><td>System context and containers</td></tr>
+                <tr><td>Gantt</td><td>Schedules (the PERT alternative Mermaid supports)</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sub" id="diagram-phases">
+          <h3>Suggested diagrams by phase</h3>
+          <p>At the start of each phase, Claude proposes the diagrams below (adjusted to what was actually built), the developer picks, and the chosen ones are added before the phase closes.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Phase</th><th>Suggested diagrams</th></tr></thead>
+              <tbody>
+                <tr><td>P1 · Foundations</td><td>Swimlane: J1 registration, approval and invitation (draw.io) · Data flow: credentials and tokens (security review) · Code flowchart: <code>/login</code> and <code>/refresh</code> rotation · Use case: roles × auth actions · Event storming: auth events → consumers · Sequence: outbox leader handover when the leader dies · Website flowchart: shells, guards and redirects · Architecture: the local Compose stack as built</td></tr>
+                <tr><td>P2 · Stations</td><td>Product flowchart: sensor inventory · State: sensor unit status · Sequence: document upload and a client's model-document download · Process flow: station import with dry run · ER: stations module as built</td></tr>
+                <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
+                <tr><td>P4 · Visits online</td><td>State: visit status · Sequence: visit end in one transaction (inventory reconciliation) · Code flowchart: sensor action apply, reverse, re-apply · System flowchart: media processing pipeline · State: media status</td></tr>
+                <tr><td>P5 · Offline</td><td>Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
+                <tr><td>P6 · Reports</td><td>Document flowchart: visit report signatures → final → client sign-off · Sequence: finalize saga (as built) · Customer journey: client review (J8) · State: client-review reminders and auto-close</td></tr>
+                <tr><td>P7 · Hardening</td><td>Logical model: summary reports and dashboards · Data flow: backup and restore · System flowchart: metrics, logs and alerts · Architecture: production hosts, networks and ports</td></tr>
+                <tr><td>P8 · Go-live</td><td>Workflow: hypercare triage · Customer journey: client onboarding from invitation · Gantt: go-live checklist</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     CHANGELOG
+     ===================================================================== -->
+      <section class="doc" id="changelog">
+        <div class="doc-head">
+          <h2 id="changelog-h">Changelog</h2>
+          <p>Newest first. One entry per phase, plus any change to how the system is wired.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
+            <tbody>
+              <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike: Firefox 158 passed (20 MiB in 1.0 s, 50.9 MiB video in 2.5 s, abandon and abort). Every planned spike check is done.</td></tr>
+              <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike: phone run passed (Android Chrome over Wi-Fi, 152.8 MiB video in 20 parts, 47.5 s, read back intact; abandon, list and abort). Only the Firefox run is left.</td></tr>
+              <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike passed (SeaweedFS 4.48): all 15 server-side checks and the browser upload checks. TRD T7 confirmed, R6 lowered to Low. Firefox run and a 100 MB phone video still to do.</td></tr>
+              <tr><td>2026-10-16</td><td>P0</td><td>Site created from the planning documents (TRD 2.0, BSD 1.1, AFD 1.1, IP 1.1). New diagrams: event wiring, outbox sequence, gateway routing, account status, upload sequence, report status, finalize saga, notification pipeline, theme wiring, CI pipeline. Login and refresh sequences added with draw.io views. Diagram guide with the 17 Figma chart types and per-phase suggestions.</td></tr>
+              <tr><td>2026-10-16</td><td>P0</td><td>Repository on GitHub (<code>tajay59/MARS-MMS</code>); LF line endings; frontend CI; SeaweedFS spike written.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     MAINTAINING
+     ===================================================================== -->
+      <section class="doc" id="maintaining">
+        <div class="doc-head">
+          <h2 id="maintaining-h">Maintaining these docs</h2>
+          <p>This page is part of the definition of done: a phase isn't closed until this page describes what it built. It must stay readable straight from disk, with no server, no build step and no network.</p>
+        </div>
+
+        <div class="sub" id="maintaining-checklist">
+          <h3>Every phase</h3>
+          <ol>
+            <li>Update <a href="#status">Build status</a>: phase badge, the "What exists" table, and the section badges and sidebar dots (<code>dot built</code> / <code>dot progress</code>).</li>
+            <li>Replace designed shapes with built ones: schemas from the Pydantic models, routes from OpenAPI, events from <code>mms_common.events</code>, settings with their real env var names.</li>
+            <li>Add the diagrams chosen from <a href="#diagram-phases">Suggested diagrams by phase</a>, and update any diagram the phase changed.</li>
+            <li>Record new decisions in <a href="#decisions">Decisions</a> and the source document.</li>
+            <li>Add a <a href="#changelog">Changelog</a> entry.</li>
+            <li>Open the page in a browser, in light and dark, and check that no diagram shows "could not be drawn".</li>
+          </ol>
+          <p>If the code and the TRD disagree, fix one of them in the same change. This page describes the code; the TRD describes the design.</p>
+        </div>
+
+        <div class="split">
+          <div class="sub" id="maintaining-mermaid">
+            <h3>Add a Mermaid diagram</h3>
+<pre class="code"><code>&lt;figure class="diagram" data-title="Answer in a few words" data-kind="Sequence diagram"&gt;
+  &lt;div class="view" data-label="Mermaid"&gt;
+&lt;pre class="mermaid-def"&gt;
+sequenceDiagram
+    A-&gt;&gt;B: Message
+&lt;/pre&gt;
+  &lt;/div&gt;
+  &lt;figcaption&gt;One line on what to notice.&lt;/figcaption&gt;
+&lt;/figure&gt;</code></pre>
+            <p class="small muted">Inside <code>mermaid-def</code>, write <code>&amp;lt;</code> for <code>&lt;</code> and <code>&amp;amp;</code> for <code>&amp;</code>. Avoid <code>;</code> in sequence messages.</p>
+          </div>
+          <div class="sub" id="maintaining-drawio">
+            <h3>Add a draw.io view</h3>
+<pre class="code"><code>&lt;div class="view" data-label="draw.io"&gt;
+  &lt;div class="canvas sheet"&gt;
+    &lt;img src="diagrams/name.drawio.svg" width="…" height="…"
+         loading="lazy" alt="What the diagram shows"&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            <p class="small muted">Add it as a second view inside an existing figure, or as the only view of a new one. Save files as <code>.drawio.svg</code> in <code>docs/diagrams/</code>.</p>
+          </div>
+        </div>
+
+        <div class="sub" id="maintaining-files">
+          <h3>Files</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Path</th><th>What</th></tr></thead>
+              <tbody>
+                <tr><td><code>docs/index.html</code></td><td>All content. One <code>section.doc</code> per sidebar entry; <code>.sub[id]</code> blocks are what search finds.</td></tr>
+                <tr><td><code>docs/assets/docs.css</code>, <code>docs.js</code>, <code>theme-init.js</code></td><td>Styles (brand tokens, light and dark) and behaviour (theme, diagrams, search, filters, copy)</td></tr>
+                <tr><td><code>docs/assets/vendor/mermaid-11.17.2.min.js</code></td><td>Pinned Mermaid (MIT). To upgrade, replace the file, update the script tag, and check every diagram</td></tr>
+                <tr><td><code>docs/assets/fonts/</code></td><td>Inter and JetBrains Mono, copied from the frontend's <code>@fontsource-variable</code> packages</td></tr>
+                <tr><td><code>docs/diagrams/*.drawio.svg</code></td><td>draw.io diagrams</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <footer class="page-foot">
+        <span>AWS-MMS developer docs · last updated 2026-10-16 (Phase 0)</span>
+        <span>Planning documents are the source of truth for requirements; this page is the reference for how the system is wired.</span>
+      </footer>
+
+    </div>
+  </main>
+</div>
+
+<dialog class="zoom" id="zoom" aria-labelledby="zoom-title">
+  <div class="zoom-bar"><strong class="zoom-title" id="zoom-title">Diagram</strong><button class="btn" type="button" data-close>Close</button></div>
+  <div class="zoom-body"></div>
+</dialog>
+
+<script src="assets/vendor/mermaid-11.17.2.min.js"></script>
+<script src="assets/docs.js"></script>
+</body>
+</html>
