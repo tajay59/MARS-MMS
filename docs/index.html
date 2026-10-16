@@ -2064,7 +2064,7 @@ flowchart LR
               <table>
                 <thead><tr><th>Workflow</th><th>Runs</th><th>Status</th></tr></thead>
                 <tbody>
-                  <tr><td><code>frontend.yml</code></td><td>On changes under <code>frontend/</code>: <code>npm ci</code>, lint, type-check + build on Node 24</td><td><span class="badge built">Built</span></td></tr>
+                  <tr><td><code>frontend.yml</code></td><td>On pushes to <code>main</code> that touch <code>frontend/</code>, and on every pull request (job <code>check</code> is meant to be a required status): <code>npm ci</code>, lint, type-check + build on Node 24, <code>ubuntu-24.04</code></td><td><span class="badge built">Built</span></td></tr>
                   <tr><td>Per-service pipeline</td><td>Ruff, mypy, pytest, images, Trivy, staging deploy</td><td><span class="badge planned">Phase 1</span></td></tr>
                 </tbody>
               </table>
@@ -2298,6 +2298,7 @@ flowchart LR
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-16</td><td>P0</td><td>GitHub: milestones P0–P8 and Phase 0 issues #1–#10. Frontend CI runs on every pull request and is pinned to <code>ubuntu-24.04</code>. Branch protection waits on a GitHub plan (Free refuses it for private repos).</td></tr>
               <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike: Firefox 158 passed (20 MiB in 1.0 s, 50.9 MiB video in 2.5 s, abandon and abort). Every planned spike check is done.</td></tr>
               <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike: phone run passed (Android Chrome over Wi-Fi, 152.8 MiB video in 20 parts, 47.5 s, read back intact; abandon, list and abort). Only the Firefox run is left.</td></tr>
               <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike passed (SeaweedFS 4.48): all 15 server-side checks and the browser upload checks. TRD T7 confirmed, R6 lowered to Low. Firefox run and a 100 MB phone video still to do.</td></tr>
