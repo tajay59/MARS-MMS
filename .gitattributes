@@ -1,0 +1,32 @@
+# Store and check out text files with LF endings on every OS. Shell scripts,
+# Dockerfiles and Nginx configs run inside Linux containers, where CRLF breaks them.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binary files: never convert or diff as text.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.ico    binary
+*.pdf    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.mp4    binary
+*.mov    binary
+*.zip    binary
+*.gz     binary
+
+# Vendored third-party code: not ours to review or count.
+docs/assets/vendor/**  -diff linguist-vendored
+
+# Generated lockfiles: collapse in diffs.
+package-lock.json  -diff linguist-generated
+uv.lock            -diff linguist-generated

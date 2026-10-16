@@ -1,0 +1,46 @@
+# Keeps the frontend theme foundation green until the full Phase 1 pipeline
+# (per-service lint, test, build, Trivy, GHCR, staging deploy) replaces it.
+name: frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - frontend/**
+      - .github/workflows/frontend.yml
+  pull_request:
+    paths:
+      - frontend/**
+      - .github/workflows/frontend.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # build runs vue-tsc (type-check) and the Vite production build in parallel
+      - name: Type-check and build
+        run: npm run build
