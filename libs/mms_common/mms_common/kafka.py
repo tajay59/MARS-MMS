@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
-from mms_common.consumer import EventProcessor
+from mms_common.consumer import EventProcessor, SendToDlq
 from mms_common.logging import get_logger
 
 RESTART_BACKOFF_S = 5.0
@@ -97,17 +97,21 @@ async def consume_forever(
     bootstrap: str,
     group: str,
     topics: list[str],
-    make_processor: Callable[[AIOKafkaProducer], EventProcessor],
+    make_processor: Callable[[SendToDlq], EventProcessor],
     stop: asyncio.Event,
 ) -> None:
     """Run a consumer group until `stop`, restarting after broker errors. Uncommitted
-    messages are redelivered after a restart and deduplicated by `processed_events`."""
+    messages are redelivered after a restart and deduplicated by `processed_events`.
+
+    `make_processor` gets the sender for `mms.dlq.<group>`, so services never hold a producer
+    (rule 2)."""
     while not stop.is_set():
         dlq: AIOKafkaProducer | None = None
         task: asyncio.Task[None] | None = None
         try:
             dlq = await start_producer(bootstrap, f"{group}-dlq")
-            task = asyncio.create_task(run_consumer(bootstrap, group, topics, make_processor(dlq)))
+            processor = make_processor(dlq_sender(dlq, group))
+            task = asyncio.create_task(run_consumer(bootstrap, group, topics, processor))
             stopper = asyncio.create_task(stop.wait())
             done, _ = await asyncio.wait({task, stopper}, return_when=asyncio.FIRST_COMPLETED)
             stopper.cancel()

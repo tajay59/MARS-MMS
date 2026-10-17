@@ -83,7 +83,10 @@ class EventProcessor:
                 return await self._apply(envelope, payload, handler)
             except Exception as exc:  # noqa: BLE001 - any failure is retried, then dead-lettered
                 last_error = f"{type(exc).__name__}: {exc}"
-                log.warning("event_failed", event_id=envelope.event_id, attempt=attempt)
+                log.warning(
+                    "event_failed", event_id=envelope.event_id, type=envelope.type,
+                    attempt=attempt, error=last_error[:500],
+                )
                 if attempt < MAX_ATTEMPTS:
                     await self._sleep(delay)
                     delay = min(delay * 2, BACKOFF_MAX_S)
