@@ -3,12 +3,13 @@
 
 | | |
 |---|---|
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Date** | 2026-10-17 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
 | **Changes in 1.2** | Follows AFD 1.1 and TRD 2.0: the Unlock page (offline PIN), station owners on the visit and field pages, the finalizing state on the visit report, feedback `*-container` theme colours, and links to the AFD fixed. 37 pages |
 | **Changes in 1.3** | `/register`: the organization is a plain text field, not a picker of existing organizations (PRD 1.2 AUTH-1, AFD 1.2 J1) |
+| **Changes in 1.4** | **The app shell** (decision W4-9, 2026-10-17) replaces the client and staff shells: three square tiles on a ground colour, 5 px apart: a slim **rail** of section icons with tooltips, an **interactive pane** (section tabs, the list or the controls) and a **view** (the details). On phones the pane and view fill the screen and the rail becomes a floating tab tile. New `ground` colour token; tiles have no corner radius. The field shell and the split panel are unchanged |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
 
@@ -63,7 +64,7 @@ The palette has three parts: one brand blue (“Horizon”), the slate neutrals 
 | **primary-600** | **`#22569A`** | **Primary buttons, links, active tab, focus ring, PWA `theme_color`** | **7.33** |
 | primary-700 | `#1C467E` | Primary button hover, link hover | 9.43 |
 | primary-800 | `#1A3B66` | Primary button pressed | — |
-| primary-900 | `#183253` | Staff sidebar background (text primary-100: 10.3:1) | — |
+| primary-900 | `#183253` | Dark brand surfaces (the staff sidebar until DBD 1.4; text primary-100: 10.3:1) | — |
 | primary-950 | `#0F1F35` | Login panel background | — |
 
 ### Neutrals: slate (theme colours `surface-*`)
@@ -160,7 +161,7 @@ Dark mode ships in v1 (D2). Each user picks **Light**, **Dark** or **System** un
 | Primary buttons, links, active tab, focus ring | primary-600 `#22569A` | primary-300 `#86B1DE`; button text primary-950 `#0F1F35` | 7.73 on cards; button text 7.38 |
 | Primary hover / pressed | primary-700 / primary-800 | primary-200 `#B6D0EC` / primary-100 `#D9E7F5` | — |
 | Selected row, active nav item, unread notification | primary-50 `#EFF5FB` | `#16294A` | Text 13.22 |
-| Staff sidebar | primary-900 `#183253` | `#0A1628` with a 1 px `#263247` right border | Text primary-100 14.42 |
+| App shell ground | slate-100 `#F1F5F9` | `#070C17` behind `#111A2E` tiles | Tiles stand out by colour; no border |
 | Danger button, Urgent chip | `#B91C1C`, white text | `#DC2626`, white text | 4.83 |
 | Internal comment background | amber-50 | `#2A2110` | Text 14.48 |
 
@@ -239,53 +240,33 @@ The base is 16 px. Sizes are in rem so they follow the browser zoom. Phones keep
 
 ## Layout, grid and spacing
 
-All 37 pages sit inside one of three shells (client, staff and field), as the AFD sets out in §5.1. Spacing is on a 4 px grid. Each shell has a fixed frame, and only the content area changes from page to page.
+All 37 pages sit inside one of three frames: the **app shell** for staff and clients, the **field shell** for staff on phones during a visit, and the **split panel** for public pages (AFD §5.1). Spacing is on a 4 px grid. Each frame stays put, and only its content changes from page to page.
 
-**Figure 1 — Layout shells: client, staff and field.** Three shells frame every page; only the content area changes.
-
-```text
-CLIENT SHELL · desktop
-+----------------------------------------------------------------------+
-| [Logo]  Dashboard · Stations · Map · Requests · Reports              |
-|                                  [Report a problem]   (bell) (user)  | (1)
-+----------------------------------------------------------------------+
-|         +----------------------------------------------------+       |
-|         | Page title                                         |       |
-|         |                                                    |       |
-|         | [ KPI ]   [ KPI ]   [ KPI ]   [ KPI ]              |       | (2)
-|         | -------------------------------------------------- |       |
-|         | -------------------------------------------------- |       |
-|         | -------------------------------------------------- |       |
-|         +----------------------------------------------------+       |
-+----------------------------------------------------------------------+
-```
-
-1. Top bar: logo, 5 menu items, bell, user menu, **Report a problem** button.
-2. Content centred, max 1120 px: KPI tiles above lists; roomy.
+**Figure 1 — The app shell and the field shell.** The frame stays put; only the pane and view contents change.
 
 ```text
-STAFF SHELL · desktop (technicians, admins, viewers)
-+-------------+--------------------------------------------------------+
-| [Logo]      | Requests         [Search.....]  (sync 3) (bell) (user) | (1)
-|             +--------------------------------------------------------+
-| Dashboard   | (filter) (filter) (filter)                             |
-| Queue       | Ref            Status       Title              Date    |
-| >Requests<  | MR-2026-....   [Closed]     .................  ......  |
-| Stations    | MR-2026-....   [Pending]    .................  ......  | (3)
-| Map         | MR-2026-....   [Denied]     .................  ......  |
-| Sensors     | MR-2026-....   [Assigned]   .................  ......  |
-| Calibration |                                                        |
-| Reports     |                                                        |
-| ----------- |                                                        |
-| Admin       |                                                        | (4)
-+-------------+--------------------------------------------------------+
-      (2)
+APP SHELL · desktop (staff and clients)          ground colour behind, 5 px gaps, square tiles
++----+ +------------------------+ +----------------------------------------------------+
+|[M] | | Admin              [<] | | Maria Lopez                                        | (4)
+|    | | (Registrations 2) Users| | Registered 17 Oct 2026, 08:00 AST                  |
+|[D] | |  Organizations  Audit  | +----------------------------------------------------+
+|[W] | |------------------------| |                                                    |
+|[S] | | Maria Lopez            | |  Email · Phone · Organization they typed           | (5)
+|[R] | |   Organization A · 2 h | |                                                    |
+|[A]*| | Dev Joseph             | |  (o) Organization A  ( ) Another  ( ) A new one    |
+|    | |   Island Water · 1 d   | |                                                    |
+|(s) | |                        | |                          [Reject] [Approve Maria]  |
+|(b) | |                        | |                                                    |
+|(JR)| |                        | |                                                    |
++----+ +------------------------+ +----------------------------------------------------+
+ (1)            (2) (3)
 ```
 
-1. Top bar: title, search, sync badge, bell, user menu.
-2. Sidebar 248 px, primary-900; folds to a 72 px icon rail.
-3. Fluid content; full-width tables, status chip in column 2.
-4. Admin items in a second group.
+1. Rail tile, 64 px: the logo, one icon per section (Dashboard, Work, Stations, Reports, Admin; clients: Dashboard, Stations, Requests, Reports), then sync (staff), bell and the user menu at the bottom. It never expands: a tooltip on hover **and** keyboard focus names the section and what it holds. A dot marks a section with something waiting.
+2. Interactive pane tile, 360 px (300 px on tablets, 420 px from 1536 px): the section name, its pages as tabs, then the page's list or controls. A button hides it so the view fills the width (remembered on the device).
+3. Pages without a list put their controls here (dashboard filters, profile sections, user status filters).
+4. View header: the page or record title, a subtitle and the page's actions.
+5. View body: the details of what the pane selected. With nothing selected it shows a summary of the section and its main action.
 
 ```text
 FIELD SHELL · phone, during a visit
@@ -320,27 +301,27 @@ FIELD SHELL · phone, during a visit
 
 Each numbered marker matches the note beside it. The frame stays put and only the content area changes between pages.
 
-### The three shells
+### The shells
 
 | Shell | Frame | Content width | Who sees it |
 | --- | --- | --- | --- |
-| **Client** | White top bar, 64 px: logo, five menu items (Dashboard · Stations · Map · Requests · Reports), a **Report a problem** primary button, bell and user menu. On phones the menu folds into a drawer and **Report a problem** stays visible. | Centred, max 1120 px | Clients |
-| **Staff** | Left sidebar, 248 px, primary-900 background, collapsible to a 72 px icon rail. Admin items sit in a second group under a divider. A white top bar of 56 px holds the page title, global search, sync badge, bell and user menu. | Fluid. Forms and detail pages max 1280 px. Tables, map and audit log use the full width. | Technicians, admins, viewers |
+| **App shell** | Three tiles on the `ground` colour, 5 px apart and 5 px from the window edges, square corners, no border or shadow: the **rail** (64 px), the **interactive pane** (300 / 360 / 420 px, hideable from 1024 px) and the **view** (the rest). No app-wide top bar: each tile has its own header. On phones (< 768 px) the pane and view fill the screen edge to edge, one after the other; once a record is open the view shows alone with a Back button. The rail becomes a floating **tab tile** 5 px from the edges and above the home indicator: four sections and **Me** (profile, notifications, sync, Admin). | View body max 1080 px; tables and maps use the full view | Staff and clients |
 | **Field** | Top app bar, 56 px: back arrow, visit or station name, sync badge. Bottom bar, 64 px plus safe area: Visit · Scan · Stations · Sync. A sticky action bar sits above it for the step’s main button. | Full width, 16 px side gutters | Staff on phones on `/visits/:id/field`, `/scan` and `/sync` |
 
-The frames are Vuetify layout components inside one `VApp`: `VAppBar` for top bars, `VNavigationDrawer` for the staff sidebar (its `rail` mode is the 72 px icon rail, and it becomes `temporary` below `md`), `VBottomNavigation` for the field bottom bar and `VMain` for the content area.
+The app shell is plain Tailwind layout inside the one `VApp` (`frontend/src/app/shells/AppShell.vue`, `AppRail.vue`, `AppTabBar.vue`). A page fills the view with `PageBody` (its header and scrolling body) and puts its list or controls into the pane with `PaneContent`; the record it has open lives in the URL (`/admin/registrations/:id`), so a reload or Back keeps the place. The field shell uses Vuetify's `VAppBar` and `VBottomNavigation`. Nothing is reachable only by hover: the tab tile has labels, and every rail icon has an accessible name and its tooltip text as a description.
 
 Public pages (login, register, password reset, invitation, QR landing when logged out, verify, unlock) use a **split panel**. On desktop the left 40% is primary-950 with the logo and one station photograph, and the right 60% holds a white form card, max 440 px wide. On phones the form sits full width under a 120 px dark header.
 
 ### Breakpoints and grid
 
-| Breakpoint (Tailwind) | Width | Columns / gutter | Staff shell | Client shell |
-| --- | --- | --- | --- | --- |
-| base (Vuetify `xs`) | < 640 px | 4 / 16 px | Sidebar becomes a drawer; tables become cards | Menu in a drawer |
-| `sm` | ≥ 640 px | 4 / 16 px | As base | As base |
-| `md` | ≥ 768 px | 8 / 24 px | Sidebar as an icon rail | Full top menu |
-| `lg` | ≥ 1024 px | 12 / 24 px | Full sidebar | Full top menu |
-| `xl` | ≥ 1280 px | 12 / 32 px | Full sidebar; detail pages gain a right column (timeline, meta) | Same, centred |
+| Breakpoint (Tailwind) | Width | Columns / gutter | App shell |
+| --- | --- | --- | --- |
+| base (Vuetify `xs`) | < 640 px | 4 / 16 px | Pane, then view, full-bleed; a record opens alone with Back; tab tile at the bottom; tables become cards |
+| `sm` | ≥ 640 px | 4 / 16 px | As base |
+| `md` | ≥ 768 px | 8 / 24 px | Rail, pane (300 px) and view as tiles |
+| `lg` | ≥ 1024 px | 12 / 24 px | Pane 360 px and hideable |
+| `xl` | ≥ 1280 px | 12 / 32 px | As `lg`; detail pages gain a right column (timeline, meta) |
+| `2xl` | ≥ 1536 px | 12 / 32 px | Pane 420 px |
 
 ### Spacing scale (4 px base)
 
@@ -356,9 +337,11 @@ Public pages (login, register, password reset, invitation, QR landing when logge
 
 ### Surfaces, corners and depth
 
-- **App background** surface-50. **Cards** surface-0 with a 1 px surface-200 border and no shadow.
+- **Ground** (`ground`: slate-100 `#F1F5F9` light, `#070C17` dark) sits behind the app shell's tiles. **Tiles** are surface-0 and stand out by colour alone: no border, no shadow, no corner radius.
+- Inside a tile there are no bordered cards: sections are separated by 1 px surface-200 rules, and list rows are plain rows with a hover and a primary-50 selected state. **Cards** (surface-0, 1 px surface-200 border, no shadow) remain for public pages, dialogs and menus.
+- The active rail icon, pane tab and tab-tile item use primary-100 with primary-700 (dark: primary-800 with primary-100). Status colours stay reserved for status.
 - **Shadows** only on things that float: menus, dialogs, toasts and the field action bar (`shadow-lg`).
-- **Corner radius:** 6 px for inputs and buttons, 10 px for cards and dialogs, fully round for chips and badges, 0 for tables inside cards.
+- **Corner radius:** 0 for the app shell's tiles, 6 px for inputs, buttons and tooltips, 10 px for cards, dialogs and list rows, 12 px for rail icons, fully round for chips, badges and pane tabs, 0 for tables.
 - **Motion:** 150 ms ease-out for hovers and menus, 200 ms for dialogs and drawers. Nothing loops except loading spinners. All motion is off under `prefers-reduced-motion`.
 
 ## Core components
@@ -387,7 +370,7 @@ Vuetify components are used as they come and styled only through the brand theme
 | **Stepper** | `VStepper alt-labels` | Four steps: Before → Work → After → Review. Each is a numbered circle that is filled primary when done, ringed when current and grey when ahead. | Field visit only. The step label is always visible, not just the number, so the stepper never uses its `mobile` mode, which hides labels. |
 | **Media capture** (`MediaCapture`) | `VCard` tiles over a native `<input type="file" capture>` | 2-column thumbnail grid on phones (4 on desktop); a large “+ Photo / video” tile first. Each tile has a phase tag (Before, During or After) and a sync dot. | Shows the count against the target (“3 Before photos”). Desktop drop zones elsewhere (attachments, Verify) use `VFileUpload`. |
 | **Signature pad** (`SignaturePad`) | `signature_pad` in a `VCard` | White canvas at 3:1 ratio (full width), 1 px surface-500 border, surface-900 ink, baseline rule and “Sign here” placeholder; typed full name field; attestation checkbox with the exact wording | **Clear** text button under the canvas. The submit button is disabled until name, drawing and checkbox are all done. |
-| **Sync badge** (`SyncBadge`) | `VBtn` + `VBadge` | Cloud icon. Green check when synced; amber count when waiting; spinning when syncing; red when failed. | Always in the staff top bar and field app bar. Links to `/sync`. |
+| **Sync badge** (`SyncBadge`) | `VBtn` + `VBadge` | Cloud icon. Green check when synced; amber count when waiting; spinning when syncing; red when failed. | Always on the rail (staff) and in the field app bar. Links to `/sync`. |
 | **Empty state** | `VEmptyState` | Centred 48 px surface-500 icon, one `text-h3` line, one sentence, one primary or secondary button | Always offers the next action (AFD §6): “No open requests. **Report a problem**” |
 | **Skeleton** | `VSkeletonLoader` | surface-200 blocks in the shape of the content | Used for loads over 300 ms; spinners only inside buttons and the sync badge |
 
@@ -399,7 +382,7 @@ The app uses **Material Design Icons** (MDI), Vuetify's default set, in their ou
 
 - **One set only:** MDI, at 16 px inline, 20 px in buttons and menus, and 24 px in the field bottom bar and empty states. Use the `-outline` variant wherever one exists. Nothing is mixed in from other sets. If MDI lacks a glyph, the gap is filled with a single inline SVG drawn on the same 24 px grid.
 - **SVG, not a font:** icons are imported one by one from `@mdi/js` (the name `mdi-map-marker-outline` becomes `mdiMapMarkerOutline`) and registered in `app/theme/icons.ts`. Only the icons used are bundled, and there is no icon font to load past the CSP or precache.
-- **Icons sit next to words.** Icon-only buttons are allowed only in the top bars, table row actions and media tiles, and each has a tooltip and `aria-label`.
+- **Icons sit next to words.** Icon-only buttons are allowed only on the rail, in tile headers and top bars, table row actions and media tiles, and each has a tooltip and `aria-label`.
 - **Fixed meanings:** an icon always means the same thing everywhere.
 
 | Meaning | Icon | Meaning | Icon |
@@ -418,7 +401,7 @@ The app uses **Material Design Icons** (MDI), Vuetify's default set, in their ou
 - **Real stations only.** Use photographs of the organization’s own stations: the login panel, empty-state headers on the station page, and the station photo on each station page. No stock photos, illustrations or mascots.
 - **Station photos** are cropped 4:3 with 10 px corners. A missing photo shows a surface-100 tile with a 32 px `mdi-map-marker-outline` and no placeholder art.
 - **Visit media** keeps its own aspect ratio inside square thumbnails (`object-fit: cover`). A small tag in the top-left shows the phase (Before, During or After), and a play icon plus duration marks videos. The media viewer has a black background with capture time in station local time and the caption below.
-- **Logo** (to be supplied, PRD Q1): it goes on the top bar (32 px tall), the login panel (48 px, reversed white) and the PDF header (12 mm tall). The PWA icon is a 512 px square mark on primary-600.
+- **Logo** (to be supplied, PRD Q1): it goes at the top of the rail (32 px tall), the login panel (48 px, reversed white) and the PDF header (12 mm tall). The PWA icon is a 512 px square mark on primary-600.
 
 ### Maps
 
@@ -489,20 +472,20 @@ A dashboard is a grid of KPI tiles above lists. Each tile is a number that links
 
 | Variant | Top row (KPI tiles) | Below | Primary action |
 | --- | --- | --- | --- |
-| Client | Our stations by status (4 small tiles, status colours) | Requests awaiting our review (amber banner if any), Open requests (table, 5 rows), Upcoming visits, Recent reports | Report a problem (in the top bar) |
+| Client | Our stations by status (4 small tiles, status colours) | Requests awaiting our review (amber banner if any), Open requests (table, 5 rows), Upcoming visits, Recent reports | Report a problem (in the view header) |
 | Technician | My assigned · Queue · My upcoming visits · Waiting to sync · Reports to finalize | Two columns: My upcoming visits (cards with **Ready offline** chip) and My reports to finalize | — |
 | Admin | Registrations pending · Requests awaiting approval · Unassigned queue · In Client Review · Calibrations due/overdue · Failed calibrations | Open requests by status (bar chart in status colours), station status by country (table with chips), upcoming visits, reports awaiting finalization | — |
 | Viewer | As admin | As admin, with all action links removed (links to lists stay) | — |
 
 Tiles with a count above zero that need action (pending registrations, overdue calibrations, failed calibrations) get a 4 px left border in amber or red. A tile with zero stays plain.
 
-### Shared pages (client and staff shells)
+### Shared pages (app shell)
 
 | Page | Route | Layout and look | Primary action |
 | --- | --- | --- | --- |
 | Stations list | `/stations` | Filter bar (organization\*, country, type, status, parameter) over a table: code (mono), name, status chip, organization\*, country, last visit, calibration due chip. Cards on phones. A List / Map toggle sits top-right. | New station\* |
 | Station page | `/stations/:id` | Header: name, code (mono), status chip, country · time zone, photo thumbnail on the right. Then the 9 tabs (Overview · Sensors · Documents · Configurations\* · Requests · Visits · Reports · Calibration · History\*). Overview is a 2-column definition list plus a small map. Clients see a summary with fewer tabs. | Staff: Start visit (when one is scheduled) · Client: Report a problem |
-| Map | `/map` | Full-bleed map under the top bar. A collapsible left filter panel (320 px) and the status legend bottom-left. On phones, filters open in a bottom sheet. | — |
+| Map | `/map` | Full-bleed map in the view; the filters sit in the pane, and the status legend bottom-left. On phones, filters open in a bottom sheet. | — |
 | Requests list | `/requests` | Status filter as a horizontal chip group with counts (“Client Review 2”), then the table: reference (mono), title, status chip, priority (only High and Urgent shown), stations, organization\*, assigned\*, updated | New request (admin) / Report a problem (client) |
 | New request | `/requests/new` | One-column form, max 720 px, in three fieldsets: **Stations** (multi-select with station chips), **Problem** (title, description, category as a segmented `VBtnToggle`, priority), **Attachments** (drop zone). Admins get an Organization picker first. | Submit request |
 | Request page | `/requests/:id` | Header: reference (mono) + title, status chip, priority chip, organization, stations as links, and assigned staff by name (shown to clients too). One page banner for the current state (“Waiting for your review”). Then 5 tabs (Overview · Comments · Visits · Reports · History\*). The status timeline is in the right column on xl screens. Admin decision buttons (Approve, Deny, Assign staff) sit in the header. | Depends on status: Approve\* · Schedule visit\* · Review and sign off (client) |
@@ -514,11 +497,11 @@ Tiles with a count above zero that need action (pending registrations, overdue c
 | Visit report | `/visit-reports/:id` | Two panes on lg screens. On the left, the editor: narrative fields as auto-saving text areas, a photo picker and a facts summary with **Fix in work record** links. On the right, a live A4 preview with a DRAFT watermark. Signatures are listed at the bottom with a status. The version selector shows Draft / Final / Superseded. While finalizing, the editor is read-only and the Finalize button shows progress; a failed finalize returns to Draft with a warning banner and **Try again**. | Sign → Finalize (lead) · Download PDF (final) |
 | Summary reports | `/reports` | On the left, a list of report types with one-line descriptions. On the right, filters and **Generate**. Below is a table of generated reports with a status (Building with progress, Ready, Failed) and download buttons. | Generate |
 | Notifications | `/notifications` | A list grouped by Today, Yesterday and Earlier. Unread rows have a primary-50 background and a dot. Each row has an icon by type, one line of text, and a time. | Mark all as read |
-| My profile | `/profile` | Cards for Details, Password, Time zone, Appearance (Light · Dark · System) and Email preferences (a switch per notification type; account emails locked on) | Save |
+| My profile | `/profile` | Sections for Details, Password, Time zone, Appearance (Light · Dark · System) and Email preferences (a switch per notification type; account emails locked on); the pane lists the sections and jumps to each | Save |
 
 \* Staff only; hidden for clients and viewers.
 
-### Staff and admin pages (staff shell)
+### Staff and admin pages (app shell, staff sections)
 
 | Page | Route | Layout and look | Primary action |
 | --- | --- | --- | --- |
@@ -526,7 +509,7 @@ Tiles with a count above zero that need action (pending registrations, overdue c
 | Sensors | `/sensors` | Two tabs, Models and Units. The units table has serial (mono), model, status chip, station, calibration due chip. Units flagged for review have an amber `mdi-flag-outline`. | New model / New unit |
 | Sensor unit | `/sensors/units/:id` | Header: serial (mono, large), model, status chip. Then an installation history timeline and a calibration records table with readings in tabular figures; certificates link to PDFs. | Record calibration |
 | Calibration due | `/calibration` | A segmented filter (Overdue · Due in 30 days · All) and a table sorted by due date, with overdue rows first and their date in red | Export CSV |
-| Registrations | `/admin/registrations` | Table of pending accounts. Clicking a row opens a side drawer with details and the organization match. | Approve (in drawer) |
+| Registrations | `/admin/registrations/:id?` | The pane lists pending accounts (name, organization they typed, when). Choosing one opens it in the view: details, the organization match and approve or reject. With none chosen, the view shows how many are waiting. | Approve |
 | Users / Organizations | `/admin/users`, `/admin/organizations` | Standard tables with role tags and status chips. Edit happens in a side drawer. | Invite user / New organization |
 | Checklist templates | `/admin/checklists` | List of templates on the left. On the right, an editor where items can be dragged into order, with a version number and “Published” chip. | Publish version |
 | QR labels and station import | `/admin/stations-tools` | Two cards. **Labels** has a station picker and a preview of the A4 sheet layout. **Import** is a 3-step wizard: upload, map columns, review errors. | Print labels / Import |

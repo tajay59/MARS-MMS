@@ -40,6 +40,8 @@ export const lightTheme: ThemeDefinition = {
 
     'background': '#F8FAFC',
     'on-background': '#0F172A',
+    // Behind the app's tiles (rail, pane, view): tiles stand out by colour alone (DBD "The app shell")
+    'ground': '#F1F5F9',
     'surface': '#FFFFFF',
     'on-surface': '#0F172A',
     'primary': '#22569A',
@@ -107,6 +109,7 @@ export const darkTheme: ThemeDefinition = {
 
     'background': '#0B1220',
     'on-background': '#F1F5F9',
+    'ground': '#070C17',
     'surface': '#111A2E',
     'on-surface': '#F1F5F9',
     'primary': '#86B1DE',

@@ -110,7 +110,7 @@ export const routes: RouteRecordRaw[] = [
 
   // Admin
   {
-    path: '/admin/registrations',
+    path: '/admin/registrations/:id?',
     name: 'admin-registrations',
     component: () => import('@/features/admin/RegistrationsPage.vue'),
     meta: { title: 'Registrations', layout: 'app', roles: ADMIN },

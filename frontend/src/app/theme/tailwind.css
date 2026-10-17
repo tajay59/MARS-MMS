@@ -18,6 +18,7 @@
 
   --color-background: rgb(var(--v-theme-background));
   --color-on-background: rgb(var(--v-theme-on-background));
+  --color-ground: rgb(var(--v-theme-ground));
   --color-surface: rgb(var(--v-theme-surface));
   --color-on-surface: rgb(var(--v-theme-on-surface));
   --color-primary: rgb(var(--v-theme-primary));

@@ -1,198 +1,183 @@
 <template>
-  <PageBody>
-    <div class="flex flex-col gap-4">
-      <FeedbackBanner v-if="loadError" type="error">{{ loadError }}</FeedbackBanner>
-      <p v-else-if="!loading" class="m-0 text-surface-900">{{ summary }}</p>
+  <PageBody
+    :back="routeId ? { name: 'admin-registrations' } : undefined"
+    back-label="Back to registrations"
+    :subtitle="selected ? `Registered ${when(selected.created_at)}` : undefined"
+    :title="selected ? selected.name : undefined"
+  >
+    <!-- The pane: everyone waiting, newest last; the one chosen opens in the view -->
+    <PaneContent>
+      <div class="flex flex-col gap-2 px-2">
+        <FeedbackBanner v-if="loadError" class="mx-2" type="error">{{ loadError }}</FeedbackBanner>
 
-      <div v-if="loading" aria-label="Loading registrations…" class="flex flex-col gap-2" role="status">
-        <v-skeleton-loader v-for="n in 3" :key="n" type="list-item" />
+        <div v-else-if="loading" aria-label="Loading registrations…" class="flex flex-col gap-2 px-2" role="status">
+          <v-skeleton-loader v-for="n in 3" :key="n" type="list-item-two-line" />
+        </div>
+
+        <p v-else-if="rows.length === 0" class="m-0 px-3 text-sm text-surface-600">No one is waiting.</p>
+
+        <ul v-else aria-label="Waiting for approval" class="m-0 flex list-none flex-col gap-0.5 p-0">
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="relative flex flex-col gap-0.5 rounded-card p-3"
+            :class="selected?.id === row.id ? 'bg-primary-50' : 'hover:bg-surface-100'"
+          >
+            <!-- The name is the button; the whole row is its target -->
+            <button
+              :aria-current="selected?.id === row.id ? 'true' : undefined"
+              class="text-left font-medium text-surface-900 after:absolute after:inset-0 after:rounded-card"
+              type="button"
+              @click="open(row)"
+            >{{ row.name }}</button>
+
+            <span class="truncate text-sm text-surface-600">{{ row.proposed_org_name ?? 'No organization given' }}</span>
+            <span class="text-xs tabular-nums text-surface-600">{{ when(row.created_at) }}</span>
+          </li>
+        </ul>
       </div>
+    </PaneContent>
 
-      <div v-else-if="rows.length > 0" class="overflow-x-auto rounded-card border border-surface-200 bg-surface">
-        <table class="w-full border-collapse text-sm">
-          <thead>
-            <tr class="bg-surface-100 text-left">
-              <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Name</th>
-              <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Email</th>
-              <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Organization they typed</th>
-              <th class="px-4 py-3 text-right text-xs font-medium text-surface-700" scope="col">Registered</th>
-            </tr>
-          </thead>
+    <!-- The view: the registration chosen, with approve or reject (J1 steps 3–4b) -->
+    <div v-if="selected" class="flex max-w-2xl flex-col gap-6">
+      <dl class="m-0 grid grid-cols-[112px_1fr] gap-x-4 gap-y-2 text-sm">
+        <dt class="text-surface-600">Email</dt><dd class="m-0 break-all text-surface-900">{{ selected.email }}</dd>
+        <dt class="text-surface-600">Phone</dt><dd class="m-0 text-surface-900">{{ selected.phone || '—' }}</dd>
+        <dt class="text-surface-600">Organization</dt><dd class="m-0 font-semibold text-surface-900">{{ selected.proposed_org_name ?? '—' }}</dd>
+      </dl>
 
-          <tbody>
-            <tr
-              v-for="row in rows"
-              :key="row.id"
-              class="h-12 border-t border-surface-200 hover:bg-surface-100"
-              :class="selected?.id === row.id ? 'bg-primary-50' : ''"
-            >
-              <td class="px-4 font-medium">
-                <button class="text-left font-medium text-primary hover:underline" type="button" @click="open(row)">
-                  {{ row.name }}
-                </button>
-              </td>
+      <FeedbackBanner v-if="actionError" type="error">{{ actionError }}</FeedbackBanner>
 
-              <td class="px-4 text-surface-900">{{ row.email }}</td>
-              <td class="px-4 text-surface-900">{{ row.proposed_org_name ?? '—' }}</td>
-              <td class="whitespace-nowrap px-4 text-right tabular-nums text-surface-900">{{ when(row.created_at) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <fieldset v-if="mode === 'approve'" class="m-0 flex flex-col gap-3 border-0 p-0">
+        <legend class="mb-1 p-0 text-h3 text-surface-900">Link to an organization</legend>
+
+        <label
+          v-if="match"
+          class="flex cursor-pointer items-start gap-3 rounded-md p-3"
+          :class="choice === 'match' ? 'border-2 border-primary bg-primary-50' : 'border border-surface-200'"
+        >
+          <input
+            v-model="choice"
+            class="mt-1 size-4 accent-primary"
+            name="org"
+            type="radio"
+            value="match"
+          >
+
+          <span class="flex flex-col">
+            <span class="font-medium text-surface-900">{{ match.name }}</span>
+            <span class="text-sm text-surface-600">{{ countryName(match.country) }} · closest match to what they typed</span>
+          </span>
+        </label>
+
+        <label
+          class="flex cursor-pointer items-start gap-3 rounded-md p-3"
+          :class="choice === 'existing' ? 'border-2 border-primary bg-primary-50' : 'border border-surface-200'"
+        >
+          <input
+            v-model="choice"
+            class="mt-1 size-4 accent-primary"
+            name="org"
+            type="radio"
+            value="existing"
+          >
+
+          <span class="font-medium text-surface-900">{{ match ? 'Another existing organization' : 'An existing organization' }}</span>
+        </label>
+
+        <FormField v-if="choice === 'existing'" id="existing-org" label="Organization">
+          <v-autocomplete
+            id="existing-org"
+            v-model="existingId"
+            :error-messages="fieldError.org_id"
+            item-title="name"
+            item-value="id"
+            :items="activeOrgs"
+            no-data-text="No organization by that name"
+          />
+        </FormField>
+
+        <label
+          class="flex cursor-pointer items-start gap-3 rounded-md p-3"
+          :class="choice === 'new' ? 'border-2 border-primary bg-primary-50' : 'border border-surface-200'"
+        >
+          <input
+            v-model="choice"
+            class="mt-1 size-4 accent-primary"
+            name="org"
+            type="radio"
+            value="new"
+          >
+
+          <span class="flex flex-col">
+            <span class="font-medium text-surface-900">A new organization</span>
+            <span class="text-sm text-surface-600">You’ll set its name and country</span>
+          </span>
+        </label>
+
+        <template v-if="choice === 'new'">
+          <FormField id="new-org-name" label="Organization name">
+            <v-text-field id="new-org-name" v-model="newOrg.name" autocomplete="off" :error-messages="fieldError.name" />
+          </FormField>
+
+          <FormField id="new-org-country" label="Country">
+            <v-autocomplete
+              id="new-org-country"
+              v-model="newOrg.country"
+              :error-messages="fieldError.country"
+              :items="countries()"
+            />
+          </FormField>
+        </template>
+      </fieldset>
+
+      <FormField v-else id="reason" label="Reason for rejecting">
+        <v-textarea
+          id="reason"
+          v-model="reason"
+          auto-grow
+          autocomplete="off"
+          counter="500"
+          :error-messages="fieldError.reason"
+          :hint="`${firstName} will receive this in the rejection email.`"
+          maxlength="500"
+          persistent-hint
+          rows="4"
+        />
+      </FormField>
+
+      <div class="flex flex-wrap justify-end gap-2 border-t border-surface-200 pt-5">
+        <template v-if="mode === 'approve'">
+          <v-btn class="text-primary" variant="outlined" @click="mode = 'reject'">Reject</v-btn>
+          <v-btn color="primary" :loading="busy" @click="approve">Approve {{ selected.name }}</v-btn>
+        </template>
+
+        <template v-else>
+          <v-btn class="text-primary" variant="text" @click="mode = 'approve'">Cancel</v-btn>
+          <v-btn color="error" :loading="busy" @click="reject">Reject registration</v-btn>
+        </template>
       </div>
+    </div>
 
-      <v-card v-else-if="!loadError" class="flex max-w-xl flex-col items-start gap-2 border border-surface-200 p-6">
+    <div v-else-if="routeId && !loading && !loadError" class="flex max-w-xl flex-col items-start gap-3">
+      <h2 class="m-0 text-h3 text-surface-900">This registration isn’t waiting any more</h2>
+      <p class="m-0 text-surface-600">Someone may have approved or rejected it already.</p>
+      <v-btn class="text-primary" :to="{ name: 'admin-registrations' }" variant="outlined">See who is waiting</v-btn>
+    </div>
+
+    <div v-else-if="!loading && !loadError" class="flex max-w-xl flex-col items-start gap-2">
+      <template v-if="rows.length > 0">
+        <p class="m-0 text-kpi tabular-nums text-surface-900">{{ rows.length }}</p>
+        <p class="m-0 text-surface-900">{{ summary }}</p>
+        <p class="m-0 text-sm text-surface-600">Choose someone in the list to approve or reject them.</p>
+      </template>
+
+      <template v-else>
         <v-icon class="text-success" :icon="mdiCheckCircleOutline" size="32" />
         <h2 class="m-0 text-h3 text-surface-900">No one is waiting</h2>
         <p class="m-0 text-surface-600">New registrations appear here, and on your dashboard, as they come in.</p>
-      </v-card>
+      </template>
     </div>
-
-    <!-- The registration, in a side panel (approved mock-up) -->
-    <v-navigation-drawer
-      v-model="drawer"
-      aria-labelledby="drawer-h"
-      location="end"
-      tag="aside"
-      temporary
-      :width="440"
-    >
-      <div v-if="selected" class="flex h-full flex-col">
-        <div class="flex items-center gap-2 border-b border-surface-200 py-4 pl-6 pr-4">
-          <h2 id="drawer-h" class="m-0 min-w-0 grow break-words text-h2 text-surface-900">{{ selected.name }}</h2>
-
-          <v-btn
-            aria-label="Close"
-            icon
-            size="40"
-            variant="text"
-            @click="drawer = false"
-          >
-            <v-icon class="text-surface-600" :icon="mdiClose" size="20" />
-          </v-btn>
-        </div>
-
-        <div class="flex grow flex-col gap-6 overflow-y-auto p-6">
-          <dl class="m-0 grid grid-cols-[112px_1fr] gap-x-4 gap-y-2 text-sm">
-            <dt class="text-surface-600">Email</dt><dd class="m-0 break-all text-surface-900">{{ selected.email }}</dd>
-            <dt class="text-surface-600">Phone</dt><dd class="m-0 text-surface-900">{{ selected.phone || '—' }}</dd>
-            <dt class="text-surface-600">Registered</dt><dd class="m-0 tabular-nums text-surface-900">{{ when(selected.created_at) }}</dd>
-            <dt class="text-surface-600">Organization</dt><dd class="m-0 font-semibold text-surface-900">{{ selected.proposed_org_name ?? '—' }}</dd>
-          </dl>
-
-          <FeedbackBanner v-if="actionError" type="error">{{ actionError }}</FeedbackBanner>
-
-          <fieldset v-if="mode === 'approve'" class="m-0 flex flex-col gap-3 border-0 p-0">
-            <legend class="mb-1 p-0 text-h3 text-surface-900">Link to an organization</legend>
-
-            <label
-              v-if="match"
-              class="flex cursor-pointer items-start gap-3 rounded-md p-3"
-              :class="choice === 'match' ? 'border-2 border-primary bg-primary-50' : 'border border-surface-200'"
-            >
-              <input
-                v-model="choice"
-                class="mt-1 size-4 accent-primary"
-                name="org"
-                type="radio"
-                value="match"
-              >
-
-              <span class="flex flex-col">
-                <span class="font-medium text-surface-900">{{ match.name }}</span>
-                <span class="text-sm text-surface-600">{{ countryName(match.country) }} · closest match to what they typed</span>
-              </span>
-            </label>
-
-            <label
-              class="flex cursor-pointer items-start gap-3 rounded-md p-3"
-              :class="choice === 'existing' ? 'border-2 border-primary bg-primary-50' : 'border border-surface-200'"
-            >
-              <input
-                v-model="choice"
-                class="mt-1 size-4 accent-primary"
-                name="org"
-                type="radio"
-                value="existing"
-              >
-
-              <span class="font-medium text-surface-900">{{ match ? 'Another existing organization' : 'An existing organization' }}</span>
-            </label>
-
-            <FormField v-if="choice === 'existing'" id="existing-org" label="Organization">
-              <v-autocomplete
-                id="existing-org"
-                v-model="existingId"
-                :error-messages="fieldError.org_id"
-                item-title="name"
-                item-value="id"
-                :items="activeOrgs"
-                no-data-text="No organization by that name"
-              />
-            </FormField>
-
-            <label
-              class="flex cursor-pointer items-start gap-3 rounded-md p-3"
-              :class="choice === 'new' ? 'border-2 border-primary bg-primary-50' : 'border border-surface-200'"
-            >
-              <input
-                v-model="choice"
-                class="mt-1 size-4 accent-primary"
-                name="org"
-                type="radio"
-                value="new"
-              >
-
-              <span class="flex flex-col">
-                <span class="font-medium text-surface-900">A new organization</span>
-                <span class="text-sm text-surface-600">You’ll set its name and country</span>
-              </span>
-            </label>
-
-            <template v-if="choice === 'new'">
-              <FormField id="new-org-name" label="Organization name">
-                <v-text-field id="new-org-name" v-model="newOrg.name" autocomplete="off" :error-messages="fieldError.name" />
-              </FormField>
-
-              <FormField id="new-org-country" label="Country">
-                <v-autocomplete
-                  id="new-org-country"
-                  v-model="newOrg.country"
-                  :error-messages="fieldError.country"
-                  :items="countries()"
-                />
-              </FormField>
-            </template>
-          </fieldset>
-
-          <FormField v-else id="reason" label="Reason for rejecting">
-            <v-textarea
-              id="reason"
-              v-model="reason"
-              auto-grow
-              autocomplete="off"
-              counter="500"
-              :error-messages="fieldError.reason"
-              :hint="`${firstName} will receive this in the rejection email.`"
-              maxlength="500"
-              persistent-hint
-              rows="4"
-            />
-          </FormField>
-        </div>
-
-        <div class="flex justify-end gap-2 border-t border-surface-200 px-6 py-4">
-          <template v-if="mode === 'approve'">
-            <v-btn class="text-primary" variant="outlined" @click="mode = 'reject'">Reject</v-btn>
-            <v-btn color="primary" :loading="busy" @click="approve">Approve {{ selected.name }}</v-btn>
-          </template>
-
-          <template v-else>
-            <v-btn class="text-primary" variant="text" @click="mode = 'approve'">Cancel</v-btn>
-            <v-btn color="error" :loading="busy" @click="reject">Reject registration</v-btn>
-          </template>
-        </div>
-      </div>
-    </v-navigation-drawer>
 
     <v-snackbar v-model="toast.show" location="bottom" :timeout="6000">{{ toast.text }}</v-snackbar>
   </PageBody>
@@ -200,23 +185,27 @@
 
 <script lang="ts" setup>
   import type { ApproveIn, OrgOut, UserOut } from '@/api/models'
-  import { mdiCheckCircleOutline, mdiClose } from '@mdi/js'
+  import { mdiCheckCircleOutline } from '@mdi/js'
   import { storeToRefs } from 'pinia'
-  import { computed, onMounted, reactive, ref } from 'vue'
+  import { computed, onMounted, reactive, ref, watch } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
   import { orgsApi, usersApi } from '@/api/auth'
   import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
   import { countries, countryName } from '@/app/countries'
   import { formatDateTime } from '@/app/format'
+  import { usePaneSelection } from '@/app/shells/pane'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import PageBody from '@/components/PageBody.vue'
+  import PaneContent from '@/components/PaneContent.vue'
   import { useRegistrationsStore } from '@/stores/registrations'
   import { useSessionStore } from '@/stores/session'
   import { closestOrg } from './orgMatch'
 
   // /admin/registrations (AFD J1 steps 3–4b; AUTH-3). Approve links the client to an existing
-  // organization or creates one; reject sends the reason by email.
+  // organization or creates one; reject sends the reason by email. The person chosen is in the
+  // URL (/admin/registrations/:id), so a reload or Back keeps the place.
   const { user } = storeToRefs(useSessionStore())
   const registrations = useRegistrationsStore()
 
@@ -225,8 +214,11 @@
   const loading = ref(true)
   const loadError = ref<string | null>(null)
 
-  const drawer = ref(false)
-  const selected = ref<UserOut | null>(null)
+  const route = useRoute()
+  const router = useRouter()
+  const routeId = computed(() => typeof route.params.id === 'string' && route.params.id ? route.params.id : null)
+  const selected = computed(() => rows.value.find(r => r.id === routeId.value) ?? null)
+  usePaneSelection(() => routeId.value !== null)
   const mode = ref<'approve' | 'reject'>('approve')
   const choice = ref<'match' | 'existing' | 'new'>('existing')
   const existingId = ref<string | null>(null)
@@ -271,7 +263,14 @@
   }
 
   function open (row: UserOut): void {
-    selected.value = row
+    void router.push({ name: 'admin-registrations', params: { id: row.id } })
+  }
+
+  // A new person in the view starts with a fresh form
+  watch(selected, (row, before) => {
+    if (!row || row.id === before?.id) {
+      return
+    }
     mode.value = 'approve'
     actionError.value = null
     fieldError.value = {}
@@ -280,8 +279,7 @@
     newOrg.name = row.proposed_org_name ?? ''
     newOrg.country = null
     choice.value = match.value ? 'match' : 'existing'
-    drawer.value = true
-  }
+  }, { immediate: true })
 
   function body (): ApproveIn | null {
     const errors: Record<string, string> = {}
@@ -374,7 +372,7 @@
   function done (target: UserOut, message: string): void {
     rows.value = rows.value.filter(r => r.id !== target.id)
     registrations.pending = rows.value.length
-    drawer.value = false
+    void router.replace({ name: 'admin-registrations' })
     toast.text = message
     toast.show = true
   }

@@ -4,6 +4,19 @@
       <v-btn color="primary" :loading="busy" @click="save">Save changes</v-btn>
     </template>
 
+    <!-- The pane: jump to a part of the profile -->
+    <PaneContent>
+      <nav aria-label="Profile sections" class="flex flex-col gap-0.5 px-3">
+        <button
+          v-for="part in parts"
+          :key="part.id"
+          class="flex h-10 items-center rounded-card px-3 text-left text-sm font-medium text-surface-900 hover:bg-surface-100"
+          type="button"
+          @click="jump(part.id)"
+        >{{ part.label }}</button>
+      </nav>
+    </PaneContent>
+
     <div aria-live="polite" class="mb-6 flex flex-col gap-3 empty:hidden">
       <FeedbackBanner v-if="saved" type="success">Your changes are saved.</FeedbackBanner>
       <FeedbackBanner v-if="failure" type="error">{{ failure }}</FeedbackBanner>
@@ -11,7 +24,7 @@
 
     <form class="grid items-start gap-6 lg:grid-cols-2" novalidate @submit.prevent="save">
       <div class="flex min-w-0 flex-col gap-6">
-        <section aria-labelledby="details-h" class="flex flex-col gap-4 rounded-card border border-surface-200 bg-surface p-6">
+        <section aria-labelledby="details-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <h2 id="details-h" class="m-0 text-h3 text-surface-900">Details</h2>
 
           <FormField id="name" label="Name">
@@ -42,7 +55,7 @@
           </FormField>
         </section>
 
-        <section aria-labelledby="pw-h" class="flex flex-col gap-4 rounded-card border border-surface-200 bg-surface p-6">
+        <section aria-labelledby="pw-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <div>
             <h2 id="pw-h" class="m-0 text-h3 text-surface-900">Password</h2>
             <p class="m-0 text-sm text-surface-600">Changing it logs you out on your other devices.</p>
@@ -71,7 +84,7 @@
       </div>
 
       <div class="flex min-w-0 flex-col gap-6">
-        <section aria-labelledby="tz-h" class="flex flex-col gap-4 rounded-card border border-surface-200 bg-surface p-6">
+        <section aria-labelledby="tz-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <h2 id="tz-h" class="m-0 text-h3 text-surface-900">Time zone</h2>
 
           <FormField id="tz" label="Your time zone">
@@ -86,13 +99,13 @@
           </FormField>
         </section>
 
-        <section aria-labelledby="ap-h" class="flex flex-col gap-4 rounded-card border border-surface-200 bg-surface p-6">
+        <section aria-labelledby="ap-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <h2 id="ap-h" class="m-0 text-h3 text-surface-900">Appearance</h2>
           <AppearanceToggle labelledby="ap-h" />
           <p class="m-0 text-sm text-surface-600">System follows your device’s setting. Your choice is saved to your account.</p>
         </section>
 
-        <section aria-labelledby="em-h" class="flex flex-col gap-4 rounded-card border border-surface-200 bg-surface p-6">
+        <section aria-labelledby="em-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <h2 id="em-h" class="m-0 text-h3 text-surface-900">Email preferences</h2>
 
           <div class="flex items-start gap-4">
@@ -135,12 +148,33 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import PageBody from '@/components/PageBody.vue'
+  import PaneContent from '@/components/PaneContent.vue'
   import PasswordField from '@/components/PasswordField.vue'
   import { useSessionStore } from '@/stores/session'
 
   // /profile for every role (AUTH-13; DBD D2). Viewers may edit their own profile.
   const session = useSessionStore()
   const { user, isClient } = storeToRefs(session)
+
+  const parts = [
+    { id: 'details-h', label: 'Details' },
+    { id: 'pw-h', label: 'Password' },
+    { id: 'tz-h', label: 'Time zone' },
+    { id: 'ap-h', label: 'Appearance' },
+    { id: 'em-h', label: 'Email preferences' },
+  ]
+
+  // Scrolls the view to a section and moves focus there, so keyboard users land in it too
+  function jump (id: string): void {
+    const heading = document.querySelector<HTMLElement>(`#${id}`)
+    if (!heading) {
+      return
+    }
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    heading.closest('section')?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' })
+    heading.setAttribute('tabindex', '-1')
+    heading.focus({ preventScroll: true })
+  }
 
   const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const zones: string[] = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : ['UTC']

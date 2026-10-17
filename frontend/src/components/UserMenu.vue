@@ -1,15 +1,19 @@
 <template>
-  <v-menu location="bottom end">
+  <v-menu :location="rail ? 'end bottom' : 'bottom end'" :offset="rail ? 10 : 4">
     <template #activator="{ props: activator }">
-      <!-- The initials are decoration; the name comes from the hidden text (WCAG 2.5.3) -->
-      <button
-        v-bind="menuButton(activator)"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-600 dark:bg-primary-50 dark:text-primary"
-        type="button"
-      >
-        <span aria-hidden="true">{{ initials }}</span>
-        <span class="sr-only">Account menu for {{ user?.name }}</span>
-      </button>
+      <span class="group relative flex">
+        <!-- The initials are decoration; the name comes from the hidden text (WCAG 2.5.3) -->
+        <button
+          v-bind="menuButton(activator)"
+          class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-600 dark:bg-primary-50 dark:text-primary"
+          type="button"
+        >
+          <span aria-hidden="true">{{ initials }}</span>
+          <span class="sr-only">Account menu for {{ user?.name }}</span>
+        </button>
+
+        <RailTip v-if="rail" :hint="'Profile and log out'" :hint-id="hintId" :label="user?.name ?? ''" />
+      </span>
     </template>
 
     <v-card class="min-w-60 border border-surface-200 py-1">
@@ -22,6 +26,16 @@
 
       <v-list aria-label="Account" class="py-0" density="compact" role="menu">
         <v-list-item :prepend-icon="mdiAccountOutline" role="menuitem" title="My profile" :to="{ name: 'profile' }" />
+
+        <v-list-item
+          v-for="item in extra"
+          :key="item.to"
+          :prepend-icon="item.icon"
+          role="menuitem"
+          :title="item.label"
+          :to="{ name: item.to }"
+        />
+
         <v-list-item :prepend-icon="mdiLogout" role="menuitem" title="Log out" @click="logOut" />
       </v-list>
     </v-card>
@@ -29,16 +43,25 @@
 </template>
 
 <script lang="ts" setup>
+  import type { MenuItem } from '@/app/navigation'
   import { mdiAccountOutline, mdiLogout } from '@mdi/js'
   import { storeToRefs } from 'pinia'
-  import { computed } from 'vue'
+  import { computed, useId } from 'vue'
   import { useRouter } from 'vue-router'
+  import RailTip from '@/app/shells/RailTip.vue'
   import { useSessionStore } from '@/stores/session'
 
-  // Avatar with initials: Profile and Log out (AFD §5.1).
+  // Avatar with initials: Profile and Log out (AFD §5.1). On the rail it opens to the side.
+  defineProps<{
+    rail?: boolean
+    /** More pages to list between My profile and Log out. */
+    extra?: MenuItem[]
+  }>()
+
   const session = useSessionStore()
   const { user } = storeToRefs(session)
   const router = useRouter()
+  const hintId = useId()
 
   const initials = computed(() => (user.value?.name ?? '')
     .split(/\s+/)

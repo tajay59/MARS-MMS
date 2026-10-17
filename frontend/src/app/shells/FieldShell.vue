@@ -39,13 +39,15 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue'
+  import { computed, provide } from 'vue'
   import { useRoute } from 'vue-router'
   import { fieldMenu } from '@/app/navigation'
   import SyncBadge from '@/components/SyncBadge.vue'
+  import { shellKey } from './pane'
 
   // Field shell for staff on phones: 56 px app bar, 64 px bottom bar, 48 px targets (DBD, TRD §13.2).
   const route = useRoute()
+  provide(shellKey, 'field')
   const title = computed(() => route.meta.title ?? '')
 
   const fieldDefaults = {
