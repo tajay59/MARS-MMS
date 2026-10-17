@@ -13,7 +13,7 @@ AWS-MMS is a PWA: technicians record whole visits on iPhones and Android phones 
 - [libs/mms_common/](libs/mms_common/): `ids` (UUIDv7, seeded for tests), `time` (injectable clock), `errors` (problem details), `logging`, `events` (envelope + `(type, version)` registry), `mongo`, `outbox` (transactional add, relay under the Redis leader lease), `consumer` (TRD §8.5 rules: dedupe, retry, DLQ), `snapshot` (backfill paging, `aggregate_version` guard), `kafka`, `web` (request IDs, error handlers, `/health` `/ready` `/metrics`), `checks` (no-direct-produce). Not yet: `auth` (W3).
 - [templates/service/](templates/service/): the copier service template. Its `tests/unit/test_architecture.py` runs import-linter (rule 7, layers) and the no-direct-produce check (rule 2); a generated service passes unchanged.
 - [infra/](infra/): `compose.yml` + `compose.dev.yml` (Nginx gateway, MongoDB `rs0` with one user per service database and an insert-only audit role, Redis, Kafka KRaft, SeaweedFS with per-service S3 keys and the four buckets, Mailpit, self-signed TLS) and `infra/tests/test_stack.py`. No application services yet; their routes answer 503 problem+json until they exist.
-- **Not yet verified against the running stack:** Redis, Kafka (topics, a produce/consume round trip) and the S3 key limits; their images couldn't be pulled on 2026-10-17. Kafka has no SASL/SCRAM yet (TRD §15); add it before staging.
+- **Verified 2026-10-17:** `infra/tests` (35 checks, every container on its pinned image) and `mms_common` (52 tests, including the leader lease on real Redis and an outbox → relay → Kafka → consumer round trip). **Kafka has no SASL/SCRAM yet** (TRD §15); add it before staging.
 - **Gotchas:** Python's `open(p, "w")` on Windows writes CRLF, which breaks shell scripts mounted into containers; keep `infra/` files LF. In Nginx, a `location ^~ /api/` would hide every regex location (all API routes 404); the catch-all stays a plain prefix.
 
 - **Repository:** GitHub `tajay59/MARS-MMS`, branch `main` (remote `origin`). Text files are LF (`.gitattributes`, `.editorconfig`); keep it that way, because shell scripts and configs run in Linux containers.
@@ -276,7 +276,7 @@ python -m venv .venv
 
 `editable_mode=compat` lets mypy see `mms_common` from a service.
 
-Shared library (run in `libs/mms_common/`; the Mongo tests start a throwaway `mongo:8` replica set in Docker and skip without it):
+Shared library (run in `libs/mms_common/`; tests that need MongoDB, Redis or Kafka start throwaway containers on the stack's pinned images, and skip without Docker):
 
 ```sh
 ../../.venv/Scripts/python -m pytest -q
