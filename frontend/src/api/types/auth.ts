@@ -4,6 +4,24 @@
  */
 
 export interface paths {
+    "/api/v1/auth/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Branding */
+        get: operations["get_branding_api_v1_auth_branding_get"];
+        /** Put Branding */
+        put: operations["put_branding_api_v1_auth_branding_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/invitations/accept": {
         parameters: {
             query?: never;
@@ -388,6 +406,27 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /**
+         * BrandingIn
+         * @description `material: null` goes back to the built-in colours. `version` is what the admin saw.
+         */
+        BrandingIn: {
+            material: components["schemas"]["MaterialTheme"] | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * BrandingOut
+         * @description The colours everyone sees. `material` is null for the built-in colours; `version` is 0
+         *     until an admin first saves.
+         */
+        BrandingOut: {
+            material: components["schemas"]["MaterialTheme"] | null;
+            /** Updated At */
+            updated_at: string | null;
+            /** Version */
+            version: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -412,6 +451,29 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * MaterialTheme
+         * @description Brand colours from a Material Theme Builder export: the light and dark schemes (every
+         *     Material 3 role) and the five tonal palettes. app.domain.branding checks the exact keys.
+         */
+        MaterialTheme: {
+            /** Name */
+            name?: string | null;
+            /** Palettes */
+            palettes: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /** Schemes */
+            schemes: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+            /** Seed */
+            seed?: string | null;
         };
         /** Me */
         Me: {
@@ -664,6 +726,59 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    get_branding_api_v1_auth_branding_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+        };
+    };
+    put_branding_api_v1_auth_branding_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandingIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     accept_invitation_api_v1_auth_invitations_accept_post: {
         parameters: {
             query?: never;

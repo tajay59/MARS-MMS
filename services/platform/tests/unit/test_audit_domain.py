@@ -79,7 +79,7 @@ def test_aud1_lists_no_notification_only_event():
 def test_every_aud1_action_built_so_far_has_an_event_schema():
     """TRD §12 completeness: each AUD-1 action maps to event types, and every type from a
     service that exists has a registered schema. Extend as each producer is built."""
-    built_sources = ("auth.", "user.", "org.")
+    built_sources = ("auth.", "user.", "org.", "branding.")
     for action, types in AUD1.items():
         assert types, action
         for type_ in types:
@@ -89,5 +89,5 @@ def test_every_aud1_action_built_so_far_has_an_event_schema():
 
 def test_every_auth_event_is_audited():
     for type_, _ in SCHEMAS:
-        if type_.startswith(("auth.", "user.", "org.")):
+        if type_.startswith(("auth.", "user.", "org.", "branding.")):
             assert type_ in set(all_aud1_types()), f"{type_} is not mapped to an AUD-1 action"

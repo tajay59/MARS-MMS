@@ -20,19 +20,23 @@
           <li
             v-for="row in rows"
             :key="row.id"
-            class="relative flex flex-col gap-0.5 rounded-card p-3"
+            class="relative flex items-center gap-3 rounded-card p-3"
             :class="selected?.id === row.id ? 'bg-primary-50' : 'hover:bg-surface-100'"
           >
-            <!-- The name is the button; the whole row is its target -->
-            <button
-              :aria-current="selected?.id === row.id ? 'true' : undefined"
-              class="text-left font-medium text-surface-900 after:absolute after:inset-0 after:rounded-card"
-              type="button"
-              @click="open(row)"
-            >{{ row.name }}</button>
+            <UserAvatar :name="row.name" :seed="row.id" />
 
-            <span class="truncate text-sm text-surface-600">{{ row.proposed_org_name ?? 'No organization given' }}</span>
-            <span class="text-xs tabular-nums text-surface-600">{{ when(row.created_at) }}</span>
+            <div class="flex min-w-0 flex-col gap-0.5">
+              <!-- The name is the button; the whole row is its target -->
+              <button
+                :aria-current="selected?.id === row.id ? 'true' : undefined"
+                class="truncate text-left font-medium text-surface-900 after:absolute after:inset-0 after:rounded-card"
+                type="button"
+                @click="open(row)"
+              >{{ row.name }}</button>
+
+              <span class="truncate text-sm text-surface-600">{{ row.proposed_org_name ?? 'No organization given' }}</span>
+              <span class="text-xs tabular-nums text-surface-600">{{ when(row.created_at) }}</span>
+            </div>
           </li>
         </ul>
       </div>
@@ -199,6 +203,7 @@
   import FormField from '@/components/FormField.vue'
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
+  import UserAvatar from '@/components/UserAvatar.vue'
   import { useRegistrationsStore } from '@/stores/registrations'
   import { useSessionStore } from '@/stores/session'
   import { closestOrg } from './orgMatch'

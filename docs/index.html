@@ -176,7 +176,7 @@
             <table>
               <thead><tr><th>Path</th><th>What it is</th><th>Status</th></tr></thead>
               <tbody>
-                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 PWA. The public split panel, the app shell for staff and clients (rail, interactive pane and view as square tiles; decision W4-9) and the field shell, route guards, the session with the Web Lock refresh, the public auth pages, My profile, Registrations, Users, Sync, the MARS-MMS logo and PWA icons, and the minimal service worker and manifest (F5). Other menu pages show a placeholder naming their phase.</td><td><span class="badge progress">Shells and auth screens built (W4)</span></td></tr>
+                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 PWA. The public split panel, the app shell for staff and clients (rail, interactive pane and view as square tiles; decision W4-9) and the field shell, route guards, the session with the Web Lock refresh, the public auth pages, My profile, Registrations, Users, Sync, the MARS-MMS logo and PWA icons, the minimal service worker and manifest (F5), GSAP motion for the app shell (W4-10), the admin Settings page (W4-11) and the brand colours from a Material 3 theme that admins change for everyone (W4-12). Other menu pages show a placeholder naming their phase.</td><td><span class="badge progress">Shells and auth screens built (W4)</span></td></tr>
                 <tr><td><code>frontend/e2e/</code></td><td>Playwright against the Compose stack: J1, J2, invitations, the offline app shell, the update prompt between two releases; axe in light and dark and a CSP check on every page. Tests tagged <code>@smoke</code> need no seed users and run against staging after each deploy.</td><td><span class="badge built">Built (W4)</span></td></tr>
                 <tr><td><code>.github/workflows/frontend.yml</code></td><td>Frontend CI: lint, Vitest, API type drift, type-check and build on Node 24. The compose-stack job in <code>backend.yml</code> runs the Playwright journeys.</td><td><span class="badge built">Built</span></td></tr>
                 <tr><td><code>infra/spikes/seaweedfs/</code></td><td>Phase 0 spike: SeaweedFS 4.48 behind Nginx, server-side checks and a browser upload page. Throwaway.</td><td><span class="badge built">Passed 2026-10-16</span></td></tr>
@@ -388,6 +388,8 @@ flowchart TB
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/password-reset/confirm</code></td><td>public</td><td>Sets a new password and revokes all sessions</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/invitations/accept</code></td><td>public (token)</td><td>Sets the password for an invited user</td></tr>
                 <tr><td>auth</td><td>GET / PATCH</td><td><code>/api/v1/auth/me</code></td><td>any</td><td>Current user; update name, phone, password, time zone, theme</td></tr>
+                <tr><td>auth</td><td>GET</td><td><code>/api/v1/auth/branding</code></td><td>public</td><td>The organization's brand colours (a Material 3 theme, or null for the built-in one) and their <code>version</code> (W4-12)</td></tr>
+                <tr><td>auth</td><td>PUT</td><td><code>/api/v1/auth/branding</code></td><td>admin</td><td>Save the brand colours for everyone, with <code>version</code>; audited as <code>branding.updated</code></td></tr>
                 <tr><td>auth</td><td>GET</td><td><code>/api/v1/users</code></td><td>admin</td><td>List and filter users</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/users</code></td><td>admin</td><td>Invite a staff or client user (AUTH-6)</td></tr>
                 <tr><td>auth</td><td>GET</td><td><code>/api/v1/users/{id}</code></td><td>admin</td><td>One user (built in W3; not in TRD 2.0's table)</td></tr>
@@ -573,7 +575,7 @@ flowchart LR
             <table>
               <thead><tr><th>Database</th><th>Service</th><th>Collections</th><th>Outbox</th><th>Consumes events</th></tr></thead>
               <tbody>
-                <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code></td><td>Yes</td><td>No</td></tr>
+                <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code>, <code>settings</code></td><td>Yes</td><td>No</td></tr>
                 <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code>, <code>sensor_applications</code>, <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>checklist_templates</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>media</code></td><td>media</td><td><code>media</code> (files are in S3)</td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>report</code></td><td>report</td><td><code>reports</code>, <code>signatures</code>, <code>report_jobs</code>; read model <code>request_facts</code>, <code>visit_facts</code>, <code>sensor_events</code>, <code>calibration_facts</code>, <code>station_facts</code></td><td>Yes</td><td>Yes</td></tr>
@@ -641,7 +643,8 @@ organizations { _id, name /*unique*/, country /*ISO 3166-1 alpha-2*/, contact_em
 refresh_tokens { _id, user_id, token_hash, family_id, expires_at /*TTL*/, revoked_at, replaced_by, rotated_at, device_label }
 password_resets { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 invitations { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
-signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }</code></pre>
+signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }
+settings { _id: "branding", material: { name, seed, schemes: { light, dark } /*49 roles each*/, palettes /*5 x tones 0-100*/ } | null, updated_at, updated_by, version }</code></pre>
               <p class="small muted">Indexes: <code>users.email</code> unique; <code>users.status</code>; <code>users.org_id</code>; <code>refresh_tokens.token_hash</code> unique; TTL on <code>expires_at</code>. A <code>client</code> role cannot be combined with a staff role.</p>
               <p class="small muted"><b>As built (W3)</b>, beyond TRD §5.1: every document has <code>version</code>, <code>created_at</code>, <code>updated_at</code>, <code>created_by</code>, <code>updated_by</code>; <code>organizations.name_key</code> (case- and space-insensitive, unique); <code>refresh_tokens.successor_enc</code> (sealed successor for the grace window) and <code>created_at</code>; <code>password_resets</code> and <code>invitations</code> start with <code>token_hash: null</code> and get <code>minted_at</code> when the email is sent, <code>superseded</code> when a newer one replaces them (unique index on <code>token_hash</code> only where it is a string); <code>refresh_tokens.family_id</code> and <code>user_id</code> are indexed. Migrations: <code>services/auth/app/migrations/</code>.</p>
             </div>
@@ -1064,6 +1067,7 @@ flowchart LR
                 <tr><td><code>user.updated</code> / <code>user.disabled</code> (built)</td><td>auth</td><td>platform</td><td>user fields; changed_fields on update</td></tr>
                 <tr><td><code>user.purged</code> (built)</td><td>auth</td><td>platform</td><td>user_id (AUTH-5)</td></tr>
                 <tr><td><code>org.created</code> / <code>org.updated</code> (built)</td><td>auth</td><td>operations, report, platform</td><td>org_id, name, country, status; changed_fields on update</td></tr>
+                <tr><td><code>branding.updated</code> (built)</td><td>auth</td><td>platform (audit, "brand colour changes")</td><td>custom, name, seed; key <code>branding</code>, resource <code>settings/branding</code>; audit before/after: custom, name, seed, light and dark primary</td></tr>
                 <tr><td><code>station.created</code> / <code>station.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, code, name, org_id, country, status</td></tr>
                 <tr><td><code>qr.regenerated</code></td><td>operations</td><td>platform (audit)</td><td>station_id</td></tr>
                 <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code></td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, needs_review</td></tr>
@@ -1152,6 +1156,8 @@ flowchart LR
                 <tr><td><code>POST /api/v1/auth/password-reset/confirm</code></td><td>public (token)</td><td>Sets the password; ends every session and access token; activates an invited user</td><td>204 · 410 <code>link_expired</code></td></tr>
                 <tr><td><code>POST /api/v1/auth/invitations/accept</code></td><td>public (token)</td><td>Sets the password and signs the user in</td><td>200 like login · 410</td></tr>
                 <tr><td><code>GET</code>, <code>PATCH /api/v1/auth/me</code></td><td>any signed-in user</td><td>Own profile: name, phone, time zone, theme; password with the current one (other devices signed out)</td><td>200 · 422</td></tr>
+                <tr><td><code>GET /api/v1/auth/branding</code></td><td>public</td><td>The brand colours everyone sees: <code>{material, version, updated_at}</code>; <code>material</code> null = built-in (W4-12)</td><td>200</td></tr>
+                <tr><td><code>PUT /api/v1/auth/branding</code></td><td>admin</td><td>Save them for everyone: <code>{material | null, version}</code>. <code>app/domain/branding.py</code> checks exactly the 49 roles per scheme and tones 0–100 of the five palettes, all <code>#RRGGBB</code></td><td>200 · 409 <code>version_conflict</code> · 422 <code>invalid_theme</code></td></tr>
                 <tr><td><code>GET</code>, <code>POST /api/v1/users</code></td><td>admin</td><td>List with filters (<code>status</code>, <code>role</code>, <code>org_id</code>, <code>q</code>, <code>after</code>, <code>limit</code>); invite (AUTH-6)</td><td>200 · 201 · 409 <code>email_taken</code></td></tr>
                 <tr><td><code>GET</code>, <code>PATCH /api/v1/users/{id}</code></td><td>admin</td><td>Read; change roles, org, status, name, phone with <code>version</code></td><td>200 · 409 <code>version_conflict</code> / <code>self_lockout</code></td></tr>
                 <tr><td><code>POST /api/v1/users/{id}/approve</code>, <code>/reject</code></td><td>admin</td><td>Approve with <code>org_id</code> or <code>new_organization</code>; reject with a reason (AUTH-3)</td><td>200 · 409 <code>invalid_status</code></td></tr>
@@ -2005,7 +2011,7 @@ flowchart LR
       <section class="doc" id="frontend">
         <div class="doc-head">
           <div class="row"><h2 id="frontend-h">Frontend</h2><span class="badge progress">Shells and auth screens built (W4)</span></div>
-          <p>A Vue 3.5 + TypeScript PWA built with Vite. Vuetify 4 supplies components; Tailwind CSS 4 supplies layout and spacing; both read one set of brand tokens. Three frames: the public split panel; the <b>app shell</b> for staff and clients (decision W4-9): a slim rail of section icons with tooltips, an interactive pane with the section's pages as tabs and the page's list or controls, and a view with the details, as square tiles 5 px apart on the <code>ground</code> colour, which on phones become full-bleed panes and a floating tab tile; and the field shell (phone, bottom navigation and a sync badge). Since W4: the router with its guards, the session with the Web Lock refresh, the public auth pages, My profile, the admin Registrations and Users pages, Sync, and the minimal service worker.</p>
+          <p>A Vue 3.5 + TypeScript PWA built with Vite. Vuetify 4 supplies components; Tailwind CSS 4 supplies layout and spacing; both read one set of brand tokens. Three frames: the public split panel; the <b>app shell</b> for staff and clients (decision W4-9): a slim rail of section icons with tooltips, an interactive pane with the section's pages as tabs and the page's list or controls, and a view with the details, as square tiles 5 px apart on the <code>ground</code> colour, which on phones become full-bleed panes and a floating tab tile; and the field shell (phone, bottom navigation and a sync badge). Since W4: the router with its guards, the session with the Web Lock refresh, the public auth pages, My profile, the admin Registrations, Users and Settings pages, Sync, and the minimal service worker. <b>Brand colours</b> (W4-12) come from a Material 3 theme: <code>app/theme/material.ts</code> maps its roles and palettes onto the DBD token names, <code>brand.ts</code> adds the fixed status colours, and <code>stores/branding.ts</code> keeps the organization's theme in step with the server. <b>Motion</b> (W4-10) is GSAP through <code>app/motion.ts</code>: the pane's width tween (the view follows), page and pane-list entrances, the rail's hover, sliding indicator and tooltips; all of it is instant under reduced motion or with Settings › Animations off.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §6.1, §13</a> · <a href="DBD.md">DBD</a> · <a href="AFD.md">AFD §3, §5, §6</a> · ADR-11 · F5, F9, F10, F13 · code in <code>frontend/</code></span>
         </div>
 
@@ -2014,7 +2020,13 @@ flowchart LR
 <pre class="mermaid-def">
 flowchart LR
     L["public/layers.css&lt;br/&gt;first stylesheet in index.html"] -.->|"declares the cascade layer order"| TW
-    B["brand.ts&lt;br/&gt;light and dark tokens"] --> V["vuetify.ts&lt;br/&gt;createVuetify: themes, global defaults, mdi-svg icons"]
+    MJ["material-theme.json&lt;br/&gt;built-in Material 3 theme"] --> M["material.ts&lt;br/&gt;roles and palettes to DBD tokens"]
+    BC2["brandingCache.ts&lt;br/&gt;localStorage mms-branding"] -->|"the organization's theme, if any"| M
+    M --> B["brand.ts&lt;br/&gt;+ fixed status colours"]
+    B --> V["vuetify.ts&lt;br/&gt;createVuetify: themes, global defaults, mdi-svg icons"]
+    API["GET /api/v1/auth/branding&lt;br/&gt;at start, on return to the front"] --> BS["stores/branding.ts"]
+    BS -->|"write"| BC2
+    BS -->|"Object.assign theme colours"| V
     V --> CV["--v-theme-* CSS variables"]
     CV --> TW["tailwind.css @theme&lt;br/&gt;bg-primary, text-surface-700"]
     CV --> BC["base.css&lt;br/&gt;element reset, bg-* on-colours, field hints, focus ring, reduced motion"]
@@ -2025,7 +2037,33 @@ flowchart LR
     I["public/theme-init.js&lt;br/&gt;runs before first paint"] -->|".app-dark"| D
 </pre>
           </div>
-          <figcaption>One switch changes Vuetify's theme and the <code>.app-dark</code> class together; the account's setting wins at sign-in (DBD D2). The layer order lives in <code>public/layers.css</code>, linked before every generated stylesheet: a production build links lazy chunks' CSS before the main bundle and drops a bare <code>@layer</code> statement from it, so an import in <code>main.ts</code> was not enough (decision W4-2).</figcaption>
+          <figcaption>One switch changes Vuetify's theme and the <code>.app-dark</code> class together; the account's setting wins at sign-in (DBD D2). The colours themselves come from a Material 3 theme (W4-12): the organization's, last fetched and kept on the device, else the built-in one; <code>stores/branding.ts</code> updates them in place when the server has a newer version. The layer order lives in <code>public/layers.css</code>, linked before every generated stylesheet: a production build links lazy chunks' CSS before the main bundle and drops a bare <code>@layer</code> statement from it, so an import in <code>main.ts</code> was not enough (decision W4-2).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="How a brand colour change reaches every device (built)" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    actor A as Admin
+    participant S as Settings page (BrandColours.vue)
+    participant B as stores/branding.ts
+    participant API as auth /api/v1/auth/branding
+    participant O as outbox to platform audit
+    participant D as Another device
+    A->>S: upload a file, pick one colour, or edit
+    S->>B: startPreview(draft)
+    Note over B: only this screen changes
+    A->>S: Save for everyone
+    S->>API: PUT {material, version}
+    API->>O: branding.updated, same transaction
+    API-->>S: 200 {material, version + 1}
+    S->>B: adoptSaved: localStorage mms-branding, Vuetify colours
+    D->>API: GET at start or back to the front (5 min at most)
+    API-->>D: newer version
+    Note over D: applies it and keeps a copy for offline and the first paint
+</pre>
+          </div>
+          <figcaption>A stale <code>version</code> is 409: the editor keeps the admin's draft, fetches the newer colours and asks them to save again or discard. Other tabs on the same device follow through the <code>storage</code> event. The service worker never caches the response (TRD §13.3).</figcaption>
         </figure>
 
         <figure class="diagram" data-title="Which shell, and which page, each user gets (built)" data-kind="Website flowchart">
@@ -2696,6 +2734,10 @@ flowchart TD
                 <tr><td>W4-5</td><td>Pages of later phases are routed to a placeholder that names their phase, so every menu item works on staging; global search in the staff top bar waits for something to search (Phase 2)</td><td>2026-10-17</td></tr>
                 <tr><td>W4-6</td><td>Account emails use the product name <b>MARS-MMS</b>, as the app does (DBD D1): subjects, header, sign-off and the default sender name. Only the three PNGs <code>npm run brand</code> reads are committed from <code>/logo</code>; the <code>.psd</code> and the watermarked <code>.jpg</code> files stay out of git</td><td>2026-10-17</td></tr>
                 <tr><td>W4-7</td><td>Release pipeline: <code>release.yml</code> on <code>main</code> reuses the PR checks, then <code>images.yml</code> pushes images tagged with the commit SHA to GHCR, and the staging job deploys them over SSH (the host keeps its own <code>.env</code>, certificates and secrets; <code>infra/</code> is copied on each deploy) and runs the Playwright <code>@smoke</code> tests, which need no seed users. The update prompt is tested locally by changing the served <code>sw.js</code>, and by hand on staging after two deploys</td><td>2026-10-17</td></tr>
+                <tr><td>W4-10</td><td>Motion for the app shell with <b>GSAP</b> (bundled, <code>app/motion.ts</code>): the pane's width tweens when it opens, closes or changes size (the view tile follows through flex), a new page rises in while the old one goes at once (so the pane's blocks swap in one step), a new page's pane list slides in, phones slide between list and record; on the rail a hover lift with overshoot, a press bounce, one sliding active indicator, and tooltips that fade and slide out (Escape closes them). Durations 0 under <code>prefers-reduced-motion</code> or with the per-device Animations setting (DBD 1.5)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-11</td><td>A <b>Settings</b> page for admins, <code>/admin/settings/:part?</code>, the last Admin tab: Appearance (their own Light / Dark / System, and Animations on or off on this device) and Brand colours (AFD 1.4)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-12</td><td>The brand colours are a <b>Material 3 theme</b> (Material Theme Builder export), closing the colour part of DBD D1: built in from <code>frontend/src/app/theme/material-theme.json</code> (seed <code>#026D88</code>) and changeable by admins <b>for everyone</b> (upload, one colour, single colours, JSON; preview first, contrast warnings). Stored in auth (<code>settings</code>, <code>GET</code> public, <code>PUT</code> admin, <code>branding.updated</code> audited; PRD 1.3 AUD-1). Each device keeps the last copy in <code>localStorage</code> for the first paint and offline. Status, success and warning colours stay fixed. The PWA icon and manifest use the built-in primary (DBD 1.5, TRD 2.2, BSD 1.3)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-13</td><td><b>Person avatars</b>: initials in white on a 135° gradient of two brand tones (30–40), picked by the person's id: the one exception to DBD's "no decorative gradients". Decoration only (<code>aria-hidden</code>); first used on the Registrations list</td><td>2026-10-17</td></tr>
                 <tr><td>W4-9</td><td>The app shell replaces the client and staff shells (DBD 1.4, AFD 1.3 §5.1), from the approved "AWS-MMS three-pane layout" mock-up: square tiles 5 px apart on a new <code>ground</code> colour: a 64 px rail of section icons that never expands (a CSS tooltip on hover and focus names the section and what it holds), an interactive pane (section tabs, then the page's list or controls; hideable from 1024 px) and a view (header and details). No app-wide top bar. On phones the pane and view are full-bleed, a chosen record opens alone with Back, and the rail becomes a floating tab tile (four sections and Me). Records chosen in the pane are in the URL (<code>/admin/registrations/:id</code>). Vuetify's <code>VTooltip</code> was dropped for the rail: it leaves empty <code>role="tooltip"</code> nodes that fail axe. The field shell and split panel are unchanged</td><td>2026-10-17</td></tr>
                 <tr><td>W4-8</td><td>Staging runs on a shared server (<code>rnd.yanacreations.com</code>, files host <code>files.yanacreations.com</code>) instead of a dedicated second host (TRD §16.2). The server's own Nginx keeps ports 80 and 443 and the Let's Encrypt certificate, and passes both names to MMS's Nginx over <code>kong-net</code>; MMS's Nginx keeps all its own rules and trusts the edge's <code>X-Real-IP</code>. <code>compose.staging.yml</code> holds this wiring and the memory caps (about 2 GB free). Staging is not sized like production, so load and media-worker timings there (W11) are lower bounds only. Also fixed: <code>compose.prod.yml</code> used <code>!reset</code> on Nginx's volumes, which drops them; it is <code>!override</code></td><td>2026-10-17</td></tr>
                 <tr><td>W4-1</td><td>Interim mail relay for staff-only staging: a Gmail account (<code>smtp.gmail.com:465</code>, <code>PLATFORM_SMTP_SECURITY=ssl</code>, app password only in the staging host's <code>infra/.env</code>). Local stays on Mailpit. T3 (the organization's relay and sending domain) stays open and is needed before the pilot</td><td>2026-10-17</td></tr>
@@ -2843,6 +2885,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>Motion, Settings and brand colours (W4-10 to W4-13). GSAP for the pane's width, page and pane-list entrances, rail hover, sliding indicator and tooltips. New <code>/admin/settings/:part?</code> (Appearance; Brand colours with upload, seed colour, colour by colour and JSON, preview and contrast warnings). The built-in colours are now the Material 3 theme in <code>material-theme.json</code>; auth gets <code>GET</code>/<code>PUT /api/v1/auth/branding</code>, the <code>settings</code> collection and the <code>branding.updated</code> event (audited). Registration rows show a gradient initials avatar. PWA icons rebuilt on the new primary. Auth 135 tests (89%), Vitest 59, Playwright 9 (new: Settings and brand colours, axe light and dark, into the audit chain). DBD 1.5, TRD 2.2, AFD 1.4, PRD 1.3, BSD 1.3. Added the "brand colour change" sequence diagram and updated the theme data flow.</td></tr>
               <tr><td>2026-10-17</td><td>P1 · W4</td><td>The logo is vector: <code>npm run brand</code> builds <code>mark.svg</code>, <code>wordmark.svg</code> and <code>wordmark-white.svg</code> from <code>/logo/logo.svg</code> and <code>/logo/logo_main.svg</code> (metadata and tracing specks dropped, viewBox trimmed) and renders the PWA icons and favicon from the vector mark. Replaces the PNG UI files.</td></tr>
               <tr><td>2026-10-17</td><td>P1 · W4</td><td>The app shell (decision W4-9): <code>AppShell</code>, <code>AppRail</code>, <code>AppTabBar</code>, <code>PaneContent</code> and a new <code>PageBody</code> replace <code>ClientShell</code>, <code>StaffShell</code> and <code>SidebarLink</code>. Registrations is list → record (<code>/admin/registrations/:id?</code>); Users has its status filters in the pane; My profile lists its sections in the pane; the dashboard's "Needs your attention" is in the pane. New <code>ground</code> token. DBD 1.4, AFD 1.3. Vitest 44 (sections by role); Playwright's invitation journey checks the technician's Work section; axe passes in light and dark. Added the "page fills the pane and view" system flowchart and updated the shells website flowchart.</td></tr>
               <tr><td>2026-10-17</td><td>P1 · W4</td><td>Staging host prepared (decision W4-8): <code>rnd.yanacreations.com</code> and <code>files.yanacreations.com</code> on a shared server, behind its edge Nginx. Added <code>compose.staging.yml</code> (edge network, <code>real-ip.conf</code>, memory caps), <code>nginx/staging-edge.conf</code> and <code>snippets/real-ip.conf</code>; the staging job adds <code>compose.staging.yml</code>. Fixed <code>compose.prod.yml</code>, whose <code>!reset</code> dropped Nginx's certificate mounts (<code>!override</code>). Repository variables and secrets for the deploy set. Service images no longer ship pip: its vendored urllib3, msgpack and setuptools failed the Trivy scan (also in the service template).</td></tr>

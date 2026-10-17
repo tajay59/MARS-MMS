@@ -1,6 +1,7 @@
 import { createVuetify } from 'vuetify'
 import { aliases, mdi } from 'vuetify/iconsets/mdi-svg'
-import { darkTheme, lightTheme } from './brand'
+import { buildThemes, builtInMaterial } from './brand'
+import { readCachedBranding } from './brandingCache'
 import { readStoredPreference, resolveTheme } from './preference'
 import 'vuetify/styles'
 
@@ -12,6 +13,9 @@ import 'vuetify/styles'
 */
 
 // hideDetails 'auto': room for a hint or error only when there is one, so forms keep a 16 px rhythm
+// The organization's colours as last fetched, so the first paint is already in them (W4-12)
+const initial = buildThemes(readCachedBranding().material ?? builtInMaterial)
+
 const input = { variant: 'outlined', density: 'compact', rounded: 'md', hideDetails: 'auto' } as const
 
 export default createVuetify({
@@ -19,8 +23,8 @@ export default createVuetify({
     defaultTheme: resolveTheme(readStoredPreference()),
     utilities: false,
     themes: {
-      light: lightTheme,
-      dark: darkTheme,
+      light: initial.light,
+      dark: initial.dark,
     },
   },
   icons: {

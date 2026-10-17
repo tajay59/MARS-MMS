@@ -12,7 +12,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/__tests__/*.spec.ts'],
-    server: { deps: { inline: ['vuetify'] } },
+    // The colour library's ESM build has extensionless imports: let Vite resolve them
+    server: { deps: { inline: ['vuetify', '@material/material-color-utilities'] } },
     css: false,
   },
 })

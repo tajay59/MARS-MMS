@@ -35,6 +35,9 @@ TABLE: dict[Route, Expect] = {
     # Own profile: every role, viewers included (BSD "Own user profile").
     ("GET", "/api/v1/auth/me"): Expect(ANY),
     ("PATCH", "/api/v1/auth/me"): Expect(ANY, self_service=True),
+    # Brand colours: everyone reads them, before sign-in too; admins change them (W4-12).
+    ("GET", "/api/v1/auth/branding"): Expect(PUBLIC),
+    ("PUT", "/api/v1/auth/branding"): roles("admin"),
     # Manage users and registrations: admin only (PRD §2.3).
     ("GET", "/api/v1/users"): roles("admin"),
     ("POST", "/api/v1/users"): roles("admin"),

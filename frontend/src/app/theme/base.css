@@ -68,7 +68,11 @@
   color: rgb(var(--v-theme-on-error-container));
 }
 
-/* Respect the device's reduced-motion setting: no slides, fades or spinners that move (WCAG 2.3.3) */
+/*
+  Respect the device's reduced-motion setting, or the person's "Animations: off" in Settings
+  (the .app-reduced-motion class, app/motion.ts): no slides, fades or spinners that move
+  (WCAG 2.3.3). GSAP tweens check the same two things.
+*/
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -78,4 +82,13 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+.app-reduced-motion *,
+.app-reduced-motion ::before,
+.app-reduced-motion ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }

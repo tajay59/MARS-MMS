@@ -2,6 +2,8 @@
 
 import type {
   ApproveIn,
+  BrandingIn,
+  BrandingOut,
   InviteIn,
   Me,
   MePatch,
@@ -53,4 +55,10 @@ export const orgsApi = {
   list: (status?: 'active' | 'inactive') => api.get<OrgPage>('/organizations', { query: { status, limit: 200 } }),
   get: (id: string) => api.get<OrgOut>(`/organizations/${id}`),
   create: (body: OrgIn) => api.post<OrgOut>('/organizations', body),
+}
+
+// The organization-wide brand colours (decision W4-12): anyone reads them, before sign-in too
+export const brandingApi = {
+  get: (signal?: AbortSignal) => api.get<BrandingOut>('/auth/branding', { ...pub, signal }),
+  save: (body: BrandingIn) => api.put<BrandingOut>('/auth/branding', body),
 }
