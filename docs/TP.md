@@ -3,10 +3,11 @@
 
 | | |
 |---|---|
-| **Version** | 1.1 (draft) |
-| **Date** | 2026-10-16 |
+| **Version** | 1.2 (draft) |
+| **Date** | 2026-10-17 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0 and IP 1.1: five services, Nginx gateway, SeaweedFS, weeks shifted to a W25 go-live. Offline merge tests replaced by station-owner and conflict-code tests. New tests for request status derivation, sensor-action reversal, the finalize saga, fail-closed file visibility, the offline PIN session, refresh-token races, the outbox leader lease, read-model backfill, service-worker cache clearing, the CSP tile host and multipart clean-up |
+| **Changes in 1.2** | Where the Phase 1 harnesses live as built: `mms_common.testing` (seed users and token issuer, authorization matrix, client leak check, container fixtures as a pytest plugin); the template's `tests/api/test_authorization_matrix.py`; the J1/J2 end-to-end stack test into the audit chain |
 | **Builds on** | [PRD.md](PRD.md) 1.1, [TRD.md](TRD.md) 2.0 (§7, §15, §17, §18), [AFD.md](AFD.md) 1.1 (J1–J10), [DBD.md](DBD.md) 1.2, [BSD.md](BSD.md) 1.1, [IP.md](IP.md) 1.1 draft |
 | **Replaces** | TRD §17 Testing strategy, which is now a summary that points here |
 | **Open-question prefix** | V |
@@ -55,7 +56,7 @@ Each of the 12 non-negotiable rules in `CLAUDE.md` has a test that fails the bui
 
 | Test | Rules | How it works | Level |
 |---|---|---|---|
-| Authorization matrix | 3, 4, 5 | One parametrized test per service reads its OpenAPI and calls every route as each seed user. Expected: anonymous → 401; viewer on a mutating route → 403; client of another organization → 404 on every resource route; a technician editing a station they don't own → 403; a route missing from the expected-roles table (taken from the PRD §2.3 permission matrix) fails the test. New routes can't skip it. | API |
+| Authorization matrix | 3, 4, 5 | One parametrized test per service reads its OpenAPI and calls every route as each seed user. Expected: anonymous → 401; viewer on a mutating route → 403; client of another organization → 404 on every resource route; a technician editing a station they don't own → 403; a route missing from the expected-roles table (taken from the PRD §2.3 permission matrix) fails the test. New routes can't skip it. Also: a revoked (disabled) user's token → 401 everywhere; a service token on a user route → 401; on `/internal/*`, a user token → 401 and a service that may not call → 401 or 403. Built in `mms_common.testing.matrix`; each service lists its routes in `tests/api/test_authorization_matrix.py`. | API |
 | Client leak test | 6, D4 | Every response returned to a client token is checked against a deny list: staff `email` and `phone`, internal comments, draft reports, staff-only documents, config versions. Staff appear only as `{id, name}`. | API |
 | Domain imports | 7 | `import-linter` contract: `app.domain` may not import `fastapi`, `pymongo`, `aiokafka` or `app.repo`. | Every PR (lint) |
 | No direct produce | 2 | A Ruff custom rule or grep check: Kafka producer calls only inside `mms_common.outbox`. A state change without an outbox row in the same transaction fails an API test that inspects the outbox collection. | Lint + API |

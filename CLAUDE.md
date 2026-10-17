@@ -8,16 +8,18 @@ AWS-MMS is a PWA: technicians record whole visits on iPhones and Android phones 
 
 ## Current state
 
-**Planning is done; Phase 1 (Foundations) W2 is under way** on branch `feat/p1-w2-foundations`. The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill), the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet), and the first backend foundations:
+**Planning is done; Phase 1 (Foundations) W2 and W3 are built** (W3 on branch `feat/p1-w3-auth`); W4 (frontend shells and auth screens, account emails, staging pipeline, Playwright J1/J2) is next. The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill), the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet), and the backend:
 
-- [libs/mms_common/](libs/mms_common/): `ids` (UUIDv7, seeded for tests), `time` (injectable clock), `errors` (problem details), `logging`, `events` (envelope + `(type, version)` registry), `mongo`, `outbox` (transactional add, relay under the Redis leader lease), `consumer` (TRD §8.5 rules: dedupe, retry, DLQ), `snapshot` (backfill paging, `aggregate_version` guard), `kafka`, `web` (request IDs, error handlers, `/health` `/ready` `/metrics`), `checks` (no-direct-produce). Not yet: `auth` (W3).
-- [templates/service/](templates/service/): the copier service template. Its `tests/unit/test_architecture.py` runs import-linter (rule 7, layers) and the no-direct-produce check (rule 2); a generated service passes unchanged.
-- [infra/](infra/): `compose.yml` + `compose.dev.yml` (Nginx gateway, MongoDB `rs0` with one user per service database and an insert-only audit role, Redis, Kafka KRaft, SeaweedFS with per-service S3 keys and the four buckets, Mailpit, self-signed TLS) and `infra/tests/test_stack.py`. No application services yet; their routes answer 503 problem+json until they exist.
-- **Verified 2026-10-17:** `infra/tests` (35 checks, every container on its pinned image) and `mms_common` (52 tests, including the leader lease on real Redis and an outbox → relay → Kafka → consumer round trip). **Kafka has no SASL/SCRAM yet** (TRD §15); add it before staging.
-- **Gotchas:** Python's `open(p, "w")` on Windows writes CRLF, which breaks shell scripts mounted into containers; keep `infra/` files LF. In Nginx, a `location ^~ /api/` would hide every regex location (all API routes 404); the catch-all stays a plain prefix.
+- [libs/mms_common/](libs/mms_common/): `ids` (UUIDv7, seeded for tests), `time` (injectable clock), `errors` (problem details), `logging`, `events` (envelope + `(type, version)` registry), `mongo`, `outbox` (transactional add, relay under the Redis leader lease), `consumer` (TRD §8.5 rules: dedupe, retry, DLQ), `snapshot` (backfill paging, `aggregate_version` guard), `kafka`, `web` (request IDs, error handlers, `/health` `/ready` `/metrics`), `checks` (no-direct-produce); since W3 also `auth` (EdDSA tokens, JWKS cache, Redis revocation list, `require_roles`/`require_staff`/`require_service`, `actor_for`, `scoped`), `events.auth` (auth event schemas), `migrations` (forward-only, `_migrations` lock), `cron` (Redis lock per run), `relay` (the outbox run loop) and `testing` (seed users + `TestIssuer`, authorization `Matrix`, `find_leaks`, container fixtures as the pytest plugin `mms_common.testing.containers`).
+- [templates/service/](templates/service/): the copier service template. A generated service runs migrations on startup, the outbox relay under its lease and JWT auth from JWKS. Its tests run import-linter (rule 7; layers `api → jobs → events → repo → domain`), the no-direct-produce check (rule 2) and an empty authorization matrix, and pass unchanged in both variants (`produces_events` true and false).
+- [services/auth/](services/auth/) (W3): everything in TRD §3.1, plus `POST /internal/account-links` (reset and invitation links are **minted on send**, never put in an event) and `python -m app.cli create-admin | seed`. 122 tests, including the authorization matrix, the client leak check, the refresh race, JWT attacks and injection.
+- [services/platform/](services/platform/) (W3): the audit module only (consumer group `audit` → hash chain in the `audit` database, `verify()`). Notification module: W4 (account emails, which call `/internal/account-links`) and Phase 3.
+- [infra/](infra/): `compose.yml` + `compose.dev.yml` (Nginx gateway, MongoDB `rs0` with one user per service database and an insert-only audit role, Redis, Kafka KRaft, SeaweedFS with per-service S3 keys and the four buckets, Mailpit, self-signed TLS) and `infra/tests/test_stack.py`. Since W3 it also runs the `auth` and `platform` containers (built from the repo root; `.dockerignore` keeps the context small) and a `dev-secrets` one-shot that makes the auth signing key in `infra/secrets/` (git-ignored). Routes of services not built yet answer 503 problem+json.
+- **Verified 2026-10-17 (W3):** `mms_common` 91 tests, auth 122 (88% coverage, domain 97–100%), platform 26, and `infra/tests` 35 on the running stack, including register → approve → log in → refresh → reset through Nginx into the audit chain. Ruff and mypy are clean everywhere. **Kafka has no SASL/SCRAM yet** (TRD §15); add it before staging.
+- **Gotchas:** Python's `open(p, "w")` on Windows writes CRLF, which breaks shell scripts mounted into containers; keep `infra/` files LF. In Nginx, a `location ^~ /api/` would hide every regex location (all API routes 404); the catch-all stays a plain prefix. FastAPI 0.143 includes routers lazily, so `app.routes` doesn't list their routes: use `fastapi.routing.iter_route_contexts` (the matrix does). In Git Bash, `docker compose exec <svc> /abs/path` needs `MSYS_NO_PATHCONV=1`. An existing local `infra/.env` needs the keys added to `.env.example` since it was copied (`PLATFORM_SERVICE_SECRET`, `AUTH_BREACHED_CHECK`, `AUTH_SEED_PASSWORD`). To replay audit dead letters after a fix: stop platform, reset the `audit` group to earliest (`kafka-consumer-groups.sh --reset-offsets --to-earliest --group audit --all-topics --execute`), start it again.
 
 - **Repository:** GitHub `tajay59/MARS-MMS`, branch `main` (remote `origin`). Text files are LF (`.gitattributes`, `.editorconfig`); keep it that way, because shell scripts and configs run in Linux containers.
-- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, type-check and build (job `check`, `ubuntu-24.04`) on pushes to `main` that touch `frontend/` and on **every** pull request, so `check` can be a required status. [.github/workflows/backend.yml](.github/workflows/backend.yml) does the same for the back end: `mms_common` (Ruff, mypy, tests with throwaway containers), `service template` (generates a service and runs its checks unchanged), `nginx -t`, and `compose stack` (brings the stack up and runs `infra/tests`). W4 replaces both with the full pipeline (per-service jobs, Trivy, GHCR, staging deploy).
+- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, type-check and build (job `check`, `ubuntu-24.04`) on pushes to `main` that touch `frontend/` and on **every** pull request, so `check` can be a required status. [.github/workflows/backend.yml](.github/workflows/backend.yml) does the same for the back end: `mms_common` (Ruff, mypy, tests with throwaway containers), one job per service (`auth`, `platform`: Ruff, mypy, tests, coverage ≥ 70%), `service template` (generates both variants and runs their checks unchanged), `nginx -t`, and `compose stack` (builds and starts the stack, waits for auth and platform to be healthy, runs `infra/tests`). W4 adds images, Trivy, GHCR and the staging deploy.
 - **GitHub tracking:** milestones P0–P8, one per IP phase; Phase 0 work is issues #1–#10. Branch protection on `main` is not on yet: GitHub Free refuses it for private repos (issue #6). Until it is, still work on a branch and merge through a pull request with a green `check`.
 - **SeaweedFS spike:** [infra/spikes/seaweedfs/](infra/spikes/seaweedfs/) (throwaway, Phase 0). Not part of the app stack. **Passed 2026-10-16** on SeaweedFS 4.48 (T7 confirmed); Chrome, Firefox 158 and a 152.8 MiB video from an Android phone all passed the same day. All checks done; an iPhone run is optional.
 - **Tools installed:** Docker Desktop 29.8.2 (Compose v5.6.0) and draw.io desktop 32.4.1. Docker's CLI is at `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin`; terminals opened before the install don't have it on PATH.
@@ -80,13 +82,13 @@ Read these before writing a new document or any code. Requirement IDs (AUTH-1, R
 
 | File | Document | Version | Live copy (Claude Doc) |
 |---|---|---|---|
-| [docs/PRD.md](docs/PRD.md) | Product Requirements | 1.1 | — |
-| [docs/TRD.md](docs/TRD.md) | Technical Requirements | 2.0 | — |
-| [docs/AFD.md](docs/AFD.md) | App Flow (journeys J1–J10, routes, menus, edge states) | 1.1 | [link](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0, stale) |
-| [docs/DBD.md](docs/DBD.md) | Design Brief (colour, type, shells, components) | 1.2 | [link](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1, stale) |
-| [docs/BSD.md](docs/BSD.md) | Background Schema (data location, schemas, access, retention) | 1.1 | [link](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0, stale) |
+| [docs/PRD.md](docs/PRD.md) | Product Requirements | 1.2 | — |
+| [docs/TRD.md](docs/TRD.md) | Technical Requirements | 2.1 | — |
+| [docs/AFD.md](docs/AFD.md) | App Flow (journeys J1–J10, routes, menus, edge states) | 1.2 | [link](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0, stale) |
+| [docs/DBD.md](docs/DBD.md) | Design Brief (colour, type, shells, components) | 1.3 | [link](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1, stale) |
+| [docs/BSD.md](docs/BSD.md) | Background Schema (data location, schemas, access, retention) | 1.2 | [link](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0, stale) |
 | [docs/IP.md](docs/IP.md) | Implementation Plan (phases 0–8, 25 weeks) | 1.1 draft | [link](https://claude.ai/code/artifact/de63972b-b743-4ad1-b5fa-85325dc22312) (1.0, stale) |
-| [docs/TP.md](docs/TP.md) | Test Plan (levels, rule-enforcement tests, seed users, CI stages, tests by phase) | 1.1 draft | [link](https://claude.ai/code/artifact/d6d1344c-a8be-466d-931c-2b8c8f5ec225) (1.0, stale) |
+| [docs/TP.md](docs/TP.md) | Test Plan (levels, rule-enforcement tests, seed users, CI stages, tests by phase) | 1.2 draft | [link](https://claude.ai/code/artifact/d6d1344c-a8be-466d-931c-2b8c8f5ec225) (1.0, stale) |
 
 - The App Flow file is `docs/AFD.md`. Some older notes call it "APD"; it is the same document.
 - [docs/drafts/](docs/drafts/) holds the earlier drafts (Claude, DeepSeek, GPT) and the original `Specification.txt`. The final documents supersede them. Don't edit them, and don't treat them as a source of truth.
@@ -124,6 +126,11 @@ Read these before writing a new document or any code. Requirement IDs (AUTH-1, R
   - **Reopening a report** during Client Review returns the request to In progress; after Closed it stays Closed (RPT-6).
   - **Offline PIN unlock** for staff (ADR-20, AUTH-12).
   - **Files fail closed**: staff-only until the owning service shares them (ADR-19).
+- **Building auth, 2026-10-17** (TRD 2.1, PRD 1.2, AFD 1.2, DBD 1.3, BSD 1.2; docs site decisions W3-1 to W3-9):
+  - **Account links are minted on send**: no token in any event; notification calls auth `POST /internal/account-links` when it sends the email.
+  - **`/register` takes the organization name as free text**; there is no public list of client organizations. The admin links or creates the organization at approval.
+  - **Access tokens are revoked at once** (disabling, org deactivation, reset, role change) through a Redis list every service checks.
+  - Refresh expiry slides (30 days from the last refresh); the grace successor is sealed; the breached-password check fails open with a fallback and a metric; audit appends serialize on the `audit_state` head.
 
 ## Architecture (TRD)
 
@@ -294,14 +301,25 @@ cd services/<name>
 ../../.venv/Scripts/ruff check . && ../../.venv/Scripts/mypy app
 ```
 
+A service (run in `services/<name>/`, for example `auth` or `platform`; API tests start throwaway Mongo and Redis):
+
+```sh
+../../.venv/Scripts/python -m pip install -e ".[dev]" --config-settings editable_mode=compat
+../../.venv/Scripts/python -m pytest -q --cov      # unit, API, matrix, architecture
+../../.venv/Scripts/ruff check . && ../../.venv/Scripts/mypy app
+```
+
 Local stack (run in `infra/`; needs Docker; Nginx serves the last `npm run build` from `frontend/dist`):
 
 ```sh
 cp .env.example .env                              # dev-only values; never commit .env
-docker compose -f compose.yml -f compose.dev.yml up -d
-../.venv/Scripts/python -m pytest tests -q        # gateway, CSP, DB isolation, audit role, topics, buckets
+docker compose -f compose.yml -f compose.dev.yml up -d --build
+docker compose -f compose.yml -f compose.dev.yml exec -e AUTH_SEED_PASSWORD=dev-seed-password-1 auth python -m app.cli seed
+../.venv/Scripts/python -m pytest tests -q        # gateway, CSP, DB isolation, audit role, topics, buckets, J1/J2 into the audit chain
 docker compose -f compose.yml -f compose.dev.yml down      # add -v to delete the data volumes
 ```
+
+- Seed users (TP): `admin@example.org`, `tech1@example.org`, `client.a1@example.org`, `viewer@example.org` and the rest of `mms_common.testing.seed.SEED_USERS`, all with `AUTH_SEED_PASSWORD`. On staging and production, create the first admin with `python -m app.cli create-admin --email … --name …` (password from `AUTH_ADMIN_PASSWORD` or a prompt); `seed` refuses production.
 
 - App: `https://mms.localhost` (accept the self-signed certificate once). Files host: `https://files.mms.localhost`. Mailpit: `http://127.0.0.1:8025`.
 - Published on 127.0.0.1 only, for debugging: MongoDB on `MONGO_DEV_PORT` (default **27018**, because a locally installed MongoDB often holds 27017; connect with `directConnection=true`), Redis 6379, SeaweedFS S3 8333.
@@ -309,7 +327,7 @@ docker compose -f compose.yml -f compose.dev.yml down      # add -v to delete th
 
 Not yet available. Add these as they are built (IP Phase 1):
 
-- hot reload and seeded data in the local stack (the services and `infra/scripts/seed.py`)
+- hot reload in the local stack (seed users exist through `python -m app.cli seed` in auth; stations and requests come with their services)
 - frontend tests (Vitest, Playwright)
 - regenerate OpenAPI types (`openapi-typescript`)
 - rebuild a read model (`infra/scripts/backfill.py --consumer <service>`)

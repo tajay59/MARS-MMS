@@ -3,10 +3,11 @@
 
 | | |
 |---|---|
-| **Version** | 1.1 |
-| **Date** | 2026-10-16 |
+| **Version** | 1.2 |
+| **Date** | 2026-10-17 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0: five services and six databases; SeaweedFS instead of MinIO; Nginx instead of Kong; `org_id` copied onto sensor installations and calibrations (closes B2); model documents reached through operations (B4); files start staff-only (ADR-19); station owners on visits; offline profile and PIN verifier on the device; read models rebuilt by backfill. B3 closed by TRD §5 indexes; B5 and B6 recorded as decisions |
+| **Changes in 1.2** | Follows TRD 2.1 (auth as built): reset and invitation rows hold no token until the link is minted on send; the sealed refresh successor; `organizations.name_key`; the Redis access-token revocation list in the enforcement layers |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) (App Flow), [DBD.md](DBD.md) (Design Brief) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0; superseded by this file) |
 
@@ -176,9 +177,9 @@ The tables below list each collection's purpose, the fields that matter for owne
 | Collection | Purpose | Key fields | Client scope | Indexes |
 | --- | --- | --- | --- | --- |
 | `users` | Every account, staff and client | `email`, `password_hash` (Argon2id), `roles[]`, `org_id` (clients only), `status`, `theme`, `time_zone` | Own record only | `email` unique; `status`; `org_id` |
-| `organizations` | Client organizations | `name` unique, `country` (ISO alpha-2), `contact_email`, `status` | Own org only | `name` unique |
-| `refresh_tokens` | Rotating 30-day sessions | `user_id`, `token_hash`, `family_id`, `replaced_by`, `rotated_at` (30 s reuse grace), `expires_at` | — | `token_hash` unique; TTL on `expires_at` |
-| `password_resets`, `invitations` | Single-use emailed tokens | `user_id`, `token_hash`, `expires_at`, `used_at` | — | TTL on `expires_at` |
+| `organizations` | Client organizations | `name`, `name_key` (unique ignoring case and spacing), `country` (ISO alpha-2), `contact_email`, `status` | Own org only | `name_key` unique |
+| `refresh_tokens` | Rotating sessions, 30 days from the last refresh | `user_id`, `token_hash`, `family_id`, `replaced_by`, `rotated_at` (30 s reuse grace), `successor_enc` (sealed under a key only the previous token can derive), `expires_at` | — | `token_hash` unique; `family_id`; `user_id`; TTL on `expires_at` |
+| `password_resets`, `invitations` | Single-use emailed tokens | `user_id`, `token_hash` (null until minted on send), `minted_at`, `expires_at`, `used_at`, `superseded` | — | `token_hash` unique where set; TTL on `expires_at` |
 | `signing_keys` | Ed25519 JWT keys | `_id` = `kid`, `public_jwk`, `private_key_ref`, `active` | — | — |
 
 Rule: a user with the `client` role holds no staff role, and has exactly one `org_id` once active.
@@ -278,7 +279,7 @@ A client sees only records whose `org_id` (`owner_org_id` on stations, `current_
 | Layer | What it enforces |
 | --- | --- |
 | Nginx | Routing by path, rate limits (300/min per IP with an office allowlist; 10/min on login, register, reset and report verify), request IDs. Returns 404 for `/internal/` and `/.well-known/`. Does not check tokens. Same-origin API, so no CORS |
-| Each service | Verifies the EdDSA JWT locally; checks roles with `require_roles(...)`; adds the org filter in the repository; hides internal comments, drafts, staff-only documents and config versions from clients; enforces station ownership on work records |
+| Each service | Verifies the EdDSA JWT locally and refuses tokens on the Redis revocation list (disabled users, deactivated orgs, resets, role changes); checks roles with `require_roles(...)`; adds the org filter in the repository; hides internal comments, drafts, staff-only documents and config versions from clients; enforces station ownership on work records |
 | MongoDB | One user per database. The audit user has only `find` and `insert` on `audit_events` (plus `createIndex` for migrations and updates to `audit_state` and `_migrations`) |
 | S3 store | One access key per service, limited to the buckets it needs. All buckets private. Files reached only through presigned URLs: 10 minutes to download, 1 hour per upload part. CORS limited to the app origin |
 | Media read check | Staff: allowed. Client: `media.org_id` = token `org_id` and `visibility = org`. Checked locally, no network call |

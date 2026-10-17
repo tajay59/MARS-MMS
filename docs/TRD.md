@@ -3,15 +3,16 @@
 
 | | |
 |---|---|
-| **Version** | 2.0 |
-| **Date** | 2026-10-16 |
+| **Version** | 2.1 |
+| **Date** | 2026-10-17 |
 | **Status** | Final draft for approval |
-| **Companion document** | [PRD.md](PRD.md) v1.1 (Product Requirements Document) |
+| **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
 | **Supersedes** | TRD 1.3 and all drafts in [drafts/](drafts/) |
 | **Changes in 1.1** | Dark theme, ApexCharts, and staff names shown to clients, from Design Brief decisions D2–D4 ([DBD.md](DBD.md)) |
 | **Changes in 1.2** | The component library changes from PrimeVue 4 to **Vuetify 4**, still with Tailwind CSS 4 (ADR-11, §1.1, §13, NFR-11, CSP). Icons change from PrimeIcons to Material Design Icons |
 | **Changes in 1.3** | §17 Testing strategy is summarized here and detailed in the Test Plan ([TP.md](TP.md)) |
 | **Changes in 2.0** | From the 2026-10-16 engineering review. **Five services instead of nine** (ADR-1): station, maintenance and visit merge into `operations`; notification and audit merge into `platform`; the integration stub is dropped. **Kong is removed**; Nginx is the gateway (ADR-5). **SeaweedFS replaces MinIO** (ADR-6, R6). New: derived request status with parallel visits (ADR-17), one owner per station on a visit instead of offline merging (ADR-18), fail-closed file visibility (ADR-19), offline PIN session and refresh-token coordination (ADR-20, §6.1), sensor-action correction (§3.2), finalize saga (§11.2), outbox leader lease and `aggregate_version` (§8), read-model backfill (§8.6), and CSP, multipart and audit-role fixes |
+| **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
 
@@ -175,22 +176,25 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/auth/register` | public | Client self-registration → Pending (AUTH-1) |
 | POST | `/api/v1/auth/login` | public | Returns an access token and sets the refresh cookie |
 | POST | `/api/v1/auth/refresh` | cookie | Rotates the refresh token and returns a new access token (30 s grace for the previous token, §6.1) |
-| POST | `/api/v1/auth/logout` | any | Revokes the refresh token family |
-| POST | `/api/v1/auth/password-reset/request` | public | Emails a reset link (always returns 202) |
-| POST | `/api/v1/auth/password-reset/confirm` | public | Sets a new password and revokes all sessions |
-| POST | `/api/v1/auth/invitations/accept` | public (token) | Sets the password for an invited user |
+| POST | `/api/v1/auth/logout` | cookie | Revokes the refresh token family; works with an expired access token |
+| POST | `/api/v1/auth/password-reset/request` | public | Opens a reset; notification emails the link (always returns 202; at most 3 per email per hour) |
+| POST | `/api/v1/auth/password-reset/confirm` | public | Sets a new password and revokes all sessions and access tokens; activates an invited user |
+| POST | `/api/v1/auth/invitations/accept` | public (token) | Sets the password for an invited user and signs them in |
 | GET / PATCH | `/api/v1/auth/me` | any | Current user; update name, phone, password, time zone, theme |
 | GET | `/api/v1/users` | admin | List and filter users (status, role, org) |
 | POST | `/api/v1/users` | admin | Invite a staff or client user (AUTH-6) |
-| PATCH | `/api/v1/users/{id}` | admin | Update roles, status, org; disable revokes all sessions |
+| GET | `/api/v1/users/{id}` | admin | One user |
+| PATCH | `/api/v1/users/{id}` | admin | Update roles, status, org (with `version`); disable or a role change revokes all sessions and access tokens |
 | POST | `/api/v1/users/{id}/approve` | admin | Approve a pending client; body: `org_id` or a new org |
 | POST | `/api/v1/users/{id}/reject` | admin | Reject with a reason |
-| GET / POST / PATCH | `/api/v1/organizations[/{id}]` | admin (read: staff) | Manage client organizations |
+| GET / POST / PATCH | `/api/v1/organizations[/{id}]` | admin (read: staff; a client reads their own) | Manage client organizations |
 | GET | `/.well-known/jwks.json` | internal network only | Public signing keys; not routed by Nginx |
-| POST | `/internal/service-token` | service secret | Short-lived token for service-to-service calls |
+| POST | `/internal/service-token` | service secret (HTTP Basic) | Short-lived token for service-to-service calls |
+| POST | `/internal/account-links` | service (platform) | Mints the reset or invitation link when the email is sent: `{kind, id}` → `{url, email, name, expires_at}`; minting again replaces the token |
 | GET | `/internal/snapshot/{users\|organizations}` | service | Backfill (§8.6) |
 
-**Cron:** purge pending registrations older than 30 days (AUTH-5); purge expired reset, invitation and refresh tokens.
+**Cron:** purge pending registrations older than 30 days (AUTH-5), daily. Expired reset, invitation and refresh tokens go by TTL indexes.
+**CLI:** `python -m app.cli create-admin` (the first admin) and `seed` (TP seed users; refused in production).
 **Emits:** `user.*`, `org.*`, `auth.*` security events (§8.4).
 
 ### 3.2 operations
@@ -438,7 +442,7 @@ sequenceDiagram
 - Consumers record `processed_events` **in the same transaction** as their own writes, so each event takes effect exactly once.
 - Consumers never apply deltas blindly. State-machine consumers recompute from current state (§3.2.2). Read models upsert only when the event's `aggregate_version` is newer than the stored one. An event therefore can't be lost or double-counted because of ordering.
 - An event that can't be applied yet (for example, its aggregate isn't there) raises a retryable error: it is retried with backoff and then sent to the dead-letter topic. Nothing is dropped silently.
-- Synchronous internal calls are used only where the caller needs an immediate answer: visit lock and unlock, report rendering reads, media owner checks, presigned URLs for model documents, and snapshots for backfill.
+- Synchronous internal calls are used only where the caller needs an immediate answer: visit lock and unlock, report rendering reads, media owner checks, presigned URLs for model documents, account links for reset and invitation emails, and snapshots for backfill.
 
 ---
 
@@ -467,6 +471,8 @@ signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, ret
 ```
 
 Indexes: `users.email` unique; `users.status`; `users.org_id`; `refresh_tokens.token_hash` unique; TTL on `expires_at`. Validation rule: a `client` role cannot be combined with any staff role.
+
+As built (2.1): `organizations.name_key` (case- and space-insensitive, unique); `refresh_tokens.successor_enc` (the successor sealed for the 30 s grace, §6.1); `password_resets` and `invitations` are created with `token_hash: null`, get `minted_at` when the link is minted, and `superseded` when a newer link replaces them (the `token_hash` index is unique only where it is a string).
 
 ### 5.2 operations
 
@@ -677,12 +683,14 @@ Indexes: `seq` unique; `(resource.type, resource.id, at)`; `(actor.user_id, at)`
 | Token | Format | Lifetime | Storage |
 |---|---|---|---|
 | Access | JWT, EdDSA (Ed25519) | 15 min | Memory only (Pinia); never persisted |
-| Refresh | 256-bit random, stored as a SHA-256 hash | 30 days, rotated on each use | httpOnly, Secure, SameSite=Strict cookie, path `/api/v1/auth` |
+| Refresh | 256-bit random, stored as a SHA-256 hash | 30 days from the last refresh, rotated on each use | `__Secure-mms_refresh`: httpOnly, Secure, SameSite=Strict cookie, path `/api/v1/auth` |
 | Service | JWT, `roles:["service"]`, `sub:<service-name>` | 5 min | Service memory |
 
 Access token claims: `sub`, `roles`, `org_id`, `name`, `iat`, `exp`, `jti`, `kid`.
 
-- **Rotation and reuse.** Presenting a revoked token revokes its whole `family_id`, except within a **30-second grace window** after rotation. A token rotated less than 30 s ago returns the same successor pair instead, so concurrent refreshes from two tabs or the service worker never log the user out.
+- **Rotation and reuse.** Presenting a revoked token revokes its whole `family_id`, except within a **30-second grace window** after rotation. A token rotated less than 30 s ago returns the same successor pair instead, so concurrent refreshes from two tabs or the service worker never log the user out. The successor is kept sealed (AES-GCM) under a key derived from the token it replaced, so only that token's holder can open it and the database never holds a usable token. Reuse after the window emits `auth.token_reuse_detected`. Failed refreshes return 401 with `reason` `no_session`, `session_expired`, `session_revoked` or `account_blocked`, and clear the cookie.
+- **Expiry.** 30 days from the last refresh (sliding). Login and refresh return `refresh_expires_at`, which the PWA keeps as `offline_until`.
+- **Immediate revocation.** Access tokens are stateless, so disabling a user, deactivating an organization, a password reset or a role change also writes `auth:revoked:user:<id>` or `auth:revoked:org:<id>` in Redis with the time (kept 17 minutes). `mms_common.auth` in every service refuses tokens issued at or before it (AUTH-11, ORG-4).
 - **Refresh coordination in the PWA.** Pages and the service worker refresh only while holding the Web Lock `mms-auth-refresh`. The holder calls `/refresh` and shares the new access token over a `BroadcastChannel`; the others wait for it.
 - **Key rotation.** A new `kid` is added to JWKS. Services fetch JWKS from `http://auth:8000/.well-known/jwks.json` on the internal network, cache it in Redis for 10 min, and refetch on an unknown `kid`.
 - **Offline field session (ADR-20, AUTH-12).**
@@ -780,7 +788,9 @@ sequenceDiagram
 
 - Argon2id (`argon2-cffi`, parameters at least time=3, memory=64 MiB).
 - At least 10 characters, checked against a breached-password list (HIBP range API if outbound access is allowed, otherwise a local k-anonymity file; see T1).
-- Reset and invitation tokens: 256-bit, stored hashed, single use; 1-hour expiry for resets, 7 days for invitations. A successful reset revokes all refresh tokens.
+- Reset and invitation tokens: 256-bit, stored hashed, single use; 1-hour expiry for resets, 7 days for invitations. A successful reset revokes all refresh tokens and access tokens. **Minted on send:** the request creates a row with no token and emits `auth.password_reset_requested` (or `user.invited`); platform's notification module calls `POST /internal/account-links` when it sends the email, and auth mints the token then. No token ever passes through Kafka, the DLQ, the outbox or the audit trail. Minting again replaces the earlier token. An invited user whose link expired finishes through a reset, which activates them.
+- Breached-password check order: a built-in list of common passwords, then HIBP (`Add-Padding`), then the local file when HIBP is unreachable. With neither reachable the password is accepted and `auth_breached_check_unavailable_total` counts it, so an outage never blocks registration.
+- Registering an email that already has an account answers exactly like a new registration (202) and changes nothing. Reset requests are limited to 3 per email per hour, silently.
 - Per-account login throttling in Redis (5 failures → 15-minute delay), keyed by the hash of the normalized email **whether or not the account exists**. Unknown emails run a dummy Argon2 verification, so neither the message nor the timing reveals whether an email is registered (AUTH-10). Nginx adds the per-IP limit.
 
 ### 6.3 Authorization
@@ -934,7 +944,7 @@ async with client.start_session() as s:
   "source": "operations",
   "key": "<root aggregate id>",
   "aggregate_version": 7,
-  "actor": { "user_id": "…", "roles": ["technician"], "ip": "…", "user_agent": "…", "device_id": "…" },
+  "actor": { "user_id": "…", "name": "…", "roles": ["technician"], "ip": "…", "user_agent": "…", "device_id": "…" },
   "org_id": "…",
   "resource": { "type": "visit", "id": "…" },
   "correlation_id": "…",
@@ -950,10 +960,14 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | Event | Producer | Consumers | Key `data` fields |
 |---|---|---|---|
 | `auth.login_succeeded` / `auth.login_failed` / `auth.logout` / `auth.password_reset` | auth | platform (audit) | user_id?, email_hash, reason? |
-| `user.registered` | auth | platform | user_id, name, proposed_org_name |
-| `user.invited` | auth | platform | user_id, roles, org_id? |
-| `user.approved` / `user.rejected` | auth | platform | user_id, org_id?, reason? |
-| `user.updated` / `user.disabled` | auth | platform | user_id, roles, status, org_id |
+| `auth.password_reset_requested` | auth | platform | user_id, reset_id (the link is minted on send) |
+| `auth.token_reuse_detected` | auth | platform (audit) | user_id, family_id |
+| `user.registered` | auth | platform | user fields¹, proposed_org_name |
+| `user.invited` | auth | platform | user fields¹, invitation_id |
+| `user.created` | auth | platform | user fields¹, via (the CLI) |
+| `user.approved` / `user.rejected` | auth | platform | user fields¹, reason? |
+| `user.updated` / `user.disabled` | auth | platform | user fields¹, changed_fields? |
+| `user.purged` | auth | platform | user_id |
 | `org.created` / `org.updated` | auth | operations, report, platform | org_id, name, country, status |
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
@@ -993,6 +1007,8 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `report.generated` | report | operations, platform | report_id, type, subject_ref |
 | `report.finalize_reminder` | report | platform (notification) | report_id, working_days |
 
+¹ User fields: `user_id`, `email`, `name`, `roles`, `status`, `org_id`, so `user_directory` can upsert from any `user.*` event (§5.5).
+
 ### 8.5 Consumer rules
 
 1. Validate the envelope against `mms_common.events` for its `(type, version)`; an unknown type or invalid payload goes straight to the DLQ.
@@ -1018,7 +1034,7 @@ Read models (report's facts, platform's `user_directory`, operations' copied org
 | `report` | report-worker | `render_draft`, `render_final`, `render_closeout`, `render_client_form`, `render_labels`, `render_summary` | 2 jobs; timeout 5 min |
 | cron | each service | Scheduled jobs listed in §3 | One run at a time per job, using a Redis lock (`SET NX PX`) |
 
-Redis also holds the JWKS cache, the per-account login throttle, the outbox leader leases, WebSocket pub/sub (`ws:user:{id}`) and the dashboard figure cache (60 s). Persistence: AOF `everysec`. Redis is not a system of record. Losing it loses only queued jobs, which reconciliation crons re-enqueue (for example, media still `uploaded` but never processed after 15 minutes, or reports stuck in `finalizing`).
+Redis also holds the JWKS cache, the per-account login throttle, the access-token revocation list (§6.1), the outbox leader leases, WebSocket pub/sub (`ws:user:{id}`) and the dashboard figure cache (60 s). Persistence: AOF `everysec`. Redis is not a system of record. Losing it loses only queued jobs, which reconciliation crons re-enqueue (for example, media still `uploaded` but never processed after 15 minutes, or reports stuck in `finalizing`).
 
 ---
 
@@ -1093,7 +1109,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 ## 12. Audit
 
 - The audit module of `platform` consumes every `mms.*.events` topic with consumer group `audit`. Each event maps to an audit record using `actor`, `resource`, `org_id` and the `audit.before/after` block in the envelope. Events marked notification-only (`*.reminder`, `*.digest`, `visit.sync_conflict`) are skipped.
-- **Ordering and chain:** a single writer task appends records in arrival order. It assigns `seq = last_seq + 1` and computes `hash = SHA-256(prev_hash ‖ canonical(record))`, updating `audit_state` in the same transaction. At this volume (well under 100 events per minute), one writer is enough. A duplicate delivery fails on `_id = event_id` and is skipped.
+- **Ordering and chain:** each append assigns `seq = last_seq + 1` and computes `hash = SHA-256(prev_hash ‖ canonical(record))`, updating `audit_state` in the same transaction. Every append writes the `audit_state` head first, so concurrent appends from several workers serialize on it: the chain order is the commit order and no two records share a `seq` (2.1; replaces the single writer task). Canonical form: sorted keys, no spaces, UTF-8, times as UTC ISO 8601 with milliseconds (times are stored to the millisecond). A duplicate delivery is skipped by `processed_events` and `_id = event_id`.
 - **Immutability:** the audit database user has a custom role with only `find` and `insert` on `audit_events`; `find`, `insert` and `update` on `audit_state` and `_migrations`; and `createIndex` on the `audit` database, so migrations can add indexes. It has no `update` or `remove` on `audit_events`. No API updates or deletes records. Backups preserve the chain.
 - **Integrity check** (`POST /verify`): recompute the chain over a range and report the first broken `seq`, if any. It also runs weekly by cron, and a failure raises an alert.
 - **Completeness:** every audited action in PRD AUD-1 is either an event already (state changes via the outbox) or is emitted explicitly as an `auth.*` security event. A contract test checks that each AUD-1 action has a mapped event type.

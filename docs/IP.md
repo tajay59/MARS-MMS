@@ -150,7 +150,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 | Week | Milestone |
 |---|---|
 | W2 | Repo, `mms_common` core (mongo, outbox with leader lease, kafka, logging, clock), service template with its lint and test harnesses. Full Compose stack up locally behind Nginx. |
-| W3 | auth service complete with tests. platform's audit module builds the chain from auth events. Nginx routes and CI running. |
+| W3 | auth service complete with tests. platform's audit module builds the chain from auth events. Nginx routes and CI running. **Done 2026-10-17** (branch `feat/p1-w3-auth`): register → approve → log in → refresh → reset runs through Nginx and lands in the audit chain in the stack test. |
 | W4 | Frontend shells and auth screens. Account emails. Staging deploy pipeline. Playwright test for J1 and J2. |
 
 **Delivers:** AUTH-1 to AUTH-11, AUTH-13, ORG-1, ORG-4, NOT-3, AUD-1 (account events), AUD-2, AUD-3, AUD-5 (chain only). Journeys J1, J2.

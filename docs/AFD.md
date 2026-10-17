@@ -3,10 +3,11 @@
 
 | | |
 |---|---|
-| **Version** | 1.1 |
-| **Date** | 2026-10-16 |
+| **Version** | 1.2 |
+| **Date** | 2026-10-17 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows PRD 1.1 and TRD 2.0: a new **Unlock** page (offline PIN), station owners on visits (J5, J6), J6 checks preparation before the visit starts, reopened reports return the request to In progress (J7, J8), and new routing and edge states for offline sessions and sync conflicts. 37 pages |
+| **Changes in 1.2** | J1 step 2: the client types their organization's name (no public list of organizations); PRD 1.2 AUTH-1 |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0; superseded by this file) |
 
@@ -208,9 +209,9 @@ A new client cannot log in until an admin approves them; the decision reaches th
 | # | On page | User does | What happens / next page |
 |---|---|---|---|
 | 1 | `/login` | Clicks **Create an account** | → `/register` |
-| 2 | `/register` | Enters name, email, phone and password, picks their organization or types a new name, clicks **Register** | Account saved as Pending → `/register/pending` ("We'll email you when your account is approved") |
+| 2 | `/register` | Enters name, email, phone and password, types their organization's name, clicks **Register** | Account saved as Pending → `/register/pending` ("We'll email you when your account is approved") |
 | 3 | Admin dashboard *[Admin]* | Clicks the **Registrations pending** widget | → `/admin/registrations` |
-| 4 | `/admin/registrations` *[Admin]* | Opens a registration, clicks **Approve**, links it to an existing organization or creates one, confirms | Row leaves the list; approval email sent. Stays on `/admin/registrations` |
+| 4 | `/admin/registrations` *[Admin]* | Opens a registration, clicks **Approve**, links it to an existing organization (matching the typed name) or creates one, confirms | Row leaves the list; approval email sent. Stays on `/admin/registrations` |
 | 4b | `/admin/registrations` *[Admin]* | Clicks **Reject** and types a reason | Row leaves the list; rejection email with the reason sent |
 | 5 | Approval email | Clicks **Log in** | → `/login` |
 | 6 | `/login` | Logs in | → Client dashboard |
