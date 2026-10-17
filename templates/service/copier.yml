@@ -1,0 +1,27 @@
+# Creates a service from the AWS-MMS template (TRD §3.0, §19).
+#   copier copy templates/service services/<name> --data service_name=<name> --data env_prefix=<PREFIX>
+_subdirectory: template
+_templates_suffix: .jinja
+_answers_file: .copier-answers.yml
+
+service_name:
+  type: str
+  help: Service directory and package name, lowercase (for example auth, operations)
+  validator: >-
+    {% if not (service_name | regex_search('^[a-z][a-z0-9_]{1,30}$')) %}
+    Use lowercase letters, digits and underscores, starting with a letter
+    {% endif %}
+
+env_prefix:
+  type: str
+  help: Environment variable prefix (AUTH, OPS, MEDIA, REPORT, PLATFORM)
+  default: "{{ service_name | upper }}"
+  validator: >-
+    {% if not (env_prefix | regex_search('^[A-Z][A-Z0-9]{1,15}$')) %}
+    Use uppercase letters and digits
+    {% endif %}
+
+produces_events:
+  type: bool
+  help: Does the service produce domain events (topic mms.<name>.events)? platform does not
+  default: true

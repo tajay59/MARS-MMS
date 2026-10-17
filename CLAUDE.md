@@ -8,11 +8,17 @@ AWS-MMS is a PWA: technicians record whole visits on iPhones and Android phones 
 
 ## Current state
 
-**Planning is done; Phase 0 (readiness) is under way; build has not started.** The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill) and the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet). There are no backend services yet.
+**Planning is done; Phase 1 (Foundations) W2 is under way** on branch `feat/p1-w2-foundations`. The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill), the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet), and the first backend foundations:
+
+- [libs/mms_common/](libs/mms_common/): `ids` (UUIDv7, seeded for tests), `time` (injectable clock), `errors` (problem details), `logging`, `events` (envelope + `(type, version)` registry), `mongo`, `outbox` (transactional add, relay under the Redis leader lease), `consumer` (TRD §8.5 rules: dedupe, retry, DLQ), `snapshot` (backfill paging, `aggregate_version` guard), `kafka`, `web` (request IDs, error handlers, `/health` `/ready` `/metrics`), `checks` (no-direct-produce). Not yet: `auth` (W3).
+- [templates/service/](templates/service/): the copier service template. Its `tests/unit/test_architecture.py` runs import-linter (rule 7, layers) and the no-direct-produce check (rule 2); a generated service passes unchanged.
+- [infra/](infra/): `compose.yml` + `compose.dev.yml` (Nginx gateway, MongoDB `rs0` with one user per service database and an insert-only audit role, Redis, Kafka KRaft, SeaweedFS with per-service S3 keys and the four buckets, Mailpit, self-signed TLS) and `infra/tests/test_stack.py`. No application services yet; their routes answer 503 problem+json until they exist.
+- **Verified 2026-10-17:** `infra/tests` (35 checks, every container on its pinned image) and `mms_common` (52 tests, including the leader lease on real Redis and an outbox → relay → Kafka → consumer round trip). **Kafka has no SASL/SCRAM yet** (TRD §15); add it before staging.
+- **Gotchas:** Python's `open(p, "w")` on Windows writes CRLF, which breaks shell scripts mounted into containers; keep `infra/` files LF. In Nginx, a `location ^~ /api/` would hide every regex location (all API routes 404); the catch-all stays a plain prefix.
 
 - **Repository:** GitHub `tajay59/MARS-MMS`, branch `main` (remote `origin`). Text files are LF (`.gitattributes`, `.editorconfig`); keep it that way, because shell scripts and configs run in Linux containers.
-- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, type-check and build (job `check`, `ubuntu-24.04`) on pushes to `main` that touch `frontend/` and on **every** pull request, so `check` can be a required status. Phase 1 replaces it with the full pipeline.
-- **GitHub tracking:** project board [AWS-MMS](https://github.com/users/tajay59/projects/2) (linked to the repo), milestones P0–P8 (one per IP phase); Phase 0 work is issues #1–#10. New issues get a milestone and are added to the board. **`main` is protected** (the repo is public since 2026-10-16): no direct pushes, even for admins. Work on a branch, open a pull request, and merge by squash or rebase once `check` is green and up to date. Secret scanning blocks pushes that contain secrets. **The repo is public:** never commit client names, real station data, credentials or internal addresses; keep those in the organization's systems or in uncommitted `.env` files.
+- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, type-check and build (job `check`, `ubuntu-24.04`) on pushes to `main` that touch `frontend/` and on **every** pull request, so `check` can be a required status. [.github/workflows/backend.yml](.github/workflows/backend.yml) does the same for the back end: `mms_common` (Ruff, mypy, tests with throwaway containers), `service template` (generates a service and runs its checks unchanged), `nginx -t`, and `compose stack` (brings the stack up and runs `infra/tests`). W4 replaces both with the full pipeline (per-service jobs, Trivy, GHCR, staging deploy).
+- **GitHub tracking:** project board [AWS-MMS](https://github.com/users/tajay59/projects/2) (linked to the repo), milestones P0–P8 (one per IP phase); Phase 0 work is issues #1–#10. New issues get a milestone and are added to the board. **`main` is protected** (the repo is public since 2026-10-16): no direct pushes, even for admins. Work on a branch, open a pull request, and merge by squash or rebase once the checks are green and the branch is up to date. Secret scanning blocks pushes that contain secrets. **The repo is public:** never commit client names, real station data, credentials or internal addresses; keep those in the organization's systems or in uncommitted `.env` files.
 - **SeaweedFS spike:** [infra/spikes/seaweedfs/](infra/spikes/seaweedfs/) (throwaway, Phase 0). Not part of the app stack. **Passed 2026-10-16** on SeaweedFS 4.48 (T7 confirmed); Chrome, Firefox 158 and a 152.8 MiB video from an Android phone all passed the same day. All checks done; an iPhone run is optional.
 - **Tools installed:** Docker Desktop 29.8.2 (Compose v5.6.0) and draw.io desktop 32.4.1. Docker's CLI is at `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin`; terminals opened before the install don't have it on PATH.
 - **Information requested from the organization:** [Claude Doc](https://claude.ai/code/artifact/245278ff-5250-48fb-859d-6bcdba80d911) listing every open input (T, B, P, Q, V items) with owner, due week and default.
@@ -260,13 +266,52 @@ docker compose run --rm spike python check.py   # then open http://localhost:808
 docker compose down -v
 ```
 
-Not yet available. Add these when the repo is scaffolded (IP Phase 1):
+Python setup (once, from the repo root; one venv for the library, the template and infra tests). On Windows the venv's tools are in `.venv/Scripts/`, elsewhere `.venv/bin/`:
 
-- start the local stack (`infra/compose.yml` + `compose.dev.yml`: hot reload, seeded data, Mailpit, self-signed TLS)
-- run one service and its tests (pytest, Ruff, mypy)
+```sh
+python -m venv .venv
+.venv/Scripts/python -m pip install -e "libs/mms_common[dev]" --config-settings editable_mode=compat
+.venv/Scripts/python -m pip install copier import-linter pytest-cov uvicorn pydantic-settings boto3
+```
+
+`editable_mode=compat` lets mypy see `mms_common` from a service.
+
+Shared library (run in `libs/mms_common/`; tests that need MongoDB, Redis or Kafka start throwaway containers on the stack's pinned images, and skip without Docker):
+
+```sh
+../../.venv/Scripts/python -m pytest -q
+../../.venv/Scripts/ruff check .
+../../.venv/Scripts/mypy mms_common
+```
+
+Create a service from the template, then check it (run from the repo root):
+
+```sh
+.venv/Scripts/copier copy templates/service services/<name> --data service_name=<name> --data env_prefix=<PREFIX>
+cd services/<name>
+../../.venv/Scripts/python -m pip install -e . --config-settings editable_mode=compat
+../../.venv/Scripts/python -m pytest -q        # includes the architecture checks
+../../.venv/Scripts/ruff check . && ../../.venv/Scripts/mypy app
+```
+
+Local stack (run in `infra/`; needs Docker; Nginx serves the last `npm run build` from `frontend/dist`):
+
+```sh
+cp .env.example .env                              # dev-only values; never commit .env
+docker compose -f compose.yml -f compose.dev.yml up -d
+../.venv/Scripts/python -m pytest tests -q        # gateway, CSP, DB isolation, audit role, topics, buckets
+docker compose -f compose.yml -f compose.dev.yml down      # add -v to delete the data volumes
+```
+
+- App: `https://mms.localhost` (accept the self-signed certificate once). Files host: `https://files.mms.localhost`. Mailpit: `http://127.0.0.1:8025`.
+- Published on 127.0.0.1 only, for debugging: MongoDB on `MONGO_DEV_PORT` (default **27018**, because a locally installed MongoDB often holds 27017; connect with `directConnection=true`), Redis 6379, SeaweedFS S3 8333.
+- To check the gateway config alone: `docker compose -f compose.yml -f compose.dev.yml exec nginx nginx -t`.
+
+Not yet available. Add these as they are built (IP Phase 1):
+
+- hot reload and seeded data in the local stack (the services and `infra/scripts/seed.py`)
 - frontend tests (Vitest, Playwright)
 - regenerate OpenAPI types (`openapi-typescript`)
-- create a new service from the copier template
 - rebuild a read model (`infra/scripts/backfill.py --consumer <service>`)
 
 ## Definition of done (IP)
