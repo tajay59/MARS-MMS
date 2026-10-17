@@ -10,6 +10,7 @@ class Actor(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     user_id: str | None = None
+    name: str | None = None  # the audit record shows who acted without a lookup (AUD-2)
     roles: list[str] = Field(default_factory=list)
     ip: str | None = None
     user_agent: str | None = None
