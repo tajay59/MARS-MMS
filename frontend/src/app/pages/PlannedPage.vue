@@ -1,6 +1,6 @@
 <template>
   <PageBody :title="String(route.meta.title ?? '')">
-    <v-card class="flex max-w-xl flex-col items-start gap-3 border border-surface-200 p-6">
+    <div class="flex max-w-xl flex-col items-start gap-3">
       <v-icon class="text-surface-500" :icon="mdiProgressClock" size="32" />
       <h2 class="m-0 text-h3 text-surface-900">{{ route.meta.title }} isn’t built yet</h2>
 
@@ -9,7 +9,7 @@
       </p>
 
       <v-btn class="text-primary" :to="{ name: 'dashboard' }" variant="outlined">Go to the dashboard</v-btn>
-    </v-card>
+    </div>
   </PageBody>
 </template>
 
