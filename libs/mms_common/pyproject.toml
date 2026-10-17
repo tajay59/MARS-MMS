@@ -13,10 +13,12 @@ dependencies = [
   "redis>=6",
   "aiokafka",
   "structlog",
+  "fastapi",
+  "prometheus-client",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "hypothesis", "ruff", "mypy", "testcontainers[mongodb,redis]"]
+dev = ["httpx", "pytest", "pytest-asyncio", "hypothesis", "ruff", "mypy", "testcontainers[mongodb,redis]"]
 
 [tool.setuptools.packages.find]
 include = ["mms_common*"]
@@ -43,3 +45,6 @@ strict = true
 [[tool.mypy.overrides]]
 module = ["aiokafka", "aiokafka.*"]
 ignore_missing_imports = true
+
+[tool.setuptools.package-data]
+mms_common = ["py.typed"]
