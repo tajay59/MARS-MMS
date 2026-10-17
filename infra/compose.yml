@@ -1,0 +1,171 @@
+# AWS-MMS stack, shared by every environment (TRD §16).
+#   local:              docker compose -f compose.yml -f compose.dev.yml up -d
+#   staging/production: docker compose -f compose.yml -f compose.prod.yml up -d   (Phase 1, W4)
+#
+# Only Nginx publishes ports (TRD §15). Everything else is on the internal `backend` network.
+# Secrets come from infra/.env (copy .env.example; never commit .env).
+# The application services (auth, operations, media, report, platform) are added as they are
+# built from templates/service.
+
+name: mms
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  nginx:
+    <<: *restart
+    image: nginx:1.31.7-alpine
+    depends_on:
+      seaweedfs:
+        condition: service_started
+    ports:
+      - "${MMS_HTTP_PORT:-80}:80"
+      - "${MMS_HTTPS_PORT:-443}:443"
+    environment:
+      MMS_HOST: ${MMS_HOST:?set MMS_HOST in infra/.env}
+      FILES_HOST: ${FILES_HOST:?set FILES_HOST in infra/.env}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/office-ips.conf:/etc/nginx/office-ips.conf:ro
+      - ${MMS_TLS_DIR:-./nginx/certs}:/etc/nginx/certs:ro
+      - ${MMS_SPA_DIR:-../frontend/dist}:/usr/share/nginx/html:ro
+    networks:
+      backend:
+        # Containers reach the files host by the name the browser uses, so presigned URLs
+        # signed for it work from inside the stack too.
+        aliases: ["${FILES_HOST}"]
+
+  mongo:
+    <<: *restart
+    image: mongo:8.0.34
+    entrypoint: ["/bin/bash", "/opt/mms/mongo-entrypoint.sh"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/tmp/mongo-keyfile"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?}
+      MONGO_KEYFILE_CONTENT: ${MONGO_KEYFILE:?}
+    volumes:
+      - ./mongo/mongo-entrypoint.sh:/opt/mms/mongo-entrypoint.sh:ro
+      - mongo-data:/data/db
+    healthcheck:
+      # Through the container's host name, not localhost: during first-run setup the image
+      # runs a temporary localhost-only mongod, which must not count as healthy.
+      test: ["CMD-SHELL", "mongosh --quiet \"mongodb://root:$${MONGO_INITDB_ROOT_PASSWORD}@$$(hostname):27017/admin?directConnection=true\" --eval 'db.adminCommand(\"ping\").ok'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks: [backend]
+
+  # One-shot: initiates rs0 and creates one user per service database (rule 1, TRD §15).
+  mongo-init:
+    image: mongo:8.0.34
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: ["mongosh", "--quiet", "mongodb://root:${MONGO_ROOT_PASSWORD}@mongo:27017/admin?directConnection=true", "/opt/mms/init.js"]
+    environment:
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?}
+      OPS_DB_PASSWORD: ${OPS_DB_PASSWORD:?}
+      MEDIA_DB_PASSWORD: ${MEDIA_DB_PASSWORD:?}
+      REPORT_DB_PASSWORD: ${REPORT_DB_PASSWORD:?}
+      PLATFORM_NOTIFICATION_DB_PASSWORD: ${PLATFORM_NOTIFICATION_DB_PASSWORD:?}
+      PLATFORM_AUDIT_DB_PASSWORD: ${PLATFORM_AUDIT_DB_PASSWORD:?}
+    volumes:
+      - ./mongo/init.js:/opt/mms/init.js:ro
+    restart: "no"
+    networks: [backend]
+
+  redis:
+    <<: *restart
+    image: redis:7.4.11-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  kafka:
+    <<: *restart
+    image: apache/kafka:4.3.1
+    environment:
+      # KRaft combined mode, single node in v1 (TRD §8.1, R2).
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?}
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    networks: [backend]
+
+  # One-shot: creates the topics declared in kafka/topics.yml (TRD §18 step 7).
+  kafka-init:
+    image: apache/kafka:4.3.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/opt/mms/create-topics.sh", "/opt/mms/topics.yml"]
+    volumes:
+      - ./kafka/create-topics.sh:/opt/mms/create-topics.sh:ro
+      - ./kafka/topics.yml:/opt/mms/topics.yml:ro
+    restart: "no"
+    networks: [backend]
+
+  seaweedfs:
+    <<: *restart
+    image: chrislusf/seaweedfs:4.48
+    entrypoint: ["/bin/sh", "/opt/mms/seaweedfs-entrypoint.sh"]
+    environment:
+      APP_ORIGIN: https://${MMS_HOST}
+      MEDIA_S3_ACCESS_KEY: ${MEDIA_S3_ACCESS_KEY:?}
+      MEDIA_S3_SECRET_KEY: ${MEDIA_S3_SECRET_KEY:?}
+      REPORT_S3_ACCESS_KEY: ${REPORT_S3_ACCESS_KEY:?}
+      REPORT_S3_SECRET_KEY: ${REPORT_S3_SECRET_KEY:?}
+      ADMIN_S3_ACCESS_KEY: ${ADMIN_S3_ACCESS_KEY:?}
+      ADMIN_S3_SECRET_KEY: ${ADMIN_S3_SECRET_KEY:?}
+    volumes:
+      - ./seaweedfs/seaweedfs-entrypoint.sh:/opt/mms/seaweedfs-entrypoint.sh:ro
+      - ./seaweedfs/s3.template.json:/opt/mms/s3.template.json:ro
+      - seaweedfs-data:/data
+    networks: [backend]
+
+  # One-shot: creates the four private buckets (TRD §10.1).
+  seaweedfs-init:
+    image: chrislusf/seaweedfs:4.48
+    depends_on:
+      seaweedfs:
+        condition: service_started
+    entrypoint: ["/bin/sh", "/opt/mms/create-buckets.sh"]
+    volumes:
+      - ./seaweedfs/create-buckets.sh:/opt/mms/create-buckets.sh:ro
+    restart: "no"
+    networks: [backend]
+
+networks:
+  backend:
+
+volumes:
+  mongo-data:
+  redis-data:
+  kafka-data:
+  seaweedfs-data:

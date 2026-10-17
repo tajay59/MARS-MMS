@@ -39,3 +39,6 @@ desktop.ini
 
 # Claude Code: personal settings stay local; project skills are committed
 .claude/settings.local.json
+
+# Local self-signed certificates (infra/nginx/dev-certs.sh)
+infra/nginx/certs/

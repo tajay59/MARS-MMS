@@ -1,0 +1,33 @@
+# Kafka topics (TRD §8.1), applied on every deploy by kafka/create-topics.sh.
+# Keep this flat format: one `- name:` line per topic, followed by its settings.
+# 14 days = 1209600000 ms; 30 days = 2592000000 ms.
+
+topics:
+  - name: mms.auth.events
+    partitions: 3
+    retention_ms: 1209600000
+  - name: mms.operations.events
+    partitions: 3
+    retention_ms: 1209600000
+  - name: mms.media.events
+    partitions: 3
+    retention_ms: 1209600000
+  - name: mms.report.events
+    partitions: 3
+    retention_ms: 1209600000
+  # Dead letters, one per consumer group (platform runs notification and audit).
+  - name: mms.dlq.operations
+    partitions: 1
+    retention_ms: 2592000000
+  - name: mms.dlq.media
+    partitions: 1
+    retention_ms: 2592000000
+  - name: mms.dlq.report
+    partitions: 1
+    retention_ms: 2592000000
+  - name: mms.dlq.notification
+    partitions: 1
+    retention_ms: 2592000000
+  - name: mms.dlq.audit
+    partitions: 1
+    retention_ms: 2592000000

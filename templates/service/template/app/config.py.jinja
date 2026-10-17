@@ -1,0 +1,27 @@
+"""Settings from the environment. Prefix: {{ env_prefix }}_ (TRD §16.3)."""
+
+from __future__ import annotations
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="{{ env_prefix }}_", extra="ignore")
+
+    service_name: str = "{{ service_name }}"
+    environment: str = "local"  # local | staging | production
+    log_level: str = "INFO"
+
+    mongo_uri: str = "mongodb://localhost:27017/?replicaSet=rs0"
+    mongo_db: str = "{{ service_name }}"
+    redis_url: str = "redis://localhost:6379/0"
+    kafka_bootstrap: str = "localhost:9092"
+{% if produces_events %}
+    outbox_topic: str = Field(default="mms.{{ service_name }}.events")
+{% endif %}
+
+    @property
+    def docs_enabled(self) -> bool:
+        """OpenAPI at /docs is off in production; the schema is exported in CI."""
+        return self.environment != "production"
