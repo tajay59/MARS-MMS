@@ -1,6 +1,6 @@
-# Backend checks for Phase 1 W2 (TP "CI stages"): the shared library, the service template,
-# the Nginx gateway config and the local Compose stack. Per-service jobs, Trivy, GHCR and the
-# staging deploy come with the full pipeline in W4.
+# Backend checks for Phase 1 (TP "CI stages"): the shared library, each service, the service
+# template, the Nginx gateway config and the local Compose stack with the services in it.
+# Trivy, GHCR and the staging deploy come with the full pipeline in W4.
 name: backend
 
 on:
@@ -56,6 +56,43 @@ jobs:
       - name: Tests
         run: pytest -q
 
+  service:
+    name: ${{ matrix.service }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, platform]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            libs/mms_common/pyproject.toml
+            services/${{ matrix.service }}/pyproject.toml
+
+      - run: >-
+          pip install -e ../../libs/mms_common -e ".[dev]"
+          --config-settings editable_mode=compat
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: mypy
+        run: mypy app
+
+      # Unit, API (throwaway Mongo, Redis), contract, architecture and authorization-matrix
+      # tests. Coverage target: 70% overall (TP); domain/ is checked in review.
+      - name: Tests
+        run: pytest -q --cov --cov-report=term --cov-fail-under=70
+
   service-template:
     name: service template
     runs-on: ubuntu-24.04
@@ -73,28 +110,15 @@ jobs:
 
       - run: pip install copier -e libs/mms_common --config-settings editable_mode=compat
 
-      # The IP exit criterion: a new service from the template passes every check unchanged.
-      - name: Generate a service
-        run: >-
-          copier copy --defaults
-          --data service_name=ci_demo --data env_prefix=CIDEMO
-          templates/service "$RUNNER_TEMP/ci_demo"
-
-      - name: Install it
-        working-directory: ${{ runner.temp }}/ci_demo
-        run: pip install -e ".[dev]" --config-settings editable_mode=compat
-
-      - name: Ruff
-        working-directory: ${{ runner.temp }}/ci_demo
-        run: ruff check .
-
-      - name: mypy
-        working-directory: ${{ runner.temp }}/ci_demo
-        run: mypy app
-
-      - name: Tests (including the architecture checks)
-        working-directory: ${{ runner.temp }}/ci_demo
-        run: pytest -q
+      # The IP exit criterion: a new service from the template passes every check unchanged,
+      # both as an event producer and as a consumer only (like platform).
+      - name: Generate, lint, type-check and test both variants
+        run: |
+          for events in true false; do
+            dir="$RUNNER_TEMP/ci_demo_$events"
+            copier copy --defaults --data service_name=ci_demo --data env_prefix=CIDEMO               --data produces_events=$events templates/service "$dir"
+            (cd "$dir" && pip install -e ".[dev]" --config-settings editable_mode=compat               && ruff check . && mypy app && pytest -q)
+          done
 
   gateway:
     name: nginx -t
@@ -147,10 +171,10 @@ jobs:
         working-directory: infra
         run: |
           cp .env.example .env
-          docker compose -f compose.yml -f compose.dev.yml up -d
+          docker compose -f compose.yml -f compose.dev.yml up -d --build
           # Each one-shot init container must finish with 0. They wait for their store to be
           # healthy first, so once they are done Mongo, Kafka and SeaweedFS are ready.
-          for svc in dev-certs mongo-init kafka-init seaweedfs-init; do
+          for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
             cid="$(docker compose -f compose.yml -f compose.dev.yml ps -aq "$svc")"
             for _ in $(seq 1 120); do
               [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
@@ -159,6 +183,16 @@ jobs:
             code="$(docker inspect -f '{{.State.ExitCode}}' "$cid")"
             echo "$svc exited with $code"
             [ "$code" = 0 ]
+          done
+          # Then the application services must report healthy.
+          for svc in auth platform; do
+            for _ in $(seq 1 60); do
+              cid="$(docker compose -f compose.yml -f compose.dev.yml ps -q "$svc")"
+              [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
+              sleep 2
+            done
+            docker inspect -f "$svc {{.State.Health.Status}}" "$cid"
+            [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ]
           done
 
       - name: Stack tests

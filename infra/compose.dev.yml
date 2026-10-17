@@ -23,9 +23,23 @@ services:
       - ./nginx/certs:/certs
     restart: "no"
 
+  # One-shot: the auth signing key, made once (infra/secrets, git-ignored).
+  dev-secrets:
+    image: mongo:8.0.34
+    entrypoint: ["/bin/sh", "/opt/mms/dev-secrets.sh"]
+    volumes:
+      - ./scripts/dev-secrets.sh:/opt/mms/dev-secrets.sh:ro
+      - ./secrets:/secrets
+    restart: "no"
+
   nginx:
     depends_on:
       dev-certs:
+        condition: service_completed_successfully
+
+  auth:
+    depends_on:
+      dev-secrets:
         condition: service_completed_successfully
 
   mongo:

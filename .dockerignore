@@ -1,0 +1,11 @@
+# Service images build from the repository root (they need libs/mms_common). Send only what
+# a Dockerfile copies: everything else stays out of the build context.
+*
+!libs/mms_common/
+!services/*/pyproject.toml
+!services/*/app/
+**/__pycache__/
+**/*.egg-info/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
