@@ -1,0 +1,26 @@
+{
+  "identities": [
+    {
+      "name": "media",
+      "credentials": [{ "accessKey": "${MEDIA_S3_ACCESS_KEY}", "secretKey": "${MEDIA_S3_SECRET_KEY}" }],
+      "actions": [
+        "Read:mms-originals", "Write:mms-originals", "Tagging:mms-originals",
+        "Read:mms-media", "Write:mms-media", "Tagging:mms-media",
+        "Read:mms-documents", "Write:mms-documents", "Tagging:mms-documents"
+      ]
+    },
+    {
+      "name": "report",
+      "credentials": [{ "accessKey": "${REPORT_S3_ACCESS_KEY}", "secretKey": "${REPORT_S3_SECRET_KEY}" }],
+      "actions": [
+        "Read:mms-reports", "Write:mms-reports", "Tagging:mms-reports",
+        "Read:mms-media"
+      ]
+    },
+    {
+      "name": "admin",
+      "credentials": [{ "accessKey": "${ADMIN_S3_ACCESS_KEY}", "secretKey": "${ADMIN_S3_SECRET_KEY}" }],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    }
+  ]
+}
