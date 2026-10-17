@@ -16,7 +16,7 @@ dependencies = [
   "redis>=6",
   "aiokafka",
   "structlog",
-  "fastapi",
+  "fastapi>=0.143",
   "prometheus-client",
 ]
 

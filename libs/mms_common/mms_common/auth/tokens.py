@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from typing import Any, Protocol
 
@@ -106,7 +106,7 @@ class KeySource(Protocol):
 class StaticKeys:
     """Keys known up front: auth's own keys, and the test issuer's."""
 
-    def __init__(self, jwks: list[Mapping[str, Any]]) -> None:
+    def __init__(self, jwks: Iterable[Mapping[str, Any]]) -> None:
         self._keys = {str(k["kid"]): public_key_from_jwk(k) for k in jwks}
 
     async def get(self, kid: str) -> Ed25519PublicKey | None:

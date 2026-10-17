@@ -208,7 +208,10 @@ def test_role_sets(held, ok):
 def test_scoped_forces_the_clients_org():
     client = User("u", frozenset({"client"}), ORG_A, "C", "j")
     staff = User("s", frozenset({"technician"}), None, "T", "j")
-    assert scoped(client, {"org_id": "someone-else", "x": 1}) == {"org_id": ORG_A, "x": 1}
+    assert scoped(client, {"x": 1}) == {"org_id": ORG_A, "x": 1}
+    # Asking for another org's records finds nothing; it never falls back to the own org.
+    assert scoped(client, {"org_id": "other"}) == {"$and": [{"org_id": "other"}, {"org_id": ORG_A}]}
+    assert scoped(client, {"_id": "other"}, "_id") == {"$and": [{"_id": "other"}, {"_id": ORG_A}]}
     assert scoped(client, {}, "owner_org_id") == {"owner_org_id": ORG_A}
     assert scoped(staff, {"x": 1}) == {"x": 1}
     orphan = User("o", frozenset({"client"}), None, "C", "j")

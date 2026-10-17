@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 
 import httpx
 from fastapi import FastAPI
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 
 from mms_common.testing.seed import SEED_USERS, TestIssuer
 
@@ -54,10 +54,16 @@ Table = Mapping[Route, Expect]
 
 
 def app_routes(app: FastAPI) -> set[Route]:
+    """Every (method, path) under /api/ and /internal/, including included routers."""
     found: set[Route] = set()
-    for route in app.routes:
-        if isinstance(route, APIRoute) and route.path.startswith(("/api/", "/internal/")):
-            found.update((method, route.path) for method in (route.methods or set()) - {"HEAD"})
+    # FastAPI 0.14x includes routers lazily; iter_route_contexts flattens them with their
+    # effective (prefixed) paths.
+    for context in iter_route_contexts(app.routes):
+        path, methods = context.path, context.methods
+        if not isinstance(context.original_route, APIRoute) or not path:
+            continue
+        if path.startswith(("/api/", "/internal/")):
+            found.update((method, path) for method in (methods or set()) - {"HEAD"})
     return found
 
 
@@ -117,7 +123,8 @@ class Matrix:
             await check("anonymous", None, {401})
             await check("admin (user token)", tokens["admin"], {401})
             for name in ("auth", "operations", "media", "report", "platform"):
-                want = None if name in expect.services else {403}
+                # A service that may not call gets 401 (wrong credential type) or 403.
+                want = None if name in expect.services else {401, 403}
                 await check(f"service {name}", self.issuer.service_token(name), want)
             return failures
 

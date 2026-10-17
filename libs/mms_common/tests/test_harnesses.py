@@ -4,7 +4,7 @@ from typing import Annotated
 
 import httpx
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 
 from mms_common.auth import (
     Authenticator,
@@ -34,9 +34,14 @@ def build(post_roles=("admin",)):
     async def read(id: str, user: Annotated[User, Depends(require_staff())]):
         return {"id": id}
 
-    @app.post("/api/v1/widgets")
+    # In an included router: FastAPI includes these lazily, and the matrix must still see them.
+    router = APIRouter(prefix="/api/v1/widgets")
+
+    @router.post("")
     async def create(user: Annotated[User, Depends(require_roles(*post_roles))]):
         return {}
+
+    app.include_router(router)
 
     @app.post("/api/v1/hello")
     async def hello():
