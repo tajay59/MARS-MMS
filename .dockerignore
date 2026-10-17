@@ -4,6 +4,12 @@
 !libs/mms_common/
 !services/*/pyproject.toml
 !services/*/app/
+# The web image (infra/nginx/Dockerfile): gateway config, the SPA build, carried assets.
+!infra/nginx/nginx.conf
+!infra/nginx/snippets/
+!infra/nginx/templates/
+!infra/nginx/carry/
+!frontend/dist/
 **/__pycache__/
 **/*.egg-info/
 **/.pytest_cache/

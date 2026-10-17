@@ -211,6 +211,16 @@ services:
       PLATFORM_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       PLATFORM_KAFKA_BOOTSTRAP: kafka:9092
       PLATFORM_AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
+      PLATFORM_AUTH_URL: http://auth:8000
+      PLATFORM_SERVICE_SECRET: ${PLATFORM_SERVICE_SECRET:?}
+      # Account emails (NOT-3): Mailpit locally, the organization's relay (T3) elsewhere.
+      PLATFORM_APP_URL: https://${MMS_HOST}
+      PLATFORM_MAIL_FROM: ${PLATFORM_MAIL_FROM:-MARS-MMS <no-reply@mms.localhost>}
+      PLATFORM_SMTP_HOST: ${PLATFORM_SMTP_HOST:-mailpit}
+      PLATFORM_SMTP_PORT: ${PLATFORM_SMTP_PORT:-1025}
+      PLATFORM_SMTP_SECURITY: ${PLATFORM_SMTP_SECURITY:-none}
+      PLATFORM_SMTP_USERNAME: ${PLATFORM_SMTP_USERNAME:-}
+      PLATFORM_SMTP_PASSWORD: ${PLATFORM_SMTP_PASSWORD:-}
     healthcheck: *app-health
     networks: [backend]
 

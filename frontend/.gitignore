@@ -25,3 +25,8 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# Playwright and the vite-plugin-pwa dev worker
+playwright-report
+test-results
+dev-dist

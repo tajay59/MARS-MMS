@@ -151,11 +151,11 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 |---|---|
 | W2 | Repo, `mms_common` core (mongo, outbox with leader lease, kafka, logging, clock), service template with its lint and test harnesses. Full Compose stack up locally behind Nginx. |
 | W3 | auth service complete with tests. platform's audit module builds the chain from auth events. Nginx routes and CI running. **Done 2026-10-17** (branch `feat/p1-w3-auth`): register → approve → log in → refresh → reset runs through Nginx and lands in the audit chain in the stack test. |
-| W4 | Frontend shells and auth screens. Account emails. Staging deploy pipeline. Playwright test for J1 and J2. |
+| W4 | Frontend shells and auth screens. Account emails. Staging deploy pipeline. Playwright test for J1 and J2. **PWA findings adopted 2026-10-17:** a minimal service worker and manifest now (F5: precache, navigation fallback, update prompt; no tiles, no Background Sync), the manifest served `no-cache` (F10), earlier releases' assets kept 7 days (F9), safe-area padding in the field shell (F13). |
 
 **Delivers:** AUTH-1 to AUTH-11, AUTH-13, ORG-1, ORG-4, NOT-3, AUD-1 (account events), AUD-2, AUD-3, AUD-5 (chain only). Journeys J1, J2.
 
-**Depends on:** Phase 0 hosts and repo; T1 (breached-password API reachable or local list); T3 SMTP relay for staging email by the end of W4.
+**Depends on:** Phase 0 hosts and repo; T1 (breached-password API reachable or local list); T3 SMTP relay for staging email by the end of W4 (met for now by an interim Gmail account; TRD §22).
 
 **Staging release 0.1:** the product owner registers a test client, approves it, and resets a password.
 
@@ -247,7 +247,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 **Deliverables**
 
-- **PWA:** installable app built with vite-plugin-pwa (`injectManifest`), an install prompt, `storage.persist()` (risk R4), and a service worker that caches the app shell and map tiles only.
+- **PWA:** installable app built on the vite-plugin-pwa (`injectManifest`) worker added in Phase 1 (F5), an install prompt, `storage.persist()` (risk R4), and a service worker that caches the app shell and map tiles only.
 - **Offline session:** PIN set on first prepare, PBKDF2 verifier, `/unlock` page, five-attempt lockout, profile and bundles cleared on logout, 30-day field session (AUTH-12).
 - **Prepare for field:** downloads the request, stations, sensors, calibration status, latest configuration files, checklists and manuals to Dexie as data and blobs (OFF-1).
 - **Offline capture:** the outbox of operations with UUIDv7 IDs and idempotency keys, owner-only work operations, and offline QR lookup.
@@ -372,7 +372,7 @@ Every phase is on the critical path. With one developer, phases run one after an
 | T7 | SeaweedFS confirmed by the spike (**confirmed 2026-10-16**; Garage stays the fallback) | Developer | W1 | Phase 1 |
 | B1 | Disk encryption on both hosts | Organization IT | W1 | Host build |
 | A1–A6, A8 | App Flow defaults (routes, queue page, landings, field layout) | Product owner | W1 sign-off | Frontend from W4 |
-| T3 | SMTP relay and sending domain (SPF, DKIM, DMARC) | Organization IT | W4 | Staging email; Phase 3 |
+| T3 | SMTP relay and sending domain (SPF, DKIM, DMARC) (**interim 2026-10-17:** a Gmail account for staff-only staging, so W4 no longer waits on it; TRD §22) | Organization IT | W4 → before the Phase 8 pilot | Phase 3 notification volume; client email in the pilot |
 | T4, Q4 | Station and sensor export; countries and time zones | Product owner | W5 | Phase 2 import |
 | Q7 | Default document visibility | Product owner | W5 | Phase 2 |
 | Q6 | Request categories and priority definitions | Product owner | W8 | Phase 3 |

@@ -29,6 +29,12 @@ test-results/
 
 # Local data from Compose volumes bound into the repo
 infra/data/
+# Earlier releases' assets for the web image, made in CI (infra/scripts/carry_assets.py)
+infra/nginx/carry/
+
+# Logo sources: only the PNGs that `npm run brand` reads are committed (DBD D1)
+logo/*.psd
+logo/watermarked_*
 
 # OS and editors
 .DS_Store

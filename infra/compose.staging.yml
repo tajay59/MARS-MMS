@@ -1,0 +1,58 @@
+# Staging host wiring (decision W4-8). release.yml's staging job adds it after compose.prod.yml:
+#
+#   docker compose -f compose.yml -f compose.prod.yml -f compose.staging.yml up -d --no-build
+#
+# Staging runs on a shared server (rnd.yanacreations.com, 84.247.187.64). That server's edge
+# Nginx (container printit-nginx) holds ports 80 and 443 for every site on it, terminates TLS
+# with the Let's Encrypt certificate and passes both MMS host names to this Nginx over the
+# Docker network kong-net (site file: nginx/staging-edge.conf). This Nginx keeps all of its own
+# rules (headers, CSP, caching, rate limits, X-Request-ID); its certificate in MMS_TLS_DIR is a
+# self-signed one for the hop from the edge only. The server has about 2 GB of free memory, so
+# the stores are capped and every container has a limit.
+
+services:
+  nginx:
+    # Nothing public: the edge reaches it on kong-net. 8453 is for checks from the server.
+    ports: !override
+      - "127.0.0.1:8453:443"
+    configs:
+      - source: real-ip
+        target: /etc/nginx/snippets/real-ip.conf
+    networks:
+      edge:
+        aliases: [mms-gateway]
+    mem_limit: 128m
+
+  mongo:
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/tmp/mongo-keyfile",
+              "--wiredTigerCacheSizeGB", "0.25"]
+    mem_limit: 768m
+
+  kafka:
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx384m"
+    mem_limit: 768m
+
+  redis:
+    mem_limit: 128m
+
+  seaweedfs:
+    mem_limit: 512m
+
+  auth:
+    mem_limit: 512m
+
+  platform:
+    mem_limit: 512m
+
+configs:
+  real-ip:
+    content: |
+      # The edge (printit-nginx) on kong-net sets X-Real-IP to the address it saw.
+      set_real_ip_from 172.19.0.0/16;
+      real_ip_header X-Real-IP;
+
+networks:
+  edge:
+    external: true
+    name: kong-net

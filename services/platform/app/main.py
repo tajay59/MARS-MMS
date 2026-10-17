@@ -1,7 +1,7 @@
 """platform service entry point (TRD §3.5): the notification and audit modules.
 
-W3 runs the audit module: the consumer that builds the hash chain from every topic. Account
-emails (notification) follow in W4; WebSocket and in-app notifications in Phase 3.
+The audit module builds the hash chain from every topic (W3). The notification module sends
+account emails (W4, NOT-3); WebSocket and in-app notifications follow in Phase 3.
 """
 
 from __future__ import annotations
@@ -10,11 +10,13 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from mms_common import logging as mms_logging
 from mms_common import migrations, mongo
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
+from mms_common.auth.service_client import ServiceTokens
 from mms_common.auth.tokens import KeySource
 from mms_common.consumer import EventProcessor, SendToDlq
 from mms_common.kafka import consume_forever
@@ -24,7 +26,8 @@ from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.config import Settings
-from app.events import audit_consumer
+from app.events import audit_consumer, notification_consumer
+from app.jobs import account_emails
 from app.migrations import audit as audit_migrations
 
 
@@ -68,24 +71,52 @@ def create_app(
 
         stop = asyncio.Event()
         tasks: list[asyncio.Task[None]] = []
+        http = httpx.AsyncClient()
         if settings.run_background:
 
             def make_audit(send_to_dlq: SendToDlq) -> EventProcessor:
                 return audit_consumer.processor(audit_client, audit_db, send_to_dlq, clock)
 
-            tasks.append(
+            def make_notification(send_to_dlq: SendToDlq) -> EventProcessor:
+                return notification_consumer.processor(client, db, send_to_dlq, clock)
+
+            tokens = ServiceTokens(
+                settings.auth_url, "platform", settings.service_secret.get_secret_value(),
+                clock, http,
+            )
+            password = settings.smtp_password
+            sender = account_emails.Sender(
+                db=db,
+                mailer=account_emails.SmtpMailer(
+                    settings.smtp_host, settings.smtp_port, settings.smtp_security,
+                    settings.smtp_username, password.get_secret_value() if password else None,
+                ),
+                links=account_emails.AuthLinks(settings.auth_url, tokens, http),
+                clock=clock,
+                mail_from=settings.mail_from,
+                app_url=settings.app_url,
+            )
+            tasks += [
                 asyncio.create_task(
                     consume_forever(
                         settings.kafka_bootstrap, audit_consumer.GROUP, settings.audit_topics,
                         make_audit, stop,
                     )
-                )
-            )
+                ),
+                asyncio.create_task(
+                    consume_forever(
+                        settings.kafka_bootstrap, notification_consumer.GROUP,
+                        settings.notification_topics, make_notification, stop,
+                    )
+                ),
+                asyncio.create_task(account_emails.run(sender, stop, settings.email_poll_s)),
+            ]
         try:
             yield
         finally:
             stop.set()
             await asyncio.gather(*tasks, return_exceptions=True)
+            await http.aclose()
             await redis.aclose()
             await audit_client.close()
             await client.close()

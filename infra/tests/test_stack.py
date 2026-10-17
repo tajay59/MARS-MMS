@@ -285,10 +285,19 @@ ORG_A = "01900000-0000-7000-8000-00000000a000"  # mms_common.testing.seed
 
 
 def api(web, method, path, token=None, **kw):
+    """Login, register and reset share Nginx's `auth` zone (10/min per IP, burst 5), which the
+    J1 and J2 tests together exceed: wait out a 429 rather than fail."""
+    import time
+
     headers = {"Host": MMS, **kw.pop("headers", {})}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    return web.request(method, path, headers=headers, **kw)
+    for _ in range(15):
+        response = web.request(method, path, headers=headers, **kw)
+        if response.status_code != 429:
+            return response
+        time.sleep(6)
+    return response
 
 
 @pytest.fixture(scope="session")
@@ -360,3 +369,67 @@ def test_register_approve_login_reset_lands_in_the_audit_chain(web, seeded, mong
         assert head["last_seq"] >= chain[-1]["seq"]  # more may have arrived since
     finally:
         root.close()
+
+
+# --- platform: account emails through Mailpit (NOT-3; J1 step 5, J2 step 4) -----------------
+
+MAILPIT = "http://127.0.0.1:8025"
+
+
+def _mail_to(address: str, subject: str, seconds: int = 60) -> dict:
+    """The newest message to `address` with `subject`, waiting for the consumer and sender."""
+    import time
+
+    with httpx.Client(base_url=MAILPIT, timeout=5) as mailpit:
+        for _ in range(seconds):
+            found = mailpit.get("/api/v1/search", params={"query": f'to:"{address}"'}).json()
+            for summary in found.get("messages", []):
+                if summary["Subject"] == subject:
+                    return mailpit.get(f"/api/v1/message/{summary['ID']}").json()
+            time.sleep(1)
+    raise AssertionError(f"no email {subject!r} to {address} within {seconds} s")
+
+
+@pytest.fixture(scope="session")
+def mailpit_up():
+    try:
+        httpx.get(f"{MAILPIT}/api/v1/info", timeout=3).raise_for_status()
+    except httpx.HTTPError:
+        pytest.skip("Mailpit not running (compose.dev.yml)")
+
+
+@pytest.mark.req("NOT-3")
+def test_approval_and_reset_emails_arrive_and_the_reset_link_works(web, seeded, mailpit_up):
+    import re
+    import uuid
+
+    email = f"j2-{uuid.uuid4().hex[:8]}@example.org"
+    assert api(web, "POST", "/api/v1/auth/register", json={
+        "name": "J2 Client", "email": email, "password": "a long test password",
+        "organization_name": "Organization A"}).status_code == 202
+    admin = api(web, "POST", "/api/v1/auth/login",
+                json={"email": "admin@example.org", "password": seeded}).json()["access_token"]
+    [user] = api(web, "GET", "/api/v1/users", admin,
+                 params={"status": "pending", "q": email}).json()["items"]
+    assert api(web, "POST", f"/api/v1/users/{user['id']}/approve", admin,
+               json={"org_id": ORG_A}).status_code == 200
+
+    approved = _mail_to(email, "Your MARS-MMS account is approved")
+    assert f"https://{MMS}/login" in approved["Text"]
+    assert approved["HTML"].count("<a ") == 1
+
+    assert api(web, "POST", "/api/v1/auth/password-reset/request",
+               json={"email": email}).status_code == 202
+    reset = _mail_to(email, "Reset your MARS-MMS password")
+    match = re.search(rf"https://{re.escape(MMS)}/reset-password/(\S+)", reset["Text"])
+    assert match, reset["Text"]
+    new_password = f"reset {uuid.uuid4().hex}"  # never on a breached list
+    r = api(web, "POST", "/api/v1/auth/password-reset/confirm",
+            json={"token": match.group(1), "password": new_password})
+    assert r.status_code == 204, r.text
+    assert api(web, "POST", "/api/v1/auth/login",
+               json={"email": email, "password": new_password}).status_code == 200
+    # Single use: the same link fails the second time.
+    assert api(web, "POST", "/api/v1/auth/password-reset/confirm",
+               json={"token": match.group(1), "password": f"again {uuid.uuid4().hex}"}
+               ).status_code == 410
