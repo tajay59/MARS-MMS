@@ -1,0 +1,8 @@
+/*
+  Cascade layer order (TRD §13.2, ADR-11). Linked first in index.html, ahead of every stylesheet
+  the build injects: the first stylesheet to name a layer fixes its place, and a production build
+  links lazy chunks' CSS (VMenu, ripple…) before the main bundle and drops a bare order statement
+  from it. Tailwind sits after Vuetify's utilities and before vuetify-final, or Vuetify's
+  transitions break. A file, not an inline <style>, so it never depends on the CSP's style rules.
+*/
+@layer vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final;

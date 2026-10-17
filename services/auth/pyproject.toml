@@ -9,7 +9,7 @@ requires-python = ">=3.13"
 dependencies = [
   "mms-common",
   "fastapi",
-  "uvicorn[standard]",
+  "uvicorn[standard]>=0.40",
   "pydantic>=2.11",
   "pydantic-settings",
   "pymongo>=4.13",

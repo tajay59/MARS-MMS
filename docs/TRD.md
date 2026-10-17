@@ -112,7 +112,7 @@ Two host names point at the server, for example `mms.example.org` (the app) and 
 
 | Path prefix | Target | Notes |
 |---|---|---|
-| `/` | Static SPA build | `try_files … /index.html`; `sw.js`, `index.html` and `theme-init.js` served `no-cache`; hashed assets cached for 1 year |
+| `/` | Static SPA build | `try_files … /index.html`; `sw.js`, `index.html`, `theme-init.js` and `manifest.webmanifest` served `no-cache` (F10); hashed assets cached for 1 year. The `web` image keeps the `/assets/` of every release replaced in the last 7 days, so open tabs and installed apps on an older build still load their chunks (F9, `infra/scripts/carry_assets.py`); the router turns a chunk-load error into the update prompt |
 | `/api/v1/auth`, `/api/v1/users`, `/api/v1/organizations` | `auth:8000` | Login, register and password-reset paths use the `auth` rate-limit zone |
 | `/api/v1/stations`, `/api/v1/sensor-models`, `/api/v1/sensor-units`, `/api/v1/calibrations`, `/api/v1/documents`, `/api/v1/qr`, `/api/v1/requests`, `/api/v1/queue`, `/api/v1/client-reports`, `/api/v1/my-work`, `/api/v1/visits`, `/api/v1/checklist-templates`, `/api/v1/sync` | `operations:8000` | |
 | `/api/v1/media`, `/api/v1/uploads` | `media:8000` | |
@@ -1122,7 +1122,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 
 ```
 frontend/src/
-  app/            router, guards, layouts (client, staff, field, public), theme/ (brand.ts tokens, vuetify.ts, icons.ts, settings.scss, layers.css, tailwind.css)
+  app/            router, guards, layouts (client, staff, field, public), theme/ (brand.ts tokens, vuetify.ts, icons.ts, settings.scss, tailwind.css, base.css); the layer order is in public/layers.css
   api/            typed clients (generated from OpenAPI), auth interceptor (Web Lock refresh), error mapping
   features/
     auth/ dashboard/ requests/ visits/ stations/ sensors/ calibration/
@@ -1144,7 +1144,7 @@ frontend/src/
   - `theme.utilities: false`
 - **Fonts:** `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono`, bundled. `app/theme/base.css` sets `--v-font-body` and `--v-font-heading` to Inter, so Vuetify never asks for Roboto.
 - **Tailwind CSS 4** is for layout and spacing. Components come from Vuetify. No custom component CSS unless unavoidable.
-- **Cascade layers.** `app/theme/layers.css` is the first import in `main.ts` (before `vuetify/styles`) and fixes the order: `vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final`. Tailwind's theme and utilities are imported into the `tailwind` layer. Its preflight is not imported, because Vuetify has its own reset. Tailwind must stay before `vuetify-final`, or Vuetify's transitions break. Vuetify's own utility and colour classes are turned off (`$utilities: false`, `$color-pack: false` in `settings.scss`), so `rounded-*`, `bg-*` and `text-*` always mean Tailwind's. Classes that Vuetify adds from props (`rounded-md`, `elevation-8`) are safelisted with `@source inline(...)`.
+- **Cascade layers.** `public/layers.css` is the first stylesheet linked in `index.html`, ahead of every stylesheet the build injects, and fixes the order (a production build links lazy chunks' CSS before the main bundle and drops a bare `@layer` statement from it, so an import in `main.ts` is not enough): `vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final`. Tailwind's theme and utilities are imported into the `tailwind` layer. Its preflight is not imported, because Vuetify has its own reset. Tailwind must stay before `vuetify-final`, or Vuetify's transitions break. Vuetify's own utility and colour classes are turned off (`$utilities: false`, `$color-pack: false` in `settings.scss`), so `rounded-*`, `bg-*` and `text-*` always mean Tailwind's. Classes that Vuetify adds from props (`rounded-md`, `elevation-8`) are safelisted with `@source inline(...)`.
 - **Shared tokens.** Tailwind's `@theme` removes its default palette and maps each brand colour to Vuetify's theme variable (`--color-primary: rgb(var(--v-theme-primary))`, `--color-surface-700: rgb(var(--v-theme-surface-700))`), so `bg-primary` and `text-surface-700` follow the active theme with no `dark:` variant.
 - **Light and dark themes** (DBD D2). `brand.ts` defines both Vuetify themes with the same colour names: `primary`, `primary-50` … `primary-950`, `surface-0` … `surface-900`, `background`, `surface`, the feedback colours with `*-container` pairs, and the status colours, each with its `on-*` pair. The theme store switches Vuetify (`useTheme().change('light' | 'dark')`) and the `.app-dark` class on `<html>` together. Tailwind's `dark:` variant uses that class (`@custom-variant dark (&:where(.app-dark, .app-dark *))`). The user's `theme` (`system`, `light` or `dark`) comes from `/auth/me` and is cached in `localStorage` (`mms-theme`) for the login pages. `public/theme-init.js`, an external script in `<head>`, sets the class before first paint, because the CSP (`script-src 'self'`) rules out an inline script. `system` follows `prefers-color-scheme` and updates live. Two `theme-color` meta tags (light `#22569A`, dark `#0B1220`) colour the browser bar.
 - **Charts:** ApexCharts through `vue3-apexcharts`, with shared options in `charts/presets.ts` (Inter, tabular figures, toolbar off, palette per theme). Charts switch `theme.mode` with the app theme and turn animation off under `prefers-reduced-motion`.
@@ -1243,6 +1243,7 @@ Approximate memory budget: MongoDB 4 GB, Kafka 2 GB, ClamAV 3 GB, Python service
 
 - `local`: `compose.yml` + `compose.dev.yml` (hot reload, seeded data, Mailpit for email, self-signed TLS).
 - `staging` and `production`: `compose.yml` + `compose.prod.yml`; images tagged with the commit SHA.
+- **Interim staging host (2026-10-17, decision W4-8):** a shared server (`rnd.yanacreations.com`, files host `files.yanacreations.com`, about 2 GB of free memory) instead of the dedicated second host in §16.2. `compose.staging.yml` is added after `compose.prod.yml`: the server's own edge Nginx terminates TLS and passes both names to the MMS Nginx, which keeps every rule of §2.1 and §15 and trusts the edge's `X-Real-IP`; the data stores are capped. Timings measured there (IP W11) are lower bounds, not production figures.
 - Configuration via environment variables (`pydantic-settings`), prefixed per service: `AUTH_`, `OPS_`, `MEDIA_`, `REPORT_`, `PLATFORM_` (for example `OPS_MONGO_URI`, `OPS_AUTO_CLOSE_DAYS`).
 
 ### 16.4 Backups
@@ -1351,7 +1352,7 @@ Replaced by the Implementation Plan ([IP.md](IP.md) v1.1): Phase 0 readiness, se
 |---|---|---|
 | T1 | Is outbound internet allowed from the servers (breached-password API, OSM tiles, Let's Encrypt)? | Assume yes; fall back to a local password list, an internal CA and self-hosted tiles |
 | T2 | Existing Git hosting and container registry? | GitHub + GHCR |
-| T3 | SMTP server details and sending domain (SPF/DKIM/DMARC)? | Organization SMTP relay |
+| T3 | SMTP server details and sending domain (SPF/DKIM/DMARC)? | Organization SMTP relay. **Interim, 2026-10-17:** staff-only staging sends through a Gmail account (`smtp.gmail.com:465`, `PLATFORM_SMTP_SECURITY=ssl`, an app password only in the staging host's `infra/.env`, `PLATFORM_MAIL_FROM` set to that Gmail address). Not for the pilot: the sender would be a gmail.com address, Gmail allows about 500 emails a day, and the organization's domain has no SPF, DKIM or DMARC for it. **Still open** |
 | T4 | Format of the existing station and sensor data for import? | CSV/Excel |
 | T5 | Is MongoDB or Kafka failover (3 nodes) needed at launch? | No; single node + backups |
 | T6 | Domain names for the app and file hosts; TLS certificate source? | `mms.<org-domain>` and `files.mms.<org-domain>`; Let's Encrypt |

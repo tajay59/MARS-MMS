@@ -1,0 +1,35 @@
+# Staging and production (TRD §16.3, §18): images from GHCR tagged with the commit SHA, no
+# builds, no Mailpit, nothing published except Nginx. Needs Docker Compose 2.24.4+ (!reset, !override).
+#
+#   cd /opt/mms/infra
+#   MMS_TAG=<sha> docker compose -f compose.yml -f compose.prod.yml pull
+#   MMS_TAG=<sha> docker compose -f compose.yml -f compose.prod.yml up -d --no-build
+#
+# The host's infra/.env sets MMS_ENVIRONMENT, MMS_REGISTRY (ghcr.io/<owner>/<repo>), the host
+# names, every password and secret (regenerated, never the .env.example values), the SMTP
+# relay (T3), MMS_TLS_DIR and MMS_SECRETS_DIR. See docs/index.html, "Staging".
+
+services:
+  nginx:
+    image: ${MMS_REGISTRY:?}/web:${MMS_TAG:?}
+    # Config and SPA are baked into the web image; only the certificates and the office
+    # allow-list come from the host.
+    volumes: !override
+      - ./nginx/office-ips.conf:/etc/nginx/office-ips.conf:ro
+      - ${MMS_TLS_DIR:?set MMS_TLS_DIR to the host's certificate directory}:/etc/nginx/certs:ro
+
+  auth:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/auth:${MMS_TAG:?}
+    environment:
+      AUTH_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+
+  platform:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/platform:${MMS_TAG:?}
+    environment:
+      PLATFORM_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+      PLATFORM_SMTP_HOST: ${PLATFORM_SMTP_HOST:?set the SMTP relay (T3)}
+      PLATFORM_SMTP_PORT: ${PLATFORM_SMTP_PORT:?587 for starttls, 465 for ssl}
+      PLATFORM_SMTP_SECURITY: ${PLATFORM_SMTP_SECURITY:?starttls or ssl}
+      PLATFORM_MAIL_FROM: ${PLATFORM_MAIL_FROM:?set the sending address}

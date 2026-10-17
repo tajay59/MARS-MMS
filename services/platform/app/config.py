@@ -6,6 +6,9 @@ platform holds two modules with separate databases and Mongo users (TRD §3.5, r
 
 from __future__ import annotations
 
+from typing import Literal
+
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,12 +33,35 @@ class Settings(BaseSettings):
         "mms.report.events",
     ]
 
+    # The notification consumer's topics. Account emails come from auth; the rest in Phase 3.
+    notification_topics: list[str] = ["mms.auth.events"]
+
     redis_url: str = "redis://localhost:6379/0"
     kafka_bootstrap: str = "localhost:9092"
     # Public signing keys, over the internal network only (TRD §6.1).
     auth_jwks_url: str = "http://auth:8000/.well-known/jwks.json"
+    # /internal/* on auth: service token from /internal/service-token, then account links.
+    auth_url: str = "http://auth:8000"
+    service_secret: SecretStr = SecretStr("")
     # Consumers and cron jobs. Off in API tests.
     run_background: bool = True
+
+    # Account emails (NOT-3). Mailpit locally; the organization's relay (T3) elsewhere.
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_security: Literal["none", "starttls", "ssl"] = "none"
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    mail_from: str = "MARS-MMS <no-reply@mms.localhost>"
+    # Where the links in emails point: the app's public address.
+    app_url: str = "https://mms.localhost"
+    email_poll_s: float = 5.0
+
+    @model_validator(mode="after")
+    def _relay_is_encrypted(self) -> Settings:
+        if self.environment == "production" and self.smtp_security == "none":
+            raise ValueError("PLATFORM_SMTP_SECURITY must be starttls or ssl in production")
+        return self
 
     @property
     def docs_enabled(self) -> bool:

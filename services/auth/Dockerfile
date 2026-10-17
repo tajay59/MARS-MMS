@@ -10,6 +10,10 @@ COPY services/auth/pyproject.toml /srv/services/auth/pyproject.toml
 COPY services/auth/app /srv/services/auth/app
 RUN pip install /srv/services/auth
 
+# pip is not needed at run time, and it carries its own vendored copies of urllib3, msgpack
+# and setuptools, which the image scan reports (TRD §15).
+RUN pip uninstall --yes pip && rm -rf /usr/local/lib/python3.13/ensurepip
+
 RUN useradd --system --uid 10001 mms
 USER mms
 WORKDIR /srv/services/auth

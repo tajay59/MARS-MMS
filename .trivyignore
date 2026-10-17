@@ -1,0 +1,3 @@
+# Trivy exceptions for the image scan (.github/workflows/images.yml, TRD §15).
+# One CVE per line, each with the reason, who accepted it and when to review it:
+# CVE-0000-00000  # reason · accepted by <name> on <date> · review by <date>
