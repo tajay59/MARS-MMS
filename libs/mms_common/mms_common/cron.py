@@ -17,7 +17,7 @@ log = get_logger(__name__)
 
 
 class LockStore(Protocol):
-    async def set(self, name: str, value: str, *, nx: bool, px: int) -> Any: ...
+    def set(self, name: str, value: str, *, nx: bool, px: int) -> Awaitable[Any]: ...
 
 
 def lock_key(service: str, job: str) -> str:

@@ -8,6 +8,7 @@ no token from before the change can come back.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -25,8 +26,8 @@ def org_key(org_id: str) -> str:
 
 
 class Store(Protocol):
-    async def set(self, name: str, value: str, *, ex: int) -> Any: ...
-    async def mget(self, keys: list[str]) -> list[Any]: ...
+    def set(self, name: str, value: str, *, ex: int) -> Awaitable[Any]: ...
+    def mget(self, keys: list[str]) -> Awaitable[list[Any]]: ...
 
 
 async def revoke_user(store: Store, user_id: str, at: datetime) -> None:

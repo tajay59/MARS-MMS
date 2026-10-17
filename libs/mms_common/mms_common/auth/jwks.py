@@ -7,6 +7,7 @@ an unknown `kid`, at most once every 30 s so a flood of forged `kid`s can't hamm
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable
 from typing import Any, Protocol
 
 import httpx
@@ -24,8 +25,8 @@ log = get_logger(__name__)
 
 
 class Cache(Protocol):
-    async def get(self, name: str) -> Any: ...
-    async def set(self, name: str, value: str, *, ex: int) -> Any: ...
+    def get(self, name: str) -> Awaitable[Any]: ...
+    def set(self, name: str, value: str, *, ex: int) -> Awaitable[Any]: ...
 
 
 class JwksKeys:
