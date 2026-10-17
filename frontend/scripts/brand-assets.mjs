@@ -13,7 +13,9 @@ import ico from 'sharp-ico'
 const MARK = '../logo/logo.svg' // the round mark on its own
 const STACKED = '../logo/logo_main.svg' // the mark above "MARS MMS"; the wordmark is cut from it
 const WORDMARK_TOP = 1450 // in STACKED's units: the mark ends near y 1300, the lettering starts near y 1600
-const ICON_BACKGROUND = '#22569A' // primary-600: DBD "the PWA icon is a square mark on primary-600"
+// primary-600 (tone 40 of the built-in Material theme): DBD "the PWA icon is a square mark on primary-600"
+const theme = JSON.parse(await readFile('src/app/theme/material-theme.json', 'utf8'))
+const ICON_BACKGROUND = theme.palettes.primary['40']
 
 const PNG = { compressionLevel: 9, palette: true, quality: 90 }
 

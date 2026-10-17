@@ -3,13 +3,14 @@
 
 | | |
 |---|---|
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Date** | 2026-10-17 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
 | **Changes in 1.2** | Follows AFD 1.1 and TRD 2.0: the Unlock page (offline PIN), station owners on the visit and field pages, the finalizing state on the visit report, feedback `*-container` theme colours, and links to the AFD fixed. 37 pages |
 | **Changes in 1.3** | `/register`: the organization is a plain text field, not a picker of existing organizations (PRD 1.2 AUTH-1, AFD 1.2 J1) |
 | **Changes in 1.4** | **The app shell** (decision W4-9, 2026-10-17) replaces the client and staff shells: three square tiles on a ground colour, 5 px apart: a slim **rail** of section icons with tooltips, an **interactive pane** (section tabs, the list or the controls) and a **view** (the details). On phones the pane and view fill the screen and the rail becomes a floating tab tile. New `ground` colour token; tiles have no corner radius. The field shell and the split panel are unchanged |
+| **Changes in 1.5** | **Brand colours from a Material 3 theme** (decision W4-12, 2026-10-17; closes D1's colour part): the built-in theme is `frontend/src/app/theme/material-theme.json` (Material Theme Builder, seed `#026D88`), and admins can replace it for everyone on **Settings** (`/admin/settings`). Status colours stay fixed. **Motion with GSAP** (W4-10): the pane's width, page and list entrances, the rail's hover, sliding indicator and tooltips. **Person avatars** with initials on a brand gradient (W4-13), the one allowed gradient. **Settings** page for admins (W4-11) |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
 
@@ -45,54 +46,48 @@ AWS-MMS should feel like a well-kept instrument: **calm, precise and dependable*
 | **Records look official** | Signed reports, signatures, references and hashes use a formal, print-like style: mono references, clear version labels and a DRAFT watermark. | Clients signing off; auditors |
 | **One way to do a thing** | Vuetify components are used as they come, with Tailwind for spacing. There are no one-off widgets and each view has one primary button. | The single developer (NFR-12) |
 
-**Never:** decorative gradients, stock illustrations, weather-app theatrics (animated clouds, glossy icons), colour as the only signal, or grey text that fails contrast.
+**Never:** decorative gradients (the one exception is the person avatar, below), stock illustrations, weather-app theatrics (animated clouds, glossy icons), colour as the only signal, or grey text that fails contrast.
 
 ## Colour palette
 
-The palette has three parts: one brand blue (“Horizon”), the slate neutrals and a reserved set of status colours. Every text pairing below passes WCAG 2.2 AA (4.5:1) in both themes. The tables give the light values; Dark theme, at the end of this section, gives the dark value for each role. Each is set once as a token in `app/theme/brand.ts`. That file defines Vuetify's `light` and `dark` themes with the same colour names, and Tailwind reads the same colours through Vuetify's theme variables (`bg-primary`, `text-surface-700`).
+The palette has three parts: the **brand colours**, which come from a Material 3 theme, the **neutrals** from the same theme, and a reserved set of **status colours** that never change. Every text pairing passes WCAG 2.2 AA (4.5:1) in both themes. Tokens are set once in `app/theme/brand.ts`, which defines Vuetify's `light` and `dark` themes with the same colour names; Tailwind reads them through Vuetify's theme variables (`bg-primary`, `text-surface-700`).
 
-### Brand: Horizon blue (theme colours `primary-*`)
+### Brand and neutrals: a Material 3 theme (decision W4-12)
 
-| Token | Hex | Use | Contrast on white |
-| --- | --- | --- | --- |
-| primary-50 | `#EFF5FB` | Selected row, info banner background, active nav item background | — |
-| primary-100 | `#D9E7F5` | Hover on selected items, focus-ring halo | — |
-| primary-200 | `#B6D0EC` | Progress track, chart gridline accent | — |
-| primary-300 | `#86B1DE` | Disabled primary button fill | — |
-| primary-400 | `#548CCB` | Chart series 2 | — |
-| primary-500 | `#2F6DB5` | Chart series 1, map cluster bubbles | 5.28 |
-| **primary-600** | **`#22569A`** | **Primary buttons, links, active tab, focus ring, PWA `theme_color`** | **7.33** |
-| primary-700 | `#1C467E` | Primary button hover, link hover | 9.43 |
-| primary-800 | `#1A3B66` | Primary button pressed | — |
-| primary-900 | `#183253` | Dark brand surfaces (the staff sidebar until DBD 1.4; text primary-100: 10.3:1) | — |
-| primary-950 | `#0F1F35` | Login panel background | — |
+The brand colours are a **Material Theme Builder export**: a light and a dark scheme (49 colour roles each) and five tonal palettes (primary, secondary, tertiary, neutral, neutral-variant; tones 0–100). The built-in one is `frontend/src/app/theme/material-theme.json` (seed `#026D88`, a deep teal). An admin can replace it for everyone on **Settings › Brand colours** (`/admin/settings/colours`): upload another export, make one from a single colour, change single colours or edit the JSON, preview it on their own screen, then save. The server keeps it (`GET`/`PUT /api/v1/auth/branding`, audited as `branding.updated`) and every device keeps the last copy for the first paint and offline. `app/theme/material.ts` maps it onto the token names pages use, so no page changes when the brand does:
 
-### Neutrals: slate (theme colours `surface-*`)
+| Token | From the theme (light / dark) | Built-in light | Built-in dark | Use |
+| --- | --- | --- | --- | --- |
+| `primary` / `on-primary` | scheme `primary` / `onPrimary` | `#0A6780` / white (6.43) | `#89D0ED` / `#003544` (7.73) | Primary buttons, links, active tab, focus ring |
+| `primary-50` … `primary-950` | primary palette, tones 95 (dark 15), 90, 80, 70, 60, 50, 40, 30, 20, 10 (dark 5), 5 | `primary-600` `#006781` | — | Selected rows (`primary-50`), active rail and tab fill (`primary-100`, dark `primary-800`), PWA icon (`primary-600`) |
+| `secondary-600/700`, `tertiary-600/700` | secondary and tertiary palettes, tones 40 / 30 | — | — | Avatar gradients only |
+| `surface` (tiles) | `surfaceContainerLowest` / `surfaceContainerLow` | `#FFFFFF` | `#171C1F` | The app shell's tiles, cards, inputs |
+| `ground` | `surfaceContainer` / `surfaceContainerLowest` | `#EAEEF2` | `#0A0F11` | Behind the tiles |
+| `surface-50`, `surface-100` | `surfaceContainerLow`, `surfaceContainer` / `surfaceContainer`, `surfaceContainerHigh` | | | Light fills, hover |
+| `surface-200` | `surfaceContainerHighest` | `#DEE3E6` | `#303638` | Borders and dividers (decorative only) |
+| `surface-300` | `outlineVariant` | | | Skeletons, strong dividers |
+| `surface-500` | `outline` | `#70787C` (4.50) | `#8A9296` (5.43) | **Input and checkbox borders**, icons, placeholders |
+| `surface-600` | `onSurfaceVariant` | `#40484C` (9.34) | `#C0C8CC` (10.12) | Secondary text, captions, table meta: the lightest text |
+| `surface-700` | neutral-variant tone 20 / 90 | | | Labels, table body text |
+| `surface-900`, `on-surface` | `onSurface` | `#171C1F` (17.18) | `#DEE3E6` (13.28) | Headings and body text |
+| `info`, `info-container` | `primary`, `primaryContainer` with `onPrimaryContainer` | | | Information banners (7.27) |
+| `error`, `error-container` | `error`, `errorContainer` with `onErrorContainer` | | | Danger buttons, error banners and field errors |
+| `surface-variant` (Vuetify) | `inverseSurface` / `inverseOnSurface` | | | Snackbars |
 
-| Token | Hex | Use | Contrast on white |
-| --- | --- | --- | --- |
-| surface-0 | `#FFFFFF` | Cards, inputs, dialogs, PDF page | — |
-| surface-50 | `#F8FAFC` | App background behind cards | — |
-| surface-100 | `#F1F5F9` | Table header, read-only fields, tab strip | — |
-| surface-200 | `#E2E8F0` | Card borders, dividers (decorative only) | — |
-| surface-300 | `#CBD5E1` | Skeleton loaders | — |
-| surface-500 | `#64748B` | **Input and checkbox borders** (passes 3:1 for UI), placeholder text, icons | 4.76 |
-| surface-600 | `#475569` | Secondary text, captions, table meta | 7.58 |
-| surface-700 | `#334155` | Labels, table body text | 10.35 |
-| surface-900 | `#0F172A` | Headings and body text; all text in field mode | 17.85 |
+Contrast figures in brackets are against the tiles. The Brand colours editor checks the same pairs (text, secondary text, primary buttons, links, field errors) for any theme and warns below 4.5:1 before an admin saves. **Status colours, success and warning never come from the theme** (they stay as listed below), so a brand change can't make two statuses look alike.
 
-The lightest text colour is surface-600 (surface-500 only for placeholders and icons). Surface-200 and surface-300 never carry meaning on their own.
+**Person avatars** (W4-13) are the one gradient in the app: a circle with the person's initials in white on a 135° gradient between two brand tones (primary, secondary or tertiary, tones 30–40, so white keeps 4.5:1 in both themes). The person's id picks one of six pairs, so they keep theirs everywhere. They are decoration (`aria-hidden`): the name is always written beside them. First used on the Registrations list.
 
 ### Feedback colours (banners, toasts, inline messages)
 
 | Meaning | Text / icon | Background | Border | Example |
 | --- | --- | --- | --- | --- |
 | Success | `#166534` | `#DCFCE7` | `#15803D` | “Request submitted — MR-2026-0042” |
-| Info | `#22569A` | `#EFF5FB` | `#2F6DB5` | “This request is waiting for your review” |
+| Info | theme `onPrimaryContainer` | theme `primaryContainer` | theme `primary` | “This request is waiting for your review” |
 | Warning | `#92400E` | `#FEF3C7` | `#B45309` | “This visit isn’t ready for offline use” |
-| Danger | `#991B1B` | `#FEE2E2` | `#B91C1C` | “This file failed the virus scan” |
+| Danger | theme `onErrorContainer` | theme `errorContainer` | theme `error` | “This file failed the virus scan” |
 
-The danger button is solid `#B91C1C` with white text (6.47:1). It appears only on the confirm step of a destructive action, never as the first click.
+The danger button is solid theme `error` with `onError` text (built-in `#BA1A1A` with white, 6.46:1). It appears only on the confirm step of a destructive action, never as the first click.
 
 In `brand.ts` the border colour is the theme colour (`success`, `info`, `warning`, `error`) and the background and text pair is `*-container` / `on-*-container` (for example `warning-container` `#FEF3C7` with `on-warning-container` `#92400E`).
 
@@ -146,6 +141,8 @@ Every chip shows **icon + word + colour**, so no status depends on colour alone.
 ### Dark theme
 
 Dark mode ships in v1 (D2). Each user picks **Light**, **Dark** or **System** under Appearance on My profile. System is the default and follows the device. The choice is saved on the account and cached on the device for the login pages. Pages use role tokens only, so `brand.ts` holds a second set of values and no page has theme-specific code.
+
+> Since DBD 1.5 the brand and neutral rows below (background, cards, borders, text, primary, selected, ground, danger) take their dark values from the Material theme's dark scheme (Brand and neutrals, above); the hex values in those rows are the Horizon and slate placeholders they replaced, kept for history. Feedback (success, warning), status chips and chart rows are unchanged.
 
 | Role | Light | Dark | Dark contrast |
 | --- | --- | --- | --- |
@@ -337,12 +334,12 @@ Public pages (login, register, password reset, invitation, QR landing when logge
 
 ### Surfaces, corners and depth
 
-- **Ground** (`ground`: slate-100 `#F1F5F9` light, `#070C17` dark) sits behind the app shell's tiles. **Tiles** are surface-0 and stand out by colour alone: no border, no shadow, no corner radius.
+- **Ground** (`ground`: the theme's `surfaceContainer` in light, `surfaceContainerLowest` in dark) sits behind the app shell's tiles. **Tiles** are `surface` and stand out by colour alone: no border, no shadow, no corner radius.
 - Inside a tile there are no bordered cards: sections are separated by 1 px surface-200 rules, and list rows are plain rows with a hover and a primary-50 selected state. **Cards** (surface-0, 1 px surface-200 border, no shadow) remain for public pages, dialogs and menus.
 - The active rail icon, pane tab and tab-tile item use primary-100 with primary-700 (dark: primary-800 with primary-100). Status colours stay reserved for status.
 - **Shadows** only on things that float: menus, dialogs, toasts and the field action bar (`shadow-lg`).
 - **Corner radius:** 0 for the app shell's tiles, 6 px for inputs, buttons and tooltips, 10 px for cards, dialogs and list rows, 12 px for rail icons, fully round for chips, badges and pane tabs, 0 for tables.
-- **Motion:** 150 ms ease-out for hovers and menus, 200 ms for dialogs and drawers. Nothing loops except loading spinners. All motion is off under `prefers-reduced-motion`.
+- **Motion** (W4-10): 150 ms ease-out for hovers, menus and tooltips, 200 ms for dialogs and drawers. The app shell's motion is GSAP (`app/motion.ts`): the **pane's width** tweens (260 ms, ease-in-out) when it opens, closes or changes size, and the view tile follows; a new **page** rises 8 px and fades in (220 ms) while the old one goes at once; a new page's **pane list** slides in from the rail's side; on phones the list and the record slide in from their sides. On the **rail**, the hovered icon lifts and grows a little with a soft overshoot and a fill grows out from it; pressing shrinks it; the **active fill is one tile that slides** to the section chosen; **tooltips** fade and slide out from the rail (and Escape hides them). Nothing loops except loading spinners. All motion is off under `prefers-reduced-motion`, and on a device where the person turned **Animations** off in Settings.
 
 ## Core components
 
@@ -513,6 +510,7 @@ Tiles with a count above zero that need action (pending registrations, overdue c
 | Users / Organizations | `/admin/users`, `/admin/organizations` | Standard tables with role tags and status chips. Edit happens in a side drawer. | Invite user / New organization |
 | Checklist templates | `/admin/checklists` | List of templates on the left. On the right, an editor where items can be dragged into order, with a version number and “Published” chip. | Publish version |
 | QR labels and station import | `/admin/stations-tools` | Two cards. **Labels** has a station picker and a preview of the A4 sheet layout. **Import** is a 3-step wizard: upload, map columns, review errors. | Print labels / Import |
+| Settings | `/admin/settings/:part?` | The pane lists the parts: **Appearance** (the admin's own Light / Dark / System, and Animations on or off on this device) and **Brand colours** (for everyone). Brand colours shows the theme in use as a small app shell in light and dark, then an editor with three tabs: From one colour (a colour picker that makes both themes), Colour by colour (the main roles of each scheme, or all 49) and JSON. Upload a Material Theme Builder file or download the current one. Edits preview on the admin's screen only; a sticky bar saves for everyone or discards; contrast problems show as a warning first. | Save for everyone |
 | Audit log | `/admin/audit` | Dense full-width table (40 px rows, 13 px text): time, actor, action, resource, organization. Filters sit above. A row opens a drawer with a before/after diff in mono (removed lines on red-50, added on green-50). | Export CSV |
 
 ### Field pages (field shell, phones)
@@ -535,7 +533,7 @@ Every core screen meets **WCAG 2.2 AA** (NFR-11). Field mode goes further on tou
 
 | Area | Standard | How AWS-MMS meets it |
 | --- | --- | --- |
-| Text contrast | 4.5:1 normal, 3:1 large (1.4.3) | All tokens checked in both themes (Colour palette). The lightest text is surface-600 at 7.58:1 in light and #94A3B8 at 6.76:1 in dark. Field mode uses the strongest text colour only. axe runs in both themes. |
+| Text contrast | 4.5:1 normal, 3:1 large (1.4.3) | All tokens checked in both themes (Colour palette). The lightest text is surface-600 (built-in 9.34:1 in light, 10.12:1 in dark); the Brand colours editor warns before saving a theme that falls under 4.5:1. Field mode uses the strongest text colour only. axe runs in both themes. |
 | UI contrast | 3:1 for borders, icons, focus (1.4.11) | Input borders surface-500 (4.76:1). Focus ring primary-600 (7.33:1). In dark: borders 4.39:1 and a primary-300 focus ring at 8.34:1. Status markers have a white outline on the map. |
 | Colour alone | Never the only signal (1.4.1) | Chips pair an icon with a word. Map markers differ by shape. Chart series have direct labels. Errors pair an icon with text. |
 | Focus | Visible and not hidden (2.4.7, 2.4.11) | A 2 px primary-600 ring with a 2 px white offset on every focusable element. Sticky bars never cover the focused field, because pages scroll it into view with padding. |
@@ -546,7 +544,7 @@ Every core screen meets **WCAG 2.2 AA** (NFR-11). Field mode goes further on tou
 | Authentication | No cognitive test (3.3.8) | Password managers and paste are allowed, there is no CAPTCHA puzzle, and a show/hide toggle is provided |
 | Status updates | Announced (4.1.3) | Toasts, sync progress and live status changes use `aria-live="polite"`. Errors use `assertive`. |
 | Zoom and reflow | 200% zoom, 320 px reflow (1.4.4, 1.4.10) | rem-based type, and tables reflow to cards below 640 px, so there is no horizontal scroll except inside wide data tables |
-| Motion | Respects user setting (2.3.3) | All transitions are off under `prefers-reduced-motion`, and nothing auto-plays. Videos start paused. |
+| Motion | Respects user setting (2.3.3) | All transitions and GSAP tweens are off under `prefers-reduced-motion` or with Settings › Animations off, and nothing auto-plays. Videos start paused. Rail tooltips appear on hover and keyboard focus, stay while hovered and close with Escape (1.4.13). |
 | Media | Alternatives | Every visit photo has its caption (or “Before photo, Station WXR-012, 14:05 AST”) as alt text. Video thumbnails state their duration. |
 
 ### Interaction patterns
@@ -582,7 +580,7 @@ The app talks like a capable colleague: short, plain and specific. It says what 
 
 | # | Question | Decision or assumption |
 | --- | --- | --- |
-| D1 | Brand colours, logo and product name shown in the app (PRD Q1) | **Logo and name supplied 2026-10-17:** the MARS-MMS mark and wordmark in `/logo` (vector SVGs `logo.svg` and `logo_main.svg` since 2026-10-17, also usable in PDFs), shown in the app as “MARS-MMS”; the PWA icon is the mark on primary-600. Brand colours: Horizon blue `#22569A` as primary, still a placeholder. Swapping in brand colours changes `primary` only; the new primary-600 must keep 4.5:1 on white, and its 300 shade 4.5:1 on dark cards. |
+| D1 | Brand colours, logo and product name shown in the app (PRD Q1) | **Logo and name supplied 2026-10-17:** the MARS-MMS mark and wordmark in `/logo` (vector SVGs `logo.svg` and `logo_main.svg`, also usable in PDFs), shown in the app as “MARS-MMS”; the PWA icon is the mark on primary-600. **Brand colours decided 2026-10-17 (W4-12):** a Material 3 theme, built in from `frontend/src/app/theme/material-theme.json` (seed `#026D88`) and replaceable by admins for everyone on Settings › Brand colours. Status colours stay fixed. The PWA icon and manifest colours come from the built-in theme (`npm run brand`); an admin's theme changes the app, not an installed icon. |
 | D2 | Is a dark theme needed in v1? | **Decided 2026-10-16: yes.** Light and dark themes ship in v1, with Light / Dark / System on My profile (System is the default). See Colour palette › Dark theme. |
 | D3 | Which chart library is used on dashboards and in PDFs? | **Decided 2026-10-16: ApexCharts.** `vue3-apexcharts` in the app. Summary-report PDFs render the same chart options to SVG in headless Chromium in the report worker (TRD §11.1). |
 | D4 | Should the client see the assigned technician’s name (AFD A7)? | **Decided 2026-10-16: yes.** Clients see assigned and attending staff by name on the request and visit pages. Names only, with no email or phone. |

@@ -35,8 +35,9 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        theme_color: '#22569A',
-        background_color: '#F8FAFC',
+        // The built-in brand colours (src/app/theme/material-theme.json): light primary and background
+        theme_color: '#0A6780',
+        background_color: '#F5FAFD',
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },

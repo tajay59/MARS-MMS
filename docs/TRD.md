@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 2.1 |
+| **Version** | 2.2 |
 | **Date** | 2026-10-17 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
@@ -12,6 +12,7 @@
 | **Changes in 1.2** | The component library changes from PrimeVue 4 to **Vuetify 4**, still with Tailwind CSS 4 (ADR-11, §1.1, §13, NFR-11, CSP). Icons change from PrimeIcons to Material Design Icons |
 | **Changes in 1.3** | §17 Testing strategy is summarized here and detailed in the Test Plan ([TP.md](TP.md)) |
 | **Changes in 2.0** | From the 2026-10-16 engineering review. **Five services instead of nine** (ADR-1): station, maintenance and visit merge into `operations`; notification and audit merge into `platform`; the integration stub is dropped. **Kong is removed**; Nginx is the gateway (ADR-5). **SeaweedFS replaces MinIO** (ADR-6, R6). New: derived request status with parallel visits (ADR-17), one owner per station on a visit instead of offline merging (ADR-18), fail-closed file visibility (ADR-19), offline PIN session and refresh-token coordination (ADR-20, §6.1), sensor-action correction (§3.2), finalize saga (§11.2), outbox leader lease and `aggregate_version` (§8), read-model backfill (§8.6), and CSP, multipart and audit-role fixes |
+| **Changes in 2.2** | Brand colours, motion and Settings (2026-10-17, decisions W4-10 to W4-13). The brand colours are a **Material 3 theme** that admins can change for everyone: `GET /api/v1/auth/branding` (public) and `PUT` (admin, with `version`), stored in auth's `settings` collection, audited as `branding.updated` (§3.1, §5.1, §8.4, §13.2). The PWA keeps the last answer in `localStorage` for the first paint and offline; the service worker still caches no API response (§13.3). Frontend adds **GSAP** for the shell's motion and `@material/material-color-utilities` (loaded only by Settings) to make a theme from one colour (§1.1, §13.2) |
 | **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
@@ -181,6 +182,8 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/auth/password-reset/confirm` | public | Sets a new password and revokes all sessions and access tokens; activates an invited user |
 | POST | `/api/v1/auth/invitations/accept` | public (token) | Sets the password for an invited user and signs them in |
 | GET / PATCH | `/api/v1/auth/me` | any | Current user; update name, phone, password, time zone, theme |
+| GET | `/api/v1/auth/branding` | public | The organization's brand colours: `{material, version, updated_at}`; `material` is null for the built-in colours (W4-12) |
+| PUT | `/api/v1/auth/branding` | admin | Save the brand colours for everyone: `{material \| null, version}`; a Material 3 theme with exactly the 49 roles of each scheme and tones 0–100 of the five palettes, all `#RRGGBB`; a stale `version` is 409 |
 | GET | `/api/v1/users` | admin | List and filter users (status, role, org) |
 | POST | `/api/v1/users` | admin | Invite a staff or client user (AUTH-6) |
 | GET | `/api/v1/users/{id}` | admin | One user |
@@ -195,7 +198,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 
 **Cron:** purge pending registrations older than 30 days (AUTH-5), daily. Expired reset, invitation and refresh tokens go by TTL indexes.
 **CLI:** `python -m app.cli create-admin` (the first admin) and `seed` (TP seed users; refused in production).
-**Emits:** `user.*`, `org.*`, `auth.*` security events (§8.4).
+**Emits:** `user.*`, `org.*`, `auth.*` security events, `branding.updated` (§8.4).
 
 ### 3.2 operations
 
@@ -468,6 +471,7 @@ refresh_tokens { _id, user_id, token_hash, family_id, expires_at /*TTL*/, revoke
 password_resets { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 invitations { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }
+settings { _id: "branding", material: { name, seed, schemes: { light, dark }, palettes } | null, updated_at, updated_by, version }
 ```
 
 Indexes: `users.email` unique; `users.status`; `users.org_id`; `refresh_tokens.token_hash` unique; TTL on `expires_at`. Validation rule: a `client` role cannot be combined with any staff role.
@@ -969,6 +973,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `user.updated` / `user.disabled` | auth | platform | user fields¹, changed_fields? |
 | `user.purged` | auth | platform | user_id |
 | `org.created` / `org.updated` | auth | operations, report, platform | org_id, name, country, status |
+| `branding.updated` | auth | platform (audit) | custom, name?, seed? (key `branding`; audit before/after: custom, name, seed, light and dark primary) |
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
 | `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review |
@@ -1137,7 +1142,7 @@ frontend/src/
 ### 13.2 Conventions
 
 - **Vuetify 4** through `vite-plugin-vuetify`, which auto-imports and tree-shakes components and compiles Vuetify's Sass with `app/theme/settings.scss`. `app/theme/vuetify.ts` calls `createVuetify` once with:
-  - the `light` and `dark` themes, built from the brand tokens in `app/theme/brand.ts`
+  - the `light` and `dark` themes, built in `app/theme/brand.ts` from a Material 3 theme (`app/theme/material.ts` maps its roles and palettes onto the token names; W4-12) plus the fixed status colours. At start it uses the organization's theme last fetched (`localStorage` `mms-branding`), else the built-in `material-theme.json`; `stores/branding.ts` fetches `GET /api/v1/auth/branding` at start and when the app returns to the front (at most every 5 min) and updates Vuetify's theme colours in place
   - global `defaults` that give the DBD look, so pages don't repeat props: flat buttons 40 px tall with a 6 px radius, outlined `compact` inputs, flat cards with a 1 px border and 10 px radius, and `ripple: false`. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px.
   - the `mdi-svg` icon set, with icons imported from `@mdi/js` and listed in `app/theme/icons.ts` (SVG paths, no icon font)
   - display thresholds equal to Tailwind's breakpoints (`sm` 640, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536), so `useDisplay()` and Tailwind's `md:` agree
@@ -1147,6 +1152,7 @@ frontend/src/
 - **Cascade layers.** `public/layers.css` is the first stylesheet linked in `index.html`, ahead of every stylesheet the build injects, and fixes the order (a production build links lazy chunks' CSS before the main bundle and drops a bare `@layer` statement from it, so an import in `main.ts` is not enough): `vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final`. Tailwind's theme and utilities are imported into the `tailwind` layer. Its preflight is not imported, because Vuetify has its own reset. Tailwind must stay before `vuetify-final`, or Vuetify's transitions break. Vuetify's own utility and colour classes are turned off (`$utilities: false`, `$color-pack: false` in `settings.scss`), so `rounded-*`, `bg-*` and `text-*` always mean Tailwind's. Classes that Vuetify adds from props (`rounded-md`, `elevation-8`) are safelisted with `@source inline(...)`.
 - **Shared tokens.** Tailwind's `@theme` removes its default palette and maps each brand colour to Vuetify's theme variable (`--color-primary: rgb(var(--v-theme-primary))`, `--color-surface-700: rgb(var(--v-theme-surface-700))`), so `bg-primary` and `text-surface-700` follow the active theme with no `dark:` variant.
 - **Light and dark themes** (DBD D2). `brand.ts` defines both Vuetify themes with the same colour names: `primary`, `primary-50` … `primary-950`, `surface-0` … `surface-900`, `background`, `surface`, the feedback colours with `*-container` pairs, and the status colours, each with its `on-*` pair. The theme store switches Vuetify (`useTheme().change('light' | 'dark')`) and the `.app-dark` class on `<html>` together. Tailwind's `dark:` variant uses that class (`@custom-variant dark (&:where(.app-dark, .app-dark *))`). The user's `theme` (`system`, `light` or `dark`) comes from `/auth/me` and is cached in `localStorage` (`mms-theme`) for the login pages. `public/theme-init.js`, an external script in `<head>`, sets the class before first paint, because the CSP (`script-src 'self'`) rules out an inline script. `system` follows `prefers-color-scheme` and updates live. Two `theme-color` meta tags (light `#22569A`, dark `#0B1220`) colour the browser bar.
+- **Motion** (W4-10): GSAP (`gsap`, bundled) through `app/motion.ts`: the pane's width tween, page and pane-list entrances, the rail's hover, sliding indicator and tooltips. Durations are 0 under `prefers-reduced-motion` or the per-device Animations setting (`localStorage` `mms-motion`, also the `.app-reduced-motion` class for CSS). GSAP writes inline styles through the CSSOM, which the CSP allows.
 - **Charts:** ApexCharts through `vue3-apexcharts`, with shared options in `charts/presets.ts` (Inter, tabular figures, toolbar off, palette per theme). Charts switch `theme.mode` with the app theme and turn animation off under `prefers-reduced-motion`.
 - API types are generated with `openapi-typescript` from each service's OpenAPI schema in CI. A failed generation fails the build.
 - **Route guards** check roles from the access token when online, or from the unlocked offline profile when offline (§6.1). The server still enforces every rule. Viewers see read-only views; action buttons are hidden, not just disabled.

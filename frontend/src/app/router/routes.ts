@@ -125,6 +125,13 @@ export const routes: RouteRecordRaw[] = [
   later('/admin/checklists', 'admin-checklists', 'Checklist templates', 4, ADMIN),
   later('/admin/stations-tools', 'admin-stations-tools', 'QR labels and import', 2, ADMIN),
   later('/admin/audit', 'admin-audit', 'Audit log', 7, ADMIN),
+  {
+    // Appearance (the admin's own) and the organization's brand colours (W4-11, W4-12)
+    path: '/admin/settings/:part(appearance|colours)?',
+    name: 'admin-settings',
+    component: () => import('@/features/settings/SettingsPage.vue'),
+    meta: { title: 'Settings', layout: 'app', roles: ADMIN },
+  },
 
   {
     path: '/:pathMatch(.*)*',

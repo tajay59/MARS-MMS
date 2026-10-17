@@ -47,6 +47,7 @@ export const adminMenu: MenuItem[] = [
   { label: 'Checklist templates', to: 'admin-checklists', icon: mdiFormatListChecks },
   { label: 'QR labels and import', to: 'admin-stations-tools', icon: icons.scanQr },
   { label: 'Audit log', to: 'admin-audit', icon: icons.history },
+  { label: 'Settings', to: 'admin-settings', icon: icons.configuration },
 ]
 
 export const staffSections: Section[] = [
