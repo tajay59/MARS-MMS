@@ -1,0 +1,60 @@
+"""{{ service_name }} service entry point."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from mms_common import logging as mms_logging
+from mms_common import mongo
+from mms_common.web import ReadyCheck, install
+from redis.asyncio import Redis
+
+from app.config import Settings
+
+
+def create_app(
+    settings: Settings | None = None,
+    ready_checks: dict[str, ReadyCheck] | None = None,
+) -> FastAPI:
+    """App factory. Tests pass their own settings and readiness checks."""
+    settings = settings or Settings()
+    mms_logging.configure(settings.service_name, settings.log_level)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        client = mongo.connect(settings.mongo_uri)
+        redis = Redis.from_url(settings.redis_url)
+        app.state.db = client[settings.mongo_db]
+        app.state.redis = redis
+        if ready_checks is None:
+
+            async def mongo_ok() -> bool:
+                await client.admin.command("ping")
+                return True
+
+            async def redis_ok() -> bool:
+                return bool(await redis.ping())
+
+            app.state.ready_checks.update({"mongo": mongo_ok, "redis": redis_ok})
+        # TODO(service): start the outbox relay under its leader lease and the consumers here.
+        try:
+            yield
+        finally:
+            await redis.aclose()
+            await client.close()
+
+    app = FastAPI(
+        title="AWS-MMS {{ service_name }}",
+        lifespan=lifespan,
+        docs_url="/docs" if settings.docs_enabled else None,
+        redoc_url=None,
+        openapi_url="/openapi.json" if settings.docs_enabled else None,
+    )
+    install(app, ready_checks)
+    # Mount routers under /api/v1/<resource> here. Literal paths before /{id} (TRD §3.0).
+    return app
+
+
+app = create_app()

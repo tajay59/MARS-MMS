@@ -1,0 +1,155 @@
+# Rendered at start: ${MMS_HOST} and ${FILES_HOST} come from the environment.
+
+server {
+  listen 80 default_server;
+  server_name _;
+  return 301 https://$host$request_uri;
+}
+
+# Unknown host names over TLS get nothing.
+server {
+  listen 443 ssl default_server;
+  server_name _;
+  ssl_certificate /etc/nginx/certs/tls.crt;
+  ssl_certificate_key /etc/nginx/certs/tls.key;
+  return 444;
+}
+
+# ---------------------------------------------------------------------------------------------
+# App host: SPA, API gateway, WebSocket.
+# ---------------------------------------------------------------------------------------------
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name ${MMS_HOST};
+
+  include /etc/nginx/snippets/tls.conf;
+  include /etc/nginx/conf.d/snippets/security-headers.conf;
+
+  client_max_body_size 10m;
+
+  # Never routed: internal endpoints and JWKS (TRD §2.1, §15).
+  location ^~ /internal/ { return 404; }
+  location ^~ /.well-known/ { return 404; }
+
+  # Reserved for the integrations release (PRD §10).
+  location ^~ /api/v1/integrations/ {
+    default_type application/problem+json;
+    return 501 '{"type":"https://errors.aws-mms/not_implemented","title":"Not implemented","status":501,"code":"not_implemented"}';
+  }
+
+  # --- auth: stricter zone on login, register, password reset ------------------------------
+  location ~ ^/api/v1/auth/(login|register|password-reset/) {
+    limit_req zone=auth burst=5 nodelay;
+    set $mms_upstream auth:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+  location ~ ^/api/v1/(auth|users|organizations)(/|$) {
+    include /etc/nginx/snippets/api-limits.conf;
+    set $mms_upstream auth:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+
+  # --- operations --------------------------------------------------------------------------
+  location ~ ^/api/v1/(stations|sensor-models|sensor-units|calibrations|documents|qr|requests|queue|client-reports|my-work|visits|checklist-templates|sync)(/|$) {
+    include /etc/nginx/snippets/api-limits.conf;
+    set $mms_upstream operations:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+
+  # --- media -------------------------------------------------------------------------------
+  location ~ ^/api/v1/(media|uploads)(/|$) {
+    include /etc/nginx/snippets/api-limits.conf;
+    set $mms_upstream media:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+
+  # --- report: public verify endpoint uses the auth zone ----------------------------------
+  location ^~ /api/v1/reports/verify {
+    limit_req zone=auth burst=5 nodelay;
+    set $mms_upstream report:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+  location ~ ^/api/v1/(reports|dashboard)(/|$) {
+    include /etc/nginx/snippets/api-limits.conf;
+    set $mms_upstream report:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+
+  # --- platform ----------------------------------------------------------------------------
+  location ~ ^/api/v1/(notifications|audit)(/|$) {
+    include /etc/nginx/snippets/api-limits.conf;
+    set $mms_upstream platform:8000;
+    include /etc/nginx/snippets/proxy.conf;
+  }
+  location = /ws {
+    set $mms_upstream platform:8000;
+    include /etc/nginx/snippets/proxy.conf;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_read_timeout 1h;
+  }
+
+  # A service that is down or not built yet (proxy.conf sends 502/503/504 here).
+  location @mms_unavailable {
+    default_type application/problem+json;
+    return 503 '{"type":"https://errors.aws-mms/service_unavailable","title":"Service unavailable","status":503,"code":"service_unavailable"}';
+  }
+
+  # Any other API path does not exist. A plain prefix on purpose: with ^~ nginx would skip the
+  # service regex locations above and every API route would answer 404.
+  location /api/ {
+    default_type application/problem+json;
+    return 404 '{"type":"https://errors.aws-mms/not_found","title":"Not found","status":404,"code":"not_found"}';
+  }
+
+  # --- SPA ---------------------------------------------------------------------------------
+  root /usr/share/nginx/html;
+
+  # Hashed build output: cache for a year. Deploys keep the previous release's files so open
+  # tabs can still load their lazy chunks (PWA finding F9).
+  location ^~ /assets/ {
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    try_files $uri =404;
+  }
+
+  # Must revalidate every time, or a phone keeps an old app (TRD §2.1; manifest: F10).
+  location ~ ^/(sw\.js|theme-init\.js|manifest\.webmanifest|index\.html)$ {
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
+    add_header Cache-Control "no-cache" always;
+    try_files $uri =404;
+  }
+
+  location / {
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
+    add_header Cache-Control "no-cache" always;
+    try_files $uri $uri/ /index.html;
+  }
+}
+
+# ---------------------------------------------------------------------------------------------
+# Files host: S3 API for presigned URLs only (TRD §2.1). No app pages, no API.
+# ---------------------------------------------------------------------------------------------
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name ${FILES_HOST};
+
+  include /etc/nginx/snippets/tls.conf;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Strict-Transport-Security "max-age=31536000" always;
+
+  client_max_body_size 16m;  # 8 MiB multipart parts plus headroom
+
+  location / {
+    proxy_pass http://seaweedfs:8333;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;  # presigned signatures cover the host
+    proxy_set_header X-Request-ID $mms_request_id;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+  }
+}

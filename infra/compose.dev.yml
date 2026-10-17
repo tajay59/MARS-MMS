@@ -1,0 +1,48 @@
+# Local development additions (TRD §16.3): self-signed TLS, Mailpit, and the data stores
+# published on 127.0.0.1 only, for debugging from the host.
+#
+#   cd infra && cp .env.example .env
+#   docker compose -f compose.yml -f compose.dev.yml up -d
+#   open https://mms.localhost   (accept the self-signed certificate once)
+#   Mailpit: http://127.0.0.1:8025
+#
+# Hot reload for the SPA: run `npm run dev` in frontend/ (Vite on :3000). Nginx serves the
+# last `npm run build` from frontend/dist.
+
+services:
+  # One-shot: a self-signed certificate for MMS_HOST and FILES_HOST, made once.
+  # Uses the Mongo image because it already ships openssl: no extra image, no package install.
+  dev-certs:
+    image: mongo:8.0.34
+    entrypoint: ["/bin/sh", "/opt/mms/dev-certs.sh"]
+    environment:
+      MMS_HOST: ${MMS_HOST}
+      FILES_HOST: ${FILES_HOST}
+    volumes:
+      - ./nginx/dev-certs.sh:/opt/mms/dev-certs.sh:ro
+      - ./nginx/certs:/certs
+    restart: "no"
+
+  nginx:
+    depends_on:
+      dev-certs:
+        condition: service_completed_successfully
+
+  mongo:
+    # 27018 on the host: 27017 is often taken by a locally installed MongoDB.
+    ports: ["127.0.0.1:${MONGO_DEV_PORT:-27018}:27017"]
+
+  redis:
+    ports: ["127.0.0.1:6379:6379"]
+
+  seaweedfs:
+    ports: ["127.0.0.1:8333:8333"]  # S3 API, for infra/tests and debugging
+
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    restart: unless-stopped
+    ports: ["127.0.0.1:8025:8025"]
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    networks: [backend]
