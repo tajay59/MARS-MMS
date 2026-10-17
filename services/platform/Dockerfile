@@ -10,6 +10,10 @@ COPY services/platform/pyproject.toml /srv/services/platform/pyproject.toml
 COPY services/platform/app /srv/services/platform/app
 RUN pip install /srv/services/platform
 
+# pip is not needed at run time, and it carries its own vendored copies of urllib3, msgpack
+# and setuptools, which the image scan reports (TRD §15).
+RUN pip uninstall --yes pip && rm -rf /usr/local/lib/python3.13/ensurepip
+
 RUN useradd --system --uid 10001 mms
 USER mms
 WORKDIR /srv/services/platform
