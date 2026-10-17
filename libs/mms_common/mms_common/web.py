@@ -11,6 +11,7 @@ from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from mms_common.errors import AppError
 from mms_common.ids import new_id
@@ -50,6 +51,22 @@ def install(app: FastAPI, ready_checks: dict[str, ReadyCheck] | None = None) -> 
             exc.problem(getattr(request.state, "request_id", None)),
             status_code=exc.status,
             media_type=PROBLEM,
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        """Framework errors (unknown path, wrong method) as problem details too."""
+        codes = {404: "not_found", 405: "method_not_allowed"}
+        code = codes.get(exc.status_code, "http_error")
+        body = {
+            "type": f"https://errors.aws-mms/{code}",
+            "title": str(exc.detail),
+            "status": exc.status_code,
+            "code": code,
+            "request_id": getattr(request.state, "request_id", None),
+        }
+        return JSONResponse(
+            body, status_code=exc.status_code, media_type=PROBLEM, headers=exc.headers
         )
 
     @app.exception_handler(RequestValidationError)

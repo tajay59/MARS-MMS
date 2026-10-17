@@ -3,11 +3,12 @@
 
 | | |
 |---|---|
-| **Version** | 1.2 |
-| **Date** | 2026-10-16 |
+| **Version** | 1.3 |
+| **Date** | 2026-10-17 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
 | **Changes in 1.2** | Follows AFD 1.1 and TRD 2.0: the Unlock page (offline PIN), station owners on the visit and field pages, the finalizing state on the visit report, feedback `*-container` theme colours, and links to the AFD fixed. 37 pages |
+| **Changes in 1.3** | `/register`: the organization is a plain text field, not a picker of existing organizations (PRD 1.2 AUTH-1, AFD 1.2 J1) |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
 
@@ -475,7 +476,7 @@ The request page sets the pattern for the other detail pages (station, visit and
 | Page | Route | Layout and look | Primary action |
 | --- | --- | --- | --- |
 | Log in | `/login` | Form card: email, password with show/hide, “Forgot password?” text link, then “Create an account” as a secondary link under a divider. The reason banner (session ended, password changed) sits above the form. | Log in |
-| Register | `/register` | One column. Name, email, phone, password (live rule check: “10+ characters”), and an organization picker (`VAutocomplete`) with “My organization isn’t listed” to type a new name | Register |
+| Register | `/register` | One column. Name, email, phone, password (live rule check: “10+ characters”), and “Your organization” as a text field (`VTextField`, hint: “We’ll link your account to it”); there is no list of existing organizations on a public page | Register |
 | Waiting for approval | `/register/pending` | Centred card with a 48 px `mdi-clock-outline` in amber, “We’ll email you when your account is approved”, and the email used | — |
 | Forgot password / Set new password / Accept invitation | `/forgot-password`, `/reset-password/:token`, `/invite/:token` | Short single-field forms. An expired link shows a warning banner with **Send a new link**. | Send link / Save |
 | QR landing | `/s/:token` | Shown only while resolving: logo + spinner + “Opening station…”. A revoked code gets a card with `mdi-qrcode-remove` and a link to Stations. | — |

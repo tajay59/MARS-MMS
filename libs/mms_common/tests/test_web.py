@@ -78,3 +78,13 @@ async def test_metrics_and_health():
     async with client(make()) as c:
         assert (await c.get("/health")).json() == {"status": "ok"}
         assert (await c.get("/metrics")).status_code == 200
+
+
+async def test_unknown_path_is_problem_json():
+    app = FastAPI()
+    install(app)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        r = await c.get("/api/v1/nothing-here")
+    assert r.status_code == 404
+    assert r.headers["content-type"].startswith("application/problem+json")
+    assert r.json()["code"] == "not_found"

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,9 +16,13 @@ class Settings(BaseSettings):
     mongo_db: str = "{{ service_name }}"
     redis_url: str = "redis://localhost:6379/0"
     kafka_bootstrap: str = "localhost:9092"
-{% if produces_events %}
-    outbox_topic: str = Field(default="mms.{{ service_name }}.events")
-{% endif %}
+    # Public signing keys, over the internal network only (TRD §6.1).
+    auth_jwks_url: str = "http://auth:8000/.well-known/jwks.json"
+{%- if produces_events %}
+    outbox_topic: str = "mms.{{ service_name }}.events"
+{%- endif %}
+    # Outbox relay, consumers and cron jobs. Off in API tests.
+    run_background: bool = True
 
     @property
     def docs_enabled(self) -> bool:

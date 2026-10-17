@@ -3,12 +3,13 @@
 
 | | |
 |---|---|
-| **Version** | 1.1 |
-| **Date** | 2026-10-16 |
+| **Version** | 1.2 |
+| **Date** | 2026-10-17 |
 | **Status** | Final draft for approval |
-| **Companion document** | [TRD.md](TRD.md) v2.0 (Technical Requirements Document) |
+| **Companion document** | [TRD.md](TRD.md) v2.1 (Technical Requirements Document) |
 | **Supersedes** | PRD 1.0 and all drafts in [drafts/](drafts/) |
 | **Changes in 1.1** | From the 2026-10-16 engineering review: one owner per station on a visit replaces offline merging (VIS-1, OFF-11); a request can have several visits open at once (§5.1); reopening a report during Client Review returns the request to In progress (RPT-6); admins can cancel during Client Review (§5.1); offline PIN unlock (AUTH-12); five services (NFR-13); §8 replaced by the Implementation Plan |
+| **Changes in 1.2** | AUTH-1: the client types their organization's name; the admin links it to an existing organization or creates one at approval. A public pick list would show every client organization's name to anyone (decided 2026-10-17) |
 
 ---
 
@@ -156,7 +157,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 
 | ID | Requirement | Priority |
 |---|---|---|
-| AUTH-1 | A client can self-register with name, email, phone, password and organization (choose an existing one or name a new one). | M |
+| AUTH-1 | A client can self-register with name, email, phone, password and their organization's name. The admin links the registration to an existing organization or creates one when approving it (AUTH-3). | M |
 | AUTH-2 | A newly registered client has status **Pending** and cannot log in until approved. They see a "waiting for approval" message. | M |
 | AUTH-3 | Admins see pending registrations and can approve them (linking to an existing organization or creating one) or reject them with a reason. | M |
 | AUTH-4 | The user is emailed when their account is approved or rejected. | M |

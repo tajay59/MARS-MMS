@@ -4,8 +4,8 @@
 #
 # Only Nginx publishes ports (TRD §15). Everything else is on the internal `backend` network.
 # Secrets come from infra/.env (copy .env.example; never commit .env).
-# The application services (auth, operations, media, report, platform) are added as they are
-# built from templates/service.
+# Application services are added as they are built from templates/service: auth and platform
+# (Phase 1); operations, media and report follow.
 
 name: mms
 
@@ -159,6 +159,59 @@ services:
     volumes:
       - ./seaweedfs/create-buckets.sh:/opt/mms/create-buckets.sh:ro
     restart: "no"
+    networks: [backend]
+
+  # --- Application services (TRD §3, §16.1), built from templates/service --------------------
+  # Each connects as its own Mongo user to its own database (rule 1). Images build from the
+  # repository root because they install libs/mms_common.
+
+  auth:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/auth/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/auth:${MMS_TAG:-local}
+    depends_on: &app-deps
+      mongo-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      AUTH_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      AUTH_MONGO_URI: mongodb://auth:${AUTH_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=auth
+      AUTH_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      AUTH_KAFKA_BOOTSTRAP: kafka:9092
+      AUTH_APP_URL: https://${MMS_HOST}
+      AUTH_SIGNING_KEY_FILE: /run/mms-secrets/auth_signing_key.pem
+      # Secrets other services exchange for service tokens (TRD §6.4).
+      AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}"}'
+      AUTH_BREACHED_CHECK: ${AUTH_BREACHED_CHECK:-hibp}
+    volumes:
+      - ${MMS_SECRETS_DIR:-./secrets}:/run/mms-secrets:ro
+    healthcheck: &app-health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [backend]
+
+  platform:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/platform/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/platform:${MMS_TAG:-local}
+    depends_on: *app-deps
+    environment:
+      PLATFORM_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      PLATFORM_MONGO_URI: mongodb://notification:${PLATFORM_NOTIFICATION_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=notification
+      PLATFORM_AUDIT_MONGO_URI: mongodb://audit:${PLATFORM_AUDIT_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=audit
+      PLATFORM_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      PLATFORM_KAFKA_BOOTSTRAP: kafka:9092
+      PLATFORM_AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
+    healthcheck: *app-health
     networks: [backend]
 
 networks:

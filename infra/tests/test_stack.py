@@ -1,5 +1,5 @@
 """Checks against the running local stack (TP Phase 1: Nginx routing, 404 for /internal/,
-CSP, database isolation, audit insert-only role).
+CSP, database isolation, audit insert-only role, and J1/J2 end to end into the audit chain).
 
     cd infra && docker compose -f compose.yml -f compose.dev.yml up -d
     ../.venv/Scripts/python -m pytest tests -q        (Windows; bin/python elsewhere)
@@ -9,6 +9,7 @@ Skipped when the stack is not running.
 
 from __future__ import annotations
 
+import itertools
 import os
 import shutil
 import subprocess
@@ -81,10 +82,7 @@ def test_integrations_are_reserved_with_501(web):
     assert r.status_code == 501 and r.json()["code"] == "not_implemented"
 
 
-@pytest.mark.parametrize(
-    "path",
-    ["/api/v1/auth/me", "/api/v1/stations", "/api/v1/uploads", "/api/v1/reports", "/api/v1/audit"],
-)
+@pytest.mark.parametrize("path", ["/api/v1/stations", "/api/v1/uploads", "/api/v1/reports"])
 def test_routes_to_a_service_that_is_not_up_yet_answer_503(web, path):
     r = get(web, path)
     assert r.status_code == 503 and r.json()["code"] == "service_unavailable"
@@ -180,22 +178,30 @@ def test_no_service_reads_another_database_rule_1(mongo_up, user):
 
 
 def test_audit_events_are_insert_only_rule_10(mongo_up):
+    # A negative seq and a separate state document keep the live chain untouched: platform's
+    # audit consumer may be appending while this runs.
     with mongo_as("audit") as c:
         events = c.audit.audit_events
-        events.insert_one({"_id": "probe", "seq": 0})
+        events.insert_one({"_id": "probe", "seq": -1})
         assert events.find_one({"_id": "probe"})
         with pytest.raises(OperationFailure):
-            events.update_one({"_id": "probe"}, {"$set": {"seq": 1}})
+            events.update_one({"_id": "probe"}, {"$set": {"seq": -2}})
         with pytest.raises(OperationFailure):
             events.delete_one({"_id": "probe"})
         with pytest.raises(OperationFailure):
             events.drop()
-        c.audit.audit_state.update_one({"_id": "chain"}, {"$set": {"last_seq": 0}}, upsert=True)
-    root = MongoClient(
-        f"mongodb://root:{ENV['MONGO_ROOT_PASSWORD']}@127.0.0.1:{MONGO_PORT}/?directConnection=true"
-    )
+        c.audit.audit_state.update_one({"_id": "probe"}, {"$set": {"x": 1}}, upsert=True)
+    root = root_mongo()
     root.audit.audit_events.delete_one({"_id": "probe"})  # test cleanup only
+    root.audit.audit_state.delete_one({"_id": "probe"})
     root.close()
+
+
+def root_mongo() -> MongoClient:
+    return MongoClient(
+        f"mongodb://root:{ENV['MONGO_ROOT_PASSWORD']}@127.0.0.1:{MONGO_PORT}/?directConnection=true",
+        tz_aware=True,
+    )
 
 
 def test_replica_set_supports_transactions(mongo_up):
@@ -271,3 +277,86 @@ def test_bucket_keys_are_limited_to_their_buckets():
     with pytest.raises(ClientError):
         media.put_object(Bucket="mms-reports", Key="probe.txt", Body=b"x")
     media.delete_object(Bucket="mms-media", Key="probe.txt")
+
+
+# --- auth and platform: J1 and J2 end to end (IP Phase 1 exit criterion) ---------------------
+
+ORG_A = "01900000-0000-7000-8000-00000000a000"  # mms_common.testing.seed
+
+
+def api(web, method, path, token=None, **kw):
+    headers = {"Host": MMS, **kw.pop("headers", {})}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return web.request(method, path, headers=headers, **kw)
+
+
+@pytest.fixture(scope="session")
+def seeded(web):
+    r = _compose("exec", "-T", "-e", f"AUTH_SEED_PASSWORD={ENV['AUTH_SEED_PASSWORD']}", "auth",
+                 "python", "-m", "app.cli", "seed")
+    if r.returncode != 0:
+        pytest.skip(f"auth not running: {r.stderr[-300:]}")
+    return ENV["AUTH_SEED_PASSWORD"]
+
+
+def test_services_are_routed_and_check_tokens_themselves(web):
+    r = get(web, "/api/v1/auth/me")
+    assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
+    r = get(web, "/api/v1/auth/me", headers={"Authorization": "Bearer not.a.token"})
+    assert r.status_code == 401
+    assert get(web, "/api/v1/audit/events").status_code == 404  # platform: not built until P7
+    assert get(web, "/api/v1/users").headers["cache-control"] == "no-store"
+
+
+def test_register_approve_login_reset_lands_in_the_audit_chain(web, seeded, mongo_up):
+    import time
+    import uuid
+
+    email = f"j1-{uuid.uuid4().hex[:8]}@example.org"
+    r = api(web, "POST", "/api/v1/auth/register", json={
+        "name": "J1 Client", "email": email, "password": "a long test password",
+        "organization_name": "Organization A"})
+    assert r.status_code == 202, r.text
+    assert api(web, "POST", "/api/v1/auth/login",
+               json={"email": email, "password": "a long test password"}).status_code == 403
+
+    login = api(web, "POST", "/api/v1/auth/login",
+                json={"email": "admin@example.org", "password": seeded})
+    assert login.status_code == 200, login.text
+    admin = login.json()["access_token"]
+    found = api(web, "GET", "/api/v1/users", admin, params={"status": "pending", "q": email})
+    [user] = found.json()["items"]
+    r = api(web, "POST", f"/api/v1/users/{user['id']}/approve", admin, json={"org_id": ORG_A})
+    assert r.status_code == 200, r.text
+
+    client = api(web, "POST", "/api/v1/auth/login",
+                 json={"email": email, "password": "a long test password"})
+    assert client.status_code == 200, client.text
+    cookie = client.headers["set-cookie"]
+    assert "HttpOnly" in cookie and "Secure" in cookie and "Path=/api/v1/auth" in cookie
+    refreshed = web.post("/api/v1/auth/refresh", headers={
+        "Host": MMS, "Cookie": cookie.split(";", 1)[0]})
+    assert refreshed.status_code == 200, refreshed.text
+    assert api(web, "POST", "/api/v1/auth/password-reset/request",
+               json={"email": email}).status_code == 202
+
+    wanted = {"user.registered", "user.approved", "auth.login_succeeded",
+              "auth.password_reset_requested", "auth.login_failed"}
+    root = root_mongo()
+    try:
+        for _ in range(60):  # outbox relay -> Kafka -> platform audit consumer
+            actions = {d["action"] for d in root.audit.audit_events.find(
+                {"resource.id": user["id"]}, {"action": 1})}
+            if wanted <= actions:
+                break
+            time.sleep(1)
+        assert wanted <= actions, actions
+        chain = list(root.audit.audit_events.find({"seq": {"$gte": 1}}).sort("seq", 1))
+        assert [d["seq"] for d in chain] == list(range(1, len(chain) + 1))
+        for before, after in itertools.pairwise(chain):
+            assert after["prev_hash"] == before["hash"]
+        head = root.audit.audit_state.find_one({"_id": "chain"})
+        assert head["last_seq"] >= chain[-1]["seq"]  # more may have arrived since
+    finally:
+        root.close()
