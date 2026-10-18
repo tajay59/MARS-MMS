@@ -16,12 +16,14 @@ export default function globalSetup (): void {
   const docker = process.platform === 'win32' && process.env.LOCALAPPDATA
     ? path.join(process.env.LOCALAPPDATA, 'Programs', 'DockerDesktop', 'resources', 'bin', 'docker.exe')
     : 'docker'
-  execFileSync(
+  const exec = (args: string[]) => execFileSync(
     existsSync(docker) ? docker : 'docker',
-    ['compose', '-f', 'compose.yml', '-f', 'compose.dev.yml', 'exec', '-T', '-e', `AUTH_SEED_PASSWORD=${password}`,
-      'auth', 'python', '-m', 'app.cli', 'seed'],
+    ['compose', '-f', 'compose.yml', '-f', 'compose.dev.yml', 'exec', '-T', ...args],
     { cwd: infra, stdio: 'inherit', env: { ...process.env, MSYS_NO_PATHCONV: '1' } },
   )
+  exec(['-e', `AUTH_SEED_PASSWORD=${password}`, 'auth', 'python', '-m', 'app.cli', 'seed'])
+  // The demo stations (made up), after auth's organizations; existing codes are skipped
+  exec(['operations', 'python', '-m', 'app.cli', 'seed'])
 }
 
 function seedPassword (infra: string): string {

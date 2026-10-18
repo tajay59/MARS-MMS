@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatListTime } from '../format'
+import {
+  formatCoordinates,
+  formatDate,
+  formatDateTime,
+  formatListTime,
+  formatPlainDate,
+  formatShortDate,
+  zoneAbbreviation,
+} from '../format'
 
 // DBD: `16 Oct 2026, 14:05 AST`, 24-hour clock, zone label; stored in UTC (rule 8).
 describe('formatDateTime', () => {
@@ -42,5 +50,41 @@ describe('formatListTime', () => {
 
   it('shows a dash for a missing date', () => {
     expect(formatListTime(undefined, zone, now)).toBe('—')
+  })
+})
+
+describe('station dates and places', () => {
+  const now = new Date('2026-10-18T12:00:00Z')
+
+  it('writes a day in the station’s zone', () => {
+    expect(formatDate('2026-01-10T03:00:00Z', 'America/Jamaica')).toBe('9 Jan 2026')
+    expect(formatDate(null)).toBe('—')
+  })
+
+  it('leaves out this year in a short date', () => {
+    expect(formatShortDate('2026-02-14T12:00:00Z', 'UTC', now)).toBe('14 Feb')
+    expect(formatShortDate('2025-02-14T12:00:00Z', 'UTC', now)).toBe('14 Feb 2025')
+  })
+
+  it('writes September as Sep, as DBD does, whatever the browser’s ICU', () => {
+    expect(formatDate('2024-09-15T12:00:00Z', 'UTC')).toBe('15 Sep 2024')
+    expect(formatShortDate('2026-09-15T12:00:00Z', 'UTC', now)).toBe('15 Sep')
+    expect(formatPlainDate('2026-09-01')).toBe('1 Sep 2026')
+    expect(formatDateTime('2026-09-16T13:12:00Z', 'UTC')).toBe('16 Sep 2026, 13:12 UTC')
+  })
+
+  it('reads a calendar date without shifting it by a zone', () => {
+    expect(formatPlainDate('2019-03-14')).toBe('14 Mar 2019')
+    expect(formatPlainDate('14/03/2019')).toBe('—')
+  })
+
+  it('names the zone, or falls back to its IANA name', () => {
+    expect(zoneAbbreviation('America/Jamaica', now)).toBe('EST')
+    expect(zoneAbbreviation('Not/A_Zone', now)).toBe('Not/A_Zone')
+  })
+
+  it('writes coordinates with hemispheres to four decimals', () => {
+    expect(formatCoordinates(17.97141, -76.792)).toBe('17.9714° N, 76.7920° W')
+    expect(formatCoordinates(-1.5, 36.8)).toBe('1.5000° S, 36.8000° E')
   })
 })

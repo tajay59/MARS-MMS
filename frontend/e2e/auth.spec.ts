@@ -112,7 +112,7 @@ test('J2: forgot password, reset by email, log in with the new one @J2 @AUTH-8',
   await page.goto(resetPath)
   await page.getByLabel('New password').fill(`again ${randomUUID()}`)
   await page.getByLabel('Type it again').fill(await page.getByLabel('New password').inputValue())
-  await page.getByRole('button', { name: 'Save' }).click()
+  await submitPaced(page, 'Save')
   await expect(page.getByText('This link has expired.')).toBeVisible()
 })
 

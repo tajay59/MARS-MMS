@@ -87,7 +87,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/profile/ProfilePage.vue'),
     meta: { title: 'My profile', layout: 'app' },
   },
-  later('/stations', 'stations', 'Stations', 2),
+  {
+    // The list, and one station when :id is set (PRD STN-5; AFD: clients see their own)
+    path: '/stations/:id?',
+    name: 'stations',
+    component: () => import('@/features/stations/StationsPage.vue'),
+    meta: { title: 'Stations', layout: 'app' },
+  },
   later('/map', 'map', 'Map', 2),
   later('/requests', 'requests', 'Requests', 3),
   later('/requests/new', 'request-new', 'Report a problem', 3, ['client', 'admin']),

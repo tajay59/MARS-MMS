@@ -162,7 +162,7 @@
         <div class="phases">
           <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 backend built</div></div><span class="badge progress">In progress</span></div>
+          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
@@ -177,8 +177,8 @@
             <table>
               <thead><tr><th>Path</th><th>What it is</th><th>Status</th></tr></thead>
               <tbody>
-                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 PWA. The public split panel, the app shell for staff and clients (rail, interactive pane and view as square tiles; decision W4-9) and the field shell, route guards, the session with the Web Lock refresh, the public auth pages, My profile, Registrations, Users, Sync, the MARS-MMS logo and PWA icons, the minimal service worker and manifest (F5), GSAP motion for the app shell (W4-10), the admin Settings page (W4-11) and the brand colours from a Material 3 theme that admins change for everyone (W4-12). Other menu pages show a placeholder naming their phase.</td><td><span class="badge progress">Shells and auth screens built (W4)</span></td></tr>
-                <tr><td><code>frontend/e2e/</code></td><td>Playwright against the Compose stack: J1, J2, invitations, the offline app shell, the update prompt between two releases; axe in light and dark and a CSP check on every page. Tests tagged <code>@smoke</code> need no seed users and run against staging after each deploy.</td><td><span class="badge built">Built (W4)</span></td></tr>
+                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 PWA. The public split panel, the app shell for staff and clients (rail, interactive pane and view as square tiles; decision W4-9) and the field shell, route guards, the session with the Web Lock refresh, the public auth pages, My profile, Registrations, Users, Sync, the MARS-MMS logo and PWA icons, the minimal service worker and manifest (F5), GSAP motion for the app shell (W4-10), the admin Settings page (W4-11) and the brand colours from a Material 3 theme that admins change for everyone (W4-12). Other menu pages show a placeholder naming their phase.</td><td><span class="badge progress">Shells, auth screens (W4) and station pages (W5) built</span></td></tr>
+                <tr><td><code>frontend/e2e/</code></td><td>Playwright against the Compose stack: J1, J2, invitations, the station list and page (W5), the offline app shell, the update prompt between two releases; axe in light and dark and a CSP check on every page. Tests tagged <code>@smoke</code> need no seed users and run against staging after each deploy.</td><td><span class="badge built">Built (W4)</span></td></tr>
                 <tr><td><code>.github/workflows/frontend.yml</code></td><td>Frontend CI: lint, Vitest, API type drift, type-check and build on Node 24. The compose-stack job in <code>backend.yml</code> runs the Playwright journeys.</td><td><span class="badge built">Built</span></td></tr>
                 <tr><td><code>infra/spikes/seaweedfs/</code></td><td>Phase 0 spike: SeaweedFS 4.48 behind Nginx, server-side checks and a browser upload page. Throwaway.</td><td><span class="badge built">Passed 2026-10-16</span></td></tr>
                 <tr><td><code>docs/</code></td><td>Planning documents, this site, and draw.io diagrams in <code>docs/diagrams/</code>.</td><td><span class="badge built">Built</span></td></tr>
@@ -2110,7 +2110,7 @@ flowchart LR
      ===================================================================== -->
       <section class="doc" id="frontend">
         <div class="doc-head">
-          <div class="row"><h2 id="frontend-h">Frontend</h2><span class="badge progress">Shells and auth screens built (W4)</span></div>
+          <div class="row"><h2 id="frontend-h">Frontend</h2><span class="badge progress">Shells, auth screens (W4) and station pages (W5) built</span></div>
           <p>A Vue 3.5 + TypeScript PWA built with Vite. Vuetify 4 supplies components; Tailwind CSS 4 supplies layout and spacing; both read one set of brand tokens. Three frames: the public split panel; the <b>app shell</b> for staff and clients (decision W4-9): a slim rail of section icons with tooltips, an interactive pane with the section's pages as tabs and the page's list or controls, and a view with the details, as square tiles 5 px apart on the <code>ground</code> colour, which on phones become full-bleed panes; below 1024 px a docked bottom bar replaces the rail (W4-14); and the field shell (phone, bottom navigation and a sync badge). Since W4: the router with its guards, the session with the Web Lock refresh, the public auth pages, My profile, the admin Registrations, Users and Settings pages, Sync, and the minimal service worker. <b>Brand colours</b> (W4-12) come from a Material 3 theme: <code>app/theme/material.ts</code> maps its roles and palettes onto the DBD token names, <code>brand.ts</code> adds the fixed status colours, and <code>stores/branding.ts</code> keeps the organization's theme in step with the server. <b>Motion</b> (W4-10) is GSAP through <code>app/motion.ts</code>: the pane's width tween (the view follows), page and pane-list entrances, the rail's hover, sliding indicator and tooltips; all of it is instant under reduced motion or with Settings › Animations off.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §6.1, §13</a> · <a href="DBD.md">DBD</a> · <a href="AFD.md">AFD §3, §5, §6</a> · ADR-11 · F5, F9, F10, F13 · code in <code>frontend/</code></span>
         </div>
@@ -2248,6 +2248,8 @@ sequenceDiagram
                 <tr><td><code>src/app/navigation.ts</code></td><td>Rail sections by role (<code>staffSections</code>, <code>clientSections</code>), their pages as pane tabs, <code>sectionsFor()</code> and <code>sectionOf()</code>; the field bottom bar</td></tr>
                 <tr><td><code>src/app/router/</code></td><td><code>routes.ts</code> (AFD §3 routes with <code>meta.layout</code>, <code>roles</code>, <code>guestOnly</code>, <code>phase</code>), <code>index.ts</code> (guards, titles, chunk-load errors to the update prompt, redirect when a session ends), <code>next.ts</code> (<code>safeNext</code>)</td></tr>
                 <tr><td><code>src/app/auth/session.ts</code></td><td>The session without Vue: access token in memory, <code>refreshSession()</code> under the Web Lock, BroadcastChannel <code>mms-auth</code>, refresh one minute before expiry</td></tr>
+                <tr><td><code>src/features/stations/</code></td><td><code>StationsPage.vue</code> (<code>/stations/:id?</code>: the list, or one station with the list in the pane), <code>StationDetailView.vue</code> (the tabs), <code>StationFilterFields.vue</code>, <code>ParameterTags.vue</code>, and <code>stations.ts</code> (no Vue: status and calibration-due looks, filters to and from the URL, facets, sorting; Vitest). Shared: <code>components/StationStatusChip</code>, <code>StationStatusMark</code>, <code>CalibrationDueChip</code></td></tr>
+                <tr><td><code>src/api/operations.ts</code></td><td><code>stationsApi</code>, <code>calibrationsApi</code> (staff), <code>sensorUnitsApi</code>; shapes from <code>openapi/operations.json</code></td></tr>
                 <tr><td><code>src/api/</code></td><td><code>http.ts</code> (token, one refresh and retry on 401, <code>cache: no-store</code>), <code>problem.ts</code> (<code>ApiError</code>, <code>NetworkError</code>), <code>auth.ts</code> (auth, users, organizations), <code>types/auth.ts</code> generated from <code>openapi/auth.json</code></td></tr>
                 <tr><td><code>src/stores/</code></td><td><code>session</code> (user, roles, <code>canAct</code>, bootstrap, login, logout), <code>theme</code>, <code>update</code> (the new-version prompt), <code>registrations</code> (the Admin dot on the rail and the Registrations tab count)</td></tr>
                 <tr><td><code>src/app/shells/</code></td><td><code>PublicShell</code>; <code>AppShell</code> (ground, tiles, pane header and tabs) with <code>AppRail</code>, <code>RailButton</code>, <code>RailTip</code> (CSS tooltip on hover and focus) and <code>AppTabBar</code> (phones); <code>pane.ts</code> (<code>usePane</code>, <code>usePaneSelection</code>); <code>FieldShell</code></td></tr>
@@ -2328,14 +2330,35 @@ flowchart TD
             <h3>Structure</h3>
 <pre class="code"><code>frontend/src/
   app/          router/ shells/ auth/ pwa/ pages/ composables/ theme/  (built)
-  api/          http, problem details, auth clients, generated types  (built)
-  features/     auth/ dashboard/ profile/ admin/ field/  (built)
-                requests/ visits/ stations/ sensors/ ...  (later phases)
+  api/          http, problem details, auth and operations clients, generated types  (built)
+  features/     auth/ dashboard/ profile/ admin/ field/ stations/  (built)
+                requests/ visits/ sensors/ ...  (later phases)
   offline/      db.ts (Dexie), session.ts (PIN), outbox.ts, sync.ts  (Phase 5)
   charts/       ApexCharts presets  (Phase 7)
-  components/   shared building blocks  (built: 10)
+  components/   shared building blocks  (built: 13)
   stores/       Pinia  (built: session, theme, update, registrations)
   sw/           service worker, Workbox injectManifest  (built, minimal)</code></pre>
+          </div>
+          <div class="sub" id="frontend-stations">
+            <h3>Station list and page (W5)</h3>
+            <p>Built from the approved mock-up (DBD "Stations list", "Station page"). One route, <code>/stations/:id?</code>: without an id the pane holds search and filters and the view the table; with one, the pane lists the stations to switch between and the view holds the station.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Part</th><th>As built</th></tr></thead>
+                <tbody>
+                  <tr><td>Loading</td><td>Every station the person can see, once (pages of 500 from <code>GET /stations</code>; a few hundred at most, PRD §2). Search and filters run in the page, so their counts are exact. The server scopes the rows (rule 3); the page only hides staff-only columns.</td></tr>
+                  <tr><td>URL</td><td>Filters (<code>q</code>, <code>status</code>, <code>org</code>, <code>country</code>, <code>type</code>, <code>parameter</code>) and the station's <code>tab</code> are query parameters: a reload or a shared link keeps them.</td></tr>
+                  <tr><td>Search</td><td>Code, name and external ID (the old system's device ID, W5-8).</td></tr>
+                  <tr><td>Measures filter</td><td>Chips for the seven common parameters, a searchable field for the rest: the real stations measure 99 (W5-8). Phone cards show 8 tags and "+N".</td></tr>
+                  <tr><td>Calibration column</td><td>The earliest due date of the station's installed units (CAL-3, CAL-4): red overdue, amber within 30 days, green in date, as icon, words and colour.</td></tr>
+                  <tr><td>Station tabs</td><td>Overview, Sensors and Calibration (staff) are built. Documents and Configurations (W6), Requests (P3), Visits (P4), Reports (P6) and History (P7) keep their place with a short "not here yet" note.</td></tr>
+                  <tr><td>Clients</td><td>No organization column or filter, no Configurations, Calibration or History tabs; their action is "Report a problem" (Phase 3). Another organization's station shows "We can't find this station" (ADR-16).</td></tr>
+                  <tr><td>Offline</td><td>The pages ship in the precached <code>app</code> chunk; with no signal they say "This needs a connection" (offline station data is Phase 5).</td></tr>
+                  <tr><td>Not yet</td><td>"New station" and "Edit station" wait for a station form mock-up; the photo slot waits for media (W6).</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="small muted">Tests: <code>features/stations/__tests__/stations.spec.ts</code> (Vitest) and <code>e2e/stations.spec.ts</code> (technician and client, axe in light and dark; <code>@STN-5</code>, <code>@CAL-3</code>). The Playwright global setup now also runs operations' demo seed.</p>
           </div>
           <div class="sub" id="frontend-sw">
             <h3>Service worker (minimal, W4)</h3>
@@ -3007,6 +3030,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>Station list and page</b> (W5): <code>/stations/:id?</code> from the approved mock-up, with search on code, name and external ID, filters in the URL, the calibration-due column, and the Overview, Sensors and Calibration tabs; clients see less. Built for the real data: long names truncate, the measures filter splits common from other parameters. Dates write September as <code>Sep</code> (DBD), whatever the browser's ICU.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>The real export is on staging</b> (W5-9): 8 organizations and 50 stations, one per device, imported with no errors; a rerun skips all 50. The files were deleted from the host and the containers afterwards. No sensor units: the source has no serials.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>The real export dry run</b> (T4, W5-8): 8 organizations and 50 stations plan cleanly after two fixes. Parameter codes may have up to 32 characters (was 16), and the import checks the 40-parameter limit instead of capping the joined cell at 200 characters. The collections are <code>entities</code> and <code>sites</code>.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>The existing system's export</b> (T4, W5-8): organizations gain <code>short_name</code> and <code>external_id</code> (in <code>org.*</code> events, the snapshot and operations' copy); <code>import-orgs</code> in auth; stations gain <code>external_id</code>; the station import reads the <code>sites</code> export, one station per device. TRD 2.7, BSD 1.5. Tests: auth 143, operations 95 (95%).</td></tr>

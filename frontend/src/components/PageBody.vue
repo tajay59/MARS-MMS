@@ -33,7 +33,12 @@
 
       <div ref="titleEl" class="min-w-0 grow basis-48">
         <h1 :id="headingId" class="m-0 wrap-break-word text-h2 text-surface-900">{{ heading }}</h1>
-        <p v-if="subtitle" class="m-0 text-sm text-surface-600">{{ subtitle }}</p>
+        <!-- A record's facts under its name (code, status chip, place) -->
+        <div v-if="$slots.subtitle" class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-surface-600">
+          <slot name="subtitle" />
+        </div>
+
+        <p v-else-if="subtitle" class="m-0 text-sm text-surface-600">{{ subtitle }}</p>
       </div>
 
       <div v-if="$slots.actions" class="flex shrink-0 flex-wrap items-center gap-2">
