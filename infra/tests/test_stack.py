@@ -82,7 +82,7 @@ def test_integrations_are_reserved_with_501(web):
     assert r.status_code == 501 and r.json()["code"] == "not_implemented"
 
 
-@pytest.mark.parametrize("path", ["/api/v1/uploads", "/api/v1/reports"])
+@pytest.mark.parametrize("path", ["/api/v1/reports", "/api/v1/dashboard/summary"])  # report: P6
 def test_routes_to_a_service_that_is_not_up_yet_answer_503(web, path):
     r = get(web, path)
     assert r.status_code == 503 and r.json()["code"] == "service_unavailable"
@@ -400,6 +400,8 @@ def test_services_are_routed_and_check_tokens_themselves(web):
     r = get(web, "/api/v1/auth/me", headers={"Authorization": "Bearer not.a.token"})
     assert r.status_code == 401
     assert get(web, "/api/v1/audit/events").status_code == 404  # platform: not built until P7
+    r = get(web, "/api/v1/media/not-a-file")  # media (Phase 2): the token is checked first
+    assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
     r = get(web, "/api/v1/stations")  # operations (Phase 2)
     assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
     assert get(web, "/api/v1/users").headers["cache-control"] == "no-store"
@@ -498,6 +500,129 @@ def test_seeded_stations_are_scoped_by_organization_and_audited(web, seeded, mon
                 break
             time.sleep(1)
         assert found is not None
+    finally:
+        root.close()
+
+
+# --- media: a document goes through the gateway and the files host (W6) ----------------------
+
+
+def _uuid7() -> str:
+    """A UUIDv7 for a device-made ID (rule 9): 48 bits of milliseconds, then random bits."""
+    import secrets
+    import time
+
+    ms = int(time.time() * 1000)
+    rand = secrets.randbits(74)
+    value = (ms << 80) | (0x7 << 76) | ((rand >> 62) << 64) | (0b10 << 62) | (rand & (2**62 - 1))
+    h = f"{value:032x}"
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
+
+
+def _to_files_host(url: str) -> tuple[str, str]:
+    """A presigned URL is for the files host name; connect to the local Nginx and send that
+    name, which is what the signature covers."""
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url)
+    assert parts.netloc == FILES, parts.netloc
+    return f"{parts.path}?{parts.query}", parts.netloc
+
+
+@pytest.mark.req("MED-6")
+def test_a_document_goes_through_the_gateway_and_the_files_host(web, seeded, mongo_up):
+    """The whole W6 path on the real stack: presigned multipart upload straight to the files host
+    (8 MiB parts, CORS with the ETag readable), the media worker's checks, the document in
+    operations, client visibility, and the events in the audit chain."""
+    import hashlib
+    import time
+
+    for _ in range(30):
+        r = _compose("exec", "-T", "operations", "python", "-m", "app.cli", "seed")
+        if r.returncode == 0 and "Errors" not in r.stdout:
+            break
+        time.sleep(2)
+    tech = _login(web, "tech1@example.org", seeded)
+    client_a = _login(web, "client.a1@example.org", seeded)
+    client_b = _login(web, "client.b1@example.org", seeded)
+    stations = api(web, "GET", "/api/v1/stations", tech, params={"q": "JM-KIN-001"}).json()
+    station = stations["items"][0]
+    data = b"%PDF-1.7\n" + os.urandom(10 * 1024 * 1024)  # two parts: 8 MiB and the rest
+    digest = hashlib.sha256(data).hexdigest()
+    media_id = _uuid7()
+
+    created = api(web, "POST", "/api/v1/uploads", tech, json={
+        "media_id": media_id, "owner_ref": f"document:station:{station['id']}", "kind": "pdf",
+        "filename": "Installation record.pdf", "size_bytes": len(data), "sha256": digest,
+    })
+    assert created.status_code == 201, created.text
+    upload = created.json()
+    assert upload["part_count"] == 2 and upload["part_size"] == 8 * 1024 * 1024
+
+    origin = {"Origin": f"https://{MMS}"}
+    for item in upload["urls"]:
+        target, host = _to_files_host(item["url"])
+        start = (item["part_number"] - 1) * upload["part_size"]
+        chunk = data[start : start + upload["part_size"]]
+        # The browser asks first; only the app's origin may upload.
+        pre = web.request("OPTIONS", target, headers={
+            "Host": host, **origin, "Access-Control-Request-Method": "PUT"})
+        assert pre.headers.get("access-control-allow-origin") == f"https://{MMS}", pre.headers
+        put = web.put(target, content=chunk, headers={"Host": host, **origin}, timeout=60)
+        assert put.status_code == 200, put.text
+        assert "etag" in put.headers.get("access-control-expose-headers", "").lower()
+    refused = web.request("OPTIONS", target, headers={
+        "Host": host, "Origin": "https://evil.example", "Access-Control-Request-Method": "PUT"})
+    assert refused.headers.get("access-control-allow-origin") != "https://evil.example"
+
+    done = api(web, "POST", f"/api/v1/uploads/{media_id}/complete", tech)
+    assert done.status_code == 200 and done.json()["status"] == "uploaded", done.text
+    for _ in range(60):  # media-worker: size, type, checksum, scan
+        detail = api(web, "GET", f"/api/v1/media/{media_id}", tech).json()
+        if detail["status"] in ("ready", "failed"):
+            break
+        time.sleep(1)
+    assert detail["status"] == "ready", detail
+    assert detail["visibility"] == "staff" and detail["checksum_sha256"] == digest
+
+    doc_id = _uuid7()
+    made = api(web, "POST", "/api/v1/documents", tech, json={
+        "id": doc_id, "scope": "station", "scope_id": station["id"], "doc_type": "installation",
+        "title": "Installation record", "media_id": media_id})
+    assert made.status_code == 201 and made.json()["status"] == "available", made.text
+    # Staff-only until someone says otherwise: the owner's client can't see it (fail closed).
+    assert api(web, "GET", f"/api/v1/documents/{doc_id}", client_a).status_code == 404
+    assert api(web, "GET", f"/api/v1/media/{media_id}", client_a).status_code == 404
+
+    link = api(web, "GET", f"/api/v1/documents/{doc_id}/download", tech).json()
+    target, host = _to_files_host(link["url"])
+    fetched = web.get(target, headers={"Host": host}, timeout=60)
+    assert fetched.status_code == 200 and fetched.content == data
+    assert fetched.headers["content-type"] == "application/pdf"
+    assert fetched.headers["content-disposition"].startswith("inline;")
+
+    shown = api(web, "PATCH", f"/api/v1/documents/{doc_id}", tech,
+                json={"version": made.json()["version"], "client_visible": True})
+    assert shown.status_code == 200
+    for _ in range(60):  # operations -> Kafka -> media applies the visibility request
+        if api(web, "GET", f"/api/v1/media/{media_id}", client_a).status_code == 200:
+            break
+        time.sleep(1)
+    assert api(web, "GET", f"/api/v1/media/{media_id}", client_a).status_code == 200
+    assert api(web, "GET", f"/api/v1/documents/{doc_id}/download", client_a).status_code == 200
+    assert api(web, "GET", f"/api/v1/documents/{doc_id}", client_b).status_code == 404
+    assert api(web, "GET", f"/api/v1/media/{media_id}", client_b).status_code == 404
+
+    root = root_mongo()
+    try:
+        for action, resource in (("media.uploaded", media_id), ("document.uploaded", doc_id),
+                                 ("media.visibility_requested", doc_id)):
+            for _ in range(60):
+                if root.audit.audit_events.find_one({"action": action, "resource.id": resource}):
+                    break
+                time.sleep(1)
+            assert root.audit.audit_events.find_one(
+                {"action": action, "resource.id": resource}), action
     finally:
         root.close()
 

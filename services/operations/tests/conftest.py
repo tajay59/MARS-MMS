@@ -12,17 +12,53 @@ from typing import Any
 import httpx
 import pytest_asyncio
 from mms_common.events import Envelope, validate
+from mms_common.ids import new_id
 from mms_common.testing.seed import ORG_A, ORG_B, SEED_USERS, TestIssuer
 from mms_common.time import ManualClock
 from pymongo import AsyncMongoClient
 
 from app.config import Settings
 from app.main import create_app
+from app.repo.stations.media_client import FileInfo, Link
 
 pytest_plugins = ["mms_common.testing.containers"]
 
 BASE = "https://mms.test"
 ORG_C = "01900000-0000-7000-8000-00000000c000"  # inactive
+
+
+class FakeMedia:
+    """The media service's `/internal` answers, for files a test puts there."""
+
+    def __init__(self) -> None:
+        self.files: dict[str, FileInfo] = {}
+        self.links: list[tuple[str, bool]] = []
+        self.down = False
+
+    def add(
+        self, owner_ref: str, *, by: str = "tech1", status: str = "ready", kind: str = "pdf",
+        filename: str = "manual.pdf", sha: str | None = None, size: int = 1234,
+    ) -> str:
+        media_id = new_id()
+        self.files[media_id] = FileInfo(
+            id=media_id, owner_ref=owner_ref, kind=kind, filename=filename, size_bytes=size,
+            status=status, uploaded_by=SEED_USERS[by].id, org_id=None,
+            checksum_sha256=sha or media_id.replace("-", "").ljust(64, "0")[:64],
+            scan_status="clean" if status == "ready" else None,
+        )
+        return media_id
+
+    async def info(self, media_id: str, request_id: str | None = None) -> FileInfo | None:
+        if self.down:
+            from app.repo.stations.media_client import MediaUnavailable
+
+            raise MediaUnavailable()
+        return self.files.get(media_id)
+
+    async def link(self, media_id: str, *, inline: bool, request_id: str | None = None) -> Link:
+        self.links.append((media_id, inline))
+        return Link(url=f"https://files.test/{media_id}?inline={inline}",
+                    expires_at=datetime(2026, 10, 18, 12, 10, tzinfo=UTC))
 
 
 @dataclass
@@ -32,6 +68,7 @@ class Ops:
     db: Any
     clock: ManualClock
     issuer: TestIssuer
+    media: FakeMedia
 
     def bearer(self, who: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.issuer.token(who)}"}
@@ -119,13 +156,14 @@ async def ops(mongo_uri, redis_url):
                         run_background=False)
     mongo: AsyncMongoClient = AsyncMongoClient(mongo_uri)
     await seed_orgs(mongo[db_name])
-    app = create_app(settings, ready_checks={}, clock=clock, keys=issuer.keys)
+    media = FakeMedia()
+    app = create_app(settings, ready_checks={}, clock=clock, keys=issuer.keys, media=media)
     async with app.router.lifespan_context(app):
         from mms_common.auth.revocation import revoke_user
 
         await revoke_user(app.state.redis, SEED_USERS["disabled"].id, clock.now())
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url=BASE) as http:
-            yield Ops(app, http, mongo[db_name], clock, issuer)
+            yield Ops(app, http, mongo[db_name], clock, issuer, media)
     await mongo.drop_database(db_name)
     await mongo.close()

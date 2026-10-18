@@ -177,7 +177,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 | Week | Milestone |
 |---|---|
 | W5 | Stations, models, units, installations and calibrations, with tests. Real station export imported into staging (**done 2026-10-18**: 8 organizations and 50 stations, no rejected rows; decision W5-9). Station list and page. **Backend built 2026-10-18** (branch `feat/p2-w5-stations`): the operations service's stations module, the import with dry run (API and CLI) and a demo seed; 84 tests, 95% coverage. Station list and page mock-ups approved and **built 2026-10-18** (Overview, Sensors and Calibration tabs; the station form for New and Edit still needs a mock-up). **T4 answered 2026-10-18 (W5-8):** the organization's existing system is a MongoDB; its `entities` and `sites` exports come in with `import-orgs` (auth) and `import-stations` (operations), one station per device. Waiting on the export files themselves. |
-| W6 | Document and configuration uploads through the media service, with fail-closed visibility. Model documents for clients. Calibration-due list. |
+| W6 | Document and configuration uploads through the media service, with fail-closed visibility. Model documents for clients. Calibration-due list. **Backend built 2026-10-19** (branch `feat/p2-w6-documents`): the media service (documents path: presigned multipart uploads resumable from the store's part list, owner check, fail-closed visibility, ClamAV scan with a `clamd\|off` switch, stale-upload and reconcile cron), operations' documents, configuration versions with a checksum diff and calibration certificates, a Redis job queue, and the resumable upload engine in `frontend/src/offline/`; 116 media tests, 136 operations tests, and a stack test that uploads through Nginx and the files host. Found on the way: SeaweedFS ran out of volume slots on the second bucket (fixed, TRD R6). **Screens drawn** in the "AWS-MMS W6 screens" canvas (station Documents and Configurations tabs, the upload dialogs, the sensor model catalogue, calibration due, the client view, phones) and waiting for approval before they are built. Q7 decided: staff-only by default. |
 | W7 | QR tokens and `/s/:token`. Map. Report service skeleton and label sheets. |
 
 **Delivers:** ORG-2, ORG-3, STN-1 to STN-8, SEN-1 to SEN-3, CAL-1 to CAL-4 (list only; the dashboard widget comes in Phase 7), CAL-6 (flag), DOC-1 to DOC-4, CFG-1 to CFG-3, MED-3, MED-6 (documents), QR-1 to QR-7, MAP-1 to MAP-4.
@@ -374,7 +374,7 @@ Every phase is on the critical path. With one developer, phases run one after an
 | A1–A6, A8 | App Flow defaults (routes, queue page, landings, field layout) | Product owner | W1 sign-off | Frontend from W4 |
 | T3 | SMTP relay and sending domain (SPF, DKIM, DMARC) (**interim 2026-10-17:** a Gmail account for staff-only staging, so W4 no longer waits on it; TRD §22) | Organization IT | W4 → before the Phase 8 pilot | Phase 3 notification volume; client email in the pilot |
 | T4, Q4 | Station and sensor export; countries and time zones | Product owner | W5 | Phase 2 import |
-| Q7 | Default document visibility | Product owner | W5 | Phase 2 |
+| Q7 | Default document visibility | Product owner | W5 | Phase 2 · **decided 2026-10-19: staff-only** |
 | Q6 | Request categories and priority definitions | Product owner | W8 | Phase 3 |
 | Q5 | Starter checklist templates | Product owner | W10 | Phase 4 |
 | — | Test iPhone and Android phone; one day of two technicians for the field test | Product owner | W13 (devices), W15 (field day) | Phase 5 |

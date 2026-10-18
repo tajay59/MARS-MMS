@@ -417,6 +417,7 @@ class CalibrationIn(In):
     result: Literal["pass", "adjusted", "fail"]
     performed_by: ShortText | None = None  # defaults to the person recording it
     notes: LongText | None = None
+    certificate_media_id: Id | None = None  # the certificate PDF, uploaded for this unit
 
 
 class CalibrationOut(BaseModel):

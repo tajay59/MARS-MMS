@@ -162,7 +162,7 @@
         <div class="phases">
           <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page)</div></div><span class="badge progress">In progress</span></div>
+          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page, station form) · W6 built (media service, documents, configurations, sensor catalogue, calibration due; waiting for staging and an iPhone)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
@@ -189,7 +189,8 @@
                 <tr><td><code>infra/</code></td><td>Compose stack: Nginx gateway, MongoDB <code>rs0</code> (one user per database, insert-only audit role), Redis, Kafka, SeaweedFS, Mailpit, auth, operations (W5), platform. Stack tests include J1 and J2 end to end into the audit chain.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
                 <tr><td><code>.github/workflows/backend.yml</code></td><td><code>mms_common</code>, each service, both template variants, <code>nginx -t</code>, and the Compose stack with its tests.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
                 <tr><td><code>services/operations/</code></td><td>Stations module (W5): stations, sensor models, units, installation history, calibrations and the calibration-due list, the station import (API with dry run, and <code>python -m app.cli import-stations</code>), a demo seed, snapshots, and its copy of the organizations (consumer group <code>operations</code> on <code>mms.auth.events</code>, backfilled from auth at startup). Requests (Phase 3) and visits (Phase 4) follow.</td><td><span class="badge progress">Stations module built (W5)</span></td></tr>
-                <tr><td><code>services/media</code>, <code>report</code></td><td>The other two services.</td><td><span class="badge planned">Phases 2–6</span></td></tr>
+                <tr><td><code>services/media/</code></td><td>The documents path (W6): presigned multipart uploads with the store as the truth about parts, the owner check, fail-closed visibility, size / type / checksum / virus checks in <code>media-worker</code>, the stale-upload and reconcile cron jobs. Images and video: Phase 4.</td><td><span class="badge progress">Built (W6) · P4 for video</span></td></tr>
+                <tr><td><code>services/report</code></td><td>The last service.</td><td><span class="badge planned">Phases 2–6</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -411,8 +412,10 @@ flowchart TB
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}</code></td><td>any (scoped)</td><td>Built (W5). Detail with installed units and calibration status; for clients the QR token and config version are empty</td></tr>
                 <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/stations/{id}</code></td><td>technician, admin</td><td>Built (W5). Update with <code>version</code>; the owner organization is not a field (B5); a parameter still measured by an installed unit can't be dropped</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/installations</code></td><td>any (scoped)</td><td>Built (W5). Sensor installation history, newest first</td></tr>
-                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/stations/{id}/config-versions</code></td><td>staff / technician, admin</td><td>List; create a config version</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/config-versions/{v}/diff</code></td><td>staff</td><td>File-level diff by checksum (CFG-3)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/config-versions</code></td><td>staff</td><td>Built (W6). Newest first. Clients never see configuration (rule 6)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/{id}/config-versions</code></td><td>technician, admin</td><td>Built (W6-2). <code>{id, files:[{media_id}], notes, visit_id?}</code>, idempotent by <code>id</code>. Every file must be one this person uploaded for <code>config:&lt;station&gt;</code> and that has passed media's checks (409 <code>file_not_ready</code> otherwise). Numbered per station; written once (CFG-2)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/config-versions/{version}</code></td><td>staff</td><td>Built (W6). One version with its files, sizes and checksums</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/config-versions/{version}/diff?against=</code></td><td>staff</td><td>Built (W6). Files added, removed, changed and unchanged by name and checksum (CFG-3); default against the version before</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/import</code></td><td>admin</td><td>Built (W5-4). Bulk import CSV/XLSX, dry run by default (STN-8); the report lists every problem by sheet and row</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/qr/{token}</code></td><td>any (scoped)</td><td>Resolve a QR token</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/{id}/qr/regenerate</code></td><td>admin</td><td>New QR token; old one revoked</td></tr>
@@ -422,8 +425,11 @@ flowchart TB
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/sensor-units/{id}/remove</code></td><td>technician, admin</td><td>Built (W5-1). Take it off with a reason, into stock, repair or retirement; closes the installation; <code>sensor.removed</code></td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/calibrations/due</code></td><td>staff</td><td>Built (W5). Units overdue or due within <code>within_days</code> (default 30), by organization, country or station (CAL-4)</td></tr>
                 <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/calibrations</code></td><td>staff (write: technician, admin)</td><td>Built (W5). List by unit or station; record a calibration (CAL-1). The newest record sets the unit's due date (CAL-3); a fail flags it (CAL-6). Certificates arrive with documents (W6)</td></tr>
-                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/documents[/{id}]</code></td><td>scoped (client: visible only)</td><td>Model and station documents, versioned</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/documents/{id}/download</code></td><td>scoped</td><td>Access check, then a presigned URL from media</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/documents</code></td><td>scoped</td><td>Built (W6). Filter by <code>scope</code>, <code>scope_id</code>, <code>doc_type</code>; <code>current=false</code> lists earlier versions (staff). A client sees current, client-visible, clean documents of their stations and of models installed there (B4)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/documents</code></td><td>technician, admin</td><td>Built (W6-1). Idempotent by <code>id</code>; <code>media_id</code> from the upload; <code>supersedes_id</code> makes a new version. The row is created at once and is <code>pending</code> until media says the file is clean</td></tr>
+                <tr><td>operations</td><td>GET / PATCH</td><td><code>/api/v1/documents/{id}</code></td><td>scoped / technician, admin</td><td>Built (W6). PATCH with <code>version</code>: details and <code>client_visible</code>; a change asks media to show or hide the file (ADR-19)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/documents</code></td><td>scoped</td><td>Built (W6). The station's own documents and the manuals of the models installed there</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/documents/{id}/download</code></td><td>scoped</td><td>Built (W6). Access check, then a ten-minute link from media. 409 <code>not_ready</code> while the file is being checked. <code>Cache-Control: no-store</code></td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests</code></td><td>any (scoped)</td><td>List and filter (REQ-15)</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests</code></td><td>client, admin</td><td>Create; admin-created → Approved</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests/{id}</code></td><td>any (scoped)</td><td>Detail with status history and visits</td></tr>
@@ -460,16 +466,17 @@ flowchart TB
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/unlock</code></td><td>service (report)</td><td>Unlock for correction or failed finalize</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/internal/visits/{id}</code></td><td>service</td><td>Full visit for report rendering</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/internal/requests/{id}</code></td><td>service</td><td>Request, org, stations, staff, status</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/internal/attachable</code></td><td>service (media)</td><td>May this user attach here? Returns <code>org_id</code></td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/internal/attachable</code></td><td>service (media)</td><td>Built (W6). May this user attach a file to this owner (<code>document:station:…</code>, <code>document:model:…</code>, <code>config:…</code>, <code>calibration:…</code>)? Returns <code>org_id</code>; 404 out of scope, 403 for a role that may not write</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/internal/snapshot/{stations|requests|visits|sensor_units|calibrations}</code></td><td>service (report, platform)</td><td>Read-model backfill. Built for stations, sensor units and calibrations (W5)</td></tr>
-                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads</code></td><td>any (owner check)</td><td>Create media record; multipart upload + presigned part URLs</td></tr>
-                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/parts</code></td><td>uploader</td><td>More part URLs (resume); parts already uploaded</td></tr>
-                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/complete</code></td><td>uploader</td><td>Complete, verify checksum, enqueue processing</td></tr>
-                <tr><td>media</td><td>GET</td><td><code>/api/v1/media/{id}</code></td><td>scoped</td><td>Metadata + presigned URLs</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads</code></td><td>technician, admin, client (owner check)</td><td>Built (W6-3). Idempotent by <code>media_id</code>; the same file chosen again by the same person (size and checksum) joins the open upload. Returns the part size, the parts the store holds and URLs for the rest</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/parts</code></td><td>uploader</td><td>Built (W6). Where the upload stands (<code>ListParts</code> is the truth) and fresh URLs for the missing parts</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/complete</code></td><td>uploader</td><td>Built (W6). No part list: media lists the parts, checks their sizes against the announced size, joins them, queues the checks. Safe to repeat</td></tr>
+                <tr><td>media</td><td>GET</td><td><code>/api/v1/media/{id}</code></td><td>scoped</td><td>Built (W6). Record, and view and download links (ten minutes, never cached) once <code>ready</code></td></tr>
                 <tr><td>media</td><td>GET</td><td><code>/api/v1/media</code></td><td>scoped</td><td>List media for an <code>owner_ref</code></td></tr>
-                <tr><td>media</td><td>PATCH</td><td><code>/api/v1/media/{id}</code></td><td>uploader, staff</td><td>Caption</td></tr>
-                <tr><td>media</td><td>DELETE</td><td><code>/api/v1/media/{id}</code></td><td>uploader (until locked), admin</td><td>Soft delete, audited</td></tr>
-                <tr><td>media</td><td>POST</td><td><code>/internal/media/{id}/url</code></td><td>service</td><td>Presigned URL after the caller's own access check</td></tr>
+                <tr><td>media</td><td>PATCH</td><td><code>/api/v1/media/{id}</code></td><td>uploader, staff who write</td><td>Built (W6). Caption</td></tr>
+                <tr><td>media</td><td>DELETE</td><td><code>/api/v1/media/{id}</code></td><td>uploader, admin</td><td>Built (W6). Only an upload that did not finish or failed its checks. A stored file is kept (409 <code>immutable</code>)</td></tr>
+                <tr><td>media</td><td>GET</td><td><code>/internal/media/{id}</code></td><td>service (operations)</td><td>Built (W6). Owner, uploader, kind and status: operations checks a file before it attaches it</td></tr>
+                <tr><td>media</td><td>POST</td><td><code>/internal/media/{id}/url</code></td><td>service (operations)</td><td>Built (W6). A download link for a caller that has done its own access check (model documents). 409 until the file is <code>ready</code></td></tr>
                 <tr><td>report</td><td>GET</td><td><code>/api/v1/reports</code></td><td>scoped (clients: final only)</td><td>List reports and versions</td></tr>
                 <tr><td>report</td><td>GET</td><td><code>/api/v1/reports/{id}</code></td><td>scoped</td><td>Report with content and signatures</td></tr>
                 <tr><td>report</td><td>PATCH</td><td><code>/api/v1/reports/{id}/content</code></td><td>attending staff, admin (draft)</td><td>Edit narrative and photos (<code>content_version</code>)</td></tr>
@@ -1851,7 +1858,7 @@ sequenceDiagram
      ===================================================================== -->
       <section class="doc" id="media">
         <div class="doc-head">
-          <div class="row"><h2 id="media-h">Files and media</h2><span class="badge progress">Spike passed · Phases 2 and 4</span></div>
+          <div class="row"><h2 id="media-h">Files and media</h2><span class="badge progress">Documents path built · images and video in Phase 4</span></div>
           <p>Files never pass through the Python services: the browser uploads 8 MiB parts straight to SeaweedFS on presigned URLs through the <code>files.</code> host (ADR-6). Every file starts staff-only and becomes visible to a client only when the owning service says so (ADR-19).</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3.3, §10</a> · <a href="BSD.md">BSD "How visibility is set on files"</a> · spike in <code>infra/spikes/seaweedfs/</code></span>
         </div>
@@ -1868,17 +1875,17 @@ sequenceDiagram
     participant W as media-worker
 
     P->>MD: POST /api/v1/uploads (media_id, owner_ref, kind, size, sha256)
-    MD->>OW: GET /internal/attachable?owner_ref=...&amp;user=...
+    MD->>OW: GET /internal/attachable?owner_ref=...&amp;user_id=...&amp;roles=...
     OW-->>MD: Allowed, org_id
     MD-->>P: upload_id + presigned part URLs (1 h), visibility = staff
     loop each 8 MiB part
-        P->>S3: PUT part on its presigned URL, read the ETag
+        P->>S3: PUT part on its presigned URL
     end
-    P->>MD: POST /uploads/{id}/complete (part ETags)
-    MD->>S3: CompleteMultipartUpload, verify sha256
-    MD->>W: Enqueue process_image, process_video or process_document
-    W->>S3: Write the processed file and thumbnail
-    W->>MD: status = ready + outbox media.processed
+    P->>MD: POST /uploads/{id}/complete (no part list)
+    MD->>S3: ListParts, check sizes, CompleteMultipartUpload
+    MD->>W: Queue the file (Redis job queue)
+    W->>S3: Stream the object once: SHA-256, magic bytes, ClamAV
+    W->>MD: status = ready or failed + outbox media.processed or media.failed
     OW--)MD: media.visibility_requested (org), emitted when the file is attached
 </pre>
           </div>
@@ -1916,6 +1923,27 @@ sequenceDiagram
             </div>
             <p class="small muted">Type checked by magic bytes. Infected → <code>failed</code>, quarantined, admin notified.</p>
           </div>
+        </div>
+
+        <div class="sub" id="media-built">
+          <h3>As built (W6, documents path)</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Piece</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td>Uploads</td><td><code>POST /uploads</code> is idempotent by <code>media_id</code> (made on the device, rule 9). The record is inserted first and the multipart upload is created after, so a crash between the two is repaired by the next call. The same file chosen again after a reload (same person, owner, size and SHA-256) joins the open upload (<code>resumed: true</code>) and sends only the missing parts. <b>The store is the truth</b>: <code>ListParts</code> says what has arrived, and <code>complete</code> takes no part list, so a client that lost its ETags or its place cannot corrupt the file.</td></tr>
+                <tr><td>Complete</td><td>Checks every part against the announced size (a presigned URL cannot enforce it): missing parts are the client's to send (409 <code>incomplete_upload</code> with the numbers), a part that is extra or the wrong size aborts the upload and fails the record (<code>size_mismatch</code>). Then it joins the parts, confirms the object size and queues the checks. Repeating it returns the stored result.</td></tr>
+                <tr><td>Checks (<code>process_media</code>)</td><td>One pass over the stored object: SHA-256 against the announced checksum, magic bytes against the name (<code>.pdf</code> must start <code>%PDF-</code>, Office files are ZIP or OLE, text files have no NUL), and the virus scan. Infected, corrupt or mismatched files become <code>failed</code> and are deleted from the store. A scanner or store that cannot be reached puts the file back to <code>uploaded</code> and the job retries; <b>a file is never <code>ready</code> without a scan result</b> (<code>clean</code>, or <code>skipped</code> where the scan is off).</td></tr>
+                <tr><td>Virus scan (W6-4)</td><td><code>MEDIA_SCAN_MODE=clamd</code> streams the file to ClamAV (INSTREAM; the stack's <code>clamav</code> service raises the 25 MB default to 256 MB). <code>off</code> is for hosts too small for ClamAV (TRD T8: staging) and is <b>refused when <code>MEDIA_ENVIRONMENT=production</code></b>. Files then carry <code>scan_status: skipped</code> and are still staff-only until an owner shares them (ADR-19).</td></tr>
+                <tr><td>Job queue (W6-5)</td><td><code>mms_common.jobs</code>: a Redis sorted set with a visibility lease. A claimed job that is not acknowledged comes back when the lease runs out, so every job runs at least once and must be safe to repeat; <code>media</code> moves a file with conditional updates, so a second run finds nothing to do. Replaces the arq plan: arq pins <code>redis&lt;6</code>, which the stack has moved past.</td></tr>
+                <tr><td>Cron</td><td><code>abort_stale_uploads</code> (daily: open uploads older than 48 h are aborted so the store frees their parts, and marked <code>failed</code>) and <code>reconcile</code> (every 5 min: re-queues files stuck in <code>uploaded</code> for 15 min, and puts back files whose worker died in <code>processing</code>). <code>purge_originals</code> arrives with images and video.</td></tr>
+                <tr><td>Visibility</td><td>Consumer group <code>media</code> on <code>mms.operations.events</code>: <code>media.visibility_requested</code> is applied only when its <code>visibility_version</code> is newer than the file's, whatever order events arrive in. A request for a file media has no record of fails loudly and is dead-lettered.</td></tr>
+                <tr><td>Documents in operations (W6-1)</td><td>The document row is created as soon as the file is whole and stays <code>pending</code> until <code>media.processed</code> arrives; <code>media.failed</code> marks it <code>failed</code>. The verdict can arrive before the row exists, so it is also kept in <code>media_outcomes</code>, a row that both the consumer and the insert write, so the database orders them. Downloads need <code>available</code>.</td></tr>
+                <tr><td>SeaweedFS volumes (W6-6)</td><td><b>Found on the first multi-bucket upload:</b> the volume server allows 8 volumes by default, the filer's own volumes use most of them and a bucket takes 7 more when it first receives data, so the second bucket written to failed with "No writable volumes". The stack now runs <code>-volume.max=0</code> (sized from the free disk), 256 MB volumes and <code>-volume.minFreeSpace=5</code>. The spike passed because it only wrote to one bucket. Staging needs free disk for about 35 volumes of 256 MB (about 9 GB counted, not used).</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Tests: 116 in <code>services/media</code> against a real SeaweedFS, Mongo and Redis (and a real ClamAV for the scan), 136 in operations, and <code>infra/tests</code> uploads a 10 MiB PDF through Nginx and the files host (CORS preflight allowed for the app's origin only, ETag exposed), waits for the worker, creates the document, shows it to a client and finds the events in the audit chain.</p>
         </div>
 
         <div class="note"><strong>Phase 0 spike: passed 2026-10-16.</strong> <code>infra/spikes/seaweedfs/</code> checked SeaweedFS 4.48 behind Nginx: presigned PUT and GET through the files host, expired and edited URLs refused, multipart with presigned parts, list and abort of open uploads, CORS limited to the app origin with <code>ETag</code> exposed, versioning and COMPLIANCE object lock. All 15 server-side checks and the browser upload checks in Chrome 155 passed (a 50.9 MiB video in 7 parts took 2.0 s locally). For the media service: the global <code>-s3.allowedOrigins</code> flag is enough for CORS, and boto3's default checksums work. From an Android phone in Chrome over Wi-Fi, a 152.8 MiB video went up in 20 parts in 47.5 s and read back intact. The phone's earlier failed attempts left open multipart uploads on the server, which is what the <code>abort_stale_uploads</code> job is for. Firefox 158 passed the same browser checks. All planned checks are done; an iPhone run is optional. Garage stays the fallback.</div>
@@ -2352,15 +2380,112 @@ flowchart TD
                   <tr><td>Search</td><td>Code, name and external ID (the old system's device ID, W5-8).</td></tr>
                   <tr><td>Measures filter</td><td>Chips for the seven common parameters, a searchable field for the rest: the real stations measure 99 (W5-8). Phone cards show 8 tags and "+N".</td></tr>
                   <tr><td>Calibration column</td><td>The earliest due date of the station's installed units (CAL-3, CAL-4): red overdue, amber within 30 days, green in date, as icon, words and colour.</td></tr>
-                  <tr><td>Station tabs</td><td>Overview, Sensors and Calibration (staff) are built. Documents and Configurations (W6), Requests (P3), Visits (P4), Reports (P6) and History (P7) keep their place with a short "not here yet" note.</td></tr>
+                  <tr><td>Station tabs</td><td>Overview, Sensors, Documents, Calibration (staff) and Configurations (staff) are built (W6). Requests (P3), Visits (P4), Reports (P6) and History (P7) keep their place with a short "not here yet" note.</td></tr>
                   <tr><td>Clients</td><td>No organization column or filter, no Configurations, Calibration or History tabs; their action is "Report a problem" (Phase 3). Another organization's station shows "We can't find this station" (ADR-16).</td></tr>
                   <tr><td>Offline</td><td>The pages ship in the precached <code>app</code> chunk; with no signal they say "This needs a connection" (offline station data is Phase 5).</td></tr>
                   <tr><td>Station form (W5-10)</td><td><code>StationForm.vue</code> from the approved "Station form" mock-up: Identity, Place, Measures, Equipment and Status, a docked Cancel and Save bar. Technicians and admins only: the buttons are hidden from viewers and clients, and the page sends them back to the list. Rules live in <code>stationFormModel.ts</code> (no Vue): <code>validate</code> says what the server would, <code>createBody</code> builds <code>StationIn</code>, <code>patchBody</code> sends <b>only the fields that changed</b> with the <code>version</code> it opened, <code>problemOf</code> turns the server's answers into field errors. A duplicate code or external ID lands on its field; a stale version shows "Someone saved this station while you were editing" with a button that loads their changes. The owner is chosen from active organizations (<code>GET /organizations?status=active</code>) and locked after the first save (B5). Time zone comes from <code>GET /stations/places</code>. Latitude and longitude go together and a new station needs them (<code>StationIn</code>); a station imported without a place can be edited without one. Leaving with unsaved changes asks first (router guard and <code>beforeunload</code>). It needs a connection (OFF-10): a failed save keeps what was typed and says so.</td></tr>
-                  <tr><td>Not yet</td><td>The photo slot waits for media (W6). Clearing a station's coordinates isn't possible (the API has no way to).</td></tr>
+                  <tr><td>Not yet</td><td>The photo slot waits for the images pipeline (Phase 4). Clearing a station's coordinates isn't possible (the API has no way to).</td></tr>
                 </tbody>
               </table>
             </div>
             <p class="small muted">Tests: <code>features/stations/__tests__/stations.spec.ts</code> (Vitest) and <code>e2e/stations.spec.ts</code> (technician and client, the form from empty to saved to edited, viewers; axe in light and dark; <code>@STN-5</code>, <code>@CAL-3</code>, <code>@STN-1</code>, <code>@STN-2</code>) and <code>features/stations/__tests__/stationForm.spec.ts</code> (the form's rules). The Playwright global setup now also runs operations' demo seed.</p>
+          </div>
+          <div class="sub" id="frontend-documents">
+            <h3>Documents, configurations, sensors and calibration due (W6)</h3>
+            <p>Built from the approved "AWS-MMS W6 screens" canvas. Every file goes up in 8 MiB parts straight to the files host with the engine in <code>src/offline/upload.ts</code> (decision W6-3); these screens are the first to use it. Online only (OFF-10): a dropped connection pauses the upload and carries on by itself, and a closed tab is picked up by choosing the same file again.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Part</th><th>As built</th></tr></thead>
+                <tbody>
+                  <tr><td>Documents tab</td><td><code>StationDocuments.vue</code>: the station's own documents (table from 768 px, list below) and the manuals of the models installed there. Staff see "Who sees it" (<code>VisibilityChip</code>), the uploader and a row menu (<code>DocumentMenu</code>: upload a new version, show to the owner organization or make staff only). A client sees the clean, client-visible documents only (the server filters them, rule 6) with a Download button. A new file reads "Checking file…" and the tab looks again every 4 s (five minutes at most) until media has finished. The <b>Version</b> column shows the version label: <code>DocumentOut.version</code> counts edits to the record (the PATCH concurrency counter), so it is never shown.</td></tr>
+                  <tr><td>Upload dialog</td><td><code>UploadDialog.vue</code> in <code>ModalSheet</code> (a dialog from 768 px, a bottom sheet on phones). Choose or drop a file (checked against the same extension and 50 MB rules as media: <code>documents.ts</code>), Type, Version label, Title (filled from the file name), Language and the sharing switch, <b>off by default</b> (DOC-4, Q7). Progress, "No connection · nothing is lost" and "Try again". The document is created by <code>POST /documents</code> with an ID made on the device once the bytes are up, so a retry after a lost answer finds it. A wake lock and a <code>beforeunload</code> guard are held while a file is going up. <code>useUploads</code> (<code>app/composables/useUpload.ts</code>) wraps the engine as Vue state.</td></tr>
+                  <tr><td>Configurations tab</td><td><code>StationConfigurations.vue</code> (staff): versions newest first, and a table of the version's files against the one before (or any other): Changed, Added, Removed, Unchanged from <code>GET …/diff</code>, with size and the first 8 characters of the checksum. <code>NewConfigDialog.vue</code> uploads each file as it is added (two at a time, so hashing stays within a phone's memory), waits for media's checks, and enables <b>Save version N</b> only when every file is ready (W6-2). Removing a file takes it off the server. "Once saved, a version can't be changed or deleted."</td></tr>
+                  <tr><td>Sensors</td><td><code>/sensors/:id?</code> (staff): the catalogue in the pane (search, kind chips), and for a model its datasheets and manuals (<code>ModelDocuments.vue</code>, same upload dialog with scope <code>model</code>) and its units with status, place and calibration chip. The unit count per model in the list needs a server count, so it shows in the model's heading instead.</td></tr>
+                  <tr><td>Calibration due</td><td><code>/calibration</code> (staff): filters for the window (30, 60, 90, 180 days; the server's), organization and country (in the page, from what came back), counts, and the list overdue first with "Overdue 45 days" / "Due in 21 days". Each station name opens its Sensors tab.</td></tr>
+                  <tr><td>Downloads</td><td><code>openDownload</code> asks for the ten-minute link on click and uses it at once; nothing is kept (TRD §7.6). A PDF or image opens in a tab that is opened in the click itself (Safari refuses windows opened after an <code>await</code>); everything else downloads in the current tab.</td></tr>
+                  <tr><td>Not yet</td><td>Sensor model and unit create/edit forms (the catalogue is read-only here); editing a document's details (title, type) after upload; object lock on <code>mms-documents</code>; the incremental hasher that lifts the 64 MiB limit (F4, before video).</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <figure class="diagram" data-title="Uploading a document: bytes first, then the record, then the checks" data-kind="Sequence diagram">
+              <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    actor T as Technician
+    participant W as Upload dialog
+    participant M as media
+    participant S as Files host
+    participant O as operations
+    participant K as media-worker
+    T->>W: choose file, fill details
+    W->>W: SHA-256 of the file
+    W->>M: POST /uploads (media_id made here)
+    M-->>W: part size, parts held, URLs
+    loop each missing 8 MiB part, 3 at a time
+        W->>S: PUT part
+    end
+    Note over W,S: connection drops: wait, then POST /uploads/{id}/parts and send what is missing
+    W->>M: POST /uploads/{id}/complete
+    M->>S: list parts, join them
+    M-->>W: uploaded
+    W->>O: POST /documents (id made here, media_id)
+    O->>M: GET /internal/media/{id} (owner, uploader, kind)
+    O-->>W: document, pending
+    K->>M: size, type, checksum, virus scan
+    M-->>O: media.processed
+    O-->>O: document becomes available
+    W->>O: GET /stations/{id}/documents (every 4 s)
+    O-->>W: available: Download appears
+</pre>
+              </div>
+            </figure>
+
+            <figure class="diagram" data-title="A sensor unit's status: only install and remove move it in and out of installed" data-kind="State diagram">
+              <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> in_stock : unit registered
+    in_stock --> installed : install (station, parameter)
+    installed --> in_stock : remove
+    installed --> in_repair : remove
+    installed --> retired : remove
+    in_stock --> in_repair : edit
+    in_repair --> in_stock : edit
+    in_stock --> retired : edit
+    in_repair --> retired : edit
+    retired --> in_stock : edit (correct a mistake)
+</pre>
+              </div>
+            </figure>
+
+            <figure class="diagram" data-title="Sensor inventory: from stock to the field and back" data-kind="Product flowchart">
+              <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    A[Model in the catalogue<br/>datasheets and manuals] --> B[Unit registered<br/>in stock]
+    B --> C{Calibration<br/>in date?}
+    C -- yes --> D[Install at a station<br/>one unit per parameter]
+    C -- no --> E[Lab calibration<br/>certificate attached]
+    E --> B
+    D --> F[Installed<br/>calibration due date counts down]
+    F --> G{Due or<br/>failed?}
+    G -- due in 30 days --> H[Calibration due list]
+    H --> I[Field check or swap]
+    G -- fail --> J[Flagged for review]
+    J --> I
+    I --> K{Outcome}
+    K -- passes --> F
+    K -- swap --> L[Remove unit]
+    L --> M{Condition}
+    M -- good --> B
+    M -- faulty --> N[In repair]
+    N --> E
+    M -- end of life --> O[Retired]
+</pre>
+              </div>
+            </figure>
+            <p class="small muted">Tests: Vitest <code>features/stations/__tests__/documents.spec.ts</code>, <code>configs.spec.ts</code>, <code>features/sensors/__tests__/sensors.spec.ts</code>, <code>features/calibration/__tests__/calibration.spec.ts</code> and <code>app/composables/__tests__/useUpload.spec.ts</code> (the composable over the engine, with the engine's fakes); Playwright <code>e2e/documents.spec.ts</code> against the real media service and files host: a technician uploads two documents and a client downloads only the shared one (the link points at the files host with a signature), configuration versions saved and compared, the sensor catalogue and calibration due pages, a client sent to "We can't find that page", and a phone run (<code>@phone</code>, Pixel 7) for the list and the upload sheet; axe in light and dark on every screen (<code>@DOC-2</code> to <code>@DOC-4</code>, <code>@CFG-1</code> to <code>@CFG-3</code>, <code>@CAL-4</code>).</p>
           </div>
           <div class="sub" id="frontend-sw">
             <h3>Service worker (minimal, W4)</h3>
@@ -2504,7 +2629,10 @@ Strict-Transport-Security: max-age=31536000</code></pre>
                 <tr><td>Breached-password check</td><td><code>hibp</code> with a local fallback</td><td>auth</td><td>AUTH-9, T1</td><td><code>AUTH_BREACHED_CHECK</code>, <code>AUTH_BREACHED_FILE</code>, <code>AUTH_HIBP_URL</code></td></tr>
                 <tr><td>Argon2id cost</td><td>time 3, 64 MiB, 4 lanes</td><td>auth</td><td>TRD §6.2</td><td><code>AUTH_ARGON2_TIME_COST</code>, <code>AUTH_ARGON2_MEMORY_KIB</code>, <code>AUTH_ARGON2_PARALLELISM</code></td></tr>
                 <tr><td>Signing key</td><td>Ed25519 PEM file</td><td>auth</td><td>TRD §6.1, §15</td><td><code>AUTH_SIGNING_KEY_FILE</code></td></tr>
-                <tr><td>Service secrets</td><td>JSON <code>{"platform": "…", "operations": "…"}</code></td><td>auth</td><td>TRD §6.4</td><td><code>AUTH_SERVICE_SECRETS</code> (from <code>PLATFORM_SERVICE_SECRET</code>, <code>OPS_SERVICE_SECRET</code>)</td></tr>
+                <tr><td>Service secrets</td><td>JSON <code>{"platform": "…", "operations": "…", "media": "…"}</code></td><td>auth</td><td>TRD §6.4</td><td><code>AUTH_SERVICE_SECRETS</code> (from <code>PLATFORM_SERVICE_SECRET</code>, <code>OPS_SERVICE_SECRET</code>, <code>MEDIA_SERVICE_SECRET</code>)</td></tr>
+                <tr><td>Virus scan</td><td><code>clamd</code> or <code>off</code>; <code>off</code> is refused in production (MED-3, W6-4)</td><td>media, media-worker</td><td>TRD T8</td><td><code>MEDIA_SCAN_MODE</code>, <code>MEDIA_CLAMD_HOST</code>, <code>MEDIA_CLAMD_PORT</code>; start ClamAV with <code>--profile scan</code></td></tr>
+                <tr><td>Object store</td><td>SeaweedFS on the container network; presigned URLs carry the files host</td><td>media</td><td>TRD §10</td><td><code>MEDIA_S3_URL</code>, <code>MEDIA_FILES_URL</code>, <code>MEDIA_S3_ACCESS_KEY</code>, <code>MEDIA_S3_SECRET_KEY</code>, <code>MEDIA_PART_SIZE</code></td></tr>
+                <tr><td>Media for operations</td><td><code>http://media:8000</code>: file checks and download links</td><td>operations</td><td>TRD §3.2</td><td><code>OPS_MEDIA_URL</code></td></tr>
                 <tr><td>auth for the organizations snapshot</td><td><code>http://auth:8000</code>, operations' service secret</td><td>operations</td><td>TRD §6.4, §8.6; W5-3</td><td><code>OPS_AUTH_URL</code>, <code>OPS_SERVICE_SECRET</code></td></tr>
                 <tr><td>Station import limits</td><td>10 MB per file; 5,000 stations and 20,000 sensors per run</td><td>operations</td><td>STN-8</td><td>Fixed: <code>app/api/stations/station_routes.py</code>, <code>app/domain/stations/importing.py</code></td></tr>
                 <tr><td>Calibration due window</td><td>30 days</td><td>operations</td><td>CAL-4</td><td>Per request: <code>within_days</code>; default in <code>app/domain/stations/sensors.py</code></td></tr>
@@ -2881,6 +3009,15 @@ flowchart TD
                 <tr><td>W5-8</td><td><b>The station export is the existing system's MongoDB</b> (T4): a one-off <code>mongoexport</code> of its <code>entities</code> and <code>sites</code> collections, with the MQTT credentials removed. Organizations gain <code>short_name</code> and <code>external_id</code> and come in with auth's <code>python -m app.cli import-orgs</code>; then each <b>device</b> of a site becomes a station (<code>name</code> the code, <code>longname</code> the name, <code>id</code> the external ID), owned through <code>site.entity</code> → the organization's external ID, with its country. Re-running skips what was imported. The source has no sensor serials: units are added in the app</td><td>2026-10-18</td></tr>
                 <tr><td>W5-9</td><td><b>Real organizations and stations on staging</b>: the existing system's export is imported into staging as it is, not anonymized, so staff test every later phase on their own stations (IP, "Real data early"). Staging is staff-only until the pilot. The export files stay out of the repo and are deleted from the host and the containers after the import. TP V5 (an anonymized production copy for restore drills after go-live) is a separate question and stays open</td><td>2026-10-18</td></tr>
                 <tr><td>W5-10</td><td><b>The station form</b> (STN-1, STN-2): one form at <code>/stations/new</code> and <code>/stations/:id/edit</code>, on the stations route so the pane stays. New endpoint <code>GET /api/v1/stations/places</code> (technician, admin) gives each country's time zones from <code>tzdata</code>, because the browser can't say which zones belong to a country. Edits send only the changed fields (an imported station with a value the form would refuse can still be edited elsewhere), with the opened <code>version</code>: a stale one shows a warning and nothing is overwritten. The owner is read-only after creation (B5). The logic file is <code>stationFormModel.ts</code>, not <code>stationForm.ts</code>: on Windows and macOS two files that differ only by case (<code>StationForm.vue</code>) break TypeScript's file list</td><td>2026-10-18</td></tr>
+                <tr><td>W6-1</td><td><b>A document is created at once and becomes available after a clean check</b>: operations inserts the row (idempotent by the client's ID) when the upload is whole, <code>pending</code> until <code>media.processed</code>; downloads and client visibility need <code>available</code>. Media's verdict is kept in <code>media_outcomes</code> so it cannot be lost when it arrives first. Staff-only by default (DOC-4); Q7 closed that way</td><td>2026-10-19</td></tr>
+                <tr><td>W6-2</td><td><b>Configuration versions take only files that are <code>ready</code></b>: a version can never be changed or deleted (CFG-2), so it must never hold a file that later fails its checks. A file still being checked answers 409 <code>file_not_ready</code> and the form retries. Offline capture (CFG-4, Phase 5) revisits this. A version's <code>version</code> field is its number, not a concurrency counter</td><td>2026-10-19</td></tr>
+                <tr><td>W6-3</td><td><b>An upload resumes by content, with no browser storage</b>: after a reload the person chooses the same file; media joins it to their open upload by size and SHA-256 and the engine sends only the missing parts. Nothing is written to IndexedDB for online document uploads; Phase 5 keeps the blob in Dexie and drives the same engine from the outbox. <code>complete</code> takes no part list, so a lost ETag cannot matter</td><td>2026-10-19</td></tr>
+                <tr><td>W6-4</td><td><b>The scan step is built, with a mode switch</b>: <code>MEDIA_SCAN_MODE=clamd|off</code>. Staging (about 2 GB free, TRD T8) runs <code>off</code> and files record <code>skipped</code>; production refuses to start with it off. ClamAV runs locally with <code>--profile scan</code> and in CI against the real daemon</td><td>2026-10-19</td></tr>
+                <tr><td>W6-5</td><td><b>A small Redis job queue instead of arq</b> (<code>mms_common.jobs</code>): arq 0.28 requires <code>redis&lt;6</code>, and installing it downgraded the shared library's Redis. A sorted set with a visibility lease gives at-least-once runs, which the media jobs are written for</td><td>2026-10-19</td></tr>
+                <tr><td>W6-6</td><td><b>SeaweedFS volume slots</b>: <code>-volume.max=0</code>, 256 MB volumes and a free-space floor, after the default 8 slots ran out on the second bucket. Applies to staging on the next deploy; the host needs free disk for the slots</td><td>2026-10-19</td></tr>
+                <tr><td>W6-7</td><td><b>The Version column shows the version label, not a number.</b> <code>DocumentOut.version</code> is the record's concurrency counter (it rises on every edit, for PATCH), so it says nothing about versions of the document. The label ("Rev C") is the person's own; a document without one shows a dash. A new version of a document replaces it in the list (<code>supersedes_id</code>), and earlier ones stay downloadable by staff through <code>current=false</code></td><td>2026-10-19</td></tr>
+                <tr><td>W6-8</td><td><b>Configuration files go up as they are added, and are removed from the server if the version is abandoned.</b> The dialog starts each upload at once (two at a time) and waits for media's checks, so "Save version" is only offered when every file is ready (W6-2). Cancelling, or removing a file, deletes the upload: a file in no version has no reason to stay. A file already in a saved version is never removed (media answers 409 <code>immutable</code>)</td><td>2026-10-19</td></tr>
+                <tr><td>W6-9</td><td><b>Downloads open from a link asked for on click and used at once</b> (TRD §7.6: never kept). A tab is opened inside the click for files a browser can show (PDF, images), because Safari blocks <code>window.open</code> after an <code>await</code>; other files use the current tab, which a download does not leave. On an installed iPhone app this is the part to prove on a real device (F15)</td><td>2026-10-19</td></tr>
                 <tr><td>W5-7</td><td><b>Countries and time zones come from the IANA tz database</b> (the <code>tzdata</code> package's <code>iso3166.tab</code> and <code>zone.tab</code>), not a hand-kept list: codes are checked against it, and a country with one zone suggests it</td><td>2026-10-18</td></tr>
                 <tr><td>W4-10</td><td>Motion for the app shell with <b>GSAP</b> (bundled, <code>app/motion.ts</code>): the pane's width tweens when it opens, closes or changes size (the view tile follows through flex), a new page rises in while the old one goes at once (so the pane's blocks swap in one step), a new page's pane list slides in, phones slide between list and record; on the rail a hover lift with overshoot, a press bounce, one sliding active indicator, and tooltips that fade and slide out (Escape closes them). Durations 0 under <code>prefers-reduced-motion</code> or with the per-device Animations setting (DBD 1.5)</td><td>2026-10-17</td></tr>
                 <tr><td>W4-11</td><td>A <b>Settings</b> page for admins, <code>/admin/settings/:part?</code>, the last Admin tab: Appearance (their own Light / Dark / System, and Animations on or off on this device) and Brand colours (AFD 1.4)</td><td>2026-10-17</td></tr>
@@ -3033,6 +3170,8 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-19</td><td>P2 · W6</td><td><b>The W6 screens</b> (W6-7 to W6-9): the station Documents and Configurations tabs, the upload dialog and the new-version dialog (a sheet on phones), the sensor model catalogue with its manuals and units, and the calibration due list, from the approved canvas. <code>useUploads</code> puts the resumable engine behind them; <code>ModalSheet</code> is the shared dialog. Vitest 180, Playwright 18 on Chromium plus the phone journey (axe light and dark). Charts added: document upload sequence, sensor unit state, sensor inventory flow. Staging and the iPhone check (F15) are next.</td></tr>
+              <tr><td>2026-10-19</td><td>P2 · W6</td><td><b>The media service and the documents path</b> (W6-1 to W6-6): <code>services/media</code> (presigned multipart uploads resumable from the store's own part list, the owner check, fail-closed visibility, size / type / checksum / ClamAV checks in <code>media-worker</code>, stale-upload and reconcile cron), operations' documents (versions, client visibility, manuals by model), configuration versions with a checksum diff and calibration certificates, the <code>mms_common.jobs</code> queue, <code>media.*</code> and <code>document.*</code> events. <b>Found and fixed:</b> SeaweedFS ran out of volume slots on the second bucket (the spike never hit it). Frontend: the resumable upload engine in <code>src/offline/</code> (no UI yet, 34 tests). Screens are drawn in the "AWS-MMS W6 screens" canvas and wait for approval.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>The station form</b> (W5-10): New station and Edit station from the approved mock-up, with its rules in <code>stationFormModel.ts</code> and 18 Vitest tests, a Playwright journey from an empty form to a saved station and an edit (axe in light and dark), and <code>GET /api/v1/stations/places</code> for the time zones. The J2 journey's last step now waits out Nginx's auth rate limit like the others.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>Station list and page</b> (W5): <code>/stations/:id?</code> from the approved mock-up, with search on code, name and external ID, filters in the URL, the calibration-due column, and the Overview, Sensors and Calibration tabs; clients see less. Built for the real data: long names truncate, the measures filter splits common from other parameters. Dates write September as <code>Sep</code> (DBD), whatever the browser's ICU.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>The real export is on staging</b> (W5-9): 8 organizations and 50 stations, one per device, imported with no errors; a rerun skips all 50. The files were deleted from the host and the containers afterwards. No sensor units: the source has no serials.</td></tr>

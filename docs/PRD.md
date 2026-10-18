@@ -570,7 +570,7 @@ stateDiagram-v2
 | Q4 | List of countries and time zones in scope | Supplied with the station import |
 | Q5 | Initial checklist templates per station type | Admins create them before launch; a starter template is provided |
 | Q6 | Final list of request categories and priority definitions | As in REQ-1 |
-| Q7 | Which documents should clients see by default? | None; staff mark them client-visible individually |
+| Q7 | Which documents should clients see by default? | **Decided 2026-10-19: none.** Staff mark each document client-visible; the switch is off for every new document (DOC-4) |
 
 ---
 

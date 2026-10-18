@@ -1,6 +1,7 @@
-"""Pytest plugin: throwaway MongoDB (single-node replica set, for transactions), Redis and
-Kafka containers, on the same image versions as infra/compose.yml. Each starts only when a
-test asks for it, and every test that needs one is skipped when Docker is not reachable.
+"""Pytest plugin: throwaway MongoDB (single-node replica set, for transactions), Redis,
+Kafka and SeaweedFS (S3) containers, on the same image versions as infra/compose.yml. Each
+starts only when a test asks for it, and every test that needs one is skipped when Docker is
+not reachable.
 
 A service's `tests/conftest.py` enables it with
 `pytest_plugins = ["mms_common.testing.containers"]`.
@@ -16,6 +17,7 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 import pytest
 import pytest_asyncio
@@ -24,6 +26,8 @@ from pymongo import AsyncMongoClient
 MONGO_IMAGE = "mongo:8.0.34"
 REDIS_IMAGE = "redis:7.4.11-alpine"
 KAFKA_IMAGE = "apache/kafka:4.3.1"
+SEAWEEDFS_IMAGE = "chrislusf/seaweedfs:4.48"
+CLAMAV_IMAGE = "clamav/clamav:1.5"
 RS_INIT = "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}).ok"
 
 
@@ -180,3 +184,77 @@ def kafka_bootstrap(docker):
             )
 
         yield bootstrap, create_topic
+
+
+S3_ACCESS_KEY = "test-access"
+S3_SECRET_KEY = "test-secret-not-for-production"  # noqa: S105
+
+
+@dataclass(frozen=True)
+class S3Endpoint:
+    url: str
+    access_key: str
+    secret_key: str
+
+
+@pytest.fixture(scope="session")
+def seaweedfs(docker, tmp_path_factory):
+    """SeaweedFS with its S3 gateway and one identity that may do everything. Buckets are the
+    test's to create."""
+    import json
+
+    import boto3
+    from botocore.config import Config
+
+    config = tmp_path_factory.mktemp("seaweedfs") / "s3.json"
+    config.write_text(json.dumps({"identities": [{
+        "name": "test",
+        "credentials": [{"accessKey": S3_ACCESS_KEY, "secretKey": S3_SECRET_KEY}],
+        "actions": ["Admin", "Read", "List", "Tagging", "Write"],
+    }]}), encoding="utf-8")
+    port = _free_port()
+    args = ["-p", f"127.0.0.1:{port}:8333", "-v", f"{config}:/etc/s3.json:ro", SEAWEEDFS_IMAGE,
+            "server", "-dir=/data", "-master.volumeSizeLimitMB=64", "-s3",
+            "-s3.config=/etc/s3.json"]
+    with _container(docker, "seaweedfs", args):
+        url = f"http://127.0.0.1:{port}"
+        client = boto3.client(
+            "s3", endpoint_url=url, aws_access_key_id=S3_ACCESS_KEY,
+            aws_secret_access_key=S3_SECRET_KEY, region_name="us-east-1",
+            config=Config(signature_version="s3v4", s3={"addressing_style": "path"},
+                          retries={"max_attempts": 1}, request_checksum_calculation="when_required",
+                          response_checksum_validation="when_required"),
+        )
+
+        def writable() -> bool:
+            try:
+                client.create_bucket(Bucket="probe")
+                client.put_object(Bucket="probe", Key="probe", Body=b"x")
+            except Exception:  # noqa: BLE001 - not up yet
+                return False
+            return True
+
+        _wait(writable, "seaweedfs", seconds=120)
+        yield S3Endpoint(url, S3_ACCESS_KEY, S3_SECRET_KEY)
+
+
+@pytest.fixture(scope="session")
+def clamd(docker):
+    """A real ClamAV daemon, as `(host, port)`. It takes about a minute to load its
+    signatures, so only the tests that ask for it pay for it. Same limits as the stack's
+    `clamav` service (infra/compose.yml)."""
+    port = _free_port()
+    raise_limits = (
+        'printf "StreamMaxLength 256M\nMaxFileSize 256M\nMaxScanSize 512M\n" '
+        ">> /etc/clamav/clamd.conf && exec /init"
+    )
+    args = ["-p", f"127.0.0.1:{port}:3310", "--entrypoint", "/bin/sh", CLAMAV_IMAGE, "-c",
+            raise_limits]
+    with _container(docker, "clamav", args) as name:
+
+        def up() -> bool:
+            r = subprocess.run([docker, "logs", name], capture_output=True, text=True)
+            return "clamd started" in (r.stdout + r.stderr)
+
+        _wait(up, "clamav", seconds=300)
+        yield "127.0.0.1", port

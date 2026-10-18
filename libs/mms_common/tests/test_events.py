@@ -106,3 +106,30 @@ def test_a_station_event_validates_and_forbids_unknown_fields():
     assert validate(make("station.created", data=data)).via == "api"
     with pytest.raises(ValidationError):
         validate(make("station.created", data={**data, "qr_token": "secret"}))
+
+
+def test_documents_path_events_are_registered():
+    """TRD §8.4: documents, configuration versions and media (Phase 2, W6)."""
+    from mms_common.events import media, operations  # noqa: F401 - registers on import
+
+    for type_ in (
+        "document.uploaded", "document.updated", "config.version_created",
+        "media.visibility_requested", "media.uploaded", "media.processed", "media.failed",
+        "media.deleted",
+    ):
+        assert (type_, 1) in SCHEMAS, type_
+
+
+def test_media_events_say_whether_a_file_was_scanned():
+    data = {"media_id": "m1", "owner_ref": "document:model:x", "kind": "pdf", "filename": "a.pdf",
+            "size_bytes": 10, "scan_status": "skipped", "checksum_sha256": "0" * 64}
+    assert validate(make("media.processed", data=data)).scan_status == "skipped"
+    with pytest.raises(ValidationError):
+        validate(make("media.processed", data={**data, "storage_key": "x/y"}))
+
+
+def test_a_visibility_request_names_the_files_and_their_version():
+    data = {"media_ids": ["m1"], "visibility": "org", "visibility_version": 2}
+    assert validate(make("media.visibility_requested", data=data)).visibility_version == 2
+    with pytest.raises(ValidationError):
+        validate(make("media.visibility_requested", data={**data, "visibility_version": "x"}))

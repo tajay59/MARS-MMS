@@ -152,3 +152,47 @@ class CalibrationVoided(CalibrationData):
     """Undone with its sensor action (TRD §3.2.3, Phase 4)."""
 
     reason: str
+
+
+# --- document.*, config.* and media visibility (W6) --------------------------------------------
+
+
+class DocumentData(_Data):
+    """Documents are keyed by the station they belong to; a model's by `model_id`."""
+
+    document_id: str
+    scope: str  # model | station
+    scope_id: str
+    doc_type: str
+    title: str
+    client_visible: bool
+    media_id: str
+
+
+@register("document.uploaded")
+class DocumentUploaded(DocumentData):
+    version_label: str | None = None
+    supersedes_id: str | None = None
+
+
+@register("document.updated")
+class DocumentUpdated(DocumentData):
+    changed_fields: list[str]
+
+
+@register("config.version_created")
+class ConfigVersionCreated(_Data):
+    station_id: str
+    version: int
+    file_count: int
+    visit_id: str | None = None
+
+
+@register("media.visibility_requested")
+class MediaVisibilityRequested(_Data):
+    """Operations asks media to show files to the owner organization (`org`) or hide them
+    (`staff`). Media applies only the newest `visibility_version` per file (ADR-19)."""
+
+    media_ids: list[str]
+    visibility: str  # staff | org
+    visibility_version: int

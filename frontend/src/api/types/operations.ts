@@ -20,7 +20,8 @@ export interface paths {
         /**
          * Record Calibration
          * @description CAL-1. The unit's last calibration and due date follow the newest record (CAL-3); a
-         *     failed one flags the unit for follow-up (CAL-6). Certificates arrive with documents (W6).
+         *     failed one flags the unit for follow-up (CAL-6). A certificate is a PDF the person already
+         *     uploaded for this unit (`calibration:<unit id>`) that has passed media's checks.
          */
         post: operations["record_calibration_api_v1_calibrations_post"];
         delete?: never;
@@ -41,6 +42,75 @@ export interface paths {
          * @description CAL-4: units overdue or due within `within_days`, overdue first.
          */
         get: operations["calibration_due_api_v1_calibrations_due_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Documents
+         * @description DOC-1, DOC-2. A client sees the current, client-visible, clean documents of their own
+         *     stations and of the models installed there. Staff see every version when `current=false`.
+         */
+        get: operations["list_documents_api_v1_documents_get"];
+        put?: never;
+        /**
+         * Create Document
+         * @description DOC-3. Idempotent by `id`: a retry returns the document it made. `supersedes_id` makes
+         *     this a new version; the earlier one stays downloadable by staff.
+         */
+        post: operations["create_document_api_v1_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["get_document_api_v1_documents__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Document
+         * @description Change the details of a document, or who may see it (DOC-4). The file itself never
+         *     changes: upload a new version instead.
+         */
+        patch: operations["patch_document_api_v1_documents__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/documents/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Document
+         * @description Check access, then ask media for a ten-minute link (model documents have no
+         *     organization in media, so this is the only way a client reaches them: BSD B4).
+         */
+        get: operations["download_document_api_v1_documents__id__download_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -278,6 +348,91 @@ export interface paths {
         patch: operations["patch_station_api_v1_stations__id__patch"];
         trace?: never;
     };
+    "/api/v1/stations/{id}/config-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Config Versions
+         * @description CFG-3: newest first.
+         */
+        get: operations["list_config_versions_api_v1_stations__id__config_versions_get"];
+        put?: never;
+        /**
+         * Create Config Version
+         * @description CFG-1, CFG-2. Idempotent by `id`. Every file must be one this person uploaded for this
+         *     station and that has passed its checks; if one is still being checked the answer is a
+         *     409 `file_not_ready`, and trying again a moment later works.
+         */
+        post: operations["create_config_version_api_v1_stations__id__config_versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stations/{id}/config-versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Config Version */
+        get: operations["get_config_version_api_v1_stations__id__config_versions__version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stations/{id}/config-versions/{version}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Diff Config Versions
+         * @description CFG-3: files added, removed or changed since `against` (default: the version before).
+         *     Version 1 compared with nothing lists every file as added.
+         */
+        get: operations["diff_config_versions_api_v1_stations__id__config_versions__version__diff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stations/{id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Station Documents
+         * @description The station page's Documents tab: its own documents and its sensors' manuals (DOC-1,
+         *     DOC-2). Only the current version of each.
+         */
+        get: operations["station_documents_api_v1_stations__id__documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stations/{id}/installations": {
         parameters: {
             query?: never;
@@ -290,6 +445,28 @@ export interface paths {
          * @description SEN-3: which unit sat here, for which parameter, and when.
          */
         get: operations["station_installations_api_v1_stations__id__installations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/attachable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Attachable
+         * @description The owner check on upload (TRD §3.3): may this user attach a file to this owner, and
+         *     which organization does the file then belong to? Not found for an owner that does not
+         *     exist or that a client cannot see (rule 4); forbidden for a role that may not write.
+         */
+        get: operations["attachable_internal_attachable_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -323,6 +500,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AttachableOut */
+        AttachableOut: {
+            /** Org Id */
+            org_id: string | null;
+        };
         /** Body_import_stations_api_v1_stations_import_post */
         Body_import_stations_api_v1_stations_import_post: {
             /**
@@ -346,6 +528,8 @@ export interface components {
              * Format: date-time
              */
             at: string;
+            /** Certificate Media Id */
+            certificate_media_id?: string | null;
             /**
              * Method
              * @default lab
@@ -424,6 +608,190 @@ export interface components {
             provider?: string | null;
             /** Type */
             type?: string | null;
+        };
+        /**
+         * ConfigDiff
+         * @description CFG-3: which files differ between two versions, by name and checksum.
+         */
+        ConfigDiff: {
+            /** Added */
+            added: string[];
+            /** Against */
+            against: number | null;
+            /** Changed */
+            changed: string[];
+            /** Removed */
+            removed: string[];
+            /** Unchanged */
+            unchanged: string[];
+            /** Version */
+            version: number;
+        };
+        /** ConfigFileIn */
+        ConfigFileIn: {
+            /** Media Id */
+            media_id: string;
+        };
+        /** ConfigFileOut */
+        ConfigFileOut: {
+            /** Filename */
+            filename: string;
+            /** Media Id */
+            media_id: string;
+            /** Sha256 */
+            sha256: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** ConfigVersionIn */
+        ConfigVersionIn: {
+            /** Files */
+            files: components["schemas"]["ConfigFileIn"][];
+            /** Id */
+            id: string;
+            /** Notes */
+            notes?: string | null;
+            /** Visit Id */
+            visit_id?: string | null;
+        };
+        /** ConfigVersionOut */
+        ConfigVersionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string | null;
+            /** Files */
+            files: components["schemas"]["ConfigFileOut"][];
+            /** Id */
+            id: string;
+            /** Notes */
+            notes: string | null;
+            /** Station Id */
+            station_id: string;
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id: string | null;
+        };
+        /**
+         * DocumentIn
+         * @description Made on the device or form with its own ID, so a retry creates nothing twice.
+         */
+        DocumentIn: {
+            /**
+             * Client Visible
+             * @default false
+             */
+            client_visible: boolean;
+            /** Description */
+            description?: string | null;
+            /** Doc Type */
+            doc_type: string;
+            /** Id */
+            id: string;
+            /** Language */
+            language?: string | null;
+            /** Media Id */
+            media_id: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "model" | "station";
+            /** Scope Id */
+            scope_id: string;
+            /** Supersedes Id */
+            supersedes_id?: string | null;
+            /** Title */
+            title: string;
+            /** Version Label */
+            version_label?: string | null;
+        };
+        /** DocumentOut */
+        DocumentOut: {
+            /** Client Visible */
+            client_visible: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /** Doc Type */
+            doc_type: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: string;
+            /** Is Current */
+            is_current: boolean;
+            /** Language */
+            language: string | null;
+            /** Media Id */
+            media_id: string | null;
+            /** Scan Status */
+            scan_status: string | null;
+            /** Scope */
+            scope: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Status */
+            status: string;
+            /** Supersedes Id */
+            supersedes_id: string | null;
+            /** Title */
+            title: string;
+            /** Uploaded By */
+            uploaded_by: string | null;
+            /** Version */
+            version: number;
+            /** Version Label */
+            version_label: string | null;
+        };
+        /** DocumentPage */
+        DocumentPage: {
+            /** Items */
+            items: components["schemas"]["DocumentOut"][];
+            /** Next After */
+            next_after?: string | null;
+        };
+        /** DocumentPatch */
+        DocumentPatch: {
+            /** Client Visible */
+            client_visible?: boolean | null;
+            /** Description */
+            description?: string | null;
+            /** Doc Type */
+            doc_type?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Version */
+            version: number;
+            /** Version Label */
+            version_label?: string | null;
+        };
+        /**
+         * DownloadOut
+         * @description A link that works for ten minutes; it is never cached.
+         */
+        DownloadOut: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Filename */
+            filename: string;
+            /** Url */
+            url: string;
         };
         /** DueList */
         DueList: {
@@ -585,6 +953,17 @@ export interface components {
             /** Serial */
             serial?: string | null;
         };
+        /** ModelDocuments */
+        ModelDocuments: {
+            /** Documents */
+            documents: components["schemas"]["DocumentOut"][];
+            /** Manufacturer */
+            manufacturer: string;
+            /** Model */
+            model: string;
+            /** Model Id */
+            model_id: string;
+        };
         /** ModelSummary */
         ModelSummary: {
             /** Id */
@@ -657,6 +1036,11 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * Scope
+         * @enum {string}
+         */
+        Scope: "model" | "station";
         /** SensorModelIn */
         SensorModelIn: {
             /** Default Calibration Interval Days */
@@ -936,6 +1320,16 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * StationDocuments
+         * @description What the station page's Documents tab shows: the station's own and its sensors'.
+         */
+        StationDocuments: {
+            /** Models */
+            models: components["schemas"]["ModelDocuments"][];
+            /** Station */
+            station: components["schemas"]["DocumentOut"][];
+        };
         /** StationFacets */
         StationFacets: {
             /** Countries */
@@ -1196,6 +1590,176 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DueList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_documents_api_v1_documents_get: {
+        parameters: {
+            query?: {
+                scope?: components["schemas"]["Scope"] | null;
+                scope_id?: string | null;
+                doc_type?: string | null;
+                /** @description Only the newest version of each */
+                current?: boolean;
+                after?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_document_api_v1_documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_api_v1_documents__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_document_api_v1_documents__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_document_api_v1_documents__id__download_get: {
+        parameters: {
+            query?: {
+                /** @description Open PDFs and images in the browser */
+                inline?: boolean;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
                 };
             };
             /** @description Validation Error */
@@ -1759,6 +2323,169 @@ export interface operations {
             };
         };
     };
+    list_config_versions_api_v1_stations__id__config_versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigVersionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_config_version_api_v1_stations__id__config_versions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigVersionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigVersionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_config_version_api_v1_stations__id__config_versions__version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigVersionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    diff_config_versions_api_v1_stations__id__config_versions__version__diff_get: {
+        parameters: {
+            query?: {
+                against?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigDiff"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    station_documents_api_v1_stations__id__documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StationDocuments"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     station_installations_api_v1_stations__id__installations_get: {
         parameters: {
             query?: never;
@@ -1777,6 +2504,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InstallationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    attachable_internal_attachable_get: {
+        parameters: {
+            query: {
+                owner_ref: string;
+                user_id: string;
+                roles?: string;
+                org_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachableOut"];
                 };
             };
             /** @description Validation Error */

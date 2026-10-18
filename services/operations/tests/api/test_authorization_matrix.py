@@ -40,8 +40,21 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/api/v1/calibrations/due"): STAFF,
     ("GET", "/api/v1/calibrations"): STAFF,
     ("POST", "/api/v1/calibrations"): WRITE,
-    # Internal: read-model backfill (TRD §8.6).
+    # Documents (DOC-1 to DOC-4): everyone reads what their scope allows, staff write.
+    ("GET", "/api/v1/documents"): Expect(ANY),
+    ("POST", "/api/v1/documents"): WRITE,
+    ("GET", "/api/v1/documents/{id}"): Expect(ANY),
+    ("PATCH", "/api/v1/documents/{id}"): WRITE,
+    ("GET", "/api/v1/documents/{id}/download"): Expect(ANY),
+    ("GET", "/api/v1/stations/{id}/documents"): Expect(ANY),
+    # Configuration versions (CFG-1 to CFG-3): staff only; clients never see them (rule 6).
+    ("GET", "/api/v1/stations/{id}/config-versions"): STAFF,
+    ("POST", "/api/v1/stations/{id}/config-versions"): WRITE,
+    ("GET", "/api/v1/stations/{id}/config-versions/{version}"): STAFF,
+    ("GET", "/api/v1/stations/{id}/config-versions/{version}/diff"): STAFF,
+    # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
+    ("GET", "/internal/attachable"): service("media"),
 }
 
 
@@ -60,6 +73,7 @@ async def test_matrix(ops):
             cross_org={
                 ("GET", "/api/v1/stations/{id}"): station["id"],
                 ("GET", "/api/v1/stations/{id}/installations"): station["id"],
+                ("GET", "/api/v1/stations/{id}/documents"): station["id"],
             },
         )
         assert await matrix.run() == []

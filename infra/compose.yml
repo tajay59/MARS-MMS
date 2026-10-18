@@ -144,6 +144,7 @@ services:
       KAFKA_BOOTSTRAP: 127.0.0.1:9094
       KAFKA_AUTH_PASSWORD: ${KAFKA_AUTH_PASSWORD:?}
       KAFKA_OPERATIONS_PASSWORD: ${KAFKA_OPERATIONS_PASSWORD:?}
+      KAFKA_MEDIA_PASSWORD: ${KAFKA_MEDIA_PASSWORD:?}
       KAFKA_PLATFORM_PASSWORD: ${KAFKA_PLATFORM_PASSWORD:?}
     volumes:
       - ./kafka/create-topics.sh:/opt/mms/create-topics.sh:ro
@@ -209,7 +210,7 @@ services:
       AUTH_APP_URL: https://${MMS_HOST}
       AUTH_SIGNING_KEY_FILE: /run/mms-secrets/auth_signing_key.pem
       # Secrets other services exchange for service tokens (TRD §6.4).
-      AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}", "operations": "${OPS_SERVICE_SECRET:?}"}'
+      AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}", "operations": "${OPS_SERVICE_SECRET:?}", "media": "${MEDIA_SERVICE_SECRET:?}"}'
       AUTH_BREACHED_CHECK: ${AUTH_BREACHED_CHECK:-hibp}
     volumes:
       - ${MMS_SECRETS_DIR:-./secrets}:/run/mms-secrets:ro
@@ -238,7 +239,73 @@ services:
       # Organizations snapshot on auth (TRD §8.6), with a service token (§6.4).
       OPS_AUTH_URL: http://auth:8000
       OPS_SERVICE_SECRET: ${OPS_SERVICE_SECRET:?}
+      # Checks a file with media before attaching it to a document, and download links.
+      OPS_MEDIA_URL: http://media:8000
     healthcheck: *app-health
+    networks: [backend]
+
+  # The documents path (Phase 2): presigned multipart uploads, the owner check, visibility and
+  # the file checks. media-worker runs the checks (type, checksum, virus scan) from a Redis queue.
+  media:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/media/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/media:${MMS_TAG:-local}
+    depends_on: &media-deps
+      <<: *app-deps
+      seaweedfs-init:
+        condition: service_completed_successfully
+    environment: &media-env
+      MEDIA_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      MEDIA_MONGO_URI: mongodb://media:${MEDIA_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=media
+      MEDIA_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      MEDIA_KAFKA_BOOTSTRAP: kafka:9092
+      MEDIA_KAFKA_USERNAME: media
+      MEDIA_KAFKA_PASSWORD: ${KAFKA_MEDIA_PASSWORD:?}
+      MEDIA_AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
+      MEDIA_AUTH_URL: http://auth:8000
+      MEDIA_OPS_URL: http://operations:8000
+      MEDIA_SERVICE_SECRET: ${MEDIA_SERVICE_SECRET:?}
+      # The store on the container network, and the host the browser uploads to: presigned
+      # URLs carry the second, and their signature covers it (TRD §2.1).
+      MEDIA_S3_URL: http://seaweedfs:8333
+      MEDIA_FILES_URL: https://${FILES_HOST}
+      MEDIA_S3_ACCESS_KEY: ${MEDIA_S3_ACCESS_KEY:?}
+      MEDIA_S3_SECRET_KEY: ${MEDIA_S3_SECRET_KEY:?}
+      MEDIA_SCAN_MODE: ${MEDIA_SCAN_MODE:-off}
+      MEDIA_CLAMD_HOST: clamav
+    healthcheck: *app-health
+    networks: [backend]
+
+  media-worker:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/media/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/media:${MMS_TAG:-local}
+    command: ["python", "-m", "app.worker"]
+    depends_on: *media-deps
+    environment: *media-env
+    networks: [backend]
+
+  # ClamAV for the virus scan (MED-3). Needs about 3 GB and a few minutes to load its
+  # signatures, so it runs only with `--profile scan` (and MEDIA_SCAN_MODE=clamd).
+  clamav:
+    <<: *restart
+    profiles: ["scan"]
+    image: clamav/clamav:1.5
+    # clamd refuses a stream over 25 MB by default; documents go up to 50 MB and video to
+    # 200 MB (MED-6). The image's own clamd.conf already listens on TCP 3310.
+    entrypoint: ["/bin/sh", "-c", "printf 'StreamMaxLength 256M\nMaxFileSize 256M\nMaxScanSize 512M\n' >> /etc/clamav/clamd.conf && exec /init"]
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
     networks: [backend]
 
   platform:
@@ -278,3 +345,4 @@ volumes:
   redis-data:
   kafka-data:
   seaweedfs-data:
+  clamav-data:
