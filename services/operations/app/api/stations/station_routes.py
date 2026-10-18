@@ -69,7 +69,7 @@ async def list_stations(
     country: Annotated[str | None, Query(pattern="^[A-Z]{2}$")] = None,
     type_: Annotated[str | None, Query(alias="type", max_length=60)] = None,
     status_: Annotated[StationStatus | None, Query(alias="status")] = None,
-    parameter: Annotated[str | None, Query(max_length=16)] = None,
+    parameter: Annotated[str | None, Query(max_length=rules.PARAMETER_MAX_LENGTH)] = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     after: Annotated[str | None, Query(max_length=32)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,

@@ -9,7 +9,7 @@
         AUTH_SEED_PASSWORD. Idempotent.
 
     python -m app.cli import-orgs FILE [--commit]
-        Organizations from the existing system's `org` export (decision W5-8). A dry run unless
+        Organizations from the existing system's `entities` export (decision W5-8). A dry run unless
         --commit; organizations already there are skipped, so it can run again.
 
 All go through the same rules and the outbox, so the audit trail records them (`user.created`,
@@ -142,7 +142,7 @@ async def seed(password: str) -> int:
 
 
 async def import_orgs(path: str, content: bytes, commit: bool) -> int:
-    """Organizations from the existing system's `org` export (decision W5-8). Dry run unless
+    """Organizations from the existing system's `entities` export (decision W5-8). Dry run unless
     `commit`. Only names, country and IDs are read: never the credentials in the documents."""
     try:
         docs = org_import.read_export(content)

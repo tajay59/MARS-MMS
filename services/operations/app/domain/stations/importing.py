@@ -11,7 +11,7 @@ organizations first. A station code that already exists is skipped, so the impor
 run again after fixing rows. The country defaults to the organization's.
 
 **The existing system's export** (decision W5-8, TRD T4) is a third format: a MongoDB export
-of its `site` collection (`.json`, a JSON array or one document per line). Each *device* in a
+of its `sites` collection (`.json`, a JSON array or one document per line). Each *device* in a
 site becomes a station: `name` the code, `longname` the name, `id` the external ID, `lat`,
 `lon`, `timezone`, and `params[].param` the parameters. The site's `entity` is matched to an
 organization's external ID (`python -m app.cli import-orgs` in auth brings them in first),
@@ -221,7 +221,7 @@ def _json_documents(content: bytes) -> list[Any]:
 
 
 def read_sites(content: bytes) -> Table:
-    """The existing system's `site` export as a stations table, one row per device (W5-8).
+    """The existing system's `sites` export as a stations table, one row per device (W5-8).
     Only the fields below are read; everything else in the documents is ignored."""
     table: Table = []
     for site in _json_documents(content):
@@ -545,7 +545,10 @@ def _station_row(
         except ValidationFailed as exc:
             errors.append(RowError(STATIONS, number, "latitude", str(exc)))
     parameters: list[str] = []
-    raw_parameters = get("parameters")
+    # The limit is the parameter count (check_parameters), not the 200 characters of a text
+    # cell: a site device with 22 parameters joins to over 300 (W5-8).
+    text_limit = rules.MAX_PARAMETERS * (rules.PARAMETER_MAX_LENGTH + 1)
+    raw_parameters = get("parameters", lambda v: _text(v, text_limit))
     if raw_parameters:
         try:
             parameters = rules.check_parameters([p for p in _SPLIT.split(raw_parameters) if p])

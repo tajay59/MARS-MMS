@@ -95,6 +95,19 @@ def test_json_lines_and_the_base_parameter_are_read():
     assert table[0][1]["parameters"] == "RAIN"
 
 
+@pytest.mark.req("STN-8")
+def test_a_device_with_many_parameters_imports_up_to_the_limit():
+    codes = [f"PARAMETER_{n:02}" for n in range(22)]  # joins to over 200 characters
+    docs = sites()
+    docs[0]["devices"][0]["params"] = [param(c) for c in codes]
+    docs[0]["devices"][1]["params"] = [param(f"P{n}") for n in range(41)]
+    plan = plan_sites(docs)
+    assert [(p.row, p.column) for p in plan.errors] == [(2, "parameters")]
+    assert "at most 40 parameters" in plan.errors[0].message
+    hilltop = next(r for r in plan.stations if r.fields["code"] == "HILLTOP")
+    assert hilltop.fields["parameters"] == codes
+
+
 def test_an_unknown_entity_or_a_repeated_device_is_an_error():
     docs = sites()
     docs[0]["entity"] = "ENT-NOT-IMPORTED"

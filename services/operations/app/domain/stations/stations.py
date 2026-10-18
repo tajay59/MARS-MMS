@@ -24,7 +24,9 @@ class Status(StrEnum):
 # STN-1: the usual measured parameters. Others are allowed ("others configurable") as short
 # upper-case codes, so a new sensor type needs no release.
 COMMON_PARAMETERS = ("AT", "RH", "BP", "RAIN", "WS", "WD", "SR")
-_PARAMETER = re.compile(r"^[A-Z][A-Z0-9_]{0,15}$")
+PARAMETER_MAX_LENGTH = 32  # the existing system has codes of up to 18 characters (W5-8)
+_PARAMETER = re.compile(rf"^[A-Z][A-Z0-9_]{{0,{PARAMETER_MAX_LENGTH - 1}}}$")
+MAX_PARAMETERS = 40  # per station, as the API's StationCreate allows
 _CODE = re.compile(r"^[A-Z0-9][A-Z0-9._-]{1,31}$")
 
 # Fields an edit may change. `owner_org_id` is not among them: stations never change owner
@@ -65,6 +67,11 @@ def check_parameters(values: list[str]) -> list[str]:
             )
         if code not in found:
             found.append(code)
+    if len(found) > MAX_PARAMETERS:
+        raise ValidationFailed(
+            f"Use at most {MAX_PARAMETERS} parameters", code="too_many_parameters",
+            field="parameters",
+        )
     return found
 
 
