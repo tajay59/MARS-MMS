@@ -71,6 +71,12 @@
   --color-error-container: rgb(var(--v-theme-error-container));
   --color-on-error-container: rgb(var(--v-theme-on-error-container));
 
+  /* Station status markers (DBD): the same colours in both themes, never decoration */
+  --color-station-operational: rgb(var(--v-theme-station-operational));
+  --color-station-degraded: rgb(var(--v-theme-station-degraded));
+  --color-station-offline: rgb(var(--v-theme-station-offline));
+  --color-station-decommissioned: rgb(var(--v-theme-station-decommissioned));
+
   --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Consolas, monospace;
 
