@@ -1,11 +1,11 @@
 <template>
   <PageBody
-    :back="routeId ? { name: 'stations', query: listQuery } : undefined"
-    back-label="Back to stations"
-    :record="routeId"
-    :subtitle="routeId ? undefined : summary"
-    :title="routeId ? (detail?.name ?? 'Station') : undefined"
-    :wide="!routeId"
+    :back="isNew ? { name: 'stations', query: listQuery } : (editing && stationId ? { name: 'stations', params: { id: stationId }, query: listQuery } : (open ? { name: 'stations', query: listQuery } : undefined))"
+    :back-label="editing ? 'Back to the station' : 'Back to stations'"
+    :record="open ? (editing ? `${routeId}/edit` : routeId) : null"
+    :subtitle="open ? undefined : summary"
+    :title="isNew ? 'New station' : (stationId ? (detail?.name ?? 'Station') : undefined)"
+    :wide="!open"
   >
     <template v-if="detail" #subtitle>
       <span class="font-mono font-medium text-surface-900" translate="no">{{ detail.code }}</span>
@@ -13,12 +13,21 @@
       <span><span :title="detail.time_zone">{{ countryName(detail.country) }} · {{ zoneAbbreviation(detail.time_zone) }}</span><template v-if="isStaff && detail.owner_org_name"> · {{ detail.owner_org_name }}</template></span>
     </template>
 
-    <template v-if="!routeId && isClient" #actions>
+    <template v-if="!open && isClient" #actions>
       <v-btn color="primary" :to="{ name: 'request-new' }">Report a problem</v-btn>
     </template>
 
     <template v-else-if="detail && isClient" #actions>
       <v-btn color="primary" :to="{ name: 'request-new', query: { station: detail.id } }">Report a problem</v-btn>
+    </template>
+
+    <!-- Technicians and admins write stations (viewers never see these: rule 5) -->
+    <template v-else-if="!open && canWrite" #actions>
+      <v-btn color="primary" :prepend-icon="mdiPlus" :to="{ name: 'stations', params: { id: 'new' }, query: listQuery }">New station</v-btn>
+    </template>
+
+    <template v-else-if="detail && canWrite && !editing" #actions>
+      <v-btn color="primary" :prepend-icon="mdiPencilOutline" :to="{ name: 'stations', params: { id: detail.id, mode: 'edit' }, query: listQuery }">Edit</v-btn>
     </template>
 
     <!-- The pane: search and filters for the list; with a station open, the stations to switch to -->
@@ -40,7 +49,7 @@
         />
 
         <!-- Phones: status as a row of chips, the rest in a sheet -->
-        <div v-if="!routeId && !mdAndUp" aria-label="Filter by status" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group">
+        <div v-if="!open && !mdAndUp" aria-label="Filter by status" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group">
           <button
             v-for="option in statusOptions"
             :key="option.value ?? 'all'"
@@ -65,7 +74,7 @@
         </div>
 
         <!-- From 768 px: the full set of filters -->
-        <template v-else-if="!routeId">
+        <template v-else-if="!open">
           <div aria-labelledby="status-h" class="flex flex-col gap-0.5" role="group">
             <h3 id="status-h" class="m-0 px-2 pb-1 text-sm font-semibold text-surface-900">Status</h3>
 
@@ -102,7 +111,7 @@
               v-for="row in shown"
               :key="row.id"
               class="relative flex items-center gap-3 rounded-card px-3 py-2.5 transition-colors duration-150"
-              :class="row.id === routeId ? 'bg-primary-50' : 'hover:bg-surface-100 active:bg-surface-200'"
+              :class="row.id === stationId ? 'bg-primary-50' : 'hover:bg-surface-100 active:bg-surface-200'"
               @click="keyPress"
               @pointercancel="release"
               @pointerdown="press"
@@ -116,7 +125,7 @@
               <span class="flex min-w-0 grow flex-col">
                 <span class="flex items-baseline justify-between gap-2">
                   <router-link
-                    :aria-current="row.id === routeId ? 'page' : undefined"
+                    :aria-current="row.id === stationId ? 'page' : undefined"
                     class="min-w-0 truncate font-medium text-surface-900 no-underline after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-primary"
                     :to="{ name: 'stations', params: { id: row.id }, query: listQuery }"
                   >{{ row.name }}</router-link>
@@ -134,13 +143,33 @@
       </div>
     </PaneContent>
 
+    <!-- The view: the form for a new station -->
+    <StationForm
+      v-if="isNew"
+      ref="formEl"
+      :suggestions="suggestions"
+      @cancel="router.push({ name: 'stations', query: listQuery })"
+      @saved="saved"
+    />
+
     <!-- The view: one station -->
-    <template v-if="routeId">
+    <template v-else-if="stationId">
       <FeedbackBanner v-if="detailError" :type="detailError === 'missing' ? 'info' : 'error'">{{ detailMessage }}</FeedbackBanner>
 
       <div v-else-if="!detail" aria-label="Loading the station…" class="flex flex-col gap-3" role="status">
         <v-skeleton-loader type="heading, list-item-two-line, list-item-two-line, list-item-two-line" />
       </div>
+
+      <StationForm
+        v-else-if="editing"
+        :key="`${detail.id}-${formKey}`"
+        ref="formEl"
+        :station="detail"
+        :suggestions="suggestions"
+        @cancel="router.push({ name: 'stations', params: { id: detail.id }, query: listQuery })"
+        @reload="reloadDetail"
+        @saved="saved"
+      />
 
       <StationDetailView v-else :is-staff="isStaff" :station="detail" />
     </template>
@@ -277,10 +306,10 @@
 <script lang="ts" setup>
   import type { StationFilters } from './stations'
   import type { StationDetail, StationSummary } from '@/api/models'
-  import { mdiFilterVariant, mdiMagnify } from '@mdi/js'
+  import { mdiFilterVariant, mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
+  import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { calibrationsApi, stationsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
@@ -298,6 +327,7 @@
   import ParameterTags from './ParameterTags.vue'
   import StationDetailView from './StationDetailView.vue'
   import StationFilterFields from './StationFilterFields.vue'
+  import StationForm from './StationForm.vue'
   import {
     dueState,
     extraFilterCount,
@@ -328,8 +358,18 @@
   const sheet = ref(false)
   const now = new Date()
 
+  // :id is a station's ID, or "new" (the form for a new station); :mode is "edit" (STN-1, STN-2)
   const routeId = computed(() => typeof route.params.id === 'string' && route.params.id ? route.params.id : null)
-  usePaneSelection(() => routeId.value !== null)
+  const isNew = computed(() => routeId.value === 'new')
+  const stationId = computed(() => isNew.value ? null : routeId.value)
+  const editing = computed(() => route.params.mode === 'edit' && stationId.value !== null)
+  /** Something is open in the view (a station or the new-station form): phones show it alone. */
+  const open = computed(() => routeId.value !== null)
+  usePaneSelection(() => open.value)
+
+  // Technicians and admins write stations; viewers and clients never see the buttons, and the
+  // forms send them back to the list (the server refuses them anyway).
+  const canWrite = computed(() => session.hasAnyRole(['technician', 'admin']))
 
   // --- Filters (in the URL) ---------------------------------------------------------------------
 
@@ -340,6 +380,8 @@
   const extraFilters = computed(() => extraFilterCount(filters.value))
   const others = computed(() => stations.value.filter(s => matchesOthers(s, filters.value)))
   const shown = computed(() => stations.value.filter(s => matches(s, filters.value)))
+  // The form suggests what other stations already use
+  const suggestions = computed(() => ({ types: facets.value.types, parameters: facets.value.parameters }))
 
   const statusOptions = computed(() => [
     { value: null, label: 'All', count: others.value.length },
@@ -357,6 +399,14 @@
   function clearFilters (): void {
     void router.replace({ query: {} })
   }
+
+  watch([canWrite, open, editing], () => {
+    if (session.ready && !canWrite.value && (isNew.value || editing.value)) {
+      void router.replace(isNew.value || !stationId.value
+        ? { name: 'stations', query: listQuery.value }
+        : { name: 'stations', params: { id: stationId.value }, query: listQuery.value })
+    }
+  }, { immediate: true })
 
   // --- The list's header and numbers ------------------------------------------------------------
 
@@ -454,16 +504,9 @@
   })
   let detailAbort: AbortController | null = null
 
-  watch(routeId, async id => {
+  async function fetchDetail (id: string): Promise<void> {
     detailAbort?.abort()
     detailError.value = null
-    if (!id) {
-      detail.value = null
-      return
-    }
-    if (detail.value?.id !== id) {
-      detail.value = null
-    }
     const abort = new AbortController()
     detailAbort = abort
     try {
@@ -477,7 +520,58 @@
         ? 'missing'
         : (error instanceof NetworkError ? 'offline' : 'failed')
     }
+  }
+
+  watch(stationId, id => {
+    if (!id) {
+      detailAbort?.abort()
+      detailError.value = null
+      detail.value = null
+      return
+    }
+    if (detail.value?.id !== id) {
+      detail.value = null
+    }
+    void fetchDetail(id)
   }, { immediate: true })
+
+  // --- The form (STN-1, STN-2) --------------------------------------------------------------------
+
+  const formEl = ref<InstanceType<typeof StationForm> | null>(null)
+  /** Bumped to start the edit form over with the station as it is now. */
+  const formKey = ref(0)
+
+  async function reloadDetail (): Promise<void> {
+    if (stationId.value) {
+      await fetchDetail(stationId.value)
+      formKey.value++
+    }
+  }
+
+  /** The station as saved goes into the list and its page. */
+  function saved (station: StationDetail): void {
+    detail.value = station
+    const at = stations.value.findIndex(s => s.id === station.id)
+    if (at === -1) {
+      // A fresh array: sorting it in place is safe, and toSorted needs iOS 16
+      // eslint-disable-next-line unicorn/no-array-sort
+      stations.value = [...stations.value, station].sort((a, b) => a.code.localeCompare(b.code))
+    } else {
+      stations.value[at] = station
+    }
+    void router.push({ name: 'stations', params: { id: station.id }, query: listQuery.value })
+  }
+
+  // A form with unsaved changes asks before the person leaves it (another station, another page)
+  async function allowLeave (): Promise<boolean> {
+    return (await formEl.value?.confirmLeave()) ?? true
+  }
+
+  onBeforeRouteLeave(allowLeave)
+  onBeforeRouteUpdate(async (to, from) => {
+    // Filters in the URL change on this page without leaving the form; anything else asks
+    return to.params.id === from.params.id && to.params.mode === from.params.mode ? true : await allowLeave()
+  })
 
   onBeforeUnmount(() => detailAbort?.abort())
 

@@ -913,6 +913,26 @@
         "title": "OrgOption",
         "type": "object"
       },
+      "Places": {
+        "description": "The form's time zone choices: each country's IANA zones, from `tzdata` (W5-7).",
+        "properties": {
+          "time_zones": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Time Zones",
+            "type": "object"
+          }
+        },
+        "required": [
+          "time_zones"
+        ],
+        "title": "Places",
+        "type": "object"
+      },
       "Power": {
         "additionalProperties": false,
         "properties": {
@@ -4100,6 +4120,33 @@
           }
         ],
         "summary": "Import Stations",
+        "tags": [
+          "stations"
+        ]
+      }
+    },
+    "/api/v1/stations/places": {
+      "get": {
+        "description": "Each country's time zones, for the station form (a one-zone country gets it filled in).",
+        "operationId": "station_places_api_v1_stations_places_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Places"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Station Places",
         "tags": [
           "stations"
         ]

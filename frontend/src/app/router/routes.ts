@@ -88,8 +88,11 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'My profile', layout: 'app' },
   },
   {
-    // The list, and one station when :id is set (PRD STN-5; AFD: clients see their own)
-    path: '/stations/:id?',
+    // The list, one station when :id is set (PRD STN-5; AFD: clients see their own), the new
+    // station form at /stations/new and the edit form at /stations/:id/edit (STN-1, STN-2). One
+    // route, so the list in the pane stays put between them; the page sends clients away from
+    // the forms and the server refuses them anyway.
+    path: '/stations/:id?/:mode(edit)?',
     name: 'stations',
     component: () => import('@/features/stations/StationsPage.vue'),
     meta: { title: 'Stations', layout: 'app' },

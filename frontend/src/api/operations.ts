@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, DueList, SensorUnitDetail, StationDetail, StationPage, StationStatus } from './models'
+import type { CalibrationPage, DueList, Places, SensorUnitDetail, StationDetail, StationIn, StationPage, StationPatch, StationStatus } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -18,6 +18,10 @@ export const stationsApi = {
   list: (query: StationQuery = {}, signal?: AbortSignal) =>
     api.get<StationPage>('/stations', { query: { ...query }, signal }),
   get: (id: string, signal?: AbortSignal) => api.get<StationDetail>(`/stations/${id}`, { signal }),
+  // Staff who write stations (technician, admin): the form (STN-1, STN-2)
+  create: (body: StationIn) => api.post<StationDetail>('/stations', body),
+  update: (id: string, body: StationPatch) => api.patch<StationDetail>(`/stations/${id}`, body),
+  places: (signal?: AbortSignal) => api.get<Places>('/stations/places', { signal }),
 }
 
 // Staff only: clients get 403 from these

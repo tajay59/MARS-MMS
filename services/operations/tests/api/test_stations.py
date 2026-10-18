@@ -111,6 +111,13 @@ async def test_facets(ops):
     assert client["countries"] == ["TT"] and client["organizations"] == []
 
 
+@pytest.mark.req("STN-1")
+async def test_places_lists_each_countrys_time_zones(ops):
+    found = (await ops.http.get("/api/v1/stations/places", headers=ops.bearer("tech1"))).json()
+    assert found["time_zones"]["JM"] == ["America/Jamaica"]
+    assert len(found["time_zones"]["US"]) > 5  # the form asks which one
+
+
 @pytest.mark.req("STN-6")
 async def test_another_organizations_station_is_not_found(ops):
     station = await ops.station()
