@@ -96,7 +96,7 @@
       gsap.set(indicator.value, { y })
       gsap.to(indicator.value, { autoAlpha: 1, scale: 1, duration: animate ? dur(DURATION.hover) : 0 })
     } else {
-      gsap.to(indicator.value, { y, autoAlpha: 1, scale: 1, duration: dur(0.32), ease: EASE.inOut })
+      gsap.to(indicator.value, { y, autoAlpha: 1, scale: 1, duration: dur(0.35), ease: EASE.emphasized })
     }
     placed = true
   }

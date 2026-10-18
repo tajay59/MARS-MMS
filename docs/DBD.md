@@ -3,14 +3,15 @@
 
 | | |
 |---|---|
-| **Version** | 1.5 |
-| **Date** | 2026-10-17 |
+| **Version** | 1.6 |
+| **Date** | 2026-10-18 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
 | **Changes in 1.2** | Follows AFD 1.1 and TRD 2.0: the Unlock page (offline PIN), station owners on the visit and field pages, the finalizing state on the visit report, feedback `*-container` theme colours, and links to the AFD fixed. 37 pages |
 | **Changes in 1.3** | `/register`: the organization is a plain text field, not a picker of existing organizations (PRD 1.2 AUTH-1, AFD 1.2 J1) |
 | **Changes in 1.4** | **The app shell** (decision W4-9, 2026-10-17) replaces the client and staff shells: three square tiles on a ground colour, 5 px apart: a slim **rail** of section icons with tooltips, an **interactive pane** (section tabs, the list or the controls) and a **view** (the details). On phones the pane and view fill the screen and the rail becomes a floating tab tile. New `ground` colour token; tiles have no corner radius. The field shell and the split panel are unchanged |
 | **Changes in 1.5** | **Brand colours from a Material 3 theme** (decision W4-12, 2026-10-17; closes D1's colour part): the built-in theme is `frontend/src/app/theme/material-theme.json` (Material Theme Builder, seed `#026D88`), and admins can replace it for everyone on **Settings** (`/admin/settings`). Status colours stay fixed. **Motion with GSAP** (W4-10): the pane's width, page and list entrances, the rail's hover, sliding indicator and tooltips. **Person avatars** with initials on a brand gradient (W4-13), the one allowed gradient. **Settings** page for admins (W4-11) |
+| **Changes in 1.6** | Below 1024 px the rail becomes a docked, translucent **bottom bar** with the open section as a filled pill (decision W4-14, 2026-10-18); tablets keep the pane and view side by side above it. Pane lists of people are **message-style** rows: 48 px avatar, name with a short time on its right, one line below, the open row fully round (W4-15). **Motion curves** (W4-15): the pane's width on Material 3's emphasized curve, a record opened from the pane rises in, list rows shrink while pressed and spring back |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
 
@@ -302,10 +303,10 @@ Each numbered marker matches the note beside it. The frame stays put and only th
 
 | Shell | Frame | Content width | Who sees it |
 | --- | --- | --- | --- |
-| **App shell** | Three tiles on the `ground` colour, 5 px apart and 5 px from the window edges, square corners, no border or shadow: the **rail** (64 px), the **interactive pane** (300 / 360 / 420 px, hideable from 1024 px) and the **view** (the rest). No app-wide top bar: each tile has its own header. On phones (< 768 px) the pane and view fill the screen edge to edge, one after the other; once a record is open the view shows alone with a Back button. The rail becomes a floating **tab tile** 5 px from the edges and above the home indicator: four sections and **Me** (profile, notifications, sync, Admin). | View body max 1080 px; tables and maps use the full view | Staff and clients |
+| **App shell** | Three tiles on the `ground` colour, 5 px apart and 5 px from the window edges, square corners, no border or shadow: the **rail** (64 px), the **interactive pane** (300 / 360 / 420 px, hideable from 1024 px) and the **view** (the rest). No app-wide top bar: each tile has its own header. On phones (< 768 px) the pane and view fill the screen edge to edge, one after the other; once a record is open the view shows alone with a Back button. Below 1024 px the rail becomes a **bottom bar** docked to the bottom edge, translucent (surface at 85 % with a backdrop blur, a top border and a soft upward shadow) and padded for the home indicator: four sections and **Me** (profile, notifications, sync, Admin), centred within 448 px. The section open is a filled primary pill with its label in bold primary; the others are bare 22 px icons with a hover tint, and labels are always shown (12 px). | View body max 1080 px; tables and maps use the full view | Staff and clients |
 | **Field** | Top app bar, 56 px: back arrow, visit or station name, sync badge. Bottom bar, 64 px plus safe area: Visit · Scan · Stations · Sync. A sticky action bar sits above it for the step’s main button. | Full width, 16 px side gutters | Staff on phones on `/visits/:id/field`, `/scan` and `/sync` |
 
-The app shell is plain Tailwind layout inside the one `VApp` (`frontend/src/app/shells/AppShell.vue`, `AppRail.vue`, `AppTabBar.vue`). A page fills the view with `PageBody` (its header and scrolling body) and puts its list or controls into the pane with `PaneContent`; the record it has open lives in the URL (`/admin/registrations/:id`), so a reload or Back keeps the place. The field shell uses Vuetify's `VAppBar` and `VBottomNavigation`. Nothing is reachable only by hover: the tab tile has labels, and every rail icon has an accessible name and its tooltip text as a description.
+The app shell is plain Tailwind layout inside the one `VApp` (`frontend/src/app/shells/AppShell.vue`, `AppRail.vue`, `AppTabBar.vue`). A page fills the view with `PageBody` (its header and scrolling body) and puts its list or controls into the pane with `PaneContent`; the record it has open lives in the URL (`/admin/registrations/:id`), so a reload or Back keeps the place. The field shell uses Vuetify's `VAppBar` and `VBottomNavigation`. Nothing is reachable only by hover: the bottom bar has labels, and every rail icon has an accessible name and its tooltip text as a description.
 
 Public pages (login, register, password reset, invitation, QR landing when logged out, verify, unlock) use a **split panel**. On desktop the left 40% is primary-950 with the logo and one station photograph, and the right 60% holds a white form card, max 440 px wide. On phones the form sits full width under a 120 px dark header.
 
@@ -313,10 +314,10 @@ Public pages (login, register, password reset, invitation, QR landing when logge
 
 | Breakpoint (Tailwind) | Width | Columns / gutter | App shell |
 | --- | --- | --- | --- |
-| base (Vuetify `xs`) | < 640 px | 4 / 16 px | Pane, then view, full-bleed; a record opens alone with Back; tab tile at the bottom; tables become cards |
+| base (Vuetify `xs`) | < 640 px | 4 / 16 px | Pane, then view, full-bleed; a record opens alone with Back; bottom bar; tables become cards |
 | `sm` | ≥ 640 px | 4 / 16 px | As base |
-| `md` | ≥ 768 px | 8 / 24 px | Rail, pane (300 px) and view as tiles |
-| `lg` | ≥ 1024 px | 12 / 24 px | Pane 360 px and hideable |
+| `md` | ≥ 768 px | 8 / 24 px | Pane (300 px) and view as tiles, with the bottom bar instead of the rail |
+| `lg` | ≥ 1024 px | 12 / 24 px | Rail, pane (360 px, hideable) and view |
 | `xl` | ≥ 1280 px | 12 / 32 px | As `lg`; detail pages gain a right column (timeline, meta) |
 | `2xl` | ≥ 1536 px | 12 / 32 px | Pane 420 px |
 
@@ -338,8 +339,8 @@ Public pages (login, register, password reset, invitation, QR landing when logge
 - Inside a tile there are no bordered cards: sections are separated by 1 px surface-200 rules, and list rows are plain rows with a hover and a primary-50 selected state. **Cards** (surface-0, 1 px surface-200 border, no shadow) remain for public pages, dialogs and menus.
 - The active rail icon, pane tab and tab-tile item use primary-100 with primary-700 (dark: primary-800 with primary-100). Status colours stay reserved for status.
 - **Shadows** only on things that float: menus, dialogs, toasts and the field action bar (`shadow-lg`).
-- **Corner radius:** 0 for the app shell's tiles, 6 px for inputs, buttons and tooltips, 10 px for cards, dialogs and list rows, 12 px for rail icons, fully round for chips, badges and pane tabs, 0 for tables.
-- **Motion** (W4-10): 150 ms ease-out for hovers, menus and tooltips, 200 ms for dialogs and drawers. The app shell's motion is GSAP (`app/motion.ts`): the **pane's width** tweens (260 ms, ease-in-out) when it opens, closes or changes size, and the view tile follows; a new **page** rises 8 px and fades in (220 ms) while the old one goes at once; a new page's **pane list** slides in from the rail's side; on phones the list and the record slide in from their sides. On the **rail**, the hovered icon lifts and grows a little with a soft overshoot and a fill grows out from it; pressing shrinks it; the **active fill is one tile that slides** to the section chosen; **tooltips** fade and slide out from the rail (and Escape hides them). Nothing loops except loading spinners. All motion is off under `prefers-reduced-motion`, and on a device where the person turned **Animations** off in Settings.
+- **Corner radius:** 0 for the app shell's tiles, 6 px for inputs, buttons and tooltips, 10 px for cards, dialogs and list rows (pane lists of people are message-style: 72 px rows, 48 px avatar, name with a short time on its right, one line below, and the open row fully round), 12 px for rail icons, fully round for chips, badges and pane tabs, 0 for tables.
+- **Motion** (W4-10): 150 ms ease-out for hovers, menus and tooltips, 200 ms for dialogs and drawers. The app shell's motion is GSAP (`app/motion.ts`): the **pane's width** tweens on Material 3's emphasized curve (400 ms opening, 300 ms closing) when it opens, closes or changes size, and the view tile follows (a short ease-in-out read as a jump); a new **page** rises 8 px and fades in (220 ms) while the old one goes at once; a **record** opened from the pane rises 14 px and fades in (450 ms, Material 3 emphasized decelerate, title then body) and the view scrolls to its top; a **list row** shrinks to 96 % while pressed (80 ms, ease-out) and springs back past full size (320 ms, `back.out(4)`), with a hover tint and the avatar growing to 105 %; a new page's **pane list** slides in from the rail's side; on phones the list and the record slide in from their sides. On the **rail**, the hovered icon lifts and grows a little with a soft overshoot and a fill grows out from it; pressing shrinks it; the **active fill is one tile that slides** to the section chosen; **tooltips** fade and slide out from the rail (and Escape hides them). Nothing loops except loading spinners. All motion is off under `prefers-reduced-motion`, and on a device where the person turned **Animations** off in Settings.
 
 ## Core components
 

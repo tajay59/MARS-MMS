@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from mms_common.kafka import KafkaAuth, kafka_auth
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,6 +39,9 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
     kafka_bootstrap: str = "localhost:9092"
+    # The service's own Kafka user (SASL/SCRAM, TRD §15); required in staging and production.
+    kafka_username: str | None = None
+    kafka_password: SecretStr | None = None
     # Public signing keys, over the internal network only (TRD §6.1).
     auth_jwks_url: str = "http://auth:8000/.well-known/jwks.json"
     # /internal/* on auth: service token from /internal/service-token, then account links.
@@ -56,6 +60,11 @@ class Settings(BaseSettings):
     # Where the links in emails point: the app's public address.
     app_url: str = "https://mms.localhost"
     email_poll_s: float = 5.0
+
+    @property
+    def kafka(self) -> KafkaAuth | None:
+        password = self.kafka_password.get_secret_value() if self.kafka_password else None
+        return kafka_auth(self.environment, self.kafka_username, password)
 
     @model_validator(mode="after")
     def _relay_is_encrypted(self) -> Settings:

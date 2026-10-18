@@ -90,7 +90,7 @@ def create_app(
             relay = run_relay(
                 db["outbox"],
                 lease,
-                producer_factory(settings.kafka_bootstrap, settings.service_name),
+                producer_factory(settings.kafka_bootstrap, settings.service_name, settings.kafka),
                 settings.outbox_topic,
                 clock,
                 stop,

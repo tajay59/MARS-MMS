@@ -31,7 +31,7 @@
         <v-icon class="text-surface-600" :icon="mdiDockLeft" size="20" />
       </v-btn>
 
-      <div class="min-w-0 grow basis-48">
+      <div ref="titleEl" class="min-w-0 grow basis-48">
         <h1 :id="headingId" class="m-0 wrap-break-word text-h2 text-surface-900">{{ heading }}</h1>
         <p v-if="subtitle" class="m-0 text-sm text-surface-600">{{ subtitle }}</p>
       </div>
@@ -42,8 +42,14 @@
     </header>
 
     <!-- Focusable, so keyboard users can scroll it even when nothing inside takes focus (WCAG 2.1.1) -->
-    <div :aria-labelledby="headingId" class="grow md:min-h-0 md:overflow-y-auto" role="region" tabindex="0">
-      <div class="w-full p-4 md:px-8 md:py-7" :class="wide ? '' : 'max-w-270'">
+    <div
+      ref="regionEl"
+      :aria-labelledby="headingId"
+      class="grow md:min-h-0 md:overflow-y-auto"
+      role="region"
+      tabindex="0"
+    >
+      <div ref="contentEl" class="w-full p-4 md:px-8 md:py-7" :class="wide ? '' : 'max-w-270'">
         <slot />
       </div>
     </div>
@@ -53,9 +59,10 @@
 <script lang="ts" setup>
   import type { RouteLocationRaw } from 'vue-router'
   import { mdiArrowLeft, mdiDockLeft } from '@mdi/js'
-  import { computed, inject, useId } from 'vue'
+  import { computed, inject, ref, useId, watch } from 'vue'
   import { useRoute } from 'vue-router'
   import { useDisplay } from 'vuetify'
+  import { dur, DURATION, EASE, gsap } from '@/app/motion'
   import { shellKey, usePane } from '@/app/shells/pane'
 
   const props = defineProps<{
@@ -67,6 +74,8 @@
     backLabel?: string
     /** Use the whole width of the view (tables, maps). */
     wide?: boolean
+    /** The record open in the view (its id): when it changes, the new one rises in. */
+    record?: string | null
   }>()
 
   const route = useRoute()
@@ -76,4 +85,26 @@
   const headingId = useId()
   const heading = computed(() => props.title ?? String(route.meta.title ?? ''))
   const backLabel = computed(() => props.backLabel ?? 'Back to the list')
+
+  // Another record from the pane (or back to the summary): the title and body rise in as a page
+  // does (W4-10), from the top of the view. Phones already slide the view in from the side.
+  const titleEl = ref<HTMLElement | null>(null)
+  const regionEl = ref<HTMLElement | null>(null)
+  const contentEl = ref<HTMLElement | null>(null)
+  watch(() => props.record, () => {
+    if (regionEl.value) {
+      regionEl.value.scrollTop = 0
+    }
+    if (!mdAndUp.value || !titleEl.value || !contentEl.value) {
+      return
+    }
+    gsap.fromTo([titleEl.value, contentEl.value], { autoAlpha: 0, y: 14 }, {
+      autoAlpha: 1,
+      y: 0,
+      duration: dur(DURATION.record),
+      ease: EASE.decelerate,
+      stagger: dur(0.08),
+      clearProps: 'transform,opacity,visibility',
+    })
+  }, { flush: 'post' })
 </script>

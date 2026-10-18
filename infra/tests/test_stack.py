@@ -241,8 +241,9 @@ def _compose(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_kafka_topics_exist_with_three_partitions():
+    # The loopback-only plaintext listener: from inside the broker's own container
     r = _compose("exec", "-T", "kafka", "/opt/kafka/bin/kafka-topics.sh",
-                 "--bootstrap-server", "localhost:9092", "--describe")
+                 "--bootstrap-server", "127.0.0.1:9094", "--describe")
     if r.returncode != 0:
         pytest.skip("kafka not running")
     lines = r.stdout.splitlines()
@@ -251,6 +252,90 @@ def test_kafka_topics_exist_with_three_partitions():
         line = next((x for x in lines if x.startswith(prefix)), "")
         assert "PartitionCount: 3" in line, f"mms.{service}.events missing or wrong"
     assert "mms.dlq.audit" in r.stdout
+
+
+# TRD §15: Kafka needs SASL/SCRAM, and each service's user has ACLs on its own topics only.
+# Checked from inside the auth container, which is on the backend network and has aiokafka.
+KAFKA_PROBE = """
+import asyncio, os, socket, sys
+from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+
+def scram(user, password):
+    return dict(security_protocol="SASL_PLAINTEXT", sasl_mechanism="SCRAM-SHA-512",
+                sasl_plain_username=user, sasl_plain_password=password)
+
+async def outcome(make, act):
+    client = make()
+    try:
+        await asyncio.wait_for(client.start(), 15)
+        await asyncio.wait_for(act(client), 15)
+        return "ok"
+    except Exception as error:
+        return type(error).__name__
+    finally:
+        try:
+            await client.stop()
+        except Exception:
+            pass
+
+def port(p):
+    try:
+        socket.create_connection(("kafka", p), 3).close()
+        return "open"
+    except OSError:
+        return "closed"
+
+async def main(case):
+    own = os.environ["AUTH_KAFKA_PASSWORD"]
+    produce = lambda c: c.send_and_wait("mms.dlq.audit", b"probe")
+    if case == "anonymous":
+        print(await outcome(lambda: AIOKafkaProducer(bootstrap_servers="kafka:9092",
+                                                     request_timeout_ms=5000), produce))
+    elif case == "wrong-password":
+        print(await outcome(lambda: AIOKafkaProducer(bootstrap_servers="kafka:9092",
+                                                     **scram("auth", "not-" + own)), produce))
+    elif case == "other-topic":
+        print(await outcome(lambda: AIOKafkaProducer(bootstrap_servers="kafka:9092",
+                                                     **scram("auth", own)), produce))
+    elif case == "consume":
+        async def read(c):
+            await c.getmany(timeout_ms=3000)
+        print(await outcome(lambda: AIOKafkaConsumer("mms.auth.events",
+                                                     bootstrap_servers="kafka:9092",
+                                                     group_id="audit", **scram("auth", own)), read))
+    elif case == "ports":
+        print(port(9093), port(9094))
+
+asyncio.run(main(sys.argv[1]))
+"""
+
+
+def _kafka_probe(case: str) -> str:
+    r = _compose("exec", "-T", "auth", "python", "-c", KAFKA_PROBE, case)
+    if r.returncode != 0 and not r.stdout:
+        pytest.skip(f"auth not running: {r.stderr.strip()[:200]}")
+    return r.stdout.strip().splitlines()[-1]
+
+
+def test_kafka_refuses_clients_without_credentials():
+    assert _kafka_probe("anonymous") != "ok"
+
+
+def test_kafka_refuses_a_wrong_password():
+    assert _kafka_probe("wrong-password") != "ok"
+
+
+def test_a_service_cannot_write_another_services_topic():
+    # auth may only write mms.auth.events (kafka/users.yml)
+    assert _kafka_probe("other-topic") == "TopicAuthorizationFailedError"
+
+
+def test_a_service_cannot_join_another_services_consumer_group():
+    assert _kafka_probe("consume") != "ok"
+
+
+def test_the_controller_and_plaintext_listeners_are_loopback_only():
+    assert _kafka_probe("ports") == "closed closed"
 
 
 def test_bucket_keys_are_limited_to_their_buckets():
