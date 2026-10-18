@@ -16,6 +16,9 @@ export type InviteIn = Auth['InviteIn']
 export type ApproveIn = Auth['ApproveIn']
 export type RejectIn = Auth['RejectIn']
 export type OrgIn = Auth['OrgIn']
+export type MaterialTheme = Auth['MaterialTheme']
+export type BrandingIn = Auth['BrandingIn']
+export type BrandingOut = Auth['BrandingOut']
 
 export type Role = 'client' | 'technician' | 'admin' | 'viewer'
 export type UserStatus = 'pending' | 'invited' | 'active' | 'disabled' | 'rejected'

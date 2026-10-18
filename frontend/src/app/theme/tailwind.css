@@ -18,6 +18,7 @@
 
   --color-background: rgb(var(--v-theme-background));
   --color-on-background: rgb(var(--v-theme-on-background));
+  --color-ground: rgb(var(--v-theme-ground));
   --color-surface: rgb(var(--v-theme-surface));
   --color-on-surface: rgb(var(--v-theme-on-surface));
   --color-primary: rgb(var(--v-theme-primary));
@@ -34,6 +35,18 @@
   --color-primary-800: rgb(var(--v-theme-primary-800));
   --color-primary-900: rgb(var(--v-theme-primary-900));
   --color-primary-950: rgb(var(--v-theme-primary-950));
+  --color-primary-container: rgb(var(--v-theme-primary-container));
+  --color-on-primary-container: rgb(var(--v-theme-on-primary-container));
+
+  /* Material secondary and tertiary (decision W4-12); tones 30-40 for avatar gradients */
+  --color-secondary: rgb(var(--v-theme-secondary));
+  --color-on-secondary: rgb(var(--v-theme-on-secondary));
+  --color-secondary-600: rgb(var(--v-theme-secondary-600));
+  --color-secondary-700: rgb(var(--v-theme-secondary-700));
+  --color-tertiary: rgb(var(--v-theme-tertiary));
+  --color-on-tertiary: rgb(var(--v-theme-on-tertiary));
+  --color-tertiary-600: rgb(var(--v-theme-tertiary-600));
+  --color-tertiary-700: rgb(var(--v-theme-tertiary-700));
 
   --color-surface-0: rgb(var(--v-theme-surface-0));
   --color-surface-50: rgb(var(--v-theme-surface-50));

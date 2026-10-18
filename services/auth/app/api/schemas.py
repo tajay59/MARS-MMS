@@ -116,6 +116,28 @@ class AccountLinkIn(In):
     id: Id
 
 
+Hex = Annotated[str, StringConstraints(pattern=r"^#[0-9A-Fa-f]{6}$")]
+
+
+class MaterialTheme(In):
+    """Brand colours from a Material Theme Builder export: the light and dark schemes (every
+    Material 3 role) and the five tonal palettes. app.domain.branding checks the exact keys."""
+
+    name: Annotated[str, StringConstraints(max_length=120)] | None = None
+    seed: Hex | None = None
+    schemes: dict[Literal["light", "dark"], dict[str, Hex]]
+    palettes: dict[
+        Literal["primary", "secondary", "tertiary", "neutral", "neutral-variant"], dict[str, Hex]
+    ]
+
+
+class BrandingIn(In):
+    """`material: null` goes back to the built-in colours. `version` is what the admin saw."""
+
+    material: MaterialTheme | None
+    version: Annotated[int, Field(ge=0)]
+
+
 # --- Responses -----------------------------------------------------------------------------
 
 
@@ -216,6 +238,26 @@ class AccountLinkOut(BaseModel):
     email: str
     name: str
     expires_at: datetime
+
+
+class BrandingOut(BaseModel):
+    """The colours everyone sees. `material` is null for the built-in colours; `version` is 0
+    until an admin first saves."""
+
+    material: MaterialTheme | None
+    version: int
+    updated_at: datetime | None
+
+    @classmethod
+    def of(cls, doc: dict[str, Any] | None) -> BrandingOut:
+        if doc is None:
+            return cls(material=None, version=0, updated_at=None)
+        material = doc.get("material")
+        return cls(
+            material=MaterialTheme.model_validate(material) if material else None,
+            version=doc["version"],
+            updated_at=doc["updated_at"],
+        )
 
 
 class ServiceTokenOut(BaseModel):

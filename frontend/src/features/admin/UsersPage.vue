@@ -1,31 +1,37 @@
 <template>
-  <PageBody>
-    <div class="flex flex-col gap-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <div aria-label="Filter by status" class="flex flex-wrap gap-2" role="group">
-          <button
-            v-for="f in filters"
-            :key="f.value"
-            :aria-pressed="filter === f.value"
-            class="h-8 rounded-full border px-3 text-sm font-medium tabular-nums"
-            :class="filter === f.value ? 'border-primary bg-primary-50 text-primary' : 'border-surface-200 bg-surface text-surface-700 hover:bg-surface-100'"
-            type="button"
-            @click="filter = f.value"
-          >
-            {{ f.label }} {{ count(f.value) }}
-          </button>
-        </div>
+  <PageBody wide>
+    <template #actions>
+      <v-btn color="primary" :prepend-icon="mdiPlus" @click="openInvite">Invite user</v-btn>
+    </template>
 
-        <v-btn class="ml-auto" color="primary" :prepend-icon="mdiPlus" @click="openInvite">Invite user</v-btn>
+    <!-- The pane: which accounts the table shows -->
+    <PaneContent>
+      <div aria-labelledby="status-h" class="flex flex-col gap-0.5 px-3" role="group">
+        <h3 id="status-h" class="m-0 px-2 pb-1 text-sm font-semibold text-surface-900">Status</h3>
+
+        <button
+          v-for="f in filters"
+          :key="f.value"
+          :aria-pressed="filter === f.value"
+          class="flex h-10 items-center gap-3 rounded-card px-3 text-left text-sm font-medium"
+          :class="filter === f.value ? 'bg-primary-50 text-primary-700 dark:text-primary' : 'text-surface-900 hover:bg-surface-100'"
+          type="button"
+          @click="filter = f.value"
+        >
+          <span class="grow">{{ f.label }}</span>
+          <span class="tabular-nums text-surface-600">{{ count(f.value) }}</span>
+        </button>
       </div>
+    </PaneContent>
 
+    <div class="flex flex-col gap-4">
       <FeedbackBanner v-if="loadError" type="error">{{ loadError }}</FeedbackBanner>
 
       <div v-if="loading" aria-label="Loading users…" class="flex flex-col gap-2" role="status">
         <v-skeleton-loader v-for="n in 4" :key="n" type="list-item-two-line" />
       </div>
 
-      <div v-else-if="!loadError" class="overflow-x-auto rounded-card border border-surface-200 bg-surface">
+      <div v-else-if="!loadError" class="overflow-x-auto">
         <table class="w-full border-collapse text-sm">
           <thead>
             <tr class="bg-surface-100 text-left">
@@ -181,6 +187,7 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import PageBody from '@/components/PageBody.vue'
+  import PaneContent from '@/components/PaneContent.vue'
   import { useSessionStore } from '@/stores/session'
 
   // /admin/users (AUTH-6, AUTH-11). Pending registrations live on /admin/registrations.

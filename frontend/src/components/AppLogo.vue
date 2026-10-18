@@ -32,8 +32,8 @@
     surface?: 'auto' | 'light' | 'dark'
   }>(), { size: 32, wordmark: true, surface: 'auto' })
 
-  // Width ÷ height of the wordmark file, so its box is reserved before it loads (no layout shift)
-  const WORDMARK_RATIO = 338 / 96
+  // Width ÷ height of the wordmark file (printed by `npm run brand`), so its box is reserved before it loads (no layout shift)
+  const WORDMARK_RATIO = 3.509
 
   const theme = useTheme()
   const wordHeight = computed(() => Math.round(props.size * 0.62))

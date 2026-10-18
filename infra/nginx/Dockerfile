@@ -7,6 +7,9 @@
 # last 7 days into infra/nginx/carry/ (PWA finding F9). dist is copied over carry.
 
 FROM nginx:1.31.7-alpine
+# Alpine fixes land before the next nginx tag; take them so Trivy's HIGH/CRITICAL gate passes
+# (libexpat CVE-2026-77214 was the first, 2026-10-17)
+RUN apk upgrade --no-cache
 COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY infra/nginx/snippets /etc/nginx/snippets
 COPY infra/nginx/templates /etc/nginx/templates

@@ -3,11 +3,14 @@
 
 | | |
 |---|---|
-| **Version** | 1.2 |
-| **Date** | 2026-10-17 |
+| **Version** | 1.5 |
+| **Date** | 2026-10-18 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows PRD 1.1 and TRD 2.0: a new **Unlock** page (offline PIN), station owners on visits (J5, J6), J6 checks preparation before the visit starts, reopened reports return the request to In progress (J7, J8), and new routing and edge states for offline sessions and sync conflicts. 37 pages |
 | **Changes in 1.2** | J1 step 2: the client types their organization's name (no public list of organizations); PRD 1.2 AUTH-1 |
+| **Changes in 1.3** | §5.1: staff and clients use the app shell (rail sections, pane tabs, view; DBD 1.4, decision W4-9). `/admin/registrations/:id` opens one registration (J1 step 4) |
+| **Changes in 1.4** | New admin page **Settings** (`/admin/settings/:part?`, decision W4-11): Appearance (the admin's own theme and, on this device, animations) and Brand colours (the Material 3 theme everyone sees, W4-12). Admin section tab after Audit log |
+| **Changes in 1.5** | §5.1: below 1024 px (phones and tablets) the rail is a bottom bar with four sections and **Me** (DBD 1.6, decision W4-14) |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0; superseded by this file) |
 
@@ -134,12 +137,13 @@ flowchart TD
 | Field | QR scanner | `/scan` | Staff | Field bottom bar |
 | Field | Field visit | `/visits/:id/field` | Attending staff | "Start visit" or "Continue visit" |
 | Field | Sync status | `/sync` | Staff | Sync badge |
-| Admin | Registrations | `/admin/registrations` | Admin | Admin menu, dashboard widget |
+| Admin | Registrations | `/admin/registrations`, `/admin/registrations/:id` | Admin | Admin section, dashboard widget |
 | Admin | Users | `/admin/users` | Admin | Admin menu |
 | Admin | Organizations | `/admin/organizations` | Admin | Admin menu |
 | Admin | Checklist templates | `/admin/checklists` | Admin | Admin menu |
 | Admin | QR labels and station import | `/admin/stations-tools` | Admin | Admin menu |
 | Admin | Audit log | `/admin/audit` | Admin | Admin menu |
+| Admin | Settings (Appearance, Brand colours) | `/admin/settings/:part?` | Admin | Admin menu |
 
 The station and request pages use tabs rather than separate routes:
 
@@ -211,7 +215,7 @@ A new client cannot log in until an admin approves them; the decision reaches th
 | 1 | `/login` | Clicks **Create an account** | → `/register` |
 | 2 | `/register` | Enters name, email, phone and password, types their organization's name, clicks **Register** | Account saved as Pending → `/register/pending` ("We'll email you when your account is approved") |
 | 3 | Admin dashboard *[Admin]* | Clicks the **Registrations pending** widget | → `/admin/registrations` |
-| 4 | `/admin/registrations` *[Admin]* | Opens a registration, clicks **Approve**, links it to an existing organization (matching the typed name) or creates one, confirms | Row leaves the list; approval email sent. Stays on `/admin/registrations` |
+| 4 | `/admin/registrations` *[Admin]* | Opens a registration from the list (`/admin/registrations/:id`), clicks **Approve**, links it to an existing organization (matching the typed name) or creates one, confirms | Row leaves the list; approval email sent. Back on `/admin/registrations` |
 | 4b | `/admin/registrations` *[Admin]* | Clicks **Reject** and types a reason | Row leaves the list; rejection email with the reason sent |
 | 5 | Approval email | Clicks **Log in** | → `/login` |
 | 6 | `/login` | Logs in | → Client dashboard |
@@ -378,15 +382,20 @@ Every page except the public ones needs a login, and the router sends each user 
 
 ### 5.1 Menus by role
 
-| Layout | Main menu | Always visible |
+Staff and clients use the **app shell** (DBD 1.4 "The shells", decision W4-9): a rail of section icons, an interactive pane with the section's pages as tabs and the page's list or controls, and a view with the details. The menus are the same pages as before, grouped into sections.
+
+| Layout | Rail sections (pane tabs) | Always visible |
 |---|---|---|
-| Client | Dashboard · Stations · Map · Requests · Reports | Bell · user menu (Profile, Log out) · **Report a problem** button |
-| Staff (Technician) | Dashboard · Queue · Requests · Stations · Map · Sensors · Calibration · Reports | Bell · user menu · sync badge |
-| Staff (Admin) | Technician menu + Admin (Registrations, Users, Organizations, Checklist templates, QR labels and import, Audit log) | Bell · user menu · sync badge |
-| Staff (Viewer) | Dashboard · Requests · Stations · Map · Sensors · Calibration · Reports | Bell · user menu; no action buttons anywhere |
+| Client | Dashboard · Stations (Stations, Map) · Requests · Reports | Bell · user menu (Profile, Log out); **Report a problem** in the view header of Dashboard and Requests |
+| Staff (Technician) | Dashboard · Work (Queue, Requests) · Stations (Stations, Map, Sensors, Calibration) · Reports | Sync badge · bell · user menu |
+| Staff (Admin) | Technician sections + Admin (Registrations, Users, Organizations, Checklist templates, QR labels and import, Audit log, Settings) | Sync badge · bell · user menu |
+| Staff (Viewer) | Dashboard · Work (Requests) · Stations (Stations, Map, Sensors, Calibration) · Reports | Bell · user menu; no action buttons anywhere |
+| Phones and tablets below 1024 px (app shell) | A bottom bar with the first four sections and **Me** (My profile, Notifications, Sync, Admin, Log out) | — |
 | Field (phones) | Bottom bar: Visit · Scan · Stations · Sync | Sync badge with waiting count |
 
-Staff on a phone switch to the field layout when they open `/visits/:id/field`, `/scan` or `/sync`, and back to the staff layout when they leave them.
+A section's icon opens its first page the role may use (a technician's Work opens the Queue, a viewer's opens Requests). A record chosen in the pane is part of the URL (`/admin/registrations/:id`), so a reload, Back or a shared link opens the same record; on phones the list comes first and the record opens alone with Back.
+
+Staff on a phone switch to the field layout when they open `/visits/:id/field`, `/scan` or `/sync`, and back to the app shell when they leave them.
 
 ### 5.2 Routing rules
 

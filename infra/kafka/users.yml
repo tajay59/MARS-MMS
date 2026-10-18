@@ -1,0 +1,16 @@
+# Kafka users (TRD §15), applied on every deploy by kafka/create-users.sh after the topics.
+# One SCRAM-SHA-512 user per service; its password comes from KAFKA_<NAME>_PASSWORD (letters,
+# digits, "-" and "_", 16 or more). ACLs allow exactly what is listed; anything else is denied.
+# Keep this flat format: one `- name:` line per user, then space-separated lists.
+#   produce: topics it writes (its own events, or its consumer groups' dead letters)
+#   consume: topics it reads
+#   groups:  consumer groups it joins (group ID = consumer name, TRD §8.5)
+# A new service adds its user here, and its password to every .env and to kafka-init.
+
+users:
+  - name: auth
+    produce: mms.auth.events
+  - name: platform
+    consume: mms.auth.events mms.operations.events mms.media.events mms.report.events
+    groups: audit notification
+    produce: mms.dlq.audit mms.dlq.notification

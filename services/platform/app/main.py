@@ -100,13 +100,13 @@ def create_app(
                 asyncio.create_task(
                     consume_forever(
                         settings.kafka_bootstrap, audit_consumer.GROUP, settings.audit_topics,
-                        make_audit, stop,
+                        make_audit, stop, settings.kafka,
                     )
                 ),
                 asyncio.create_task(
                     consume_forever(
                         settings.kafka_bootstrap, notification_consumer.GROUP,
-                        settings.notification_topics, make_notification, stop,
+                        settings.notification_topics, make_notification, stop, settings.kafka,
                     )
                 ),
                 asyncio.create_task(account_emails.run(sender, stop, settings.email_poll_s)),

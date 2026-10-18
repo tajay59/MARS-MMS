@@ -17,7 +17,10 @@
           >
         </div>
 
-        <p class="m-0 hidden max-w-[40ch] text-sm text-primary-200 md:block">{{ APP_LONG_NAME }}</p>
+        <div class="hidden flex-col gap-1 text-sm text-primary-200 md:flex">
+          <p class="m-0 max-w-[40ch]">{{ APP_LONG_NAME }}</p>
+          <p class="m-0 tabular-nums">Version {{ APP_VERSION }}</p>
+        </div>
       </aside>
 
       <main class="flex grow justify-center px-4 py-8 md:items-center md:px-6 md:py-12">
@@ -33,7 +36,7 @@
 
 <script lang="ts" setup>
   import { useDisplay } from 'vuetify'
-  import { APP_LONG_NAME, logo } from '@/app/brand'
+  import { APP_LONG_NAME, APP_VERSION, logo } from '@/app/brand'
   import AppLogo from '@/components/AppLogo.vue'
 
   const { mdAndUp } = useDisplay()

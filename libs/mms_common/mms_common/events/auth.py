@@ -141,3 +141,16 @@ class OrgCreated(OrgData):
 @register("org.updated")
 class OrgUpdated(OrgData):
     changed_fields: list[str]
+
+
+# --- branding.* ------------------------------------------------------------------------------
+
+
+@register("branding.updated")
+class BrandingUpdated(_Data):
+    """An admin changed the organization-wide brand colours (decision W4-12). `custom` is false
+    when they went back to the built-in colours. Keyed `branding`."""
+
+    custom: bool
+    name: str | None = None
+    seed: str | None = None

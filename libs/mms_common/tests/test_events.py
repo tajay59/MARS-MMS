@@ -74,7 +74,8 @@ def test_duplicate_registration_fails():
 def test_auth_schemas_are_registered_on_import():
     for type_ in ("auth.login_succeeded", "auth.login_failed", "user.registered", "user.invited",
                   "user.approved", "user.rejected", "user.updated", "user.disabled", "org.created",
-                  "org.updated", "auth.password_reset_requested", "auth.token_reuse_detected"):
+                  "org.updated", "auth.password_reset_requested", "auth.token_reuse_detected",
+                  "branding.updated"):
         assert (type_, 1) in SCHEMAS, type_
 
 

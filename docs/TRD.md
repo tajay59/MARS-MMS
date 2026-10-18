@@ -3,8 +3,8 @@
 
 | | |
 |---|---|
-| **Version** | 2.1 |
-| **Date** | 2026-10-17 |
+| **Version** | 2.4 |
+| **Date** | 2026-10-18 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
 | **Supersedes** | TRD 1.3 and all drafts in [drafts/](drafts/) |
@@ -12,6 +12,9 @@
 | **Changes in 1.2** | The component library changes from PrimeVue 4 to **Vuetify 4**, still with Tailwind CSS 4 (ADR-11, §1.1, §13, NFR-11, CSP). Icons change from PrimeIcons to Material Design Icons |
 | **Changes in 1.3** | §17 Testing strategy is summarized here and detailed in the Test Plan ([TP.md](TP.md)) |
 | **Changes in 2.0** | From the 2026-10-16 engineering review. **Five services instead of nine** (ADR-1): station, maintenance and visit merge into `operations`; notification and audit merge into `platform`; the integration stub is dropped. **Kong is removed**; Nginx is the gateway (ADR-5). **SeaweedFS replaces MinIO** (ADR-6, R6). New: derived request status with parallel visits (ADR-17), one owner per station on a visit instead of offline merging (ADR-18), fail-closed file visibility (ADR-19), offline PIN session and refresh-token coordination (ADR-20, §6.1), sensor-action correction (§3.2), finalize saga (§11.2), outbox leader lease and `aggregate_version` (§8), read-model backfill (§8.6), and CSP, multipart and audit-role fixes |
+| **Changes in 2.2** | Brand colours, motion and Settings (2026-10-17, decisions W4-10 to W4-13). The brand colours are a **Material 3 theme** that admins can change for everyone: `GET /api/v1/auth/branding` (public) and `PUT` (admin, with `version`), stored in auth's `settings` collection, audited as `branding.updated` (§3.1, §5.1, §8.4, §13.2). The PWA keeps the last answer in `localStorage` for the first paint and offline; the service worker still caches no API response (§13.3). Frontend adds **GSAP** for the shell's motion and `@material/material-color-utilities` (loaded only by Settings) to make a theme from one colour (§1.1, §13.2) |
+| **Changes in 2.3** | Kafka authentication as built (decision W4-16, 2026-10-18, §15): SASL/SCRAM-SHA-512 on the broker's client listener, one Kafka user per service with ACLs on exactly its topics, dead-letter topics and consumer groups (`infra/kafka/users.yml`), and the controller and plaintext listeners on loopback only |
+| **Changes in 2.4** | From the W4 checks on staging (2026-10-18): the app version comes from `frontend/package.json` and changes only on a deliberate bump, so back-end-only releases don't prompt phones to reload (W4-17, §13.3); the Mongo entrypoint writes the replica-set key file fresh on every start, including a plain restart (W4-18, §16.1) |
 | **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
@@ -181,6 +184,8 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/auth/password-reset/confirm` | public | Sets a new password and revokes all sessions and access tokens; activates an invited user |
 | POST | `/api/v1/auth/invitations/accept` | public (token) | Sets the password for an invited user and signs them in |
 | GET / PATCH | `/api/v1/auth/me` | any | Current user; update name, phone, password, time zone, theme |
+| GET | `/api/v1/auth/branding` | public | The organization's brand colours: `{material, version, updated_at}`; `material` is null for the built-in colours (W4-12) |
+| PUT | `/api/v1/auth/branding` | admin | Save the brand colours for everyone: `{material \| null, version}`; a Material 3 theme with exactly the 49 roles of each scheme and tones 0–100 of the five palettes, all `#RRGGBB`; a stale `version` is 409 |
 | GET | `/api/v1/users` | admin | List and filter users (status, role, org) |
 | POST | `/api/v1/users` | admin | Invite a staff or client user (AUTH-6) |
 | GET | `/api/v1/users/{id}` | admin | One user |
@@ -195,7 +200,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 
 **Cron:** purge pending registrations older than 30 days (AUTH-5), daily. Expired reset, invitation and refresh tokens go by TTL indexes.
 **CLI:** `python -m app.cli create-admin` (the first admin) and `seed` (TP seed users; refused in production).
-**Emits:** `user.*`, `org.*`, `auth.*` security events (§8.4).
+**Emits:** `user.*`, `org.*`, `auth.*` security events, `branding.updated` (§8.4).
 
 ### 3.2 operations
 
@@ -468,6 +473,7 @@ refresh_tokens { _id, user_id, token_hash, family_id, expires_at /*TTL*/, revoke
 password_resets { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 invitations { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }
+settings { _id: "branding", material: { name, seed, schemes: { light, dark }, palettes } | null, updated_at, updated_by, version }
 ```
 
 Indexes: `users.email` unique; `users.status`; `users.org_id`; `refresh_tokens.token_hash` unique; TTL on `expires_at`. Validation rule: a `client` role cannot be combined with any staff role.
@@ -969,6 +975,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `user.updated` / `user.disabled` | auth | platform | user fields¹, changed_fields? |
 | `user.purged` | auth | platform | user_id |
 | `org.created` / `org.updated` | auth | operations, report, platform | org_id, name, country, status |
+| `branding.updated` | auth | platform (audit) | custom, name?, seed? (key `branding`; audit before/after: custom, name, seed, light and dark primary) |
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
 | `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review |
@@ -1137,7 +1144,7 @@ frontend/src/
 ### 13.2 Conventions
 
 - **Vuetify 4** through `vite-plugin-vuetify`, which auto-imports and tree-shakes components and compiles Vuetify's Sass with `app/theme/settings.scss`. `app/theme/vuetify.ts` calls `createVuetify` once with:
-  - the `light` and `dark` themes, built from the brand tokens in `app/theme/brand.ts`
+  - the `light` and `dark` themes, built in `app/theme/brand.ts` from a Material 3 theme (`app/theme/material.ts` maps its roles and palettes onto the token names; W4-12) plus the fixed status colours. At start it uses the organization's theme last fetched (`localStorage` `mms-branding`), else the built-in `material-theme.json`; `stores/branding.ts` fetches `GET /api/v1/auth/branding` at start and when the app returns to the front (at most every 5 min) and updates Vuetify's theme colours in place
   - global `defaults` that give the DBD look, so pages don't repeat props: flat buttons 40 px tall with a 6 px radius, outlined `compact` inputs, flat cards with a 1 px border and 10 px radius, and `ripple: false`. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px.
   - the `mdi-svg` icon set, with icons imported from `@mdi/js` and listed in `app/theme/icons.ts` (SVG paths, no icon font)
   - display thresholds equal to Tailwind's breakpoints (`sm` 640, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536), so `useDisplay()` and Tailwind's `md:` agree
@@ -1147,6 +1154,7 @@ frontend/src/
 - **Cascade layers.** `public/layers.css` is the first stylesheet linked in `index.html`, ahead of every stylesheet the build injects, and fixes the order (a production build links lazy chunks' CSS before the main bundle and drops a bare `@layer` statement from it, so an import in `main.ts` is not enough): `vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final`. Tailwind's theme and utilities are imported into the `tailwind` layer. Its preflight is not imported, because Vuetify has its own reset. Tailwind must stay before `vuetify-final`, or Vuetify's transitions break. Vuetify's own utility and colour classes are turned off (`$utilities: false`, `$color-pack: false` in `settings.scss`), so `rounded-*`, `bg-*` and `text-*` always mean Tailwind's. Classes that Vuetify adds from props (`rounded-md`, `elevation-8`) are safelisted with `@source inline(...)`.
 - **Shared tokens.** Tailwind's `@theme` removes its default palette and maps each brand colour to Vuetify's theme variable (`--color-primary: rgb(var(--v-theme-primary))`, `--color-surface-700: rgb(var(--v-theme-surface-700))`), so `bg-primary` and `text-surface-700` follow the active theme with no `dark:` variant.
 - **Light and dark themes** (DBD D2). `brand.ts` defines both Vuetify themes with the same colour names: `primary`, `primary-50` … `primary-950`, `surface-0` … `surface-900`, `background`, `surface`, the feedback colours with `*-container` pairs, and the status colours, each with its `on-*` pair. The theme store switches Vuetify (`useTheme().change('light' | 'dark')`) and the `.app-dark` class on `<html>` together. Tailwind's `dark:` variant uses that class (`@custom-variant dark (&:where(.app-dark, .app-dark *))`). The user's `theme` (`system`, `light` or `dark`) comes from `/auth/me` and is cached in `localStorage` (`mms-theme`) for the login pages. `public/theme-init.js`, an external script in `<head>`, sets the class before first paint, because the CSP (`script-src 'self'`) rules out an inline script. `system` follows `prefers-color-scheme` and updates live. Two `theme-color` meta tags (light `#22569A`, dark `#0B1220`) colour the browser bar.
+- **Motion** (W4-10): GSAP (`gsap`, bundled) through `app/motion.ts`: the pane's width tween, page and pane-list entrances, the rail's hover, sliding indicator and tooltips. Durations are 0 under `prefers-reduced-motion` or the per-device Animations setting (`localStorage` `mms-motion`, also the `.app-reduced-motion` class for CSS). GSAP writes inline styles through the CSSOM, which the CSP allows.
 - **Charts:** ApexCharts through `vue3-apexcharts`, with shared options in `charts/presets.ts` (Inter, tabular figures, toolbar off, palette per theme). Charts switch `theme.mode` with the app theme and turn animation off under `prefers-reduced-motion`.
 - API types are generated with `openapi-typescript` from each service's OpenAPI schema in CI. A failed generation fails the build.
 - **Route guards** check roles from the access token when online, or from the unlocked offline profile when offline (§6.1). The server still enforces every rule. Viewers see read-only views; action buttons are hidden, not just disabled.
@@ -1163,6 +1171,8 @@ frontend/src/
 | Map tiles (`https://tile.openstreetmap.org`) | Cache-first, max 2,000 entries, 30 days. Tiles are cached as viewed, never bulk-prefetched (OSM tile usage policy) |
 | API requests | **Never cached.** Offline data comes only from Dexie (§7.6) |
 | Mutations, uploads | Never cached; sent through the outbox |
+
+A new release waits for the user: the update prompt, never a silent reload (F5). Any change to a precached file changes `sw.js` and so shows the prompt on every device. The version the app shows (`Version 0.1.0` on the public pages) therefore comes from `frontend/package.json` and changes only when it is bumped for a release, never per commit (W4-17).
 
 ### 13.4 WebSocket client
 
@@ -1197,7 +1207,7 @@ frontend/src/
 
 - TLS 1.2+ at Nginx; HSTS (1 year); HTTP → HTTPS redirect.
 - Only Nginx (ports 80/443) is published. The services, MongoDB, Kafka, Redis and SeaweedFS are on an internal Docker network. Admin UIs (SeaweedFS, Kafka UI, Grafana) are reachable only via VPN or an SSH tunnel. Nginx returns 404 for `/internal/` and `/.well-known/`.
-- MongoDB, Redis, Kafka (SASL/SCRAM) and SeaweedFS S3 all require authentication. Each service has its own Mongo user limited to its own database (platform has two), and its own S3 access key limited to the buckets it needs.
+- MongoDB, Redis, Kafka (SASL/SCRAM) and SeaweedFS S3 all require authentication. **Kafka** (decision W4-16): clients use SCRAM-SHA-512 on `kafka:9092`; each service is its own user (`<PREFIX>_KAFKA_USERNAME`, `_KAFKA_PASSWORD`, required in staging and production) with ACLs from `infra/kafka/users.yml`: Write on its own events topic and its consumer groups' dead letters, Read on the topics it consumes, Read on its groups; nothing else (`allow.everyone.if.no.acl.found=false`). The KRaft controller and a plaintext listener bind to 127.0.0.1 inside the broker's container; `kafka-init` shares that network namespace to create topics, users and ACLs, and the unauthenticated loopback principal is the only super user. Each service has its own Mongo user limited to its own database (platform has two), and its own S3 access key limited to the buckets it needs.
 - **Same-origin API; no CORS.** The S3 files host allows only the app origin and exposes `ETag` (§2.1).
 - **CSP (Nginx):** `default-src 'self'; img-src 'self' https://files.<host> https://tile.openstreetmap.org data: blob:; media-src 'self' https://files.<host> blob:; connect-src 'self' https://files.<host> https://tile.openstreetmap.org wss://<host>; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'`. The tile host is in `connect-src` because the service worker fetches tiles. Vuetify injects its theme stylesheet at runtime; `theme.cspNonce` is used if possible.
 - Security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self), microphone=(self), geolocation=()`, `X-Frame-Options: DENY`.
@@ -1223,7 +1233,7 @@ frontend/src/
 | media-worker | same image as media | arq; `cpus: 2` |
 | report | python:3.13-slim + WeasyPrint dependencies + Chromium (Playwright) | API |
 | report-worker | same image as report | arq |
-| mongo | mongo:8 | Single-node replica set `rs0` |
+| mongo | mongo:8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
 | kafka | apache/kafka:4.x | KRaft combined mode; data on SSD |
 | kafka-ui | kafbat/kafka-ui | Internal only |
 | redis | redis:7.4 | `appendonly yes` |

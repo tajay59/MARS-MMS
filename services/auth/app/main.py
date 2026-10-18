@@ -22,7 +22,7 @@ from mms_common.web import PROBLEM, ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
-from app.api import admin_routes, internal_routes, session_routes
+from app.api import admin_routes, branding_routes, internal_routes, session_routes
 from app.api.context import COOKIE_PATH
 from app.config import Settings
 from app.domain.passwords import BreachedCheck, Hasher
@@ -90,7 +90,7 @@ def create_app(
             relay = run_relay(
                 db["outbox"],
                 lease,
-                producer_factory(settings.kafka_bootstrap, settings.service_name),
+                producer_factory(settings.kafka_bootstrap, settings.service_name, settings.kafka),
                 settings.outbox_topic,
                 clock,
                 stop,
@@ -155,6 +155,7 @@ def create_app(
 
     # Literal paths before /{id} (TRD §3.0): each router declares its own in that order.
     app.include_router(session_routes.router)
+    app.include_router(branding_routes.router)
     app.include_router(admin_routes.users)
     app.include_router(admin_routes.orgs)
     app.include_router(internal_routes.router)
