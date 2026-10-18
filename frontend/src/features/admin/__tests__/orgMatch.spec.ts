@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { closestOrg, similarity } from '../orgMatch'
 
 function org (name: string, status = 'active'): OrgOut {
-  return { id: name, name, country: 'JM', contact_email: null, phone: null, address: null, status, version: 1 }
+  return { id: name, name, short_name: null, external_id: null, country: 'JM', contact_email: null, phone: null, address: null, status, version: 1 }
 }
 
 // AFD J1 step 4: suggest the organization that matches what the client typed.

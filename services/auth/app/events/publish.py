@@ -43,6 +43,8 @@ def org_data(doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "org_id": doc["_id"],
         "name": doc["name"],
+        "short_name": doc.get("short_name"),
+        "external_id": doc.get("external_id"),
         "country": doc["country"],
         "status": doc["status"],
     }

@@ -131,6 +131,9 @@ class OrgData(_Data):
     name: str
     country: str
     status: str
+    # Since W5 (decision W5-8). Optional, so events written before then still parse.
+    short_name: str | None = None
+    external_id: str | None = None
 
 
 @register("org.created")

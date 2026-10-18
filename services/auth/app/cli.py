@@ -8,7 +8,12 @@
         The TP seed users and organizations A and B, for local and staging only. Password from
         AUTH_SEED_PASSWORD. Idempotent.
 
-Both go through the same rules and the outbox, so the audit trail records them (`user.created`).
+    python -m app.cli import-orgs FILE [--commit]
+        Organizations from the existing system's `org` export (decision W5-8). A dry run unless
+        --commit; organizations already there are skipped, so it can run again.
+
+All go through the same rules and the outbox, so the audit trail records them (`user.created`,
+`org.created`).
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ from typing import Any
 
 from mms_common import migrations, mongo
 from mms_common.events import Actor
+from mms_common.ids import new_id
 from mms_common.testing.seed import ORG_A, ORG_B, SEED_USERS
 from mms_common.time import SystemClock
 from pymongo.asynchronous.client_session import AsyncClientSession
@@ -29,6 +35,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from app import migrations as app_migrations
 from app.config import Settings
+from app.domain import org_import
 from app.domain import users as rules
 from app.domain.passwords import Hasher
 from app.events.publish import Emitter, ev
@@ -134,6 +141,57 @@ async def seed(password: str) -> int:
         await client.close()
 
 
+async def import_orgs(path: str, content: bytes, commit: bool) -> int:
+    """Organizations from the existing system's `org` export (decision W5-8). Dry run unless
+    `commit`. Only names, country and IDs are read: never the credentials in the documents."""
+    try:
+        docs = org_import.read_export(content)
+    except org_import.ExportError as exc:
+        print(f"Can't read {path}: {exc}", file=sys.stderr)
+        return 1
+    settings = Settings()
+    clock = SystemClock()
+    client = mongo.connect(settings.mongo_uri)
+    db = client[settings.mongo_db]
+    try:
+        await migrations.run(db, app_migrations, clock)
+        ids, names = await organizations.known_keys(db)
+        result = org_import.plan(docs, existing_external_ids=ids, existing_name_keys=names)
+        for problem in result.errors:
+            print(f"error    #{problem.number}: {problem.message}")
+        for problem in result.skipped:
+            print(f"skipped  #{problem.number}: {problem.message}")
+        if not commit:
+            for row in result.create:
+                short = row.short_name or "-"
+                print(f"would add #{row.number}: {row.name} ({short}, {row.country})")
+            print(f"Dry run: {len(result.create)} to add, {len(result.skipped)} skipped, "
+                  f"{len(result.errors)} with errors. Add --commit to write them.")
+            return 0
+        emitter = Emitter(db, clock, CLI, correlation_id=None)
+        now = clock.now()
+        for row in result.create:
+            org = {
+                "_id": new_id(), "name": row.name, "name_key": rules.org_name_key(row.name),
+                "short_name": row.short_name, "external_id": row.external_id,
+                "country": row.country, "contact_email": None, "phone": None, "address": None,
+                "status": "active", "created_at": now, "updated_at": now,
+                "created_by": None, "updated_by": None, "version": 1,
+            }
+
+            async def save(s: AsyncClientSession, org: dict[str, Any] = org) -> None:
+                await organizations.insert(db, org, s)
+                await emitter.org("org.created", ev.OrgCreated, org, s)
+
+            await mongo.in_transaction(client, save)
+            print(f"added    #{row.number}: {row.name}")
+        print(f"Added {len(result.create)}, skipped {len(result.skipped)}, "
+              f"{len(result.errors)} with errors")
+        return 0
+    finally:
+        await client.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -141,7 +199,19 @@ def main(argv: list[str] | None = None) -> int:
     admin.add_argument("--email", required=True)
     admin.add_argument("--name", required=True)
     commands.add_parser("seed")
+    orgs = commands.add_parser("import-orgs",
+                               help="organizations from the existing system's export")
+    orgs.add_argument("file")
+    orgs.add_argument("--commit", action="store_true", help="write them (default: dry run)")
     args = parser.parse_args(argv)
+    if args.command == "import-orgs":
+        try:
+            with open(args.file, "rb") as file:
+                content = file.read()
+        except OSError as exc:
+            print(f"Can't read {args.file}: {exc}", file=sys.stderr)
+            return 1
+        return asyncio.run(import_orgs(args.file, content, args.commit))
     if args.command == "create-admin":
         password = os.environ.get("AUTH_ADMIN_PASSWORD") or getpass.getpass("Password: ")
         if len(password) < 10:

@@ -48,6 +48,16 @@ class OrgNameTaken(Conflict):
     code, title = "org_name_taken", "An organization with this name already exists"
 
 
+class OrgExternalIdTaken(Conflict):
+    code, title = "org_external_id_taken", "Another organization has this external ID"
+
+
+def _org_conflict(exc: DuplicateKeyError) -> Conflict:
+    """Which unique field clashed: the name or the external ID."""
+    pattern = (exc.details or {}).get("keyPattern") or {}
+    return OrgExternalIdTaken() if "external_id" in pattern else OrgNameTaken()
+
+
 # --- Users ------------------------------------------------------------------------------------
 
 
@@ -204,7 +214,7 @@ async def approve(id: IdPath, body: ApproveIn, admin: Admin, ctx: CtxDep) -> Use
     try:
         updated = await ctx.tx(save)
     except DuplicateKeyError as exc:
-        raise OrgNameTaken() from exc
+        raise _org_conflict(exc) from exc
     return UserOut.of(updated)
 
 
@@ -234,6 +244,7 @@ async def reject(id: IdPath, body: RejectIn, admin: Admin, ctx: CtxDep) -> UserO
 def _org_doc(body: OrgIn, now: Any, by: str) -> dict[str, Any]:
     return {
         "_id": new_id(), "name": body.name, "name_key": rules.org_name_key(body.name),
+        "short_name": body.short_name, "external_id": body.external_id,
         "country": body.country, "contact_email": body.contact_email, "phone": body.phone,
         "address": body.address, "status": rules.OrgStatus.ACTIVE.value, "created_at": now,
         "updated_at": now, "created_by": by, "updated_by": by, "version": 1,
@@ -275,7 +286,7 @@ async def create_org(body: OrgIn, admin: Admin, ctx: CtxDep) -> OrgOut:
     try:
         await ctx.tx(save)
     except DuplicateKeyError as exc:
-        raise OrgNameTaken() from exc
+        raise _org_conflict(exc) from exc
     return OrgOut.of(doc)
 
 
@@ -323,7 +334,7 @@ async def _save_org(
     try:
         updated = await ctx.tx(save)
     except DuplicateKeyError as exc:
-        raise OrgNameTaken() from exc
+        raise _org_conflict(exc) from exc
     if deactivating:
         await revocation.revoke_org(ctx.redis, org_id, now)
     return updated

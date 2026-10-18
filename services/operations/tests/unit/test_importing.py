@@ -116,7 +116,8 @@ def test_missing_required_columns_stop_the_plan():
     table = importing.read_csv(b"code,name\nA1,One\n")
     plan = importing.plan(table, [], orgs_by_key=ORGS, existing_codes={}, models_by_key={},
                           units_by_model_serial={}, today=TODAY)
-    assert {p.column for p in plan.errors} == {"organization", "country", "latitude", "longitude"}
+    # The country defaults to the organization's (W5-8), so it is not a required column
+    assert {p.column for p in plan.errors} == {"organization", "latitude", "longitude"}
     assert plan.stations == []
 
 

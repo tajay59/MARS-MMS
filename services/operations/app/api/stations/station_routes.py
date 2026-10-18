@@ -47,6 +47,16 @@ class CodeTaken(Conflict):
     code, title = "code_taken", "A station with this code already exists"
 
 
+class ExternalIdTaken(Conflict):
+    code, title = "external_id_taken", "Another station has this external ID"
+
+
+def _station_conflict(exc: DuplicateKeyError) -> Conflict:
+    """Which unique field clashed: the code or the external ID."""
+    pattern = (exc.details or {}).get("keyPattern") or {}
+    return ExternalIdTaken() if "external_id" in pattern else CodeTaken()
+
+
 class ParameterInUse(Conflict):
     code, title = "parameter_in_use", "A sensor installed here measures this parameter"
 
@@ -108,6 +118,7 @@ async def create_station(body: StationIn, user: Writer, ctx: CtxDep) -> StationD
     now = ctx.clock.now()
     doc = stamp({
         "_id": new_id(), "code": code, "name": body.name, "type": body.type,
+        "external_id": body.external_id,
         "owner_org_id": org["_id"], "owner_org_name": org["name"], "country": body.country,
         "time_zone": body.time_zone, "region": body.region,
         "location": rules.point(body.latitude, body.longitude), "elevation_m": body.elevation_m,
@@ -126,7 +137,7 @@ async def create_station(body: StationIn, user: Writer, ctx: CtxDep) -> StationD
     try:
         await ctx.tx(save)
     except DuplicateKeyError as exc:
-        raise CodeTaken() from exc
+        raise _station_conflict(exc) from exc
     return StationDetail.build(doc, user, [], None)
 
 
@@ -134,7 +145,9 @@ async def create_station(body: StationIn, user: Writer, ctx: CtxDep) -> StationD
 async def import_stations(
     admin: Admin,
     ctx: CtxDep,
-    stations: Annotated[UploadFile, File(description="XLSX workbook or stations CSV")],
+    stations: Annotated[UploadFile, File(
+        description="XLSX workbook, stations CSV, or the existing system's site export (JSON)"
+    )],
     sensors: Annotated[UploadFile | None, File(description="Sensors CSV")] = None,
     dry_run: Annotated[bool, Query()] = True,
 ) -> ImportReport:
@@ -216,7 +229,7 @@ async def patch_station(id: IdPath, body: StationPatch, user: Writer, ctx: CtxDe
     try:
         updated = await ctx.tx(save)
     except DuplicateKeyError as exc:
-        raise CodeTaken() from exc
+        raise _station_conflict(exc) from exc
     installed = await views.installed_units(ctx, id, user)
     due = min((u.calibration_due_at for u in installed if u.calibration_due_at), default=None)
     return StationDetail.build(updated, user, installed, due)
