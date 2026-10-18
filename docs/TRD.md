@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 2.5 |
+| **Version** | 2.6 |
 | **Date** | 2026-10-18 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
@@ -16,6 +16,7 @@
 | **Changes in 2.3** | Kafka authentication as built (decision W4-16, 2026-10-18, §15): SASL/SCRAM-SHA-512 on the broker's client listener, one Kafka user per service with ACLs on exactly its topics, dead-letter topics and consumer groups (`infra/kafka/users.yml`), and the controller and plaintext listeners on loopback only |
 | **Changes in 2.4** | From the W4 checks on staging (2026-10-18): the app version comes from `frontend/package.json` and changes only on a deliberate bump, so back-end-only releases don't prompt phones to reload (W4-17, §13.3); the Mongo entrypoint writes the replica-set key file fresh on every start, including a plain restart (W4-18, §16.1) |
 | **Changes in 2.5** | From the Android phone check (2026-10-18, decision W4-19, finding F14): the service worker installs its precache **six files at a time**, each tried up to three times, the build makes few large chunks and leaves icons out of the precache, and the app registers the worker again after a failed install (§13.3) |
+| **Changes in 2.6** | The stations module as built (IP Phase 2 W5, 2026-10-18, decisions W5-1 to W5-7). Sensor units are installed and removed by **actions**, `POST /api/v1/sensor-units/{id}/install` and `/remove`; `installed` is reached only through them (§3.2). `GET /api/v1/stations/facets` for the list's filters; the list pages by code (§3.2). New events `sensor_model.created` / `.updated`; a unit's events are keyed by its station while installed and by the unit while in stock (§8.1, §8.4). operations keeps a copy of the organizations from `org.*` events and auth's snapshot, read at every start with its own service secret (§3.2, §5.2, §8.6). The station import format (§3.2). `upsert_if_newer` reads before writing so a consumer's transaction is never aborted by a duplicate key (§8.6) |
 | **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
@@ -213,6 +214,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 |---|---|---|---|
 | GET | `/api/v1/stations` | any (client: own org) | List, filter (org, country, type, status, parameter), search, paginate |
 | POST | `/api/v1/stations` | technician, admin | Create a station |
+| GET | `/api/v1/stations/facets` | any (scoped) | Countries, types, parameters and organizations present, for the list's filters (as built 2.6) |
 | GET | `/api/v1/stations/geo` | any (scoped) | GeoJSON FeatureCollection for the map |
 | GET | `/api/v1/stations/{id}` | any (scoped) | Detail, including installed units and calibration status |
 | PATCH | `/api/v1/stations/{id}` | technician, admin | Update (owner organization can't change: BSD B5) |
@@ -223,11 +225,17 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | GET | `/api/v1/qr/{token}` | any (scoped) | Resolve a QR token → station ID and view type |
 | POST | `/api/v1/stations/{id}/qr/regenerate` | admin | New token; the old one is revoked |
 | GET / POST / PATCH | `/api/v1/sensor-models[/{id}]` | staff (write: technician, admin) | Sensor model catalogue |
-| GET / POST / PATCH | `/api/v1/sensor-units[/{id}]` | staff | Units by serial; status; interval override; `needs_review` |
+| GET / POST / PATCH | `/api/v1/sensor-units[/{id}]` | staff (write: technician, admin) | Units by serial; status (not `installed`); interval override; serial and model corrections; `needs_review` |
+| POST | `/api/v1/sensor-units/{id}/install` | technician, admin | Install a unit in stock at a station for a parameter; opens an installation (as built 2.6) |
+| POST | `/api/v1/sensor-units/{id}/remove` | technician, admin | Remove it with a reason into stock, repair or retirement; closes the installation (as built 2.6) |
 | GET | `/api/v1/calibrations/due?within_days=30` | staff | Units due or overdue (CAL-4) |
 | GET / POST | `/api/v1/calibrations` | staff | List (filter by unit, station, due window) / record a lab calibration |
 | GET / POST / PATCH | `/api/v1/documents[/{id}]` | scoped (client: `client_visible` only) | Documents by `scope=model\|station`; new version via `supersedes_id` |
 | GET | `/api/v1/documents/{id}/download` | scoped | Checks access (below), then returns a presigned URL from media `POST /internal/media/{id}/url` |
+
+**As built (2.6).** The list is sorted by code and pages with `after` = the last code, and returns `total` and each station's next calibration due date. For clients, a station's `qr_token` and `current_config_version` come back empty. A unit becomes `installed` only through `install`: from stock, for a parameter its model measures and the station lists, not already measured there, at a station that isn't decommissioned; a PATCH to or from `installed` is refused (`409 unit_installed`). A station's parameter can't be dropped while a unit measures it (`409 parameter_in_use`). A calibration sets the unit's last calibration and due date only when it is the newest; a `fail` adds the flag `calibration_failed` and a later pass or adjustment clears it (CAL-6). A new model default interval moves the due date of every unit without an override, each with `sensor_unit.updated`.
+
+**Station import (STN-8, as built 2.6).** One XLSX with sheets `Stations` and `Sensors`, or CSV files (the stations file, and optionally a sensors file). Headers are matched ignoring case, spaces and underscores, with aliases. Stations need `code`, `name`, `organization` (an existing active organization's name), `country` (ISO code or English name), `latitude`, `longitude`; `time_zone` defaults for a country with one zone (IANA `zone.tab`). Sensors need `station_code`, `manufacturer`, `model`, `serial`, and `parameter` for a sensor; missing models are created. Dates are the station's local midnight. Every problem is reported with its sheet and row number; a code that exists is skipped; valid rows are written one station per transaction with their units, installations and events. `dry_run` defaults to true. The same job runs as `python -m app.cli import-stations` inside the container. Limits: 10 MB per file, 5,000 stations and 20,000 sensors.
 
 **Document access for clients.** A station document is readable when the station is in the client's organization and the document is `client_visible`. A **model** document (DOC-1) is readable when it is `client_visible` and the client's organization has a station with a unit of that model currently installed (BSD B4). Model-document files carry no `org_id` in media and stay `visibility = staff`, so clients reach them only through this endpoint.
 
@@ -334,7 +342,7 @@ When a visit ends, and on every later work save until the visit is locked, the d
 | `report.finalized` (visit) | Set `visit.report_status = final` (guarded by report version), recompute the request status |
 | `report.reopened` (visit) | Set `visit.report_status = draft`, recompute the request status |
 | `report.generated` (client_form) | Attach the rendered PDF to the client report |
-| `org.created`, `org.updated` | Refresh the copied organization name |
+| `org.created`, `org.updated` | Refresh operations' copy of the organization (`organizations`: name, country, status, guarded by `aggregate_version`) and the owner name copied onto its stations. The copy is also filled from auth's `/internal/snapshot/organizations` at every start (§8.6); new stations need an active organization (as built 2.6) |
 
 **Cron (Redis-locked):** client-review reminders on days 7, 21 and 28 (`request.review_reminder`); auto-close on day 30 (`request.closed` with `auto_closed: true`), both daily and configurable (`OPS_REVIEW_REMINDER_DAYS`, `OPS_AUTO_CLOSE_DAYS`); weekly calibration-due digest (`calibration.due_digest`, CAL-5).
 
@@ -918,7 +926,7 @@ Changing a station's owner or cancelling a visit while it is prepared on a devic
 | Broker | Kafka 4.x, KRaft combined mode, single node in v1 (see R2) |
 | Topics | One per producer: `mms.auth.events`, `mms.operations.events`, `mms.media.events`, `mms.report.events`. `platform` produces none |
 | Partitions | 3 per topic |
-| Message key | The **root aggregate**: `user_id` or `org_id` (auth); `request_id` for request, comment, client-report and visit events; `station_id` for station, sensor, calibration, document and config events; `media_id` (media); `request_id` for visit-report and close-out events (report) |
+| Message key | The **root aggregate**: `user_id` or `org_id` (auth); `request_id` for request, comment, client-report and visit events; `station_id` for station, sensor, calibration, document and config events; `media_id` (media); `request_id` for visit-report and close-out events (report). As built (2.6): a sensor unit in stock has no station, so its events are keyed by `unit_id`; sensor model events by `model_id` |
 | Retention | 14 days (Kafka is not a system of record; MongoDB is) |
 | Dead letters | `mms.dlq.<consumer-service>`, retention 30 days |
 | Producer | aiokafka, `enable_idempotence=True`, `acks="all"` |
@@ -979,7 +987,8 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `branding.updated` | auth | platform (audit) | custom, name?, seed? (key `branding`; audit before/after: custom, name, seed, light and dark primary) |
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
-| `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review |
+| `sensor_model.created` / `sensor_model.updated` | operations | platform (audit) | model_id, kind, manufacturer, model, parameters, default_calibration_interval_days (as built 2.6) |
+| `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review, current_station_id, calibration_due_at |
 | `sensor.installed` / `sensor.removed` / `sensor.application_reversed` | operations | report, platform (audit) | unit_id, serial, model_id, station_id, parameter, visit_id, action_id |
 | `calibration.recorded` / `calibration.voided` | operations | report, platform (audit) | calibration_id, unit_id, station_id, result, due_at |
 | `calibration.due_digest` | operations | platform (notification) | units: [{unit_id, serial, station_id, due_at}] |
@@ -1030,6 +1039,7 @@ Read models (report's facts, platform's `user_directory`, operations' copied org
 
 - Each producer exposes `GET /internal/snapshot/{entity}?after=<id>&limit=500`, returning current documents with their `aggregate_version`.
 - `infra/scripts/backfill.py --consumer <service>` pages through the snapshots and upserts the read model with the same `aggregate_version` guard. The consumer then continues from its committed Kafka offset, so events during the backfill are applied or skipped correctly.
+- `upsert_if_newer` reads the stored `aggregate_version` before writing and never provokes a duplicate-key error: inside a consumer's transaction that error aborts the transaction even when caught (as built 2.6).
 - It runs on the first deploy of a consumer (for example, `report` in Phase 6 over data entered since Phase 2), after Kafka data loss, and when a new read model is added.
 
 ---

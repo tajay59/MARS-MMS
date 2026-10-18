@@ -48,6 +48,7 @@
       <div class="toc-group">
         <span class="toc-label">Features</span>
         <a href="#auth">Authentication <span class="dot progress" title="In progress"></span></a>
+        <a href="#stations">Stations and sensors <span class="dot progress" title="In progress"></span></a>
         <a href="#requests">Requests <span class="dot" title="Planned"></span></a>
         <a href="#visits">Visits and offline sync <span class="dot" title="Planned"></span></a>
         <a href="#media">Files and media <span class="dot progress" title="In progress"></span></a>
@@ -135,11 +136,11 @@
             <table>
               <thead><tr><th>Document</th><th>Covers</th><th>Version</th></tr></thead>
               <tbody>
-                <tr><td><a href="PRD.md">PRD.md</a></td><td>Product requirements and their IDs</td><td>1.2</td></tr>
-                <tr><td><a href="TRD.md">TRD.md</a></td><td>Technical requirements: services, data model, events, security, infrastructure</td><td>2.1</td></tr>
-                <tr><td><a href="AFD.md">AFD.md</a></td><td>App flow: journeys J1–J10, routes, menus, edge states</td><td>1.3</td></tr>
-                <tr><td><a href="DBD.md">DBD.md</a></td><td>Design brief: colour, type, shells, components</td><td>1.4</td></tr>
-                <tr><td><a href="BSD.md">BSD.md</a></td><td>Background schema: where data lives, access, retention</td><td>1.2</td></tr>
+                <tr><td><a href="PRD.md">PRD.md</a></td><td>Product requirements and their IDs</td><td>1.3</td></tr>
+                <tr><td><a href="TRD.md">TRD.md</a></td><td>Technical requirements: services, data model, events, security, infrastructure</td><td>2.6</td></tr>
+                <tr><td><a href="AFD.md">AFD.md</a></td><td>App flow: journeys J1–J10, routes, menus, edge states</td><td>1.5</td></tr>
+                <tr><td><a href="DBD.md">DBD.md</a></td><td>Design brief: colour, type, shells, components</td><td>1.6</td></tr>
+                <tr><td><a href="BSD.md">BSD.md</a></td><td>Background schema: where data lives, access, retention</td><td>1.4</td></tr>
                 <tr><td><a href="IP.md">IP.md</a></td><td>Implementation plan: phases 0–8</td><td>1.1 draft</td></tr>
                 <tr><td><a href="TP.md">TP.md</a></td><td>Test plan</td><td>1.2 draft</td></tr>
               </tbody>
@@ -154,14 +155,14 @@
       <section class="doc" id="status">
         <div class="doc-head">
           <h2 id="status-h">Build status</h2>
-          <p>Phase 1 (Foundations) is under way: W2 and W3 are built. The shared library, the service template, the local Compose stack, the <b>auth</b> service and <b>platform's audit module</b> run end to end: register → approve → log in → reset lands in the hash-chained audit log. W4 is under way: the frontend shells, the auth and admin screens, the minimal service worker, the Playwright J1/J2 journeys, <b>platform's account emails</b> and the <b>release pipeline</b> (images, Trivy, GHCR, staging deploy and smoke tests) are built. Since the W4 close-out: Kafka needs SASL/SCRAM per service (W4-16), the app shell has a bottom bar below 1024 px (W4-14), and all twelve Phase 1 charts are in. Staging is live and every merge to <code>main</code> deploys to it. <b>The W4 checks on staging passed on 2026-10-18</b>: register → approve → log in → reset by hand into the audit chain (the Phase 1 exit criterion; <code>verify()</code> clean over 36 records), and the update prompt between two real releases (release 0.1). The Android phone check passed on 2026-10-18 (issue #8); it measured the first install at 180 s, now fixed (W4-19). Still open for Phase 1: the iPhone check.</p>
+          <p>Phase 1 (Foundations) is under way: W2 and W3 are built. The shared library, the service template, the local Compose stack, the <b>auth</b> service and <b>platform's audit module</b> run end to end: register → approve → log in → reset lands in the hash-chained audit log. W4 is under way: the frontend shells, the auth and admin screens, the minimal service worker, the Playwright J1/J2 journeys, <b>platform's account emails</b> and the <b>release pipeline</b> (images, Trivy, GHCR, staging deploy and smoke tests) are built. Since the W4 close-out: Kafka needs SASL/SCRAM per service (W4-16), the app shell has a bottom bar below 1024 px (W4-14), and all twelve Phase 1 charts are in. Staging is live and every merge to <code>main</code> deploys to it. <b>The W4 checks on staging passed on 2026-10-18</b>: register → approve → log in → reset by hand into the audit chain (the Phase 1 exit criterion; <code>verify()</code> clean over 36 records), and the update prompt between two real releases (release 0.1). The Android phone check passed on 2026-10-18 (issue #8); it measured the first install at 180 s, now fixed (W4-19). Still open for Phase 1: the iPhone check. <b>Phase 2 (Stations) has started: W5's backend is built</b>: the <b>operations</b> service with its stations module (stations, sensor models and units, installations, calibrations, the calibration-due list, the station import and the snapshots), its own Kafka user and its copy of the organizations. The station list and page are at the mock-up stage.</p>
           <span class="src">Sources: <a href="IP.md">IP.md</a> · updated 2026-10-18</span>
         </div>
 
         <div class="phases">
           <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 backend built</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
@@ -185,9 +186,10 @@
                 <tr><td><code>templates/service/</code></td><td>Copier template. A generated service runs migrations on startup, the relay under its lease and JWT auth from JWKS, and passes the architecture checks and the authorization matrix unchanged.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
                 <tr><td><code>services/auth/</code></td><td>Registration and approval, invitations, login, refresh rotation, logout, password reset, profile, users, organizations, JWKS, service tokens, account links, snapshots, the AUTH-5 purge, and an operator CLI.</td><td><span class="badge built">Built (W3)</span></td></tr>
                 <tr><td><code>services/platform/</code></td><td>Audit module: consumer group <code>audit</code> on every topic, the hash chain and its integrity check. Notification module: account emails (consumer group <code>notification</code>, <code>email_queue</code>, the sender job) since W4; in-app, WebSocket and the other emails in Phase 3.</td><td><span class="badge progress">Audit (W3) and account emails (W4) built</span></td></tr>
-                <tr><td><code>infra/</code></td><td>Compose stack: Nginx gateway, MongoDB <code>rs0</code> (one user per database, insert-only audit role), Redis, Kafka, SeaweedFS, Mailpit, auth, platform. Stack tests include J1 and J2 end to end into the audit chain.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
+                <tr><td><code>infra/</code></td><td>Compose stack: Nginx gateway, MongoDB <code>rs0</code> (one user per database, insert-only audit role), Redis, Kafka, SeaweedFS, Mailpit, auth, operations (W5), platform. Stack tests include J1 and J2 end to end into the audit chain.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
                 <tr><td><code>.github/workflows/backend.yml</code></td><td><code>mms_common</code>, each service, both template variants, <code>nginx -t</code>, and the Compose stack with its tests.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
-                <tr><td><code>services/operations</code>, <code>media</code>, <code>report</code></td><td>The other three services.</td><td><span class="badge planned">Phases 2–6</span></td></tr>
+                <tr><td><code>services/operations/</code></td><td>Stations module (W5): stations, sensor models, units, installation history, calibrations and the calibration-due list, the station import (API with dry run, and <code>python -m app.cli import-stations</code>), a demo seed, snapshots, and its copy of the organizations (consumer group <code>operations</code> on <code>mms.auth.events</code>, backfilled from auth at startup). Requests (Phase 3) and visits (Phase 4) follow.</td><td><span class="badge progress">Stations module built (W5)</span></td></tr>
+                <tr><td><code>services/media</code>, <code>report</code></td><td>The other two services.</td><td><span class="badge planned">Phases 2–6</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -331,7 +333,7 @@ flowchart TB
      ===================================================================== -->
       <section class="doc" id="services">
         <div class="doc-head">
-          <div class="row"><h2 id="services-h">Services and endpoints</h2><span class="badge progress">auth and platform built</span></div>
+          <div class="row"><h2 id="services-h">Services and endpoints</h2><span class="badge progress">auth, platform and the stations module built</span></div>
           <p>What each service owns, what it publishes and consumes, and every public and internal route. Literal paths (<code>/geo</code>, <code>/mine</code>, <code>/due</code>) are declared before <code>/{id}</code>; <code>{id}</code> is a UUIDv7.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3</a></span>
         </div>
@@ -345,7 +347,7 @@ flowchart TB
           <article class="card">
             <h3>operations</h3>
             <p>Stations, sensors, calibrations, documents, config versions, QR; requests, comments, client reports; visits, work records, checklists, sync.</p>
-            <dl><dt>Database</dt><dd><code>operations</code></dd><dt>Emits</dt><dd><code>station.*</code>, <code>sensor.*</code>, <code>request.*</code>, <code>visit.*</code>, <code>media.visibility_requested</code>, …</dd><dt>Consumes</dt><dd><code>report.finalized</code>, <code>report.reopened</code>, <code>report.generated</code>, <code>org.*</code></dd><dt>Cron</dt><dd>Review reminders (7, 21, 28), auto-close (30), calibration digest</dd><dt>Env prefix</dt><dd><code>OPS_</code></dd><dt>Phase</dt><dd>2 (stations), 3 (requests), 4–5 (visits)</dd></dl>
+            <dl><dt>Database</dt><dd><code>operations</code></dd><dt>Emits</dt><dd><code>station.*</code>, <code>sensor.*</code>, <code>request.*</code>, <code>visit.*</code>, <code>media.visibility_requested</code>, …</dd><dt>Consumes</dt><dd><code>org.created</code>, <code>org.updated</code> (built, group <code>operations</code>); <code>report.finalized</code>, <code>report.reopened</code>, <code>report.generated</code> (Phases 4–6)</dd><dt>Cron</dt><dd>Review reminders (7, 21, 28), auto-close (30), calibration digest</dd><dt>Env prefix</dt><dd><code>OPS_</code></dd><dt>Phase</dt><dd>2 (stations: W5 built), 3 (requests), 4–5 (visits)</dd></dl>
           </article>
           <article class="card">
             <h3>media <small class="muted">+ media-worker</small></h3>
@@ -401,21 +403,24 @@ flowchart TB
                 <tr><td>auth</td><td>POST</td><td><code>/internal/service-token</code></td><td>service secret</td><td>Short-lived service token</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/internal/account-links</code></td><td>service (platform)</td><td>Mints a reset or invitation link when the email is sent</td></tr>
                 <tr><td>auth</td><td>GET</td><td><code>/internal/snapshot/{users|organizations}</code></td><td>service</td><td>Read-model backfill</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations</code></td><td>any (client: own org)</td><td>List, filter, search, paginate</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations</code></td><td>technician, admin</td><td>Create a station</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations</code></td><td>any (client: own org)</td><td>Built (W5). Filter by <code>org_id</code>, <code>country</code>, <code>type</code>, <code>status</code>, <code>parameter</code>, search <code>q</code>; sorted by code, <code>after</code> = last code; returns <code>total</code> and each station's next calibration due date</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/facets</code></td><td>any (scoped)</td><td>Built (W5-5). Countries, types, parameters and organizations present, for the filter menus</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations</code></td><td>technician, admin</td><td>Built (W5). Create a station for an active organization; <code>station.created</code></td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/geo</code></td><td>any (scoped)</td><td>GeoJSON for the map</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}</code></td><td>any (scoped)</td><td>Detail with installed units and calibration status</td></tr>
-                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/stations/{id}</code></td><td>technician, admin</td><td>Update (owner organization never changes)</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/installations</code></td><td>any (scoped)</td><td>Sensor installation history</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}</code></td><td>any (scoped)</td><td>Built (W5). Detail with installed units and calibration status; for clients the QR token and config version are empty</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/stations/{id}</code></td><td>technician, admin</td><td>Built (W5). Update with <code>version</code>; the owner organization is not a field (B5); a parameter still measured by an installed unit can't be dropped</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/installations</code></td><td>any (scoped)</td><td>Built (W5). Sensor installation history, newest first</td></tr>
                 <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/stations/{id}/config-versions</code></td><td>staff / technician, admin</td><td>List; create a config version</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/config-versions/{v}/diff</code></td><td>staff</td><td>File-level diff by checksum (CFG-3)</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/import</code></td><td>admin</td><td>Bulk import CSV/XLSX with dry run (STN-8)</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/import</code></td><td>admin</td><td>Built (W5-4). Bulk import CSV/XLSX, dry run by default (STN-8); the report lists every problem by sheet and row</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/qr/{token}</code></td><td>any (scoped)</td><td>Resolve a QR token</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations/{id}/qr/regenerate</code></td><td>admin</td><td>New QR token; old one revoked</td></tr>
-                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/sensor-models[/{id}]</code></td><td>staff (write: technician, admin)</td><td>Sensor model catalogue</td></tr>
-                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/sensor-units[/{id}]</code></td><td>staff</td><td>Units by serial; status; <code>needs_review</code></td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/calibrations/due</code></td><td>staff</td><td>Units due or overdue (CAL-4)</td></tr>
-                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/calibrations</code></td><td>staff</td><td>List; record a lab calibration</td></tr>
+                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/sensor-models[/{id}]</code></td><td>staff (write: technician, admin)</td><td>Built (W5). Sensor model catalogue; a new default interval moves the due date of every unit that follows it</td></tr>
+                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/sensor-units[/{id}]</code></td><td>staff (write: technician, admin)</td><td>Built (W5). Units by serial; status (not <code>installed</code>); interval override; serial and model corrections; <code>needs_review</code>. Detail includes the installation history</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/sensor-units/{id}/install</code></td><td>technician, admin</td><td>Built (W5-1). Put a unit in stock on a station for a parameter; opens an installation; <code>sensor.installed</code></td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/sensor-units/{id}/remove</code></td><td>technician, admin</td><td>Built (W5-1). Take it off with a reason, into stock, repair or retirement; closes the installation; <code>sensor.removed</code></td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/calibrations/due</code></td><td>staff</td><td>Built (W5). Units overdue or due within <code>within_days</code> (default 30), by organization, country or station (CAL-4)</td></tr>
+                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/calibrations</code></td><td>staff (write: technician, admin)</td><td>Built (W5). List by unit or station; record a calibration (CAL-1). The newest record sets the unit's due date (CAL-3); a fail flags it (CAL-6). Certificates arrive with documents (W6)</td></tr>
                 <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/documents[/{id}]</code></td><td>scoped (client: visible only)</td><td>Model and station documents, versioned</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/documents/{id}/download</code></td><td>scoped</td><td>Access check, then a presigned URL from media</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests</code></td><td>any (scoped)</td><td>List and filter (REQ-15)</td></tr>
@@ -455,7 +460,7 @@ flowchart TB
                 <tr><td>operations</td><td>GET</td><td><code>/internal/visits/{id}</code></td><td>service</td><td>Full visit for report rendering</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/internal/requests/{id}</code></td><td>service</td><td>Request, org, stations, staff, status</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/internal/attachable</code></td><td>service (media)</td><td>May this user attach here? Returns <code>org_id</code></td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/internal/snapshot/{stations|requests|visits|sensor_units|calibrations}</code></td><td>service</td><td>Read-model backfill</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/internal/snapshot/{stations|requests|visits|sensor_units|calibrations}</code></td><td>service (report, platform)</td><td>Read-model backfill. Built for stations, sensor units and calibrations (W5)</td></tr>
                 <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads</code></td><td>any (owner check)</td><td>Create media record; multipart upload + presigned part URLs</td></tr>
                 <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/parts</code></td><td>uploader</td><td>More part URLs (resume); parts already uploaded</td></tr>
                 <tr><td>media</td><td>POST</td><td><code>/api/v1/uploads/{id}/complete</code></td><td>uploader</td><td>Complete, verify checksum, enqueue processing</td></tr>
@@ -564,7 +569,7 @@ flowchart LR
      ===================================================================== -->
       <section class="doc" id="data">
         <div class="doc-head">
-          <div class="row"><h2 id="data-h">Data and schemas</h2><span class="badge progress">auth and audit built</span></div>
+          <div class="row"><h2 id="data-h">Data and schemas</h2><span class="badge progress">auth, audit and the stations module built</span></div>
           <p>MongoDB and the S3 store are the only systems of record. Each service owns its database and has a Mongo user that can reach only that database; <code>platform</code> owns two. Kafka, Redis and the browser store are working copies.</p>
           <span class="src">Sources: <a href="BSD.md">BSD</a> · <a href="TRD.md">TRD §5, §7.1, §10</a> · ADR-2</span>
         </div>
@@ -576,7 +581,7 @@ flowchart LR
               <thead><tr><th>Database</th><th>Service</th><th>Collections</th><th>Outbox</th><th>Consumes events</th></tr></thead>
               <tbody>
                 <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code>, <code>settings</code></td><td>Yes</td><td>No</td></tr>
-                <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code>, <code>sensor_applications</code>, <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>checklist_templates</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
+                <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code> (built W5), <code>organizations</code> (copy from auth, W5-3), <code>sensor_applications</code>, <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>checklist_templates</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>media</code></td><td>media</td><td><code>media</code> (files are in S3)</td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>report</code></td><td>report</td><td><code>reports</code>, <code>signatures</code>, <code>report_jobs</code>; read model <code>request_facts</code>, <code>visit_facts</code>, <code>sensor_events</code>, <code>calibration_facts</code>, <code>station_facts</code></td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>notification</code></td><td>platform</td><td><code>notifications</code>, <code>preferences</code>, <code>user_directory</code></td><td>No</td><td>Yes</td></tr>
@@ -682,7 +687,13 @@ sensor_applications { _id /*= sensor action id*/, visit_id, station_id, action_h
                       effects: { installations_opened, installations_closed, unit_status, calibration_id, unit_created } }
 documents { _id, scope: "model"|"station", scope_id, doc_type, title, version_label, language,
             description, client_visible: bool, media_id, supersedes_id, is_current: bool }
-config_versions { _id, station_id, version /*1..n*/, files: [{ media_id, filename, sha256, size_bytes }], notes, visit_id }</code></pre>
+config_versions { _id, station_id, version /*1..n*/, files: [{ media_id, filename, sha256, size_bytes }], notes, visit_id }
+
+// As built (W5)
+sensor_models.key   /*"manufacturer|model" in lower case with single spaces: unique*/
+organizations { _id /*auth's org_id*/, name, name_key, country, status, aggregate_version }
+                    /*operations' copy, from org.* events and auth's snapshot (W5-3)*/
+installations.source_action_id   /*unique only where set: manual installs have none*/</code></pre>
             </div>
           </details>
 
@@ -1068,11 +1079,12 @@ flowchart LR
                 <tr><td><code>user.purged</code> (built)</td><td>auth</td><td>platform</td><td>user_id (AUTH-5)</td></tr>
                 <tr><td><code>org.created</code> / <code>org.updated</code> (built)</td><td>auth</td><td>operations, report, platform</td><td>org_id, name, country, status; changed_fields on update</td></tr>
                 <tr><td><code>branding.updated</code> (built)</td><td>auth</td><td>platform (audit, "brand colour changes")</td><td>custom, name, seed; key <code>branding</code>, resource <code>settings/branding</code>; audit before/after: custom, name, seed, light and dark primary</td></tr>
-                <tr><td><code>station.created</code> / <code>station.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, code, name, org_id, country, status</td></tr>
+                <tr><td><code>station.created</code> / <code>station.updated</code> (built)</td><td>operations</td><td>report, platform (audit)</td><td>station_id, code, name, org_id, country, status, type, time_zone; <code>via</code> (api, import) on created; changed_fields on update</td></tr>
+                <tr><td><code>sensor_model.created</code> / <code>sensor_model.updated</code> (built; W5-2)</td><td>operations</td><td>platform (audit)</td><td>model_id, kind, manufacturer, model, parameters, default_calibration_interval_days; key <code>model_id</code></td></tr>
                 <tr><td><code>qr.regenerated</code></td><td>operations</td><td>platform (audit)</td><td>station_id</td></tr>
-                <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code></td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, needs_review</td></tr>
-                <tr><td><code>sensor.installed</code> / <code>sensor.removed</code> / <code>sensor.application_reversed</code></td><td>operations</td><td>report, platform (audit)</td><td>unit_id, serial, model_id, station_id, parameter, visit_id, action_id</td></tr>
-                <tr><td><code>calibration.recorded</code> / <code>calibration.voided</code></td><td>operations</td><td>report, platform (audit)</td><td>calibration_id, unit_id, station_id, result, due_at</td></tr>
+                <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code> (built)</td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, needs_review, current_station_id, calibration_due_at; key = the unit's station, or the unit itself while in stock (W5-2)</td></tr>
+                <tr><td><code>sensor.installed</code> / <code>sensor.removed</code> (built) / <code>sensor.application_reversed</code> (schema; Phase 4)</td><td>operations</td><td>report, platform (audit)</td><td>installation_id, unit_id, serial, model_id, station_id, parameter, at, unit_status, visit_id, action_id; reason on removal; key <code>station_id</code></td></tr>
+                <tr><td><code>calibration.recorded</code> (built) / <code>calibration.voided</code> (schema; Phase 4)</td><td>operations</td><td>report, platform (audit)</td><td>calibration_id, unit_id, station_id, method, at, result, due_at</td></tr>
                 <tr><td><code>calibration.due_digest</code></td><td>operations</td><td>platform (notification)</td><td>units[]</td></tr>
                 <tr><td><code>document.uploaded</code> / <code>document.updated</code></td><td>operations</td><td>platform (audit)</td><td>document_id, scope, scope_id, doc_type, client_visible</td></tr>
                 <tr><td><code>config.version_created</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, version, file_count, visit_id?</td></tr>
@@ -1492,6 +1504,85 @@ STAFF_WRITE = {"technician", "admin"}            # every mutating route; the mat
 # Repository layer: a client's query always gets their own org (both conditions must hold)
 await col.find_one(scoped(user, {"_id": id}))    # another org's record: not found -> 404</code></pre>
           <p>Org scoping is applied by the repository, not the endpoint. Clients see staff only as <code>{id, name}</code>, never email or phone (D4). Out-of-scope records are 404. The auth dependency raises before FastAPI reports body errors, so an unauthorised caller gets 401 or 403, never 422. Services get the authorization matrix, the client leak check, seed users and a token issuer from <code>mms_common.testing</code>.</p>
+        </div>
+      </section>
+
+<!-- =====================================================================
+     STATIONS AND SENSORS
+     ===================================================================== -->
+      <section class="doc" id="stations">
+        <div class="doc-head">
+          <div class="row"><h2 id="stations-h">Stations and sensors</h2><span class="badge progress">Backend built (W5) · screens, documents, QR and map W5–W7</span></div>
+          <p>The operations service's stations module. Each station belongs to one client organization for good; sensor units are tracked by serial through stock, stations, repair and retirement; every installation and calibration is kept; and a unit's calibration due date follows its newest calibration and its interval.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.2, §5.2</a> · <a href="BSD.md">BSD "operations — stations module"</a> · STN-1 to STN-8, SEN-1 to SEN-3, CAL-1 to CAL-4, CAL-6 · code in <code>services/operations/app/{domain,repo,api}/stations/</code></span>
+        </div>
+
+        <div class="sub" id="stations-rules">
+          <h3>Rules the code enforces</h3>
+          <ul>
+            <li><b>Scoping</b> (rule 3): stations by <code>owner_org_id</code>, units by <code>current_org_id</code>, installations and calibrations by <code>org_id</code>, all in <code>repo/stations/</code>. Another organization's station is a 404 (rule 4).</li>
+            <li><b>Owner for good</b> (ORG-2, B5): <code>owner_org_id</code> is not a field of an edit, so trying is a 422.</li>
+            <li><b>Clients see a summary</b> (STN-6): the station, its installed units and their calibration dates. The QR token and configuration version come back empty. Models, units and calibrations have no client routes.</li>
+            <li><b>Install and remove</b> (W5-1): only through the actions. One unit measures a parameter at a station, and a station's parameter can't be dropped while a unit measures it.</li>
+            <li><b>Due dates</b> (CAL-3): <code>last_calibrated_at</code> plus the unit's interval, or its model's default. An older calibration joins the history without moving the date. A failed one adds the <code>calibration_failed</code> flag, and a later pass clears it (CAL-6).</li>
+            <li><b>Every change is an event</b> in the same transaction (rule 2), and every event is audited (AUD-1).</li>
+          </ul>
+        </div>
+
+        <figure class="diagram" id="stations-unit-state" data-title="A sensor unit's status and what changes it" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> in_stock: POST /sensor-units, the import, or a visit's unknown serial (Phase 4)
+    in_stock --> installed: install (station, parameter)
+    installed --> in_stock: remove (reason)
+    installed --> in_repair: remove (reason)
+    installed --> retired: remove (reason)
+    in_stock --> in_repair: PATCH status
+    in_repair --> in_stock: PATCH status
+    in_stock --> retired: PATCH status
+    in_repair --> retired: PATCH status
+    retired --> in_stock: PATCH status (a correction)
+</pre>
+          </div>
+          <figcaption>Install and remove also open and close a row in <code>installations</code> and emit <code>sensor.installed</code> or <code>sensor.removed</code>. A PATCH to or from <code>installed</code> is refused (<code>409 unit_installed</code>).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="stations-import" data-title="Station import with a dry run" data-kind="Process flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["Admin uploads an XLSX (Stations and Sensors sheets) or CSV files"] --> B{"Readable, at most 10 MB and 5,000 stations?"}
+    B -- No --> X["422 unreadable_file or file_too_large"]
+    B -- Yes --> C{"Required columns present?"}
+    C -- No --> R["Report: the missing columns, on row 1"]
+    C -- Yes --> D["Check each station row: code, name, organization by name, country, time zone, coordinates, status, dates"]
+    D --> E{"Code already in the system?"}
+    E -- Yes --> S["Skipped, not an error"]
+    E -- No --> F["Check each sensor row: station, kind, model, serial, parameter, dates"]
+    F --> G{"Dry run?"}
+    G -- Yes --> R2["Report: what would be created, and every skipped row, error and warning by row number"]
+    G -- No --> H["New sensor models: one transaction with their events"]
+    H --> I["Each valid station: one transaction with its units, installations and events"]
+    I --> R3["Report: what was created, and every skipped row, error and warning"]
+    R3 --> J["Fix the file and run it again: existing codes are skipped"]
+</pre>
+          </div>
+          <figcaption>The same job runs behind <code>POST /api/v1/stations/import</code> and <code>python -m app.cli import-stations</code>. Rows with errors are left out and the rest are imported (IP risk "Station data is poor").</figcaption>
+        </figure>
+
+        <div class="sub" id="stations-import-format">
+          <h3>Import columns</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Sheet</th><th>Required</th><th>Optional</th></tr></thead>
+              <tbody>
+                <tr><td>Stations</td><td><code>code</code>, <code>name</code>, <code>organization</code> (an existing organization's name), <code>country</code> (code or English name), <code>latitude</code>, <code>longitude</code></td><td><code>time_zone</code> (needed when the country has several), <code>type</code>, <code>region</code>, <code>elevation_m</code>, <code>parameters</code> (AT RH BP RAIN WS WD SR …), <code>status</code>, <code>install_date</code>, <code>logger_model</code>, <code>logger_serial</code>, <code>logger_firmware</code>, <code>comms_type</code>, <code>comms_provider</code>, <code>comms_identifier</code>, <code>power_panel_w</code>, <code>power_battery_ah</code>, <code>power_controller</code>, <code>access_notes</code></td></tr>
+                <tr><td>Sensors</td><td><code>station_code</code>, <code>manufacturer</code>, <code>model</code>, <code>serial</code>, and <code>parameter</code> for a sensor</td><td><code>kind</code> (sensor by default), <code>installed_at</code>, <code>last_calibrated_at</code>, <code>calibration_interval_days</code> (the unit's), <code>default_calibration_interval_days</code> (a new model's)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="muted">Headers are matched ignoring case, spaces and underscores, with aliases such as <code>Station code</code>, <code>Lat</code>, <code>Lon</code>, <code>Organisation</code> and <code>Serial number</code>. Dates are <code>YYYY-MM-DD</code> or spreadsheet dates.</p>
         </div>
       </section>
 
@@ -2388,7 +2479,10 @@ Strict-Transport-Security: max-age=31536000</code></pre>
                 <tr><td>Breached-password check</td><td><code>hibp</code> with a local fallback</td><td>auth</td><td>AUTH-9, T1</td><td><code>AUTH_BREACHED_CHECK</code>, <code>AUTH_BREACHED_FILE</code>, <code>AUTH_HIBP_URL</code></td></tr>
                 <tr><td>Argon2id cost</td><td>time 3, 64 MiB, 4 lanes</td><td>auth</td><td>TRD §6.2</td><td><code>AUTH_ARGON2_TIME_COST</code>, <code>AUTH_ARGON2_MEMORY_KIB</code>, <code>AUTH_ARGON2_PARALLELISM</code></td></tr>
                 <tr><td>Signing key</td><td>Ed25519 PEM file</td><td>auth</td><td>TRD §6.1, §15</td><td><code>AUTH_SIGNING_KEY_FILE</code></td></tr>
-                <tr><td>Service secrets</td><td>JSON <code>{"platform": "…"}</code></td><td>auth</td><td>TRD §6.4</td><td><code>AUTH_SERVICE_SECRETS</code></td></tr>
+                <tr><td>Service secrets</td><td>JSON <code>{"platform": "…", "operations": "…"}</code></td><td>auth</td><td>TRD §6.4</td><td><code>AUTH_SERVICE_SECRETS</code> (from <code>PLATFORM_SERVICE_SECRET</code>, <code>OPS_SERVICE_SECRET</code>)</td></tr>
+                <tr><td>auth for the organizations snapshot</td><td><code>http://auth:8000</code>, operations' service secret</td><td>operations</td><td>TRD §6.4, §8.6; W5-3</td><td><code>OPS_AUTH_URL</code>, <code>OPS_SERVICE_SECRET</code></td></tr>
+                <tr><td>Station import limits</td><td>10 MB per file; 5,000 stations and 20,000 sensors per run</td><td>operations</td><td>STN-8</td><td>Fixed: <code>app/api/stations/station_routes.py</code>, <code>app/domain/stations/importing.py</code></td></tr>
+                <tr><td>Calibration due window</td><td>30 days</td><td>operations</td><td>CAL-4</td><td>Per request: <code>within_days</code>; default in <code>app/domain/stations/sensors.py</code></td></tr>
                 <tr><td>App origin for links</td><td><code>https://mms.localhost</code></td><td>auth</td><td>AFD J1, J2</td><td><code>AUTH_APP_URL</code></td></tr>
                 <tr><td>Audit database and topics</td><td><code>audit</code>; the four producer topics</td><td>platform</td><td>TRD §3.5, §12</td><td><code>PLATFORM_AUDIT_MONGO_URI</code>, <code>PLATFORM_AUDIT_DB</code>, <code>PLATFORM_AUDIT_TOPICS</code></td></tr>
                 <tr><td>Account email relay</td><td>Mailpit, port 1025, no TLS (local); <code>starttls</code> or <code>ssl</code> required in production</td><td>platform</td><td>NOT-3, T3, W4-1</td><td><code>PLATFORM_SMTP_HOST</code>, <code>PLATFORM_SMTP_PORT</code>, <code>PLATFORM_SMTP_SECURITY</code>, <code>PLATFORM_SMTP_USERNAME</code>, <code>PLATFORM_SMTP_PASSWORD</code></td></tr>
@@ -2753,6 +2847,13 @@ flowchart TD
                 <tr><td>W4-17</td><td><b>App version</b> (TRD 2.4 §13.3): <code>frontend/package.json</code> is the release number, shown as <code>Version 0.1.0</code> under the product name on the public pages (<code>APP_VERSION</code> in <code>app/brand.ts</code>, from the Vite define <code>__APP_VERSION__</code>). Only a deliberate bump changes it: a per-commit value would change a precached file, so <code>sw.js</code>, on every deploy, and every phone would be asked to reload after back-end-only releases. Release 0.1 is the first</td><td>2026-10-18</td></tr>
                 <tr><td>W4-18</td><td><b>Mongo survives a plain restart</b> (TRD 2.4 §16.1). After the shared staging host rebooted, Docker restarted the existing <code>mms-mongo-1</code>, whose <code>/tmp</code> still held the last start's key file (0400, owned by <code>mongodb</code>). With <code>fs.protected_regular=2</code> even root may not reopen that file in sticky <code>/tmp</code>, so mongod restart-looped and staging was down until the fix deployed. The entrypoint now deletes the file and writes a new one under <code>umask 077</code>; <code>infra/tests</code> restarts Mongo and waits for <code>healthy</code></td><td>2026-10-18</td></tr>
                 <tr><td>W4-19</td><td><b>A quick first install</b> (TRD 2.5 §13.3, finding F14). On an Android phone over LTE the worker took about 180 s to install, so for three minutes a phone that had opened the app had no offline shell. Workbox installs its precache one file at a time, and the release had 71 files, so the time was 71 round trips; the server answers in 13–18 ms. Now the worker installs six files at a time with up to three tries each, the build makes two large chunks (<code>vendor</code>, <code>app</code>) instead of dozens of small ones, and the PNG icons and favicon are not precached: 19 files. The first page loads about 270 KB gzipped instead of about 200 KB, but the login page no longer waits for a second round of chunks. A failed install is retried when the connection returns or the app comes back to the foreground. <b>Result on the same phone: 31 s</b> instead of 180 s (headless Chromium from a desktop: 3.4–5.8 s instead of about 16 s)</td><td>2026-10-18</td></tr>
+                <tr><td>W5-1</td><td><b>Units are installed and removed by actions</b> (TRD 2.6 §3.2): <code>POST /api/v1/sensor-units/{id}/install</code> and <code>/remove</code>, beside the catalogue's GET/POST/PATCH. A unit becomes <code>installed</code> only through <code>install</code> (from stock, for a parameter the model measures and the station lists, not already measured there) and leaves it only through <code>remove</code> (with a reason, into stock, repair or retirement). Each writes the installation history (SEN-3) and its event in one transaction. Visits will do the same through sensor actions in Phase 4</td><td>2026-10-18</td></tr>
+                <tr><td>W5-2</td><td><b>Event keys for the inventory</b> (TRD 2.6 §8.1, §8.4): sensor models get <code>sensor_model.created</code> / <code>.updated</code>, keyed by the model and audited under "station, sensor and calibration changes"; a unit's events are keyed by its station while installed and by the unit itself while in stock; <code>aggregate_version</code> is the version of the record in <code>resource</code></td><td>2026-10-18</td></tr>
+                <tr><td>W5-3</td><td><b>operations keeps a copy of the organizations</b> (TRD 2.6 §3.2, §8.6): <code>organizations</code> (name, country, status) from <code>org.created</code> / <code>org.updated</code> (consumer group <code>operations</code>), and from auth's <code>/internal/snapshot/organizations</code> at every start, because Kafka keeps only 14 days. Stations can be created only for an active organization; a rename refreshes <code>owner_org_name</code> on its stations. operations has its own Kafka user and service secret</td><td>2026-10-18</td></tr>
+                <tr><td>W5-4</td><td><b>Station import format</b> (STN-8, T4, Q4): one XLSX with sheets <code>Stations</code> and <code>Sensors</code>, or CSV files; headers matched ignoring case and spacing, with aliases. The organization is matched by name and must exist; a country can be a code or an English name; a one-zone country gets its time zone; dates are the station's local midnight. Every problem is reported with its sheet and row number; valid rows are imported, one transaction per station with its sensors; an existing code is skipped, so a fixed file can be run again. Dry run by default. <code>python -m app.cli import-stations</code> runs it in the container until the W7 wizard</td><td>2026-10-18</td></tr>
+                <tr><td>W5-5</td><td><b>Station list paging and filters</b>: sorted by code with <code>after</code> = the last code and a <code>total</code>; <code>GET /api/v1/stations/facets</code> lists the countries, types, parameters and organizations present (scoped), for the filter menus</td><td>2026-10-18</td></tr>
+                <tr><td>W5-6</td><td><b>Read-model upserts never provoke a duplicate key</b> (<code>mms_common.snapshot.upsert_if_newer</code>). It used to insert and catch the error, but inside a consumer's transaction a duplicate-key error aborts the transaction even when caught, and the driver retried it for two minutes: a late, older <code>org.updated</code> would stall the consumer. It now reads the stored version first</td><td>2026-10-18</td></tr>
+                <tr><td>W5-7</td><td><b>Countries and time zones come from the IANA tz database</b> (the <code>tzdata</code> package's <code>iso3166.tab</code> and <code>zone.tab</code>), not a hand-kept list: codes are checked against it, and a country with one zone suggests it</td><td>2026-10-18</td></tr>
                 <tr><td>W4-10</td><td>Motion for the app shell with <b>GSAP</b> (bundled, <code>app/motion.ts</code>): the pane's width tweens when it opens, closes or changes size (the view tile follows through flex), a new page rises in while the old one goes at once (so the pane's blocks swap in one step), a new page's pane list slides in, phones slide between list and record; on the rail a hover lift with overshoot, a press bounce, one sliding active indicator, and tooltips that fade and slide out (Escape closes them). Durations 0 under <code>prefers-reduced-motion</code> or with the per-device Animations setting (DBD 1.5)</td><td>2026-10-17</td></tr>
                 <tr><td>W4-11</td><td>A <b>Settings</b> page for admins, <code>/admin/settings/:part?</code>, the last Admin tab: Appearance (their own Light / Dark / System, and Animations on or off on this device) and Brand colours (AFD 1.4)</td><td>2026-10-17</td></tr>
                 <tr><td>W4-12</td><td>The brand colours are a <b>Material 3 theme</b> (Material Theme Builder export), closing the colour part of DBD D1: built in from <code>frontend/src/app/theme/material-theme.json</code> (seed <code>#026D88</code>) and changeable by admins <b>for everyone</b> (upload, one colour, single colours, JSON; preview first, contrast warnings). Stored in auth (<code>settings</code>, <code>GET</code> public, <code>PUT</code> admin, <code>branding.updated</code> audited; PRD 1.3 AUD-1). Each device keeps the last copy in <code>localStorage</code> for the first paint and offline. Status, success and warning colours stay fixed. The PWA icon and manifest use the built-in primary (DBD 1.5, TRD 2.2, BSD 1.3)</td><td>2026-10-17</td></tr>
@@ -2879,7 +2980,7 @@ flowchart TD
               <thead><tr><th>Phase</th><th>Suggested diagrams</th></tr></thead>
               <tbody>
                 <tr><td>P1 · Foundations</td><td><strong>Added in W3 (9):</strong> <a href="#auth-login-code"><code>/login</code></a> and <a href="#auth-refresh-code"><code>/refresh</code></a> code flowcharts, <a href="#auth-reset">J2 password reset</a>, <a href="#auth-usecases">auth use cases</a>, <a href="#auth-credentials">credentials and tokens</a>, <a href="#events-storming-auth">auth event storming</a>, <a href="#events-handover">outbox leader handover</a>, <a href="#platform-chain">audit hash chain</a>, <a href="#infrastructure-local">local Compose stack</a>, <a href="#cicd-new-service">new service from the template</a>. <strong>W4:</strong> added the <a href="#frontend">website flowchart (shells, guards)</a> and the <a href="#frontend">refresh across tabs</a> sequence; the <a href="#cicd-built">CI/CD as built</a> process flow and the <a href="#platform-email-state">email queue state</a>; the <a href="#auth-j1">J1 swimlane</a> (draw.io) and the <a href="#auth-login">login sequence</a> with the PWA side (startSession, BroadcastChannel). All twelve are in. <strong>Chosen 2026-10-16 (all twelve):</strong> Swimlane: J1 registration, approval and invitation (draw.io) · Code flowchart: <code>/login</code> and <code>/refresh</code> rotation · Sequence: J2 password reset · Use case: roles × auth actions · Data flow: credentials and tokens (security review) · Event storming: auth events → consumers · Sequence: outbox leader handover when the leader dies · Data flow: audit hash chain and tamper check · Website flowchart: shells, guards and redirects · Architecture: the local Compose stack as built · Process flow: new service from the copier template · Process flow: CI/CD as built (replaces the planned pipeline). Updated to as built as well: login and refresh sequences, account status, pages, outbox sequence, system context.</td></tr>
-                <tr><td>P2 · Stations</td><td><strong>Chosen 2026-10-18 (the four in CLAUDE.md):</strong> Product flowchart: sensor inventory · State: sensor unit status · Sequence: document upload and a client's model-document download · Process flow: station import with dry run. Also suggested, not chosen: ER: stations module as built</td></tr>
+                <tr><td>P2 · Stations</td><td><strong>Chosen 2026-10-18 (the four in CLAUDE.md):</strong> Product flowchart: sensor inventory · State: sensor unit status (<a href="#stations-unit-state">added W5</a>) · Sequence: document upload and a client's model-document download · Process flow: station import with dry run (<a href="#stations-import">added W5</a>). Also suggested, not chosen: ER: stations module as built</td></tr>
                 <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
                 <tr><td>P4 · Visits online</td><td>State: visit status · Sequence: visit end in one transaction (inventory reconciliation) · Code flowchart: sensor action apply, reverse, re-apply · System flowchart: media processing pipeline · State: media status</td></tr>
                 <tr><td>P5 · Offline</td><td>Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
@@ -2904,6 +3005,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-18</td><td>P2 · W5</td><td><b>operations service, stations module</b> (W5 backend): stations, sensor models and units, installation history, calibrations and the calibration-due list, the station import with dry run and its CLI, a demo seed, snapshots, and operations' copy of the organizations (W5-1 to W5-5, W5-7). New events <code>station.*</code>, <code>sensor_model.*</code>, <code>sensor_unit.*</code>, <code>sensor.installed</code>, <code>sensor.removed</code>, <code>calibration.recorded</code>, all audited. operations runs in the Compose stack and CI (tests, image, staging deploy) with its own Kafka user and service secret (<code>KAFKA_OPERATIONS_PASSWORD</code>, <code>OPS_SERVICE_SECRET</code>: add both to every <code>.env</code>). Fixed <code>upsert_if_newer</code> inside transactions (W5-6). New <a href="#stations">Stations and sensors</a> section with the sensor unit state and the station import process flow. Mock-ups of the station list and page published for approval. TRD 2.6, BSD 1.4. Tests: operations 84 (95%), <code>mms_common</code> 105, platform 53, <code>infra/tests</code> 44.</td></tr>
               <tr><td>2026-10-18</td><td>P2 · start</td><td>Phase 2 charts chosen: the sensor inventory product flowchart, the sensor unit state, the document upload and model-document download sequence, and the station import process flow (<a href="#diagram-phases">Suggested diagrams by phase</a>); added before the phase closes. F14 re-measured on the Android phone after W4-19: the first install takes 31 s instead of 180 s.</td></tr>
               <tr><td>2026-10-18</td><td>P1 · W4</td><td><b>Android phone check</b> (issue #8): install, offline shell, session and the update prompt in the installed app passed; whatpwacando.today showed <code>persist()</code>, <code>estimate()</code>, wake lock and camera working. It measured the first install at 180 s (F14), now fixed: the worker installs six files at a time with retries, the build has 19 precached files instead of 71, and a failed install is retried (W4-19, TRD 2.5). Tests: Vitest 68, Playwright 10.</td></tr>
               <tr><td>2026-10-18</td><td>P1 · W4</td><td>The staging deploy no longer gives up the moment a dependency is unhealthy: <code>release.yml</code> tries <code>compose up</code> five times, 30 s apart, and prints <code>compose ps -a</code> and the failing service's logs when it stops. The update prompt puts its buttons on a row under the text (it was a narrow column beside them) and fits a 360 px phone (it was 380 px wide and ran off the left edge).</td></tr>

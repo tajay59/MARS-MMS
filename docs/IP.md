@@ -176,7 +176,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 | Week | Milestone |
 |---|---|
-| W5 | Stations, models, units, installations and calibrations, with tests. Real station export imported into staging. Station list and page. |
+| W5 | Stations, models, units, installations and calibrations, with tests. Real station export imported into staging. Station list and page. **Backend built 2026-10-18** (branch `feat/p2-w5-stations`): the operations service's stations module, the import with dry run (API and CLI) and a demo seed; 84 tests, 95% coverage. Station list and page mock-ups published for approval. Waiting on the real export (T4). |
 | W6 | Document and configuration uploads through the media service, with fail-closed visibility. Model documents for clients. Calibration-due list. |
 | W7 | QR tokens and `/s/:token`. Map. Report service skeleton and label sheets. |
 

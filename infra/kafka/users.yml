@@ -10,6 +10,10 @@
 users:
   - name: auth
     produce: mms.auth.events
+  - name: operations
+    produce: mms.operations.events mms.dlq.operations
+    consume: mms.auth.events
+    groups: operations
   - name: platform
     consume: mms.auth.events mms.operations.events mms.media.events mms.report.events
     groups: audit notification

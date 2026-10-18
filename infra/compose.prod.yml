@@ -24,6 +24,12 @@ services:
     environment:
       AUTH_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
 
+  operations:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/operations:${MMS_TAG:?}
+    environment:
+      OPS_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+
   platform:
     build: !reset null
     image: ${MMS_REGISTRY:?}/platform:${MMS_TAG:?}

@@ -3,12 +3,13 @@
 
 | | |
 |---|---|
-| **Version** | 1.3 |
-| **Date** | 2026-10-17 |
+| **Version** | 1.4 |
+| **Date** | 2026-10-18 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0: five services and six databases; SeaweedFS instead of MinIO; Nginx instead of Kong; `org_id` copied onto sensor installations and calibrations (closes B2); model documents reached through operations (B4); files start staff-only (ADR-19); station owners on visits; offline profile and PIN verifier on the device; read models rebuilt by backfill. B3 closed by TRD §5 indexes; B5 and B6 recorded as decisions |
 | **Changes in 1.2** | Follows TRD 2.1 (auth as built): reset and invitation rows hold no token until the link is minted on send; the sealed refresh successor; `organizations.name_key`; the Redis access-token revocation list in the enforcement layers |
 | **Changes in 1.3** | auth's `settings` collection (one document, `branding`: the organization's Material 3 brand colours, decision W4-12); the PWA keeps its last copy in `localStorage` (`mms-branding`), with the per-device `mms-motion` setting |
+| **Changes in 1.4** | The stations module as built (TRD 2.6): operations' `organizations` copy (name, country, status) from auth's events and snapshot; `sensor_models.key` unique; `installations.source_action_id` unique only where set |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) (App Flow), [DBD.md](DBD.md) (Design Brief) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0; superseded by this file) |
 
@@ -191,12 +192,13 @@ Rule: a user with the `client` role holds no staff role, and has exactly one `or
 | Collection | Purpose | Key fields | Client scope | Indexes |
 | --- | --- | --- | --- | --- |
 | `stations` | One per weather station | `code` unique, `owner_org_id` (never changes), `owner_org_name` (copy), `country`, `time_zone`, `location` (GeoJSON point), `status`, `qr_token` unique, `current_config_version` | `owner_org_id` | `code`, `qr_token` unique; `owner_org_id`; `country`; 2dsphere on `location` |
-| `sensor_models` | Catalogue of makes and models | `kind`, `manufacturer`, `model`, `default_calibration_interval_days` | Read via installed units only | — |
+| `sensor_models` | Catalogue of makes and models | `kind`, `manufacturer`, `model`, `key` (manufacturer and model, lower case), `default_calibration_interval_days` | Read via installed units only | `key` unique |
 | `sensor_units` | One physical unit by serial | `model_id`, `serial`, `status`, `current_station_id`, `current_org_id`, `calibration_due_at`, `needs_review` | `current_org_id` | `(model_id, serial)` unique; `calibration_due_at`; `current_org_id` |
 | `installations` | Which unit sat where, and when | `sensor_unit_id`, `station_id`, `org_id`, `parameter`, `installed_at`, `removed_at`, `installed_visit_id`, `removed_visit_id`, `source_action_id` | `org_id` | `(station_id, removed_at)`; `org_id`; `source_action_id` unique |
 | `calibrations` | Field and lab calibrations | `_id` = sensor action ID (from a visit), `sensor_unit_id`, `station_id`, `org_id`, `visit_id`, `readings[]`, `result`, `certificate_media_id` | `org_id` | `(sensor_unit_id, at)`; `org_id` |
 | `sensor_applications` | Effects of each applied sensor action, for reversal | `_id` = action ID, `visit_id`, `station_id`, `action_hash`, `effects` | — | `visit_id` |
 | `documents` | Manuals and station documents, versioned | `scope` (model or station), `scope_id`, `doc_type`, `client_visible`, `media_id`, `supersedes_id`, `is_current` | Station docs: own station and `client_visible`. Model docs: `client_visible` and a unit of that model installed at one of the client's stations | `(scope, scope_id, is_current)` |
+| `organizations` | operations' copy of each client organization (as built, TRD 2.6) | `_id` (auth's), `name`, `name_key`, `country`, `status`, `aggregate_version` | — (staff only; clients see their own name on stations) | `name_key` |
 | `config_versions` | Numbered config file sets | `station_id`, `version` (1..n), `files[]` (`media_id`, `sha256`), `visit_id` | — (staff only, STN-6) | `(station_id, version)` unique |
 
 `org_id` on installations and calibrations is copied from the station when the record is written. Stations never change owner (B5), so the copy never goes stale.
