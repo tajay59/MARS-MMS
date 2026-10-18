@@ -5,7 +5,9 @@
     color="surface"
     content-class="border border-surface-200 border-l-4 border-l-info rounded-card"
     location="top end"
+    max-width="calc(100vw - 16px)"
     :timeout="-1"
+    vertical
     width="380"
   >
     <div class="flex items-start gap-3">

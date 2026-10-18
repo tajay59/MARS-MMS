@@ -78,7 +78,17 @@ jobs:
           cd /opt/mms/infra
           compose="docker compose -f compose.yml -f compose.prod.yml -f compose.staging.yml"
           $compose pull --quiet
-          $compose up -d --no-build --remove-orphans
+          # `up` stops at the first dependency that is unhealthy at that moment, such as a data
+          # store still restarting after a host reboot (W4-18). Give it a few tries before failing.
+          for attempt in 1 2 3 4 5; do
+            $compose up -d --no-build --remove-orphans && break
+            if [ "$attempt" = 5 ]; then
+              $compose ps -a
+              exit 1
+            fi
+            echo "up failed (attempt $attempt of 5); trying again in 30 s"
+            sleep 30
+          done
           for svc in auth platform; do
             for _ in $(seq 1 60); do
               status="$(docker inspect -f '{{.State.Health.Status}}' "$($compose ps -q "$svc")")"
@@ -86,7 +96,11 @@ jobs:
               sleep 3
             done
             echo "$svc: $status"
-            [ "$status" = healthy ]
+            if [ "$status" != healthy ]; then
+              $compose ps -a
+              $compose logs --tail 40 "$svc"
+              exit 1
+            fi
           done
           docker logout ghcr.io
           EOF
