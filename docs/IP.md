@@ -151,15 +151,15 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 |---|---|
 | W2 | Repo, `mms_common` core (mongo, outbox with leader lease, kafka, logging, clock), service template with its lint and test harnesses. Full Compose stack up locally behind Nginx. |
 | W3 | auth service complete with tests. platform's audit module builds the chain from auth events. Nginx routes and CI running. **Done 2026-10-17** (branch `feat/p1-w3-auth`): register → approve → log in → refresh → reset runs through Nginx and lands in the audit chain in the stack test. |
-| W4 | Frontend shells and auth screens. Account emails. Staging deploy pipeline. Playwright test for J1 and J2. **PWA findings adopted 2026-10-17:** a minimal service worker and manifest now (F5: precache, navigation fallback, update prompt; no tiles, no Background Sync), the manifest served `no-cache` (F10), earlier releases' assets kept 7 days (F9), safe-area padding in the field shell (F13). |
+| W4 | Frontend shells and auth screens. Account emails. Staging deploy pipeline. Playwright test for J1 and J2. **PWA findings adopted 2026-10-17:** a minimal service worker and manifest now (F5: precache, navigation fallback, update prompt; no tiles, no Background Sync), the manifest served `no-cache` (F10), earlier releases' assets kept 7 days (F9), safe-area padding in the field shell (F13). **Done 2026-10-18** on staging: register → approve → log in → reset by hand into the audit chain, and the update prompt between two real releases (release 0.1). The real-phone test is issue #8. |
 
 **Delivers:** AUTH-1 to AUTH-11, AUTH-13, ORG-1, ORG-4, NOT-3, AUD-1 (account events), AUD-2, AUD-3, AUD-5 (chain only). Journeys J1, J2.
 
 **Depends on:** Phase 0 hosts and repo; T1 (breached-password API reachable or local list); T3 SMTP relay for staging email by the end of W4 (met for now by an interim Gmail account; TRD §22).
 
-**Staging release 0.1:** the product owner registers a test client, approves it, and resets a password.
+**Staging release 0.1:** the product owner registers a test client, approves it, and resets a password. **Done 2026-10-18** (the release shows `Version 0.1.0` on the public pages).
 
-**Exit criteria:** register → approve → log in → reset works on staging, each step appears in the audit collection, and a new service can be created from the template and pass CI, including the authorization matrix and architecture checks, unchanged.
+**Exit criteria:** register → approve → log in → reset works on staging, each step appears in the audit collection, and a new service can be created from the template and pass CI, including the authorization matrix and architecture checks, unchanged. **Met 2026-10-18:** on staging the test client's `user.registered`, `user.approved`, `auth.login_succeeded`, `auth.password_reset_requested`, `auth.password_reset` and the login with the new password are in the chain, and `verify()` finds no break over all 36 records; CI's `service template` job generates both variants and passes them unchanged.
 
 ## Phase 2 · Stations (W5–W7)
 

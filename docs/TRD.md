@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 2.3 |
+| **Version** | 2.4 |
 | **Date** | 2026-10-18 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
@@ -14,6 +14,7 @@
 | **Changes in 2.0** | From the 2026-10-16 engineering review. **Five services instead of nine** (ADR-1): station, maintenance and visit merge into `operations`; notification and audit merge into `platform`; the integration stub is dropped. **Kong is removed**; Nginx is the gateway (ADR-5). **SeaweedFS replaces MinIO** (ADR-6, R6). New: derived request status with parallel visits (ADR-17), one owner per station on a visit instead of offline merging (ADR-18), fail-closed file visibility (ADR-19), offline PIN session and refresh-token coordination (ADR-20, §6.1), sensor-action correction (§3.2), finalize saga (§11.2), outbox leader lease and `aggregate_version` (§8), read-model backfill (§8.6), and CSP, multipart and audit-role fixes |
 | **Changes in 2.2** | Brand colours, motion and Settings (2026-10-17, decisions W4-10 to W4-13). The brand colours are a **Material 3 theme** that admins can change for everyone: `GET /api/v1/auth/branding` (public) and `PUT` (admin, with `version`), stored in auth's `settings` collection, audited as `branding.updated` (§3.1, §5.1, §8.4, §13.2). The PWA keeps the last answer in `localStorage` for the first paint and offline; the service worker still caches no API response (§13.3). Frontend adds **GSAP** for the shell's motion and `@material/material-color-utilities` (loaded only by Settings) to make a theme from one colour (§1.1, §13.2) |
 | **Changes in 2.3** | Kafka authentication as built (decision W4-16, 2026-10-18, §15): SASL/SCRAM-SHA-512 on the broker's client listener, one Kafka user per service with ACLs on exactly its topics, dead-letter topics and consumer groups (`infra/kafka/users.yml`), and the controller and plaintext listeners on loopback only |
+| **Changes in 2.4** | From the W4 checks on staging (2026-10-18): the app version comes from `frontend/package.json` and changes only on a deliberate bump, so back-end-only releases don't prompt phones to reload (W4-17, §13.3); the Mongo entrypoint writes the replica-set key file fresh on every start, including a plain restart (W4-18, §16.1) |
 | **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
@@ -1171,6 +1172,8 @@ frontend/src/
 | API requests | **Never cached.** Offline data comes only from Dexie (§7.6) |
 | Mutations, uploads | Never cached; sent through the outbox |
 
+A new release waits for the user: the update prompt, never a silent reload (F5). Any change to a precached file changes `sw.js` and so shows the prompt on every device. The version the app shows (`Version 0.1.0` on the public pages) therefore comes from `frontend/package.json` and changes only when it is bumped for a release, never per commit (W4-17).
+
 ### 13.4 WebSocket client
 
 - Connects to `wss://<host>/ws` and must send `{type:"auth", token}` within 5 s or the connection is closed.
@@ -1230,7 +1233,7 @@ frontend/src/
 | media-worker | same image as media | arq; `cpus: 2` |
 | report | python:3.13-slim + WeasyPrint dependencies + Chromium (Playwright) | API |
 | report-worker | same image as report | arq |
-| mongo | mongo:8 | Single-node replica set `rs0` |
+| mongo | mongo:8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
 | kafka | apache/kafka:4.x | KRaft combined mode; data on SSD |
 | kafka-ui | kafbat/kafka-ui | Internal only |
 | redis | redis:7.4 | `appendonly yes` |
