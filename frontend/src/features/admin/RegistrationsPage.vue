@@ -2,6 +2,7 @@
   <PageBody
     :back="routeId ? { name: 'admin-registrations' } : undefined"
     back-label="Back to registrations"
+    :record="routeId"
     :subtitle="selected ? `Registered ${when(selected.created_at)}` : undefined"
     :title="selected ? selected.name : undefined"
   >
@@ -16,26 +17,40 @@
 
         <p v-else-if="rows.length === 0" class="m-0 px-3 text-sm text-surface-600">No one is waiting.</p>
 
-        <ul v-else aria-label="Waiting for approval" class="m-0 flex list-none flex-col gap-0.5 p-0">
+        <!-- A message-list row (Google Messages): avatar, name with the time on its right, the
+             organization below; the open one gets the rounded highlight -->
+        <ul v-else aria-label="Waiting for approval" class="m-0 flex list-none flex-col gap-1 p-0">
           <li
             v-for="row in rows"
             :key="row.id"
-            class="relative flex items-center gap-3 rounded-card p-3"
-            :class="selected?.id === row.id ? 'bg-primary-50' : 'hover:bg-surface-100'"
+            class="group relative flex items-center gap-4 rounded-full py-3 pl-3 pr-5 transition-colors duration-150"
+            :class="selected?.id === row.id ? 'bg-primary-50' : 'hover:bg-surface-100 active:bg-surface-200'"
+            @click="keyPress"
+            @pointercancel="release"
+            @pointerdown="press"
+            @pointerleave="release"
+            @pointerup="release"
           >
-            <UserAvatar :name="row.name" :seed="row.id" />
+            <UserAvatar class="transition-transform duration-200 ease-out group-hover:scale-105" :name="row.name" :seed="row.id" />
 
-            <div class="flex min-w-0 flex-col gap-0.5">
-              <!-- The name is the button; the whole row is its target -->
-              <button
-                :aria-current="selected?.id === row.id ? 'true' : undefined"
-                class="truncate text-left font-medium text-surface-900 after:absolute after:inset-0 after:rounded-card"
-                type="button"
-                @click="open(row)"
-              >{{ row.name }}</button>
+            <div class="flex min-w-0 grow flex-col gap-0.5">
+              <div class="flex items-baseline gap-3">
+                <!-- The name is the button; the whole row is its target -->
+                <button
+                  :aria-current="selected?.id === row.id ? 'true' : undefined"
+                  class="min-w-0 grow truncate text-left text-base font-medium text-surface-900 after:absolute after:inset-0 after:rounded-full"
+                  type="button"
+                  @click="open(row)"
+                >{{ row.name }}</button>
+
+                <time
+                  class="shrink-0 text-xs tabular-nums text-surface-600"
+                  :datetime="row.created_at"
+                  :title="when(row.created_at)"
+                >{{ listTime(row.created_at) }}</time>
+              </div>
 
               <span class="truncate text-sm text-surface-600">{{ row.proposed_org_name ?? 'No organization given' }}</span>
-              <span class="text-xs tabular-nums text-surface-600">{{ when(row.created_at) }}</span>
             </div>
           </li>
         </ul>
@@ -197,7 +212,8 @@
   import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
   import { countries, countryName } from '@/app/countries'
-  import { formatDateTime } from '@/app/format'
+  import { formatDateTime, formatListTime } from '@/app/format'
+  import { pressDown, pressPulse, pressUp } from '@/app/motion'
   import { usePaneSelection } from '@/app/shells/pane'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
@@ -250,6 +266,10 @@
     return formatDateTime(iso, user.value?.time_zone)
   }
 
+  function listTime (iso: string): string {
+    return formatListTime(iso, user.value?.time_zone)
+  }
+
   async function load (): Promise<void> {
     loading.value = true
     loadError.value = null
@@ -264,6 +284,24 @@
         : 'We couldn’t load the registrations. Reload the page to try again.'
     } finally {
       loading.value = false
+    }
+  }
+
+  // A row shrinks while pressed and springs back when let go (motion.ts); a keyboard click has no
+  // pointer, so it gets both in one go
+  function press (event: PointerEvent): void {
+    if (event.button === 0) {
+      pressDown(event.currentTarget as Element)
+    }
+  }
+
+  function release (event: PointerEvent): void {
+    pressUp(event.currentTarget as Element)
+  }
+
+  function keyPress (event: MouseEvent): void {
+    if (event.detail === 0) {
+      pressPulse(event.currentTarget as Element)
     }
   }
 

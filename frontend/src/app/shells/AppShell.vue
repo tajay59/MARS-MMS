@@ -6,12 +6,12 @@
   <!--
     The app shell for staff and clients (DBD "The app shell"): three square tiles on the ground
     colour, 5 px apart: the rail, the interactive pane (choose a page, a record, filters) and the
-    view (the details). On phones the pane and view fill the screen and the rail is a tab tile.
+    view (the details). On phones the pane and view fill the screen; below 1024 px the rail is a bar docked to the bottom.
   -->
   <div
-    class="flex h-dvh flex-col overflow-y-auto bg-surface pb-[calc(84px+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:flex-row md:gap-[5px] md:overflow-hidden md:bg-ground md:p-[5px]"
+    class="flex h-dvh flex-col overflow-y-auto bg-surface pb-[calc(84px+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:flex-row md:gap-[5px] md:overflow-hidden md:bg-ground md:p-[5px] md:pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-[5px]"
   >
-    <AppRail v-if="mdAndUp" :badges="badges" :current="section" :sections="sections" />
+    <AppRail v-if="lgAndUp" :badges="badges" :current="section" :sections="sections" />
 
     <!--
       The pane's resting widths are these classes; when it opens, closes or changes width, GSAP
@@ -80,7 +80,7 @@
       <slot />
     </main>
 
-    <AppTabBar v-if="!mdAndUp" :badges="badges" :current="section" :sections="sections" />
+    <AppTabBar v-if="!lgAndUp" :badges="badges" :current="section" :sections="sections" />
   </div>
 </template>
 
@@ -159,8 +159,8 @@
       width,
       // The flex gap would leave 5 px when the pane is closed: a negative margin takes it back
       marginLeft: width === 0 ? -GAP : 0,
-      duration: dur(DURATION.tile),
-      ease: EASE.inOut,
+      duration: dur(width > from ? DURATION.tileOpen : DURATION.tileClose),
+      ease: EASE.emphasized,
       onComplete: () => {
         tween = null
         gsap.set(pane, { clearProps: 'width,marginLeft,overflow' })

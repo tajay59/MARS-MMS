@@ -25,15 +25,18 @@
   let hovered = false
   let focused = false
 
+  // overwrite: true kills the other tween at once. The global 'auto' only resolves conflicts when a
+  // tween first renders, so a hide during show's delay was itself killed when show started, and a
+  // quick sweep down the rail left tips stuck open.
   function show (): void {
     gsap.fromTo(tip.value, { autoAlpha: 0, x: -6, scale: 0.96 }, {
       autoAlpha: 1, x: 0, scale: 1, duration: dur(DURATION.tip), delay: dur(0.05), ease: EASE.out,
-      transformOrigin: 'left center',
+      transformOrigin: 'left center', overwrite: true,
     })
   }
 
   function hide (): void {
-    gsap.to(tip.value, { autoAlpha: 0, x: -4, duration: dur(0.1), ease: 'power1.in' })
+    gsap.to(tip.value, { autoAlpha: 0, x: -4, duration: dur(0.1), ease: 'power1.in', overwrite: true })
   }
 
   function update (wasShown: boolean): void {

@@ -29,3 +29,35 @@ export function formatDateTime (iso: string | null | undefined, timeZone?: strin
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === type)?.value ?? ''
   return `${part('day')} ${part('month')} ${part('year')}, ${part('hour')}:${part('minute')} ${label}`.trim()
 }
+
+/**
+  A list's short time, as a message list writes it: `14:09` today, `Fri` within the last six
+  days, `4 Oct` this year, `4 Oct 2025` before. Days are counted in `timeZone`. The full date
+  goes in the row's `title` and `datetime`.
+*/
+export function formatListTime (iso: string | null | undefined, timeZone?: string | null, now: Date = new Date()): string {
+  if (!iso) {
+    return '—'
+  }
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) {
+    return '—'
+  }
+  const zone = timeZone ?? undefined
+  const day = (d: Date): { y: number, m: number, d: number } => {
+    const parts = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', timeZone: zone }).formatToParts(d)
+    const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(p => p.type === type)?.value)
+    return { y: part('year'), m: part('month'), d: part('day') }
+  }
+  const then = day(date)
+  const today = day(now)
+  const daysAgo = Math.round((Date.UTC(today.y, today.m - 1, today.d) - Date.UTC(then.y, then.m - 1, then.d)) / 86_400_000)
+  const format = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-GB', { ...options, timeZone: zone }).format(date)
+  if (daysAgo <= 0) {
+    return format({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  }
+  if (daysAgo < 7) {
+    return format({ weekday: 'short' })
+  }
+  return format(then.y === today.y ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' })
+}
