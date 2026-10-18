@@ -1,16 +1,12 @@
-# Keeps the frontend theme foundation green until the full Phase 1 pipeline
-# (per-service lint, test, build, Trivy, GHCR, staging deploy) replaces it.
+# Frontend checks: lint, unit tests, API type drift, type-check and build (TP "CI stages"). On main, release.yml calls this before
+# building images and deploying to staging.
 name: frontend
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - frontend/**
-      - .github/workflows/frontend.yml
   # Every pull request runs it, with no path filter: `check` is a required
   # status on main, and a filtered-out run would never report and block the PR.
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -39,6 +35,16 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      # The API types must be generated from the committed schema (openapi/*.json); the
+      # backend job checks that the schema matches the service.
+      - name: API types match openapi/
+        run: |
+          npm run api:types
+          git diff --exit-code -- src/api/types
 
       # build runs vue-tsc (type-check) and the Vite production build in parallel
       - name: Type-check and build

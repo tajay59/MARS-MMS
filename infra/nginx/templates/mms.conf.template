@@ -114,6 +114,9 @@ server {
     try_files $uri =404;
   }
 
+  # Release manifests of the web image (F9): build metadata, not for browsers.
+  location ^~ /.releases/ { return 404; }
+
   # Must revalidate every time, or a phone keeps an old app (TRD §2.1; manifest: F10).
   location ~ ^/(sw\.js|theme-init\.js|manifest\.webmanifest|index\.html)$ {
     include /etc/nginx/conf.d/snippets/security-headers.conf;

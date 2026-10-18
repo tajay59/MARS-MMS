@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mms-platform"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+  "mms-common",
+  "fastapi",
+  "uvicorn[standard]>=0.40",
+  "pydantic>=2.11",
+  "pydantic-settings",
+  "pymongo>=4.13",
+  "redis>=6",
+  "httpx",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "pytest-cov", "hypothesis", "ruff", "mypy", "import-linter", "testcontainers[mongodb,redis]"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["req(id): requirement ID from the PRD that the test covers (docs/TP.md)"]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S603"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+# Rule 7: domain/ has no FastAPI, Mongo or Kafka imports, and does not reach into repo/.
+[tool.importlinter]
+root_package = "app"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "domain stays pure"
+type = "forbidden"
+source_modules = ["app.domain"]
+forbidden_modules = ["fastapi", "starlette", "pymongo", "motor", "aiokafka", "redis", "app.repo", "app.api", "app.events"]
+allow_indirect_imports = false
+
+# Layers only point downwards: api -> jobs -> events -> repo -> domain (operations repeats
+# this per module). Cron jobs that change state write events through the outbox, so jobs
+# sit above events.
+[[tool.importlinter.contracts]]
+name = "layers"
+type = "layers"
+layers = ["app.api", "app.jobs", "app.events", "app.repo", "app.domain"]

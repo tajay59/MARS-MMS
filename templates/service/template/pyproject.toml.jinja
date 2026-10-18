@@ -9,7 +9,7 @@ requires-python = ">=3.13"
 dependencies = [
   "mms-common",
   "fastapi",
-  "uvicorn[standard]",
+  "uvicorn[standard]>=0.40",
   "pydantic>=2.11",
   "pydantic-settings",
   "pymongo>=4.13",
@@ -57,8 +57,10 @@ source_modules = ["app.domain"]
 forbidden_modules = ["fastapi", "starlette", "pymongo", "motor", "aiokafka", "redis", "app.repo", "app.api", "app.events"]
 allow_indirect_imports = false
 
-# Layers only point downwards: api -> repo -> domain (operations repeats this per module).
+# Layers only point downwards: api -> jobs -> events -> repo -> domain (operations repeats
+# this per module). Cron jobs that change state write events through the outbox, so jobs
+# sit above events.
 [[tool.importlinter.contracts]]
 name = "layers"
 type = "layers"
-layers = ["app.api", "app.events | app.jobs", "app.repo", "app.domain"]
+layers = ["app.api", "app.jobs", "app.events", "app.repo", "app.domain"]

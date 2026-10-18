@@ -2,13 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#22569A" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#0B1220" media="(prefers-color-scheme: dark)">
-    <link rel="icon" href="/favicon.ico">
+    <!-- viewport-fit=cover: the field shell pads for the iPhone notch and home indicator (F13) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- The built-in brand colours; the app updates these to the organization's (stores/branding.ts) -->
+    <meta name="theme-color" content="#0A6780" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0A0F11" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="Weather station maintenance">
+    <!-- First stylesheet on the page: it fixes the cascade layer order (public/layers.css) -->
+    <link rel="stylesheet" href="/layers.css">
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <!-- iOS ignores manifest icons when this exists; it must be opaque (manifest-install.md §2) -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png">
     <!-- External, not inline: the CSP is script-src 'self' (TRD §13.2, §15) -->
     <script src="/theme-init.js"></script>
-    <title>AWS-MMS</title>
+    <title>MARS-MMS</title>
   </head>
   <body>
     <div id="app"></div>

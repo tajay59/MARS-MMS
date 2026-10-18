@@ -1,0 +1,114 @@
+# Container images (TRD §18): build each one, scan it with Trivy, and on main push it to
+# GHCR tagged with the commit SHA (and `main`). Pull requests build and scan without pushing.
+# release.yml calls this after the checks pass on main.
+name: images
+
+on:
+  pull_request:
+  workflow_call:
+    inputs:
+      push:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  TRIVY_IMAGE: aquasec/trivy:0.65.0
+
+jobs:
+  image:
+    name: image ${{ matrix.image }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [auth, platform, web]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Names
+        id: names
+        run: |
+          registry="ghcr.io/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "registry=$registry" >> "$GITHUB_OUTPUT"
+          echo "ref=$registry/${{ matrix.image }}:$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # --- web: the SPA build plus the assets of releases replaced in the last 7 days (F9) ---
+      - uses: actions/setup-node@v7
+        if: matrix.image == 'web'
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the SPA
+        if: matrix.image == 'web'
+        working-directory: frontend
+        run: npm ci && npm run build-only
+
+      - name: Carry earlier releases' assets
+        if: matrix.image == 'web'
+        run: |
+          previous="${{ steps.names.outputs.registry }}/web:main"
+          if docker pull "$previous"; then
+            cid="$(docker create "$previous")"
+            docker cp "$cid:/usr/share/nginx/html" "$RUNNER_TEMP/previous-html"
+            docker rm "$cid"
+          else
+            echo "No previous web image: first release"
+          fi
+          python3 infra/scripts/carry_assets.py --previous "$RUNNER_TEMP/previous-html" \
+            --dist frontend/dist --out infra/nginx/carry --release "$GITHUB_SHA"
+
+      - name: Build
+        run: |
+          case "${{ matrix.image }}" in
+            web) dockerfile=infra/nginx/Dockerfile ;;
+            *) dockerfile=services/${{ matrix.image }}/Dockerfile ;;
+          esac
+          docker build -f "$dockerfile" -t "${{ steps.names.outputs.ref }}" \
+            --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" .
+
+      - name: Web image passes nginx -t
+        if: matrix.image == 'web'
+        run: |
+          certs="$RUNNER_TEMP/certs"
+          mkdir -p "$certs"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=ci \
+            -keyout "$certs/tls.key" -out "$certs/tls.crt" 2> /dev/null
+          docker run --rm -e MMS_HOST=mms.example.org -e FILES_HOST=files.mms.example.org \
+            -v "$PWD/infra/nginx/office-ips.conf:/etc/nginx/office-ips.conf:ro" \
+            -v "$certs:/etc/nginx/certs:ro" --add-host seaweedfs:127.0.0.1 \
+            "${{ steps.names.outputs.ref }}" /docker-entrypoint.sh nginx -t
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ github.run_id }}
+          restore-keys: trivy-db-
+
+      # Fails on fixable HIGH or CRITICAL vulnerabilities (TRD §15). Accepted exceptions go in
+      # .trivyignore with a reason and a review date.
+      - name: Trivy
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" -v "$PWD/.trivyignore:/.trivyignore:ro" \
+            "$TRIVY_IMAGE" image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --ignorefile /.trivyignore --exit-code 1 --no-progress "${{ steps.names.outputs.ref }}"
+
+      - name: Push
+        if: inputs.push
+        run: |
+          ref="${{ steps.names.outputs.ref }}"
+          main="${{ steps.names.outputs.registry }}/${{ matrix.image }}:main"
+          docker tag "$ref" "$main"
+          docker push "$ref"
+          docker push "$main"

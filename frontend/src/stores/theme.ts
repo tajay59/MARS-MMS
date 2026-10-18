@@ -10,10 +10,12 @@ import {
 } from '@/app/theme/preference'
 
 /*
-  Switches Vuetify's theme and the .app-dark class on <html> together (TRD §13.2).
-  The preference is cached on the device for the login pages; from Phase 1 it is also
-  saved on the account through PATCH /api/v1/auth/me.
+  Switches Vuetify’s theme and the .app-dark class on <html> together (TRD §13.2).
+  The preference is cached on the device for the login pages and saved on the account
+  (PATCH /api/v1/auth/me, through useAppearance). At sign-in the account’s value wins: adopt().
 */
+const PREFERENCES: ReadonlySet<ThemePreference> = new Set(['light', 'dark', 'system'])
+
 export const useThemeStore = defineStore('theme', () => {
   const preference = ref<ThemePreference>(readStoredPreference())
   let vuetifyTheme: ThemeInstance | null = null
@@ -41,5 +43,12 @@ export const useThemeStore = defineStore('theme', () => {
     apply()
   }
 
-  return { preference, init, setPreference }
+  /** Take the signed-in account's setting (DBD D2). Ignores anything unexpected. */
+  function adopt (value: string | null | undefined): void {
+    if (value && PREFERENCES.has(value as ThemePreference)) {
+      setPreference(value as ThemePreference)
+    }
+  }
+
+  return { preference, init, setPreference, adopt }
 })

@@ -8,12 +8,15 @@ version = "0.1.0"
 description = "Shared library for the AWS-MMS services (TRD §19)"
 requires-python = ">=3.13"
 dependencies = [
+  "pyjwt[crypto]>=2.10",
+  "cryptography>=44",
+  "httpx",
   "pydantic>=2.11",
   "pymongo>=4.13",
   "redis>=6",
   "aiokafka",
   "structlog",
-  "fastapi",
+  "fastapi>=0.143",
   "prometheus-client",
 ]
 
@@ -37,10 +40,17 @@ select = ["E", "F", "I", "B", "UP", "ASYNC", "S"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S603", "S607"]
+"mms_common/testing/*" = ["S101", "S603", "S607"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["mms_common.testing.containers"]  # pytest fixtures
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_any_generics = false
 
 [[tool.mypy.overrides]]
 module = ["aiokafka", "aiokafka.*"]

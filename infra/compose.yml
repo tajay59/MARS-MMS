@@ -4,8 +4,8 @@
 #
 # Only Nginx publishes ports (TRD §15). Everything else is on the internal `backend` network.
 # Secrets come from infra/.env (copy .env.example; never commit .env).
-# The application services (auth, operations, media, report, platform) are added as they are
-# built from templates/service.
+# Application services are added as they are built from templates/service: auth and platform
+# (Phase 1); operations, media and report follow.
 
 name: mms
 
@@ -98,11 +98,22 @@ services:
       # KRaft combined mode, single node in v1 (TRD §8.1, R2).
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      # Clients authenticate with SASL/SCRAM on CLIENT (TRD §15); each service is its own user
+      # with ACLs from kafka/users.yml. The controller and LOCAL (plaintext, used by the broker
+      # itself and by kafka-init) listen on loopback only, so nothing else on the network can
+      # reach them; their unauthenticated principal is the only super user.
+      KAFKA_LISTENERS: CLIENT://:9092,LOCAL://127.0.0.1:9094,CONTROLLER://127.0.0.1:9093
+      KAFKA_ADVERTISED_LISTENERS: CLIENT://kafka:9092,LOCAL://127.0.0.1:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CLIENT:SASL_PLAINTEXT,LOCAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LOCAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@127.0.0.1:9093
+      KAFKA_SASL_ENABLED_MECHANISMS: SCRAM-SHA-512
+      # listener.name.client.scram-sha-512.sasl.jaas.config ("___" is "-" for the image)
+      KAFKA_LISTENER_NAME_CLIENT_SCRAM___SHA___512_SASL_JAAS_CONFIG: org.apache.kafka.common.security.scram.ScramLoginModule required;
+      KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+      KAFKA_SUPER_USERS: User:ANONYMOUS
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -112,24 +123,33 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server 127.0.0.1:9094 > /dev/null 2>&1"]
       interval: 10s
       timeout: 10s
       retries: 30
     networks: [backend]
 
-  # One-shot: creates the topics declared in kafka/topics.yml (TRD §18 step 7).
+  # One-shot on every deploy: the topics in kafka/topics.yml (TRD §18 step 7), then each
+  # service's SCRAM user and ACLs from kafka/users.yml. It shares the broker's network
+  # namespace, which is what lets it reach the loopback-only LOCAL listener.
   kafka-init:
     image: apache/kafka:4.3.1
     depends_on:
       kafka:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "/opt/mms/create-topics.sh", "/opt/mms/topics.yml"]
+    network_mode: service:kafka
+    # Through bash: the mounted scripts needn't be executable (create-topics.sh isn't in git)
+    entrypoint: ["/bin/bash", "-c", "bash /opt/mms/create-topics.sh /opt/mms/topics.yml && bash /opt/mms/create-users.sh /opt/mms/users.yml"]
+    environment:
+      KAFKA_BOOTSTRAP: 127.0.0.1:9094
+      KAFKA_AUTH_PASSWORD: ${KAFKA_AUTH_PASSWORD:?}
+      KAFKA_PLATFORM_PASSWORD: ${KAFKA_PLATFORM_PASSWORD:?}
     volumes:
       - ./kafka/create-topics.sh:/opt/mms/create-topics.sh:ro
       - ./kafka/topics.yml:/opt/mms/topics.yml:ro
+      - ./kafka/create-users.sh:/opt/mms/create-users.sh:ro
+      - ./kafka/users.yml:/opt/mms/users.yml:ro
     restart: "no"
-    networks: [backend]
 
   seaweedfs:
     <<: *restart
@@ -159,6 +179,73 @@ services:
     volumes:
       - ./seaweedfs/create-buckets.sh:/opt/mms/create-buckets.sh:ro
     restart: "no"
+    networks: [backend]
+
+  # --- Application services (TRD §3, §16.1), built from templates/service --------------------
+  # Each connects as its own Mongo user to its own database (rule 1). Images build from the
+  # repository root because they install libs/mms_common.
+
+  auth:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/auth/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/auth:${MMS_TAG:-local}
+    depends_on: &app-deps
+      mongo-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    environment:
+      AUTH_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      AUTH_MONGO_URI: mongodb://auth:${AUTH_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=auth
+      AUTH_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      AUTH_KAFKA_BOOTSTRAP: kafka:9092
+      AUTH_KAFKA_USERNAME: auth
+      AUTH_KAFKA_PASSWORD: ${KAFKA_AUTH_PASSWORD:?}
+      AUTH_APP_URL: https://${MMS_HOST}
+      AUTH_SIGNING_KEY_FILE: /run/mms-secrets/auth_signing_key.pem
+      # Secrets other services exchange for service tokens (TRD §6.4).
+      AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}"}'
+      AUTH_BREACHED_CHECK: ${AUTH_BREACHED_CHECK:-hibp}
+    volumes:
+      - ${MMS_SECRETS_DIR:-./secrets}:/run/mms-secrets:ro
+    healthcheck: &app-health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [backend]
+
+  platform:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/platform/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/platform:${MMS_TAG:-local}
+    depends_on: *app-deps
+    environment:
+      PLATFORM_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      PLATFORM_MONGO_URI: mongodb://notification:${PLATFORM_NOTIFICATION_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=notification
+      PLATFORM_AUDIT_MONGO_URI: mongodb://audit:${PLATFORM_AUDIT_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=audit
+      PLATFORM_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      PLATFORM_KAFKA_BOOTSTRAP: kafka:9092
+      PLATFORM_KAFKA_USERNAME: platform
+      PLATFORM_KAFKA_PASSWORD: ${KAFKA_PLATFORM_PASSWORD:?}
+      PLATFORM_AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
+      PLATFORM_AUTH_URL: http://auth:8000
+      PLATFORM_SERVICE_SECRET: ${PLATFORM_SERVICE_SECRET:?}
+      # Account emails (NOT-3): Mailpit locally, the organization's relay (T3) elsewhere.
+      PLATFORM_APP_URL: https://${MMS_HOST}
+      PLATFORM_MAIL_FROM: ${PLATFORM_MAIL_FROM:-MARS-MMS <no-reply@mms.localhost>}
+      PLATFORM_SMTP_HOST: ${PLATFORM_SMTP_HOST:-mailpit}
+      PLATFORM_SMTP_PORT: ${PLATFORM_SMTP_PORT:-1025}
+      PLATFORM_SMTP_SECURITY: ${PLATFORM_SMTP_SECURITY:-none}
+      PLATFORM_SMTP_USERNAME: ${PLATFORM_SMTP_USERNAME:-}
+      PLATFORM_SMTP_PASSWORD: ${PLATFORM_SMTP_PASSWORD:-}
+    healthcheck: *app-health
     networks: [backend]
 
 networks:

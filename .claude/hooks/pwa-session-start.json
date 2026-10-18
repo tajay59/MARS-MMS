@@ -1,6 +1,6 @@
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "AWS-MMS is a PWA: technicians record whole visits offline on iPhones and Android phones, and nothing may be lost or duplicated. Before doing anything else in this session, load the `pwa` skill with the Skill tool and answer its pre-flight questions (device, network, lifecycle, data loss, storage, caching, security, proof) for the task. For back-end-only work, still check the effect on the device (sync contracts, idempotency, auth refresh, caching headers, CSP, presigned uploads). Open findings F1-F13 are in .claude/skills/pwa/references/findings.md; raise any that the task touches."
+    "additionalContext": "AWS-MMS is a PWA: technicians record whole visits offline on iPhones and Android phones, and nothing may be lost or duplicated. Before doing anything else in this session, load the `pwa` skill with the Skill tool and answer its pre-flight questions (device, network, lifecycle, data loss, storage, caching, security, proof) for the task. For back-end-only work, still check the effect on the device (sync contracts, idempotency, auth refresh, caching headers, CSP, presigned uploads). Open findings F1-F14 are in .claude/skills/pwa/references/findings.md; raise any that the task touches."
   }
 }

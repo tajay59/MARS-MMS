@@ -3,15 +3,19 @@
 
 | | |
 |---|---|
-| **Version** | 2.0 |
-| **Date** | 2026-10-16 |
+| **Version** | 2.4 |
+| **Date** | 2026-10-18 |
 | **Status** | Final draft for approval |
-| **Companion document** | [PRD.md](PRD.md) v1.1 (Product Requirements Document) |
+| **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
 | **Supersedes** | TRD 1.3 and all drafts in [drafts/](drafts/) |
 | **Changes in 1.1** | Dark theme, ApexCharts, and staff names shown to clients, from Design Brief decisions D2–D4 ([DBD.md](DBD.md)) |
 | **Changes in 1.2** | The component library changes from PrimeVue 4 to **Vuetify 4**, still with Tailwind CSS 4 (ADR-11, §1.1, §13, NFR-11, CSP). Icons change from PrimeIcons to Material Design Icons |
 | **Changes in 1.3** | §17 Testing strategy is summarized here and detailed in the Test Plan ([TP.md](TP.md)) |
 | **Changes in 2.0** | From the 2026-10-16 engineering review. **Five services instead of nine** (ADR-1): station, maintenance and visit merge into `operations`; notification and audit merge into `platform`; the integration stub is dropped. **Kong is removed**; Nginx is the gateway (ADR-5). **SeaweedFS replaces MinIO** (ADR-6, R6). New: derived request status with parallel visits (ADR-17), one owner per station on a visit instead of offline merging (ADR-18), fail-closed file visibility (ADR-19), offline PIN session and refresh-token coordination (ADR-20, §6.1), sensor-action correction (§3.2), finalize saga (§11.2), outbox leader lease and `aggregate_version` (§8), read-model backfill (§8.6), and CSP, multipart and audit-role fixes |
+| **Changes in 2.2** | Brand colours, motion and Settings (2026-10-17, decisions W4-10 to W4-13). The brand colours are a **Material 3 theme** that admins can change for everyone: `GET /api/v1/auth/branding` (public) and `PUT` (admin, with `version`), stored in auth's `settings` collection, audited as `branding.updated` (§3.1, §5.1, §8.4, §13.2). The PWA keeps the last answer in `localStorage` for the first paint and offline; the service worker still caches no API response (§13.3). Frontend adds **GSAP** for the shell's motion and `@material/material-color-utilities` (loaded only by Settings) to make a theme from one colour (§1.1, §13.2) |
+| **Changes in 2.3** | Kafka authentication as built (decision W4-16, 2026-10-18, §15): SASL/SCRAM-SHA-512 on the broker's client listener, one Kafka user per service with ACLs on exactly its topics, dead-letter topics and consumer groups (`infra/kafka/users.yml`), and the controller and plaintext listeners on loopback only |
+| **Changes in 2.4** | From the W4 checks on staging (2026-10-18): the app version comes from `frontend/package.json` and changes only on a deliberate bump, so back-end-only releases don't prompt phones to reload (W4-17, §13.3); the Mongo entrypoint writes the replica-set key file fresh on every start, including a plain restart (W4-18, §16.1) |
+| **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
 
@@ -111,7 +115,7 @@ Two host names point at the server, for example `mms.example.org` (the app) and 
 
 | Path prefix | Target | Notes |
 |---|---|---|
-| `/` | Static SPA build | `try_files … /index.html`; `sw.js`, `index.html` and `theme-init.js` served `no-cache`; hashed assets cached for 1 year |
+| `/` | Static SPA build | `try_files … /index.html`; `sw.js`, `index.html`, `theme-init.js` and `manifest.webmanifest` served `no-cache` (F10); hashed assets cached for 1 year. The `web` image keeps the `/assets/` of every release replaced in the last 7 days, so open tabs and installed apps on an older build still load their chunks (F9, `infra/scripts/carry_assets.py`); the router turns a chunk-load error into the update prompt |
 | `/api/v1/auth`, `/api/v1/users`, `/api/v1/organizations` | `auth:8000` | Login, register and password-reset paths use the `auth` rate-limit zone |
 | `/api/v1/stations`, `/api/v1/sensor-models`, `/api/v1/sensor-units`, `/api/v1/calibrations`, `/api/v1/documents`, `/api/v1/qr`, `/api/v1/requests`, `/api/v1/queue`, `/api/v1/client-reports`, `/api/v1/my-work`, `/api/v1/visits`, `/api/v1/checklist-templates`, `/api/v1/sync` | `operations:8000` | |
 | `/api/v1/media`, `/api/v1/uploads` | `media:8000` | |
@@ -175,23 +179,28 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/auth/register` | public | Client self-registration → Pending (AUTH-1) |
 | POST | `/api/v1/auth/login` | public | Returns an access token and sets the refresh cookie |
 | POST | `/api/v1/auth/refresh` | cookie | Rotates the refresh token and returns a new access token (30 s grace for the previous token, §6.1) |
-| POST | `/api/v1/auth/logout` | any | Revokes the refresh token family |
-| POST | `/api/v1/auth/password-reset/request` | public | Emails a reset link (always returns 202) |
-| POST | `/api/v1/auth/password-reset/confirm` | public | Sets a new password and revokes all sessions |
-| POST | `/api/v1/auth/invitations/accept` | public (token) | Sets the password for an invited user |
+| POST | `/api/v1/auth/logout` | cookie | Revokes the refresh token family; works with an expired access token |
+| POST | `/api/v1/auth/password-reset/request` | public | Opens a reset; notification emails the link (always returns 202; at most 3 per email per hour) |
+| POST | `/api/v1/auth/password-reset/confirm` | public | Sets a new password and revokes all sessions and access tokens; activates an invited user |
+| POST | `/api/v1/auth/invitations/accept` | public (token) | Sets the password for an invited user and signs them in |
 | GET / PATCH | `/api/v1/auth/me` | any | Current user; update name, phone, password, time zone, theme |
+| GET | `/api/v1/auth/branding` | public | The organization's brand colours: `{material, version, updated_at}`; `material` is null for the built-in colours (W4-12) |
+| PUT | `/api/v1/auth/branding` | admin | Save the brand colours for everyone: `{material \| null, version}`; a Material 3 theme with exactly the 49 roles of each scheme and tones 0–100 of the five palettes, all `#RRGGBB`; a stale `version` is 409 |
 | GET | `/api/v1/users` | admin | List and filter users (status, role, org) |
 | POST | `/api/v1/users` | admin | Invite a staff or client user (AUTH-6) |
-| PATCH | `/api/v1/users/{id}` | admin | Update roles, status, org; disable revokes all sessions |
+| GET | `/api/v1/users/{id}` | admin | One user |
+| PATCH | `/api/v1/users/{id}` | admin | Update roles, status, org (with `version`); disable or a role change revokes all sessions and access tokens |
 | POST | `/api/v1/users/{id}/approve` | admin | Approve a pending client; body: `org_id` or a new org |
 | POST | `/api/v1/users/{id}/reject` | admin | Reject with a reason |
-| GET / POST / PATCH | `/api/v1/organizations[/{id}]` | admin (read: staff) | Manage client organizations |
+| GET / POST / PATCH | `/api/v1/organizations[/{id}]` | admin (read: staff; a client reads their own) | Manage client organizations |
 | GET | `/.well-known/jwks.json` | internal network only | Public signing keys; not routed by Nginx |
-| POST | `/internal/service-token` | service secret | Short-lived token for service-to-service calls |
+| POST | `/internal/service-token` | service secret (HTTP Basic) | Short-lived token for service-to-service calls |
+| POST | `/internal/account-links` | service (platform) | Mints the reset or invitation link when the email is sent: `{kind, id}` → `{url, email, name, expires_at}`; minting again replaces the token |
 | GET | `/internal/snapshot/{users\|organizations}` | service | Backfill (§8.6) |
 
-**Cron:** purge pending registrations older than 30 days (AUTH-5); purge expired reset, invitation and refresh tokens.
-**Emits:** `user.*`, `org.*`, `auth.*` security events (§8.4).
+**Cron:** purge pending registrations older than 30 days (AUTH-5), daily. Expired reset, invitation and refresh tokens go by TTL indexes.
+**CLI:** `python -m app.cli create-admin` (the first admin) and `seed` (TP seed users; refused in production).
+**Emits:** `user.*`, `org.*`, `auth.*` security events, `branding.updated` (§8.4).
 
 ### 3.2 operations
 
@@ -438,7 +447,7 @@ sequenceDiagram
 - Consumers record `processed_events` **in the same transaction** as their own writes, so each event takes effect exactly once.
 - Consumers never apply deltas blindly. State-machine consumers recompute from current state (§3.2.2). Read models upsert only when the event's `aggregate_version` is newer than the stored one. An event therefore can't be lost or double-counted because of ordering.
 - An event that can't be applied yet (for example, its aggregate isn't there) raises a retryable error: it is retried with backoff and then sent to the dead-letter topic. Nothing is dropped silently.
-- Synchronous internal calls are used only where the caller needs an immediate answer: visit lock and unlock, report rendering reads, media owner checks, presigned URLs for model documents, and snapshots for backfill.
+- Synchronous internal calls are used only where the caller needs an immediate answer: visit lock and unlock, report rendering reads, media owner checks, presigned URLs for model documents, account links for reset and invitation emails, and snapshots for backfill.
 
 ---
 
@@ -464,9 +473,12 @@ refresh_tokens { _id, user_id, token_hash, family_id, expires_at /*TTL*/, revoke
 password_resets { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 invitations { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }
+settings { _id: "branding", material: { name, seed, schemes: { light, dark }, palettes } | null, updated_at, updated_by, version }
 ```
 
 Indexes: `users.email` unique; `users.status`; `users.org_id`; `refresh_tokens.token_hash` unique; TTL on `expires_at`. Validation rule: a `client` role cannot be combined with any staff role.
+
+As built (2.1): `organizations.name_key` (case- and space-insensitive, unique); `refresh_tokens.successor_enc` (the successor sealed for the 30 s grace, §6.1); `password_resets` and `invitations` are created with `token_hash: null`, get `minted_at` when the link is minted, and `superseded` when a newer link replaces them (the `token_hash` index is unique only where it is a string).
 
 ### 5.2 operations
 
@@ -677,12 +689,14 @@ Indexes: `seq` unique; `(resource.type, resource.id, at)`; `(actor.user_id, at)`
 | Token | Format | Lifetime | Storage |
 |---|---|---|---|
 | Access | JWT, EdDSA (Ed25519) | 15 min | Memory only (Pinia); never persisted |
-| Refresh | 256-bit random, stored as a SHA-256 hash | 30 days, rotated on each use | httpOnly, Secure, SameSite=Strict cookie, path `/api/v1/auth` |
+| Refresh | 256-bit random, stored as a SHA-256 hash | 30 days from the last refresh, rotated on each use | `__Secure-mms_refresh`: httpOnly, Secure, SameSite=Strict cookie, path `/api/v1/auth` |
 | Service | JWT, `roles:["service"]`, `sub:<service-name>` | 5 min | Service memory |
 
 Access token claims: `sub`, `roles`, `org_id`, `name`, `iat`, `exp`, `jti`, `kid`.
 
-- **Rotation and reuse.** Presenting a revoked token revokes its whole `family_id`, except within a **30-second grace window** after rotation. A token rotated less than 30 s ago returns the same successor pair instead, so concurrent refreshes from two tabs or the service worker never log the user out.
+- **Rotation and reuse.** Presenting a revoked token revokes its whole `family_id`, except within a **30-second grace window** after rotation. A token rotated less than 30 s ago returns the same successor pair instead, so concurrent refreshes from two tabs or the service worker never log the user out. The successor is kept sealed (AES-GCM) under a key derived from the token it replaced, so only that token's holder can open it and the database never holds a usable token. Reuse after the window emits `auth.token_reuse_detected`. Failed refreshes return 401 with `reason` `no_session`, `session_expired`, `session_revoked` or `account_blocked`, and clear the cookie.
+- **Expiry.** 30 days from the last refresh (sliding). Login and refresh return `refresh_expires_at`, which the PWA keeps as `offline_until`.
+- **Immediate revocation.** Access tokens are stateless, so disabling a user, deactivating an organization, a password reset or a role change also writes `auth:revoked:user:<id>` or `auth:revoked:org:<id>` in Redis with the time (kept 17 minutes). `mms_common.auth` in every service refuses tokens issued at or before it (AUTH-11, ORG-4).
 - **Refresh coordination in the PWA.** Pages and the service worker refresh only while holding the Web Lock `mms-auth-refresh`. The holder calls `/refresh` and shares the new access token over a `BroadcastChannel`; the others wait for it.
 - **Key rotation.** A new `kid` is added to JWKS. Services fetch JWKS from `http://auth:8000/.well-known/jwks.json` on the internal network, cache it in Redis for 10 min, and refetch on an unknown `kid`.
 - **Offline field session (ADR-20, AUTH-12).**
@@ -780,7 +794,9 @@ sequenceDiagram
 
 - Argon2id (`argon2-cffi`, parameters at least time=3, memory=64 MiB).
 - At least 10 characters, checked against a breached-password list (HIBP range API if outbound access is allowed, otherwise a local k-anonymity file; see T1).
-- Reset and invitation tokens: 256-bit, stored hashed, single use; 1-hour expiry for resets, 7 days for invitations. A successful reset revokes all refresh tokens.
+- Reset and invitation tokens: 256-bit, stored hashed, single use; 1-hour expiry for resets, 7 days for invitations. A successful reset revokes all refresh tokens and access tokens. **Minted on send:** the request creates a row with no token and emits `auth.password_reset_requested` (or `user.invited`); platform's notification module calls `POST /internal/account-links` when it sends the email, and auth mints the token then. No token ever passes through Kafka, the DLQ, the outbox or the audit trail. Minting again replaces the earlier token. An invited user whose link expired finishes through a reset, which activates them.
+- Breached-password check order: a built-in list of common passwords, then HIBP (`Add-Padding`), then the local file when HIBP is unreachable. With neither reachable the password is accepted and `auth_breached_check_unavailable_total` counts it, so an outage never blocks registration.
+- Registering an email that already has an account answers exactly like a new registration (202) and changes nothing. Reset requests are limited to 3 per email per hour, silently.
 - Per-account login throttling in Redis (5 failures → 15-minute delay), keyed by the hash of the normalized email **whether or not the account exists**. Unknown emails run a dummy Argon2 verification, so neither the message nor the timing reveals whether an email is registered (AUTH-10). Nginx adds the per-IP limit.
 
 ### 6.3 Authorization
@@ -934,7 +950,7 @@ async with client.start_session() as s:
   "source": "operations",
   "key": "<root aggregate id>",
   "aggregate_version": 7,
-  "actor": { "user_id": "…", "roles": ["technician"], "ip": "…", "user_agent": "…", "device_id": "…" },
+  "actor": { "user_id": "…", "name": "…", "roles": ["technician"], "ip": "…", "user_agent": "…", "device_id": "…" },
   "org_id": "…",
   "resource": { "type": "visit", "id": "…" },
   "correlation_id": "…",
@@ -950,11 +966,16 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | Event | Producer | Consumers | Key `data` fields |
 |---|---|---|---|
 | `auth.login_succeeded` / `auth.login_failed` / `auth.logout` / `auth.password_reset` | auth | platform (audit) | user_id?, email_hash, reason? |
-| `user.registered` | auth | platform | user_id, name, proposed_org_name |
-| `user.invited` | auth | platform | user_id, roles, org_id? |
-| `user.approved` / `user.rejected` | auth | platform | user_id, org_id?, reason? |
-| `user.updated` / `user.disabled` | auth | platform | user_id, roles, status, org_id |
+| `auth.password_reset_requested` | auth | platform | user_id, reset_id (the link is minted on send) |
+| `auth.token_reuse_detected` | auth | platform (audit) | user_id, family_id |
+| `user.registered` | auth | platform | user fields¹, proposed_org_name |
+| `user.invited` | auth | platform | user fields¹, invitation_id |
+| `user.created` | auth | platform | user fields¹, via (the CLI) |
+| `user.approved` / `user.rejected` | auth | platform | user fields¹, reason? |
+| `user.updated` / `user.disabled` | auth | platform | user fields¹, changed_fields? |
+| `user.purged` | auth | platform | user_id |
 | `org.created` / `org.updated` | auth | operations, report, platform | org_id, name, country, status |
+| `branding.updated` | auth | platform (audit) | custom, name?, seed? (key `branding`; audit before/after: custom, name, seed, light and dark primary) |
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
 | `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review |
@@ -993,6 +1014,8 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `report.generated` | report | operations, platform | report_id, type, subject_ref |
 | `report.finalize_reminder` | report | platform (notification) | report_id, working_days |
 
+¹ User fields: `user_id`, `email`, `name`, `roles`, `status`, `org_id`, so `user_directory` can upsert from any `user.*` event (§5.5).
+
 ### 8.5 Consumer rules
 
 1. Validate the envelope against `mms_common.events` for its `(type, version)`; an unknown type or invalid payload goes straight to the DLQ.
@@ -1018,7 +1041,7 @@ Read models (report's facts, platform's `user_directory`, operations' copied org
 | `report` | report-worker | `render_draft`, `render_final`, `render_closeout`, `render_client_form`, `render_labels`, `render_summary` | 2 jobs; timeout 5 min |
 | cron | each service | Scheduled jobs listed in §3 | One run at a time per job, using a Redis lock (`SET NX PX`) |
 
-Redis also holds the JWKS cache, the per-account login throttle, the outbox leader leases, WebSocket pub/sub (`ws:user:{id}`) and the dashboard figure cache (60 s). Persistence: AOF `everysec`. Redis is not a system of record. Losing it loses only queued jobs, which reconciliation crons re-enqueue (for example, media still `uploaded` but never processed after 15 minutes, or reports stuck in `finalizing`).
+Redis also holds the JWKS cache, the per-account login throttle, the access-token revocation list (§6.1), the outbox leader leases, WebSocket pub/sub (`ws:user:{id}`) and the dashboard figure cache (60 s). Persistence: AOF `everysec`. Redis is not a system of record. Losing it loses only queued jobs, which reconciliation crons re-enqueue (for example, media still `uploaded` but never processed after 15 minutes, or reports stuck in `finalizing`).
 
 ---
 
@@ -1093,7 +1116,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 ## 12. Audit
 
 - The audit module of `platform` consumes every `mms.*.events` topic with consumer group `audit`. Each event maps to an audit record using `actor`, `resource`, `org_id` and the `audit.before/after` block in the envelope. Events marked notification-only (`*.reminder`, `*.digest`, `visit.sync_conflict`) are skipped.
-- **Ordering and chain:** a single writer task appends records in arrival order. It assigns `seq = last_seq + 1` and computes `hash = SHA-256(prev_hash ‖ canonical(record))`, updating `audit_state` in the same transaction. At this volume (well under 100 events per minute), one writer is enough. A duplicate delivery fails on `_id = event_id` and is skipped.
+- **Ordering and chain:** each append assigns `seq = last_seq + 1` and computes `hash = SHA-256(prev_hash ‖ canonical(record))`, updating `audit_state` in the same transaction. Every append writes the `audit_state` head first, so concurrent appends from several workers serialize on it: the chain order is the commit order and no two records share a `seq` (2.1; replaces the single writer task). Canonical form: sorted keys, no spaces, UTF-8, times as UTC ISO 8601 with milliseconds (times are stored to the millisecond). A duplicate delivery is skipped by `processed_events` and `_id = event_id`.
 - **Immutability:** the audit database user has a custom role with only `find` and `insert` on `audit_events`; `find`, `insert` and `update` on `audit_state` and `_migrations`; and `createIndex` on the `audit` database, so migrations can add indexes. It has no `update` or `remove` on `audit_events`. No API updates or deletes records. Backups preserve the chain.
 - **Integrity check** (`POST /verify`): recompute the chain over a range and report the first broken `seq`, if any. It also runs weekly by cron, and a failure raises an alert.
 - **Completeness:** every audited action in PRD AUD-1 is either an event already (state changes via the outbox) or is emitted explicitly as an `auth.*` security event. A contract test checks that each AUD-1 action has a mapped event type.
@@ -1106,7 +1129,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 
 ```
 frontend/src/
-  app/            router, guards, layouts (client, staff, field, public), theme/ (brand.ts tokens, vuetify.ts, icons.ts, settings.scss, layers.css, tailwind.css)
+  app/            router, guards, layouts (client, staff, field, public), theme/ (brand.ts tokens, vuetify.ts, icons.ts, settings.scss, tailwind.css, base.css); the layer order is in public/layers.css
   api/            typed clients (generated from OpenAPI), auth interceptor (Web Lock refresh), error mapping
   features/
     auth/ dashboard/ requests/ visits/ stations/ sensors/ calibration/
@@ -1121,16 +1144,17 @@ frontend/src/
 ### 13.2 Conventions
 
 - **Vuetify 4** through `vite-plugin-vuetify`, which auto-imports and tree-shakes components and compiles Vuetify's Sass with `app/theme/settings.scss`. `app/theme/vuetify.ts` calls `createVuetify` once with:
-  - the `light` and `dark` themes, built from the brand tokens in `app/theme/brand.ts`
+  - the `light` and `dark` themes, built in `app/theme/brand.ts` from a Material 3 theme (`app/theme/material.ts` maps its roles and palettes onto the token names; W4-12) plus the fixed status colours. At start it uses the organization's theme last fetched (`localStorage` `mms-branding`), else the built-in `material-theme.json`; `stores/branding.ts` fetches `GET /api/v1/auth/branding` at start and when the app returns to the front (at most every 5 min) and updates Vuetify's theme colours in place
   - global `defaults` that give the DBD look, so pages don't repeat props: flat buttons 40 px tall with a 6 px radius, outlined `compact` inputs, flat cards with a 1 px border and 10 px radius, and `ripple: false`. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px.
   - the `mdi-svg` icon set, with icons imported from `@mdi/js` and listed in `app/theme/icons.ts` (SVG paths, no icon font)
   - display thresholds equal to Tailwind's breakpoints (`sm` 640, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536), so `useDisplay()` and Tailwind's `md:` agree
   - `theme.utilities: false`
 - **Fonts:** `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono`, bundled. `app/theme/base.css` sets `--v-font-body` and `--v-font-heading` to Inter, so Vuetify never asks for Roboto.
 - **Tailwind CSS 4** is for layout and spacing. Components come from Vuetify. No custom component CSS unless unavoidable.
-- **Cascade layers.** `app/theme/layers.css` is the first import in `main.ts` (before `vuetify/styles`) and fixes the order: `vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final`. Tailwind's theme and utilities are imported into the `tailwind` layer. Its preflight is not imported, because Vuetify has its own reset. Tailwind must stay before `vuetify-final`, or Vuetify's transitions break. Vuetify's own utility and colour classes are turned off (`$utilities: false`, `$color-pack: false` in `settings.scss`), so `rounded-*`, `bg-*` and `text-*` always mean Tailwind's. Classes that Vuetify adds from props (`rounded-md`, `elevation-8`) are safelisted with `@source inline(...)`.
+- **Cascade layers.** `public/layers.css` is the first stylesheet linked in `index.html`, ahead of every stylesheet the build injects, and fixes the order (a production build links lazy chunks' CSS before the main bundle and drops a bare `@layer` statement from it, so an import in `main.ts` is not enough): `vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final`. Tailwind's theme and utilities are imported into the `tailwind` layer. Its preflight is not imported, because Vuetify has its own reset. Tailwind must stay before `vuetify-final`, or Vuetify's transitions break. Vuetify's own utility and colour classes are turned off (`$utilities: false`, `$color-pack: false` in `settings.scss`), so `rounded-*`, `bg-*` and `text-*` always mean Tailwind's. Classes that Vuetify adds from props (`rounded-md`, `elevation-8`) are safelisted with `@source inline(...)`.
 - **Shared tokens.** Tailwind's `@theme` removes its default palette and maps each brand colour to Vuetify's theme variable (`--color-primary: rgb(var(--v-theme-primary))`, `--color-surface-700: rgb(var(--v-theme-surface-700))`), so `bg-primary` and `text-surface-700` follow the active theme with no `dark:` variant.
 - **Light and dark themes** (DBD D2). `brand.ts` defines both Vuetify themes with the same colour names: `primary`, `primary-50` … `primary-950`, `surface-0` … `surface-900`, `background`, `surface`, the feedback colours with `*-container` pairs, and the status colours, each with its `on-*` pair. The theme store switches Vuetify (`useTheme().change('light' | 'dark')`) and the `.app-dark` class on `<html>` together. Tailwind's `dark:` variant uses that class (`@custom-variant dark (&:where(.app-dark, .app-dark *))`). The user's `theme` (`system`, `light` or `dark`) comes from `/auth/me` and is cached in `localStorage` (`mms-theme`) for the login pages. `public/theme-init.js`, an external script in `<head>`, sets the class before first paint, because the CSP (`script-src 'self'`) rules out an inline script. `system` follows `prefers-color-scheme` and updates live. Two `theme-color` meta tags (light `#22569A`, dark `#0B1220`) colour the browser bar.
+- **Motion** (W4-10): GSAP (`gsap`, bundled) through `app/motion.ts`: the pane's width tween, page and pane-list entrances, the rail's hover, sliding indicator and tooltips. Durations are 0 under `prefers-reduced-motion` or the per-device Animations setting (`localStorage` `mms-motion`, also the `.app-reduced-motion` class for CSS). GSAP writes inline styles through the CSSOM, which the CSP allows.
 - **Charts:** ApexCharts through `vue3-apexcharts`, with shared options in `charts/presets.ts` (Inter, tabular figures, toolbar off, palette per theme). Charts switch `theme.mode` with the app theme and turn animation off under `prefers-reduced-motion`.
 - API types are generated with `openapi-typescript` from each service's OpenAPI schema in CI. A failed generation fails the build.
 - **Route guards** check roles from the access token when online, or from the unlocked offline profile when offline (§6.1). The server still enforces every rule. Viewers see read-only views; action buttons are hidden, not just disabled.
@@ -1147,6 +1171,8 @@ frontend/src/
 | Map tiles (`https://tile.openstreetmap.org`) | Cache-first, max 2,000 entries, 30 days. Tiles are cached as viewed, never bulk-prefetched (OSM tile usage policy) |
 | API requests | **Never cached.** Offline data comes only from Dexie (§7.6) |
 | Mutations, uploads | Never cached; sent through the outbox |
+
+A new release waits for the user: the update prompt, never a silent reload (F5). Any change to a precached file changes `sw.js` and so shows the prompt on every device. The version the app shows (`Version 0.1.0` on the public pages) therefore comes from `frontend/package.json` and changes only when it is bumped for a release, never per commit (W4-17).
 
 ### 13.4 WebSocket client
 
@@ -1181,7 +1207,7 @@ frontend/src/
 
 - TLS 1.2+ at Nginx; HSTS (1 year); HTTP → HTTPS redirect.
 - Only Nginx (ports 80/443) is published. The services, MongoDB, Kafka, Redis and SeaweedFS are on an internal Docker network. Admin UIs (SeaweedFS, Kafka UI, Grafana) are reachable only via VPN or an SSH tunnel. Nginx returns 404 for `/internal/` and `/.well-known/`.
-- MongoDB, Redis, Kafka (SASL/SCRAM) and SeaweedFS S3 all require authentication. Each service has its own Mongo user limited to its own database (platform has two), and its own S3 access key limited to the buckets it needs.
+- MongoDB, Redis, Kafka (SASL/SCRAM) and SeaweedFS S3 all require authentication. **Kafka** (decision W4-16): clients use SCRAM-SHA-512 on `kafka:9092`; each service is its own user (`<PREFIX>_KAFKA_USERNAME`, `_KAFKA_PASSWORD`, required in staging and production) with ACLs from `infra/kafka/users.yml`: Write on its own events topic and its consumer groups' dead letters, Read on the topics it consumes, Read on its groups; nothing else (`allow.everyone.if.no.acl.found=false`). The KRaft controller and a plaintext listener bind to 127.0.0.1 inside the broker's container; `kafka-init` shares that network namespace to create topics, users and ACLs, and the unauthenticated loopback principal is the only super user. Each service has its own Mongo user limited to its own database (platform has two), and its own S3 access key limited to the buckets it needs.
 - **Same-origin API; no CORS.** The S3 files host allows only the app origin and exposes `ETag` (§2.1).
 - **CSP (Nginx):** `default-src 'self'; img-src 'self' https://files.<host> https://tile.openstreetmap.org data: blob:; media-src 'self' https://files.<host> blob:; connect-src 'self' https://files.<host> https://tile.openstreetmap.org wss://<host>; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'`. The tile host is in `connect-src` because the service worker fetches tiles. Vuetify injects its theme stylesheet at runtime; `theme.cspNonce` is used if possible.
 - Security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self), microphone=(self), geolocation=()`, `X-Frame-Options: DENY`.
@@ -1207,7 +1233,7 @@ frontend/src/
 | media-worker | same image as media | arq; `cpus: 2` |
 | report | python:3.13-slim + WeasyPrint dependencies + Chromium (Playwright) | API |
 | report-worker | same image as report | arq |
-| mongo | mongo:8 | Single-node replica set `rs0` |
+| mongo | mongo:8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
 | kafka | apache/kafka:4.x | KRaft combined mode; data on SSD |
 | kafka-ui | kafbat/kafka-ui | Internal only |
 | redis | redis:7.4 | `appendonly yes` |
@@ -1227,6 +1253,7 @@ Approximate memory budget: MongoDB 4 GB, Kafka 2 GB, ClamAV 3 GB, Python service
 
 - `local`: `compose.yml` + `compose.dev.yml` (hot reload, seeded data, Mailpit for email, self-signed TLS).
 - `staging` and `production`: `compose.yml` + `compose.prod.yml`; images tagged with the commit SHA.
+- **Interim staging host (2026-10-17, decision W4-8):** a shared server (`rnd.yanacreations.com`, files host `files.yanacreations.com`, about 2 GB of free memory) instead of the dedicated second host in §16.2. `compose.staging.yml` is added after `compose.prod.yml`: the server's own edge Nginx terminates TLS and passes both names to the MMS Nginx, which keeps every rule of §2.1 and §15 and trusts the edge's `X-Real-IP`; the data stores are capped. Timings measured there (IP W11) are lower bounds, not production figures.
 - Configuration via environment variables (`pydantic-settings`), prefixed per service: `AUTH_`, `OPS_`, `MEDIA_`, `REPORT_`, `PLATFORM_` (for example `OPS_MONGO_URI`, `OPS_AUTO_CLOSE_DAYS`).
 
 ### 16.4 Backups
@@ -1335,7 +1362,7 @@ Replaced by the Implementation Plan ([IP.md](IP.md) v1.1): Phase 0 readiness, se
 |---|---|---|
 | T1 | Is outbound internet allowed from the servers (breached-password API, OSM tiles, Let's Encrypt)? | Assume yes; fall back to a local password list, an internal CA and self-hosted tiles |
 | T2 | Existing Git hosting and container registry? | GitHub + GHCR |
-| T3 | SMTP server details and sending domain (SPF/DKIM/DMARC)? | Organization SMTP relay |
+| T3 | SMTP server details and sending domain (SPF/DKIM/DMARC)? | Organization SMTP relay. **Interim, 2026-10-17:** staff-only staging sends through a Gmail account (`smtp.gmail.com:465`, `PLATFORM_SMTP_SECURITY=ssl`, an app password only in the staging host's `infra/.env`, `PLATFORM_MAIL_FROM` set to that Gmail address). Not for the pilot: the sender would be a gmail.com address, Gmail allows about 500 emails a day, and the organization's domain has no SPF, DKIM or DMARC for it. **Still open** |
 | T4 | Format of the existing station and sensor data for import? | CSV/Excel |
 | T5 | Is MongoDB or Kafka failover (3 nodes) needed at launch? | No; single node + backups |
 | T6 | Domain names for the app and file hosts; TLS certificate source? | `mms.<org-domain>` and `files.mms.<org-domain>`; Let's Encrypt |

@@ -53,13 +53,16 @@ class EventProcessor:
         send_to_dlq: SendToDlq,
         clock: Clock,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        default: Handler | None = None,
     ) -> None:
+        """`default` handles every type missing from `handlers` (the audit consumer)."""
         self._client = client
         self._db = db
         self._handlers = handlers
         self._dlq = send_to_dlq
         self._clock = clock
         self._sleep = sleep
+        self._default = default
 
     async def process(self, raw: bytes) -> Outcome:
         try:
@@ -69,7 +72,7 @@ class EventProcessor:
             await self._dlq(raw, f"invalid: {exc}")
             return Outcome.DEAD_LETTERED
 
-        handler = self._handlers.get(envelope.type)
+        handler = self._handlers.get(envelope.type, self._default)
         if handler is None:
             return Outcome.APPLIED  # this consumer does not care about the event type
 
@@ -80,7 +83,10 @@ class EventProcessor:
                 return await self._apply(envelope, payload, handler)
             except Exception as exc:  # noqa: BLE001 - any failure is retried, then dead-lettered
                 last_error = f"{type(exc).__name__}: {exc}"
-                log.warning("event_failed", event_id=envelope.event_id, attempt=attempt)
+                log.warning(
+                    "event_failed", event_id=envelope.event_id, type=envelope.type,
+                    attempt=attempt, error=last_error[:500],
+                )
                 if attempt < MAX_ATTEMPTS:
                     await self._sleep(delay)
                     delay = min(delay * 2, BACKOFF_MAX_S)

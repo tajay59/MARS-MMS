@@ -39,20 +39,20 @@
       </div>
       <div class="toc-group">
         <span class="toc-label">System</span>
-        <a href="#architecture">Architecture <span class="dot" title="Planned"></span></a>
-        <a href="#services">Services and endpoints <span class="dot" title="Planned"></span></a>
-        <a href="#gateway">Gateway and routing <span class="dot" title="Planned"></span></a>
-        <a href="#data">Data and schemas <span class="dot" title="Planned"></span></a>
-        <a href="#events">Events and outbox <span class="dot" title="Planned"></span></a>
+        <a href="#architecture">Architecture <span class="dot progress" title="In progress"></span></a>
+        <a href="#services">Services and endpoints <span class="dot progress" title="In progress"></span></a>
+        <a href="#gateway">Gateway and routing <span class="dot built" title="Built"></span></a>
+        <a href="#data">Data and schemas <span class="dot progress" title="In progress"></span></a>
+        <a href="#events">Events and outbox <span class="dot built" title="Built"></span></a>
       </div>
       <div class="toc-group">
         <span class="toc-label">Features</span>
-        <a href="#auth">Authentication <span class="dot" title="Planned"></span></a>
+        <a href="#auth">Authentication <span class="dot progress" title="In progress"></span></a>
         <a href="#requests">Requests <span class="dot" title="Planned"></span></a>
         <a href="#visits">Visits and offline sync <span class="dot" title="Planned"></span></a>
         <a href="#media">Files and media <span class="dot progress" title="In progress"></span></a>
         <a href="#reports">Reports and signatures <span class="dot" title="Planned"></span></a>
-        <a href="#platform">Notifications and audit <span class="dot" title="Planned"></span></a>
+        <a href="#platform">Notifications and audit <span class="dot progress" title="In progress"></span></a>
       </div>
       <div class="toc-group">
         <span class="toc-label">Client</span>
@@ -60,9 +60,9 @@
       </div>
       <div class="toc-group">
         <span class="toc-label">Operations</span>
-        <a href="#security">Security and access <span class="dot" title="Planned"></span></a>
-        <a href="#config">Configuration <span class="dot" title="Planned"></span></a>
-        <a href="#infrastructure">Infrastructure <span class="dot" title="Planned"></span></a>
+        <a href="#security">Security and access <span class="dot progress" title="In progress"></span></a>
+        <a href="#config">Configuration <span class="dot progress" title="In progress"></span></a>
+        <a href="#infrastructure">Infrastructure <span class="dot progress" title="In progress"></span></a>
         <a href="#cicd">CI/CD and testing <span class="dot progress" title="In progress"></span></a>
       </div>
       <div class="toc-group">
@@ -135,13 +135,13 @@
             <table>
               <thead><tr><th>Document</th><th>Covers</th><th>Version</th></tr></thead>
               <tbody>
-                <tr><td><a href="PRD.md">PRD.md</a></td><td>Product requirements and their IDs</td><td>1.1</td></tr>
-                <tr><td><a href="TRD.md">TRD.md</a></td><td>Technical requirements: services, data model, events, security, infrastructure</td><td>2.0</td></tr>
-                <tr><td><a href="AFD.md">AFD.md</a></td><td>App flow: journeys J1–J10, routes, menus, edge states</td><td>1.1</td></tr>
-                <tr><td><a href="DBD.md">DBD.md</a></td><td>Design brief: colour, type, shells, components</td><td>1.2</td></tr>
-                <tr><td><a href="BSD.md">BSD.md</a></td><td>Background schema: where data lives, access, retention</td><td>1.1</td></tr>
+                <tr><td><a href="PRD.md">PRD.md</a></td><td>Product requirements and their IDs</td><td>1.2</td></tr>
+                <tr><td><a href="TRD.md">TRD.md</a></td><td>Technical requirements: services, data model, events, security, infrastructure</td><td>2.1</td></tr>
+                <tr><td><a href="AFD.md">AFD.md</a></td><td>App flow: journeys J1–J10, routes, menus, edge states</td><td>1.3</td></tr>
+                <tr><td><a href="DBD.md">DBD.md</a></td><td>Design brief: colour, type, shells, components</td><td>1.4</td></tr>
+                <tr><td><a href="BSD.md">BSD.md</a></td><td>Background schema: where data lives, access, retention</td><td>1.2</td></tr>
                 <tr><td><a href="IP.md">IP.md</a></td><td>Implementation plan: phases 0–8</td><td>1.1 draft</td></tr>
-                <tr><td><a href="TP.md">TP.md</a></td><td>Test plan</td><td>1.1 draft</td></tr>
+                <tr><td><a href="TP.md">TP.md</a></td><td>Test plan</td><td>1.2 draft</td></tr>
               </tbody>
             </table>
           </div>
@@ -154,13 +154,13 @@
       <section class="doc" id="status">
         <div class="doc-head">
           <h2 id="status-h">Build status</h2>
-          <p>Phase 0 (readiness) is under way. No backend service exists yet. The frontend theme foundation, a frontend CI workflow and the SeaweedFS spike are in the repository.</p>
-          <span class="src">Sources: <a href="IP.md">IP.md</a> · updated 2026-10-16</span>
+          <p>Phase 1 (Foundations) is under way: W2 and W3 are built. The shared library, the service template, the local Compose stack, the <b>auth</b> service and <b>platform's audit module</b> run end to end: register → approve → log in → reset lands in the hash-chained audit log. W4 is under way: the frontend shells, the auth and admin screens, the minimal service worker, the Playwright J1/J2 journeys, <b>platform's account emails</b> and the <b>release pipeline</b> (images, Trivy, GHCR, staging deploy and smoke tests) are built. Since the W4 close-out: Kafka needs SASL/SCRAM per service (W4-16), the app shell has a bottom bar below 1024 px (W4-14), and all twelve Phase 1 charts are in. Staging is live and every merge to <code>main</code> deploys to it. <b>The W4 checks on staging passed on 2026-10-18</b>: register → approve → log in → reset by hand into the audit chain (the Phase 1 exit criterion; <code>verify()</code> clean over 36 records), and the update prompt between two real releases (release 0.1). Still open for Phase 1: a test on a real iPhone and Android phone (issue #8, finding F14).</p>
+          <span class="src">Sources: <a href="IP.md">IP.md</a> · updated 2026-10-18</span>
         </div>
 
         <div class="phases">
           <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
@@ -176,11 +176,18 @@
             <table>
               <thead><tr><th>Path</th><th>What it is</th><th>Status</th></tr></thead>
               <tbody>
-                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 theme foundation: brand themes (light and dark), cascade layers, global defaults, MDI icons, Inter and JetBrains Mono, <code>theme-init.js</code>. No shells or pages yet.</td><td><span class="badge built">Built</span></td></tr>
-                <tr><td><code>.github/workflows/frontend.yml</code></td><td>Frontend CI: lint, type-check and build on Node 24.</td><td><span class="badge built">Built</span></td></tr>
+                <tr><td><code>frontend/</code></td><td>Vite + Vue 3.5 + Vuetify 4 + Tailwind 4 PWA. The public split panel, the app shell for staff and clients (rail, interactive pane and view as square tiles; decision W4-9) and the field shell, route guards, the session with the Web Lock refresh, the public auth pages, My profile, Registrations, Users, Sync, the MARS-MMS logo and PWA icons, the minimal service worker and manifest (F5), GSAP motion for the app shell (W4-10), the admin Settings page (W4-11) and the brand colours from a Material 3 theme that admins change for everyone (W4-12). Other menu pages show a placeholder naming their phase.</td><td><span class="badge progress">Shells and auth screens built (W4)</span></td></tr>
+                <tr><td><code>frontend/e2e/</code></td><td>Playwright against the Compose stack: J1, J2, invitations, the offline app shell, the update prompt between two releases; axe in light and dark and a CSP check on every page. Tests tagged <code>@smoke</code> need no seed users and run against staging after each deploy.</td><td><span class="badge built">Built (W4)</span></td></tr>
+                <tr><td><code>.github/workflows/frontend.yml</code></td><td>Frontend CI: lint, Vitest, API type drift, type-check and build on Node 24. The compose-stack job in <code>backend.yml</code> runs the Playwright journeys.</td><td><span class="badge built">Built</span></td></tr>
                 <tr><td><code>infra/spikes/seaweedfs/</code></td><td>Phase 0 spike: SeaweedFS 4.48 behind Nginx, server-side checks and a browser upload page. Throwaway.</td><td><span class="badge built">Passed 2026-10-16</span></td></tr>
                 <tr><td><code>docs/</code></td><td>Planning documents, this site, and draw.io diagrams in <code>docs/diagrams/</code>.</td><td><span class="badge built">Built</span></td></tr>
-                <tr><td><code>services/</code>, <code>libs/mms_common/</code>, <code>infra/compose*.yml</code></td><td>The five services, the shared library and the Compose stack.</td><td><span class="badge planned">Phase 1+</span></td></tr>
+                <tr><td><code>libs/mms_common/</code></td><td>Shared library: <code>auth</code> (EdDSA JWT, JWKS cache, revocation list, <code>require_roles</code>, org scoping), <code>events</code> (envelope, schemas by <code>(type, version)</code>), <code>outbox</code> + <code>relay</code> (leader lease), <code>consumer</code> + <code>kafka</code> (dedupe, retry, DLQ), <code>migrations</code>, <code>cron</code>, <code>mongo</code>, <code>snapshot</code>, <code>ids</code>, <code>time</code>, <code>errors</code>, <code>web</code>, <code>checks</code>, and <code>testing</code> (seed users, token issuer, authorization matrix, client leak check, container fixtures).</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
+                <tr><td><code>templates/service/</code></td><td>Copier template. A generated service runs migrations on startup, the relay under its lease and JWT auth from JWKS, and passes the architecture checks and the authorization matrix unchanged.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
+                <tr><td><code>services/auth/</code></td><td>Registration and approval, invitations, login, refresh rotation, logout, password reset, profile, users, organizations, JWKS, service tokens, account links, snapshots, the AUTH-5 purge, and an operator CLI.</td><td><span class="badge built">Built (W3)</span></td></tr>
+                <tr><td><code>services/platform/</code></td><td>Audit module: consumer group <code>audit</code> on every topic, the hash chain and its integrity check. Notification module: account emails (consumer group <code>notification</code>, <code>email_queue</code>, the sender job) since W4; in-app, WebSocket and the other emails in Phase 3.</td><td><span class="badge progress">Audit (W3) and account emails (W4) built</span></td></tr>
+                <tr><td><code>infra/</code></td><td>Compose stack: Nginx gateway, MongoDB <code>rs0</code> (one user per database, insert-only audit role), Redis, Kafka, SeaweedFS, Mailpit, auth, platform. Stack tests include J1 and J2 end to end into the audit chain.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
+                <tr><td><code>.github/workflows/backend.yml</code></td><td><code>mms_common</code>, each service, both template variants, <code>nginx -t</code>, and the Compose stack with its tests.</td><td><span class="badge built">Built (W2, W3)</span></td></tr>
+                <tr><td><code>services/operations</code>, <code>media</code>, <code>report</code></td><td>The other three services.</td><td><span class="badge planned">Phases 2–6</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -324,7 +331,7 @@ flowchart TB
      ===================================================================== -->
       <section class="doc" id="services">
         <div class="doc-head">
-          <div class="row"><h2 id="services-h">Services and endpoints</h2><span class="badge planned">Planned</span></div>
+          <div class="row"><h2 id="services-h">Services and endpoints</h2><span class="badge progress">auth and platform built</span></div>
           <p>What each service owns, what it publishes and consumes, and every public and internal route. Literal paths (<code>/geo</code>, <code>/mine</code>, <code>/due</code>) are declared before <code>/{id}</code>; <code>{id}</code> is a UUIDv7.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3</a></span>
         </div>
@@ -353,7 +360,7 @@ flowchart TB
           <article class="card">
             <h3>platform</h3>
             <p>Two modules with separate databases and users: notification (in-app, WebSocket, email) and audit (hash-chained, insert-only).</p>
-            <dl><dt>Databases</dt><dd><code>notification</code>, <code>audit</code></dd><dt>Emits</dt><dd>— (produces no events)</dd><dt>Consumes</dt><dd>User-facing events (notification); every topic (audit)</dd><dt>Cron</dt><dd>Weekly audit integrity check</dd><dt>Env prefix</dt><dd><code>PLATFORM_</code></dd><dt>Phase</dt><dd>1 (audit, account email), 3 (notifications)</dd></dl>
+            <dl><dt>Databases</dt><dd><code>notification</code>, <code>audit</code></dd><dt>Emits</dt><dd>— (produces no events)</dd><dt>Consumes</dt><dd>User-facing events (notification); every topic (audit)</dd><dt>Cron</dt><dd>Weekly audit integrity check</dd><dt>Env prefix</dt><dd><code>PLATFORM_</code></dd><dt>Phase</dt><dd>1 (audit built in W3; account email W4), 3 (notifications)</dd></dl>
           </article>
         </div>
 
@@ -376,19 +383,23 @@ flowchart TB
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/register</code></td><td>public</td><td>Client self-registration → Pending (AUTH-1)</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/login</code></td><td>public</td><td>Returns an access token and sets the refresh cookie</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/refresh</code></td><td>cookie</td><td>Rotates the refresh token; new access token (30 s grace)</td></tr>
-                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/logout</code></td><td>any</td><td>Revokes the refresh token family</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/logout</code></td><td>cookie</td><td>Revokes the refresh token family (works with an expired access token)</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/password-reset/request</code></td><td>public</td><td>Emails a reset link (always 202)</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/password-reset/confirm</code></td><td>public</td><td>Sets a new password and revokes all sessions</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/auth/invitations/accept</code></td><td>public (token)</td><td>Sets the password for an invited user</td></tr>
                 <tr><td>auth</td><td>GET / PATCH</td><td><code>/api/v1/auth/me</code></td><td>any</td><td>Current user; update name, phone, password, time zone, theme</td></tr>
+                <tr><td>auth</td><td>GET</td><td><code>/api/v1/auth/branding</code></td><td>public</td><td>The organization's brand colours (a Material 3 theme, or null for the built-in one) and their <code>version</code> (W4-12)</td></tr>
+                <tr><td>auth</td><td>PUT</td><td><code>/api/v1/auth/branding</code></td><td>admin</td><td>Save the brand colours for everyone, with <code>version</code>; audited as <code>branding.updated</code></td></tr>
                 <tr><td>auth</td><td>GET</td><td><code>/api/v1/users</code></td><td>admin</td><td>List and filter users</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/users</code></td><td>admin</td><td>Invite a staff or client user (AUTH-6)</td></tr>
+                <tr><td>auth</td><td>GET</td><td><code>/api/v1/users/{id}</code></td><td>admin</td><td>One user (built in W3; not in TRD 2.0's table)</td></tr>
                 <tr><td>auth</td><td>PATCH</td><td><code>/api/v1/users/{id}</code></td><td>admin</td><td>Update roles, status, org; disable revokes all sessions</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/users/{id}/approve</code></td><td>admin</td><td>Approve a pending client (existing or new org)</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/api/v1/users/{id}/reject</code></td><td>admin</td><td>Reject with a reason</td></tr>
-                <tr><td>auth</td><td>GET / POST / PATCH</td><td><code>/api/v1/organizations[/{id}]</code></td><td>admin (read: staff)</td><td>Manage client organizations</td></tr>
+                <tr><td>auth</td><td>GET / POST / PATCH</td><td><code>/api/v1/organizations[/{id}]</code></td><td>admin (read: staff; a client reads own org)</td><td>Manage client organizations</td></tr>
                 <tr><td>auth</td><td>GET</td><td><code>/.well-known/jwks.json</code></td><td>internal network</td><td>Public signing keys; not routed by Nginx</td></tr>
                 <tr><td>auth</td><td>POST</td><td><code>/internal/service-token</code></td><td>service secret</td><td>Short-lived service token</td></tr>
+                <tr><td>auth</td><td>POST</td><td><code>/internal/account-links</code></td><td>service (platform)</td><td>Mints a reset or invitation link when the email is sent</td></tr>
                 <tr><td>auth</td><td>GET</td><td><code>/internal/snapshot/{users|organizations}</code></td><td>service</td><td>Read-model backfill</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations</code></td><td>any (client: own org)</td><td>List, filter, search, paginate</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/stations</code></td><td>technician, admin</td><td>Create a station</td></tr>
@@ -553,7 +564,7 @@ flowchart LR
      ===================================================================== -->
       <section class="doc" id="data">
         <div class="doc-head">
-          <div class="row"><h2 id="data-h">Data and schemas</h2><span class="badge planned">Planned</span></div>
+          <div class="row"><h2 id="data-h">Data and schemas</h2><span class="badge progress">auth and audit built</span></div>
           <p>MongoDB and the S3 store are the only systems of record. Each service owns its database and has a Mongo user that can reach only that database; <code>platform</code> owns two. Kafka, Redis and the browser store are working copies.</p>
           <span class="src">Sources: <a href="BSD.md">BSD</a> · <a href="TRD.md">TRD §5, §7.1, §10</a> · ADR-2</span>
         </div>
@@ -564,7 +575,7 @@ flowchart LR
             <table>
               <thead><tr><th>Database</th><th>Service</th><th>Collections</th><th>Outbox</th><th>Consumes events</th></tr></thead>
               <tbody>
-                <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code></td><td>Yes</td><td>No</td></tr>
+                <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code>, <code>settings</code></td><td>Yes</td><td>No</td></tr>
                 <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code>, <code>sensor_applications</code>, <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>checklist_templates</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>media</code></td><td>media</td><td><code>media</code> (files are in S3)</td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>report</code></td><td>report</td><td><code>reports</code>, <code>signatures</code>, <code>report_jobs</code>; read model <code>request_facts</code>, <code>visit_facts</code>, <code>sensor_events</code>, <code>calibration_facts</code>, <code>station_facts</code></td><td>Yes</td><td>Yes</td></tr>
@@ -632,8 +643,10 @@ organizations { _id, name /*unique*/, country /*ISO 3166-1 alpha-2*/, contact_em
 refresh_tokens { _id, user_id, token_hash, family_id, expires_at /*TTL*/, revoked_at, replaced_by, rotated_at, device_label }
 password_resets { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
 invitations { _id, user_id, token_hash, expires_at /*TTL*/, used_at }
-signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }</code></pre>
+signing_keys { _id /*kid*/, public_jwk, private_key_ref, active, created_at, retired_at }
+settings { _id: "branding", material: { name, seed, schemes: { light, dark } /*49 roles each*/, palettes /*5 x tones 0-100*/ } | null, updated_at, updated_by, version }</code></pre>
               <p class="small muted">Indexes: <code>users.email</code> unique; <code>users.status</code>; <code>users.org_id</code>; <code>refresh_tokens.token_hash</code> unique; TTL on <code>expires_at</code>. A <code>client</code> role cannot be combined with a staff role.</p>
+              <p class="small muted"><b>As built (W3)</b>, beyond TRD §5.1: every document has <code>version</code>, <code>created_at</code>, <code>updated_at</code>, <code>created_by</code>, <code>updated_by</code>; <code>organizations.name_key</code> (case- and space-insensitive, unique); <code>refresh_tokens.successor_enc</code> (sealed successor for the grace window) and <code>created_at</code>; <code>password_resets</code> and <code>invitations</code> start with <code>token_hash: null</code> and get <code>minted_at</code> when the email is sent, <code>superseded</code> when a newer one replaces them (unique index on <code>token_hash</code> only where it is a string); <code>refresh_tokens.family_id</code> and <code>user_id</code> are indexed. Migrations: <code>services/auth/app/migrations/</code>.</p>
             </div>
           </details>
 
@@ -778,7 +791,9 @@ audit_events {
   action, resource: { type, id }, org_id, before, after, metadata, correlation_id, source_service,
   prev_hash, hash /*sha256(prev_hash + canonical(record without hash))*/
 }
-audit_state { _id: "chain", last_seq, last_hash }</code></pre>
+audit_state { _id: "chain", last_seq, last_hash, writer /*set first in every append*/ }
+// As built (W3): records also keep event_version and aggregate_version; times are stored
+// to the millisecond so the stored record hashes the same as when it was written.</code></pre>
             </div>
           </details>
 
@@ -830,7 +845,7 @@ audit_state { _id: "chain", last_seq, last_hash }</code></pre>
      ===================================================================== -->
       <section class="doc" id="events">
         <div class="doc-head">
-          <div class="row"><h2 id="events-h">Events and outbox</h2><span class="badge planned">Planned</span></div>
+          <div class="row"><h2 id="events-h">Events and outbox</h2><span class="badge built">Built · auth events live</span></div>
           <p>Services tell each other about changes only through Kafka events, written to a transactional outbox in the same Mongo transaction as the change. A relay running under a Redis leader lease publishes them. Consumers apply each event exactly once.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §4.2, §8</a> · ADR-3, ADR-13</span>
         </div>
@@ -906,7 +921,84 @@ sequenceDiagram
     C->>K: Commit offset
 </pre>
           </div>
-          <figcaption>If the leader dies, another worker takes the lease within 10 s, so relays never run in parallel or out of order. A consumer retries transient errors 5 times (1 s → 30 s) before the DLQ; nothing is dropped silently.</figcaption>
+          <figcaption>If the leader dies, another worker takes the lease within 10 s, so relays never run in parallel or out of order. A consumer retries transient errors 5 times (1 s → 30 s) before the DLQ; nothing is dropped silently. Built in <code>mms_common.outbox</code>, <code>.relay</code>, <code>.consumer</code> and <code>.kafka</code>.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="events-handover" data-title="Outbox leader handover when the leader dies" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant W1 as Worker 1 (leader)
+    participant W2 as Worker 2
+    participant R as Redis
+    participant M as Service DB outbox
+    participant K as Kafka
+    participant C as Consumers
+
+    W1->>R: SET outbox-leader:auth NX PX 10000 (granted)
+    W2->>R: SET NX (refused, retries every second)
+    loop Every second, or at once on a change-stream insert
+        W1->>R: Renew only if still the owner (compare, then PEXPIRE)
+        W1->>M: Unpublished rows, oldest first
+        W1->>K: Produce, then set published_at
+    end
+    Note over W1: Worker 1 dies after producing a row, before marking it
+    Note over R: The lease expires within 10 s
+    W2->>R: SET NX (granted)
+    W2->>K: Open a producer
+    W2->>M: Unpublished rows, oldest first
+    W2->>K: Produce in order, the unmarked row again
+    K--)C: Deliver
+    C->>C: processed_events drops the repeat by event_id
+</pre>
+          </div>
+          <figcaption>Every worker runs <code>run_relay</code>; only the lease holder opens a producer. A row produced but not marked is sent again, so delivery is at-least-once and consumers make it exactly-once. Kafka or Redis being down never stops a service: rows wait and go out in order. Tested in <code>libs/mms_common/tests</code> (lease on real Redis, relay through a Kafka outage).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="events-storming-auth" data-title="auth: commands, events and who reacts" data-kind="Event storming flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    subgraph CMD["Commands"]
+        C1["Register (client)"]
+        C2["Approve or reject (admin)"]
+        C3["Invite (admin)"]
+        C4["Accept invitation or reset password (user)"]
+        C5["Log in, log out, refresh (user)"]
+        C6["Edit profile, user or organization"]
+        C7["Purge pending (cron)"]
+        C8["Bootstrap admin or seed (CLI)"]
+    end
+    subgraph EV["Events on mms.auth.events"]
+        E1["user.registered"]
+        E2["user.approved, user.rejected, org.created"]
+        E3["user.invited"]
+        E4["auth.password_reset_requested, auth.password_reset, user.updated"]
+        E5["auth.login_succeeded, auth.login_failed, auth.logout, auth.token_reuse_detected"]
+        E6["user.updated, user.disabled, org.created, org.updated"]
+        E7["user.purged"]
+        E8["user.created, org.created"]
+    end
+    subgraph RX["Consumers"]
+        A["audit: every event into the hash chain (built)"]
+        N["notification: account emails (W4), user_directory (Phase 3)"]
+        O["operations, report: organization names (Phases 2 and 6)"]
+    end
+    C1 --> E1
+    C2 --> E2
+    C3 --> E3
+    C4 --> E4
+    C5 --> E5
+    C6 --> E6
+    C7 --> E7
+    C8 --> E8
+    E1 &amp; E2 &amp; E3 &amp; E4 &amp; E5 &amp; E6 &amp; E7 &amp; E8 --> A
+    E1 &amp; E2 &amp; E3 &amp; E4 --> N
+    E2 &amp; E6 --> O
+</pre>
+          </div>
+          <figcaption>Every <code>user.*</code> event carries the directory fields (<code>user_id</code>, <code>email</code>, <code>name</code>, <code>roles</code>, <code>status</code>, <code>org_id</code>), so a read model can upsert from any of them. No event carries a password, a hash or a token.</figcaption>
         </figure>
 
         <div class="split">
@@ -936,7 +1028,7 @@ sequenceDiagram
   "source": "operations",
   "key": "&lt;root aggregate id&gt;",
   "aggregate_version": 7,
-  "actor": { "user_id": "…", "roles": ["technician"],
+  "actor": { "user_id": "…", "name": "…", "roles": ["technician"],
              "ip": "…", "user_agent": "…", "device_id": "…" },
   "org_id": "…",
   "resource": { "type": "visit", "id": "…" },
@@ -950,6 +1042,7 @@ sequenceDiagram
 
         <div class="sub" id="events-catalogue">
           <h3>Event catalogue</h3>
+          <p class="small muted">"User fields" = <code>user_id</code>, <code>email</code>, <code>name</code>, <code>roles</code>, <code>status</code>, <code>org_id</code>. Rows marked built have Pydantic schemas in <code>libs/mms_common/mms_common/events/auth.py</code>; the rest are designed.</p>
           <div class="table-tools" data-for="events-table">
             <label class="sr-only" for="events-filter">Filter events</label>
             <input id="events-filter" type="search" placeholder="Filter by event, consumer or field">
@@ -964,12 +1057,17 @@ sequenceDiagram
             <table id="events-table">
               <thead><tr><th>Event</th><th>Producer</th><th>Consumers</th><th>Key data fields</th></tr></thead>
               <tbody>
-                <tr><td><code>auth.login_succeeded</code> / <code>auth.login_failed</code> / <code>auth.logout</code> / <code>auth.password_reset</code></td><td>auth</td><td>platform (audit)</td><td>user_id?, email_hash, reason?</td></tr>
-                <tr><td><code>user.registered</code></td><td>auth</td><td>platform</td><td>user_id, name, proposed_org_name</td></tr>
-                <tr><td><code>user.invited</code></td><td>auth</td><td>platform</td><td>user_id, roles, org_id?</td></tr>
-                <tr><td><code>user.approved</code> / <code>user.rejected</code></td><td>auth</td><td>platform</td><td>user_id, org_id?, reason?</td></tr>
-                <tr><td><code>user.updated</code> / <code>user.disabled</code></td><td>auth</td><td>platform</td><td>user_id, roles, status, org_id</td></tr>
-                <tr><td><code>org.created</code> / <code>org.updated</code></td><td>auth</td><td>operations, report, platform</td><td>org_id, name, country, status</td></tr>
+                <tr><td><code>auth.login_succeeded</code> / <code>auth.login_failed</code> / <code>auth.logout</code> / <code>auth.password_reset</code> (built)</td><td>auth</td><td>platform (audit)</td><td>user_id?, email_hash, reason? (wrong_password, unknown_email, pending, rejected, disabled, invited, org_inactive)</td></tr>
+                <tr><td><code>auth.password_reset_requested</code> (built)</td><td>auth</td><td>platform</td><td>user_id, reset_id; notification mints the link through <code>/internal/account-links</code></td></tr>
+                <tr><td><code>auth.token_reuse_detected</code> (built)</td><td>auth</td><td>platform (audit)</td><td>user_id, family_id</td></tr>
+                <tr><td><code>user.registered</code> (built)</td><td>auth</td><td>platform</td><td>user fields + proposed_org_name</td></tr>
+                <tr><td><code>user.invited</code> (built)</td><td>auth</td><td>platform</td><td>user fields + invitation_id</td></tr>
+                <tr><td><code>user.created</code> (built)</td><td>auth</td><td>platform</td><td>user fields + via (the CLI: first admin, seed users)</td></tr>
+                <tr><td><code>user.approved</code> / <code>user.rejected</code> (built)</td><td>auth</td><td>platform</td><td>user fields; reason on rejection</td></tr>
+                <tr><td><code>user.updated</code> / <code>user.disabled</code> (built)</td><td>auth</td><td>platform</td><td>user fields; changed_fields on update</td></tr>
+                <tr><td><code>user.purged</code> (built)</td><td>auth</td><td>platform</td><td>user_id (AUTH-5)</td></tr>
+                <tr><td><code>org.created</code> / <code>org.updated</code> (built)</td><td>auth</td><td>operations, report, platform</td><td>org_id, name, country, status; changed_fields on update</td></tr>
+                <tr><td><code>branding.updated</code> (built)</td><td>auth</td><td>platform (audit, "brand colour changes")</td><td>custom, name, seed; key <code>branding</code>, resource <code>settings/branding</code>; audit before/after: custom, name, seed, light and dark primary</td></tr>
                 <tr><td><code>station.created</code> / <code>station.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, code, name, org_id, country, status</td></tr>
                 <tr><td><code>qr.regenerated</code></td><td>operations</td><td>platform (audit)</td><td>station_id</td></tr>
                 <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code></td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, needs_review</td></tr>
@@ -1023,9 +1121,9 @@ sequenceDiagram
      ===================================================================== -->
       <section class="doc" id="auth">
         <div class="doc-head">
-          <div class="row"><h2 id="auth-h">Authentication</h2><span class="badge planned">Planned · Phase 1</span></div>
+          <div class="row"><h2 id="auth-h">Authentication</h2><span class="badge progress">Backend built (W3) · screens W4 · PIN Phase 5</span></div>
           <p>Email and password login issues a 15-minute EdDSA access token, held in memory only, and a 30-day rotating refresh token in an httpOnly cookie. Every service verifies the JWT locally against auth's JWKS. Staff in the field reopen their work offline with a device PIN.</p>
-          <span class="src">Sources: <a href="TRD.md">TRD §3.1, §6</a> · <a href="AFD.md">AFD J1, J2</a> · AUTH-1 to AUTH-13 · ADR-7, ADR-20</span>
+          <span class="src">Sources: <a href="TRD.md">TRD §3.1, §6</a> · <a href="AFD.md">AFD J1, J2</a> · AUTH-1 to AUTH-13 · ADR-7, ADR-20 · code in <code>services/auth/</code> and <code>libs/mms_common/mms_common/auth/</code></span>
         </div>
 
         <div class="sub" id="auth-tokens">
@@ -1035,13 +1133,52 @@ sequenceDiagram
               <thead><tr><th>Token</th><th>Format</th><th>Lifetime</th><th>Stored</th></tr></thead>
               <tbody>
                 <tr><td>Access</td><td>JWT, EdDSA (Ed25519). Claims <code>sub</code>, <code>roles</code>, <code>org_id</code>, <code>name</code>, <code>iat</code>, <code>exp</code>, <code>jti</code>, <code>kid</code></td><td>15 min</td><td>Memory only (Pinia); never persisted</td></tr>
-                <tr><td>Refresh</td><td>256-bit random; SHA-256 hash in <code>refresh_tokens</code></td><td>30 days, rotated on each use</td><td>httpOnly, Secure, SameSite=Strict cookie, path <code>/api/v1/auth</code></td></tr>
+                <tr><td>Refresh</td><td>256-bit random; SHA-256 hash in <code>refresh_tokens</code>. The successor is sealed (AES-GCM, key derived from the token it replaces) for the 30 s grace</td><td>30 days from the last refresh (sliding), rotated on each use; login and refresh return <code>refresh_expires_at</code> (the PWA's <code>offline_until</code>)</td><td>Cookie <code>__Secure-mms_refresh</code>: httpOnly, Secure, SameSite=Strict, path <code>/api/v1/auth</code></td></tr>
                 <tr><td>Service</td><td>JWT, <code>roles:["service"]</code>, <code>sub:&lt;service&gt;</code></td><td>5 min</td><td>Service memory</td></tr>
-                <tr><td>Reset / invitation</td><td>256-bit, hashed, single use</td><td>1 hour / 7 days</td><td><code>password_resets</code>, <code>invitations</code></td></tr>
+                <tr><td>Reset / invitation</td><td>256-bit, hashed, single use. Minted only when the email is sent (<code>/internal/account-links</code>); never in an event</td><td>1 hour / 7 days</td><td><code>password_resets</code>, <code>invitations</code></td></tr>
               </tbody>
             </table>
           </div>
+          <p class="small muted">Disabling a user, deactivating an organization, a password reset or a role change also writes <code>auth:revoked:user:&lt;id&gt;</code> or <code>auth:revoked:org:&lt;id&gt;</code> in Redis (17 minutes). Every service refuses access tokens issued at or before that moment, so AUTH-11 and ORG-4 take effect at once rather than when the 15-minute token expires.</p>
         </div>
+
+        <div class="sub" id="auth-routes">
+          <h3>Routes as built</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Method and path</th><th>Who</th><th>Does</th><th>Answers</th></tr></thead>
+              <tbody>
+                <tr><td><code>POST /api/v1/auth/register</code></td><td>public</td><td>Client self-registration with a typed organization name → Pending (AUTH-1)</td><td>202 <code>{"status":"pending"}</code>, the same for an existing email; 422 with a field error for a short or breached password</td></tr>
+                <tr><td><code>POST /api/v1/auth/login</code></td><td>public</td><td>Access token, user, <code>refresh_expires_at</code>; sets the cookie</td><td>200 · 401 <code>invalid_credentials</code> · 403 <code>account_pending</code> / <code>account_blocked</code> · 429</td></tr>
+                <tr><td><code>POST /api/v1/auth/refresh</code></td><td>cookie</td><td>Rotates the refresh token (30 s grace)</td><td>200 · 401 <code>no_session</code> / <code>session_expired</code> / <code>session_revoked</code> / <code>account_blocked</code> (cookie cleared)</td></tr>
+                <tr><td><code>POST /api/v1/auth/logout</code></td><td>cookie</td><td>Revokes the family; works with an expired access token</td><td>204</td></tr>
+                <tr><td><code>POST /api/v1/auth/password-reset/request</code></td><td>public</td><td>Opens a reset (at most 3 per email per hour)</td><td>202 always</td></tr>
+                <tr><td><code>POST /api/v1/auth/password-reset/confirm</code></td><td>public (token)</td><td>Sets the password; ends every session and access token; activates an invited user</td><td>204 · 410 <code>link_expired</code></td></tr>
+                <tr><td><code>POST /api/v1/auth/invitations/accept</code></td><td>public (token)</td><td>Sets the password and signs the user in</td><td>200 like login · 410</td></tr>
+                <tr><td><code>GET</code>, <code>PATCH /api/v1/auth/me</code></td><td>any signed-in user</td><td>Own profile: name, phone, time zone, theme; password with the current one (other devices signed out)</td><td>200 · 422</td></tr>
+                <tr><td><code>GET /api/v1/auth/branding</code></td><td>public</td><td>The brand colours everyone sees: <code>{material, version, updated_at}</code>; <code>material</code> null = built-in (W4-12)</td><td>200</td></tr>
+                <tr><td><code>PUT /api/v1/auth/branding</code></td><td>admin</td><td>Save them for everyone: <code>{material | null, version}</code>. <code>app/domain/branding.py</code> checks exactly the 49 roles per scheme and tones 0–100 of the five palettes, all <code>#RRGGBB</code></td><td>200 · 409 <code>version_conflict</code> · 422 <code>invalid_theme</code></td></tr>
+                <tr><td><code>GET</code>, <code>POST /api/v1/users</code></td><td>admin</td><td>List with filters (<code>status</code>, <code>role</code>, <code>org_id</code>, <code>q</code>, <code>after</code>, <code>limit</code>); invite (AUTH-6)</td><td>200 · 201 · 409 <code>email_taken</code></td></tr>
+                <tr><td><code>GET</code>, <code>PATCH /api/v1/users/{id}</code></td><td>admin</td><td>Read; change roles, org, status, name, phone with <code>version</code></td><td>200 · 409 <code>version_conflict</code> / <code>self_lockout</code></td></tr>
+                <tr><td><code>POST /api/v1/users/{id}/approve</code>, <code>/reject</code></td><td>admin</td><td>Approve with <code>org_id</code> or <code>new_organization</code>; reject with a reason (AUTH-3)</td><td>200 · 409 <code>invalid_status</code></td></tr>
+                <tr><td><code>GET /api/v1/organizations[/{id}]</code></td><td>any (a client: own org only)</td><td>List and read</td><td>200 · 404 for another org</td></tr>
+                <tr><td><code>POST</code>, <code>PATCH /api/v1/organizations[/{id}]</code></td><td>admin</td><td>Create, edit, deactivate (ORG-1, ORG-4)</td><td>201 · 200 · 409 <code>org_name_taken</code></td></tr>
+                <tr><td><code>GET /.well-known/jwks.json</code></td><td>internal network</td><td>Active key, and keys retired less than a day ago</td><td>200</td></tr>
+                <tr><td><code>POST /internal/service-token</code></td><td>HTTP Basic: service name and secret</td><td>5-minute service token</td><td>200 · 401</td></tr>
+                <tr><td><code>POST /internal/account-links</code></td><td>service: platform</td><td>Mints the reset or invitation link when the email is sent</td><td>200 <code>{url, email, name, expires_at}</code> · 410</td></tr>
+                <tr><td><code>GET /internal/snapshot/{users|organizations}</code></td><td>service: platform, operations, report</td><td>Backfill pages (TRD §8.6)</td><td>200</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Every auth response carries <code>Cache-Control: no-store</code>. Errors are RFC 9457 problem details; <code>reason</code> or <code>code</code> tells the PWA which banner to show. Every route is in the authorization matrix (<code>services/auth/tests/api/test_authorization_matrix.py</code>).</p>
+        </div>
+
+        <figure class="diagram" id="auth-j1" data-title="J1: register, then an admin approves or rejects" data-kind="Swimlane flowchart">
+          <div class="view" data-label="draw.io">
+            <div class="canvas sheet"><img src="diagrams/j1-registration.drawio.svg" width="2332" height="972" loading="lazy" alt="J1 swimlane in six lanes: the client registers in the PWA; auth saves a pending user and user.registered in one transaction; Kafka carries it to platform's audit chain; later an admin opens the registration and approves (linking or creating the organization) or rejects with a reason; auth emits user.approved or user.rejected; platform's notification module queues and sends the email; the approved client logs in."></div>
+          </div>
+          <figcaption>As built in W3 and W4 (AFD J1, AUTH-3). Each hand-off between lanes is either an HTTP call or an event through the outbox and Kafka; nothing in the admin's list comes from Kafka (the Registrations page reads <code>GET /api/v1/users?status=pending</code>). There is no "registration received" email: the pending page says what happens next. Edit <code>docs/diagrams/j1-registration.drawio.svg</code> in draw.io.</figcaption>
+        </figure>
 
         <figure class="diagram" id="auth-login" data-title="Log in with email and password" data-kind="Sequence diagram">
           <div class="view" data-label="Mermaid">
@@ -1055,6 +1192,7 @@ sequenceDiagram
     participant R as Redis
     participant M as auth DB (Mongo)
     participant K as Kafka → platform audit
+    participant O as Other open tabs
 
     U->>P: Email and password, Log in
     P->>N: POST /api/v1/auth/login
@@ -1084,7 +1222,8 @@ sequenceDiagram
             A->>R: Clear the failure count
             A->>M: One transaction: refresh token hash (new family_id) + outbox auth.login_succeeded
             A-->>P: Access JWT (EdDSA, 15 min) + Set-Cookie refresh (httpOnly, Secure, SameSite=Strict, path /api/v1/auth, 30 days)
-            P->>P: Keep the access token in memory (Pinia), never persisted
+            P->>P: startSession(): token and user in memory only (app/auth/session.ts)
+            P--)O: BroadcastChannel mms-auth: they take the same session
             P-->>U: Saved next page (deep link, QR), else /dashboard for the role
         end
     end
@@ -1092,7 +1231,7 @@ sequenceDiagram
 </pre>
           </div>
           <div class="view" data-label="draw.io">
-            <div class="canvas sheet"><img src="diagrams/login-password.drawio.svg" width="1300" height="1456" loading="lazy" alt="Login sequence drawn in draw.io: the same 25 steps as the Mermaid view."></div>
+            <div class="canvas sheet"><img src="diagrams/login-password.drawio.svg" width="1373" height="1533" loading="lazy" alt="Login sequence drawn in draw.io: the same 26 steps as the Mermaid view."></div>
           </div>
           <figcaption>The throttle and the dummy Argon2 check run before anything about the account is revealed (AUTH-10). Status codes 401, 403 and 429 are proposed; error bodies are RFC 9457 problem details (TP V1).</figcaption>
         </figure>
@@ -1132,7 +1271,166 @@ sequenceDiagram
           <div class="view" data-label="draw.io">
             <div class="canvas sheet"><img src="diagrams/login-refresh.drawio.svg" width="1026" height="869" loading="lazy" alt="Session refresh sequence drawn in draw.io: the same 13 steps as the Mermaid view."></div>
           </div>
-          <figcaption>The access token is never stored, so every app start or reload gets one from <code>/refresh</code>. The 30-second grace window stops two tabs refreshing at once from logging the user out.</figcaption>
+          <figcaption>The access token is never stored, so every app start or reload gets one from <code>/refresh</code>. The 30-second grace window stops two tabs refreshing at once from logging the user out. As built, the 401s carry <code>reason</code>: <code>session_revoked</code> (reuse), <code>session_expired</code>, <code>account_blocked</code>; the branch logic is in the code flowchart below.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-login-code" data-title="/login, branch by branch" data-kind="Code flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["POST /api/v1/auth/login"] --> B{"5 failures for this email hash&lt;br/&gt;in the last 15 minutes?"}
+    B -->|yes| X429["429 rate_limited"]
+    B -->|no| C["Find the user by normalized email"]
+    C --> D["Argon2id verify&lt;br/&gt;(dummy hash when there is no user)"]
+    D --> E{"User exists and&lt;br/&gt;password matches?"}
+    E -->|no| F["Count the failure in Redis&lt;br/&gt;outbox auth.login_failed&lt;br/&gt;wrong_password or unknown_email"]
+    F --> X401["401 invalid_credentials&lt;br/&gt;same body either way"]
+    E -->|yes| G{"login_outcome(status, org status)"}
+    G -->|pending| H["outbox auth.login_failed (pending)"]
+    H --> X403P["403 account_pending"]
+    G -->|"rejected, disabled, invited&lt;br/&gt;or org inactive"| I["outbox auth.login_failed (reason)"]
+    I --> X403B["403 account_blocked"]
+    G -->|ok| J["Clear the failure count"]
+    J --> K["One transaction: refresh row (new family_id),&lt;br/&gt;last_login_at, outbox auth.login_succeeded"]
+    K --> OK["200 access JWT, user, refresh_expires_at&lt;br/&gt;Set-Cookie __Secure-mms_refresh"]
+</pre>
+          </div>
+          <figcaption>One test per branch in <code>services/auth/tests/api/test_login_and_sessions.py</code>. Status is checked only after the password matches, so a wrong password never reveals that an account is pending or disabled (AUTH-10).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-refresh-code" data-title="/refresh: rotation, grace and reuse" data-kind="Code flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["POST /api/v1/auth/refresh"] --> B{"Refresh cookie?"}
+    B -->|no| N1["401 no_session"]
+    B -->|yes| C["Row by SHA-256 of the token"]
+    C --> D{"decide(row, now)"}
+    D -->|"unknown, expired,&lt;br/&gt;or revoked by logout or reset"| N2["401 session_expired&lt;br/&gt;cookie cleared"]
+    D -->|live| E{"User active and&lt;br/&gt;org active?"}
+    E -->|no| N3["Revoke the family&lt;br/&gt;401 account_blocked"]
+    E -->|yes| F["Transaction: mark rotated,&lt;br/&gt;seal the successor under a key&lt;br/&gt;derived from this token,&lt;br/&gt;insert the successor (30 days)"]
+    F --> G{"This request won?"}
+    G -->|yes| OK["200 new access JWT&lt;br/&gt;new cookie"]
+    G -->|"no: a tab or the worker&lt;br/&gt;rotated it first"| H
+    D -->|"rotated 30 s ago or less"| H["Open the sealed successor,&lt;br/&gt;following quick rotations"]
+    H --> I{"Successor still live?"}
+    I -->|no| N2
+    I -->|yes| J{"User active and&lt;br/&gt;org active?"}
+    J -->|no| N3
+    J -->|yes| OK2["200 new access JWT&lt;br/&gt;the same successor cookie"]
+    D -->|"rotated more than 30 s ago"| R["Revoke the whole family&lt;br/&gt;outbox auth.token_reuse_detected"]
+    R --> N4["401 session_revoked"]
+</pre>
+          </div>
+          <figcaption>The database never holds a usable token: only hashes, and successors sealed under a key only the previous token's holder can derive. Three concurrent refreshes with one cookie all succeed and end on the same successor (TP "Refresh race", tested).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-reset" data-title="J2: reset a forgotten password (as built)" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant P as PWA
+    participant A as auth
+    participant M as auth DB
+    participant K as Kafka
+    participant N as platform notification
+
+    U->>P: /forgot-password, email, Send link
+    P->>A: POST /api/v1/auth/password-reset/request
+    A->>A: Known, active or invited, under 3 requests this hour?
+    A->>M: One transaction: password_resets row with no token + outbox auth.password_reset_requested
+    A-->>P: 202, whether or not the email is registered
+    M--)K: Relay publishes the event (no token in it)
+    K--)N: auth.password_reset_requested
+    N->>N: One transaction: processed_events + email_queue row (reset id, no token)
+    N->>A: Sender job claims the row, POST /internal/account-links, kind reset (service token)
+    A->>M: Mint a token, store its hash, replacing any earlier one
+    A-->>N: url, email, name, expires_at
+    N-->>U: Reset email with the link
+    U->>P: /reset-password/token, new password twice, Save
+    P->>A: POST /api/v1/auth/password-reset/confirm
+    A->>M: One transaction: new hash, link used, every refresh token revoked, outbox auth.password_reset
+    A->>A: Redis revocation: earlier access tokens refused
+    A-->>P: 204
+    P-->>U: /login with a "Password changed" banner
+</pre>
+          </div>
+          <figcaption>The link is minted at the moment the email is sent, so no token ever sits in Kafka (14 days), the DLQ (30 days), the outbox (7 days) or the audit trail. Sending again invalidates the previous link. An invited user whose link expired finishes through this flow (AFD §7).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-usecases" data-title="Who can do what in auth" data-kind="Use case flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    ANY(["Anyone"])
+    CL(["Client"])
+    ST(["Technician or viewer"])
+    AD(["Admin"])
+    SV(["platform service"])
+    R1["Register"]
+    R2["Log in, refresh, log out"]
+    R3["Reset a password"]
+    R4["Accept an invitation"]
+    M1["Edit own profile, theme, password"]
+    O1["Read own organization"]
+    O2["Read every organization"]
+    U1["Approve or reject registrations"]
+    U2["Invite staff and clients"]
+    U3["Change roles, disable users"]
+    O3["Create, edit, deactivate organizations"]
+    I1["Mint account links"]
+    I2["Snapshot users and organizations"]
+    ANY --> R1
+    ANY --> R2
+    ANY --> R3
+    ANY --> R4
+    CL --> M1
+    CL --> O1
+    ST --> M1
+    ST --> O2
+    AD --> M1
+    AD --> O2
+    AD --> U1
+    AD --> U2
+    AD --> U3
+    AD --> O3
+    SV --> I1
+    SV --> I2
+</pre>
+          </div>
+          <figcaption>Mirrors the expected-roles table of the authorization matrix. A viewer may edit only their own profile (the one mutating route marked <code>self_service</code>). A client asking for another organization gets 404.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="auth-credentials" data-title="Where credentials and tokens live" data-kind="Data flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    subgraph BR["Browser or installed PWA"]
+        MEM["Access JWT&lt;br/&gt;memory only (Pinia)"]
+        CK["Refresh cookie __Secure-mms_refresh&lt;br/&gt;httpOnly, Secure, SameSite=Strict,&lt;br/&gt;path /api/v1/auth"]
+    end
+    subgraph AU["auth"]
+        KEY["Ed25519 private key&lt;br/&gt;file mounted as a secret"]
+        DB[("auth DB: Argon2id hashes,&lt;br/&gt;token hashes, sealed successors,&lt;br/&gt;public JWKs")]
+    end
+    RD[("Redis: login throttle,&lt;br/&gt;revocation list, JWKS cache")]
+    SVC["Every service&lt;br/&gt;verifies the JWT locally"]
+    KF[("Kafka: events with&lt;br/&gt;no password or token")]
+    KEY -->|signs| MEM
+    CK -->|"POST /refresh"| AU
+    AU -->|"Set-Cookie"| CK
+    AU --- DB
+    AU -->|"disable, reset, deactivate"| RD
+    RD -->|"revoked users and orgs"| SVC
+    AU -->|"JWKS, internal network only"| SVC
+    MEM -->|"Authorization: Bearer"| SVC
+    AU -->|"outbox relay"| KF
+</pre>
+          </div>
+          <figcaption>For the Phase 7 security review. Nothing token-like is stored in the browser; Nginx never sees inside tokens; the service worker (Phase 5) will refresh under the same Web Lock and never cache these responses.</figcaption>
         </figure>
 
         <figure class="diagram" id="auth-status" data-title="Account status" data-kind="State diagram">
@@ -1145,12 +1443,15 @@ stateDiagram-v2
     Pending --> Rejected : admin rejects with a reason
     Pending --> [*] : purged after 30 days without a decision (AUTH-5)
     Invited --> Active : user sets a password from the invitation link
-    Active --> Disabled : admin disables, every session revoked (AUTH-11)
-    Disabled --> Active : admin changes the status back
+    Invited --> Active : or completes a password reset after the link expired
+    Invited --> Disabled : admin disables
+    Active --> Disabled : admin disables, every session and access token ends (AUTH-11)
+    Disabled --> Active : admin re-enables (PATCH /users/id)
+    Disabled --> Invited : re-enabled but never set a password
     Rejected --> [*]
 </pre>
           </div>
-          <figcaption><code>users.status</code>. Only <b>Active</b> users in an active organization can log in: Pending sees the waiting page; Rejected, Disabled or an inactive organization sees "This account cannot sign in". The re-enable transition is an admin <code>PATCH /users/{id}</code> status change; confirm when auth is built.</figcaption>
+          <figcaption><code>users.status</code>, as built in <code>services/auth/app/domain/users.py</code>. Only <b>Active</b> users in an active organization can log in: Pending gets <code>account_pending</code>; Rejected, Disabled, Invited or an inactive organization gets <code>account_blocked</code> ("This account cannot sign in"). An admin can't disable themselves or remove their own admin role.</figcaption>
         </figure>
 
         <div class="split">
@@ -1158,9 +1459,10 @@ stateDiagram-v2
             <h3>Passwords and throttling</h3>
             <ul>
               <li>Argon2id (<code>argon2-cffi</code>, time ≥ 3, memory ≥ 64 MiB).</li>
-              <li>At least 10 characters, checked against a breached-password list (HIBP range API, or a local k-anonymity file if there is no outbound internet, T1).</li>
-              <li>5 failures per account → 15-minute delay, keyed by the hash of the normalized email whether or not the account exists. Nginx adds the per-IP limit.</li>
-              <li>A successful reset revokes all refresh tokens.</li>
+              <li>At least 10 characters, checked against a built-in list of common passwords and the HIBP range API (only 5 hex characters of the SHA-1 leave the server, padded). If HIBP is unreachable the local file is used (<code>AUTH_BREACHED_FILE</code>); with no file the password is accepted and <code>auth_breached_check_unavailable_total</code> counts it (T1).</li>
+              <li>5 failures per email → locked for the rest of a 15-minute window, keyed by the hash of the normalized email whether or not the account exists. Nginx adds the per-IP limit. Wrong password and unknown email give the same 401 body.</li>
+              <li>A successful reset revokes all refresh tokens and every access token issued before it. Changing the password in My profile signs out the other devices and keeps this one.</li>
+              <li>Registering an email that already has an account answers exactly like a new registration and changes nothing.</li>
               <li>Signing keys rotate yearly: a new <code>kid</code> joins JWKS; services cache JWKS in Redis for 10 minutes and refetch on an unknown <code>kid</code>.</li>
             </ul>
           </div>
@@ -1178,13 +1480,18 @@ stateDiagram-v2
 
         <div class="sub" id="auth-authorization">
           <h3>Authorization in every service</h3>
-<pre class="code"><code>@router.post("/api/v1/requests/{id}/approve")
-async def approve(id: str, user: User = Depends(require_roles("admin"))): ...
+<pre class="code"><code>from mms_common.auth import User, require_roles, require_staff, scoped
 
-# Role groups (mms_common.auth)
+@router.post("/api/v1/requests/{id}/approve")
+async def approve(id: IdPath, user: Annotated[User, Depends(require_roles("admin"))]): ...
+
+# Role groups (mms_common.auth.roles)
 STAFF = {"technician", "admin", "viewer"}        # require_staff(): reads only for viewer
-STAFF_WRITE = {"technician", "admin"}            # every mutating route; a test asserts viewer never passes</code></pre>
-          <p>Org scoping is applied by the repository, not the endpoint. Clients see staff only as <code>{id, name}</code>, never email or phone (D4). Out-of-scope records are 404.</p>
+STAFF_WRITE = {"technician", "admin"}            # every mutating route; the matrix asserts viewer never passes
+
+# Repository layer: a client's query always gets their own org (both conditions must hold)
+await col.find_one(scoped(user, {"_id": id}))    # another org's record: not found -> 404</code></pre>
+          <p>Org scoping is applied by the repository, not the endpoint. Clients see staff only as <code>{id, name}</code>, never email or phone (D4). Out-of-scope records are 404. The auth dependency raises before FastAPI reports body errors, so an unauthorised caller gets 401 or 403, never 422. Services get the authorization matrix, the client leak check, seed users and a token issuer from <code>mms_common.testing</code>.</p>
         </div>
       </section>
 
@@ -1612,7 +1919,7 @@ sequenceDiagram
      ===================================================================== -->
       <section class="doc" id="platform">
         <div class="doc-head">
-          <div class="row"><h2 id="platform-h">Notifications and audit</h2><span class="badge planned">Planned · Phases 1, 3, 7</span></div>
+          <div class="row"><h2 id="platform-h">Notifications and audit</h2><span class="badge progress">Audit chain (W3) and account emails (W4) built · Phases 3, 7</span></div>
           <p><code>platform</code> consumes events and never produces them. Its notification module turns user-facing events into in-app, WebSocket and email messages. Its audit module writes every event into an insert-only, hash-chained log.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3.5, §12, §13.4</a> · NOT-1 to NOT-5 · AUD-1 to AUD-6 · ADR-13</span>
         </div>
@@ -1630,17 +1937,79 @@ flowchart LR
     M -->|no| Done(["In-app only"])
 </pre>
           </div>
-          <figcaption>Entity changes are also pushed as <code>entity.updated</code> for live pages. The WebSocket client authenticates with its first message within 5 s, reconnects with backoff (1 s → 30 s) and catches up with <code>/notifications?after=</code>. Account emails come first, in Phase 1.</figcaption>
+          <figcaption>As designed for Phase 3. Entity changes are also pushed as <code>entity.updated</code> for live pages. The WebSocket client authenticates with its first message within 5 s, reconnects with backoff (1 s → 30 s) and catches up with <code>/notifications?after=</code>. Account emails, below, are built.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="platform-email-state" data-title="An account email's row in email_queue" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> pending: queued with processed_events, one transaction, _id = event_id
+    pending --> sending: a sender claims it, attempts + 1, locked 2 min
+    sending --> sent: SMTP accepted it
+    sending --> skipped: auth answers 410, link used or user disabled
+    sending --> pending: SMTP, network or auth error, retry 1 min doubling to 1 h
+    sending --> sending: claim lapsed, another sender takes it
+    sending --> failed: 10th attempt failed, error log
+    sent --> [*]: deleted 90 days after done_at
+    skipped --> [*]
+    failed --> [*]
+</pre>
+          </div>
+          <figcaption>Built in <code>services/platform/app/</code>: <code>domain/account_emails.py</code> (which events, copy, rendering, backoff), <code>repo/emails.py</code> (queue and claims), <code>events/notification_consumer.py</code>, <code>jobs/account_emails.py</code> (sender, SMTP, <code>/internal/account-links</code>). Sending is at least once: a crash between the SMTP hand-off and <code>sent</code> sends the email again, and for a link email the new mint replaces the token, so only the newest link works.</figcaption>
+        </figure>
+
+        <div class="sub" id="platform-emails">
+          <h3>Account emails (NOT-3)</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Event</th><th>Subject</th><th>Link</th></tr></thead>
+              <tbody>
+                <tr><td><code>user.approved</code></td><td>Your MARS-MMS account is approved</td><td><code>/login</code></td></tr>
+                <tr><td><code>user.rejected</code></td><td>Your MARS-MMS registration</td><td>None; the reason is in the email</td></tr>
+                <tr><td><code>user.invited</code></td><td>You're invited to MARS-MMS</td><td>Minted on send: <code>/invite/:token</code>, 7 days</td></tr>
+                <tr><td><code>auth.password_reset_requested</code></td><td>Reset your MARS-MMS password</td><td>Minted on send: <code>/reset-password/:token</code>, 1 hour</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li>Always sent: NOT-4 preferences can't turn them off. Each email has a plain-text part and an HTML part (one 600 px column, one button, the system font stack, primary-600 and slate), with every value escaped.</li>
+            <li>The product name is MARS-MMS (DBD D1, decision W4-6), as in the app; the footer carries the long name. Sender: <code>PLATFORM_MAIL_FROM</code>.</li>
+            <li>For a link email, the address and name come back from auth with the link, so a changed address is respected. No token is ever in an event, the queue or a log.</li>
+            <li>Every platform instance runs the sender loop (every 5 s); the atomic claim keeps two senders off one row.</li>
+            <li>Locally the mail goes to Mailpit (<code>http://127.0.0.1:8025</code>). Staging uses the interim Gmail relay (decision W4-1); production refuses <code>PLATFORM_SMTP_SECURITY=none</code>.</li>
+          </ul>
+        </div>
+
+        <figure class="diagram" id="platform-chain" data-title="Audit hash chain and the tamper check" data-kind="Data flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    K[("mms.auth, operations,&lt;br/&gt;media, report events")] --> C["Consumer group audit&lt;br/&gt;validate, processed_events,&lt;br/&gt;retry, DLQ mms.dlq.audit"]
+    C --> S{"Notification-only?"}
+    S -->|yes| SK(["Not audited"])
+    S -->|no| H["One transaction: write the audit_state head first,&lt;br/&gt;seq = last_seq + 1,&lt;br/&gt;hash = SHA-256(prev_hash + canonical record)"]
+    H --> E[("audit_events&lt;br/&gt;find and insert only")]
+    H --> ST[("audit_state&lt;br/&gt;last_seq, last_hash")]
+    E --> V["verify(): recompute in seq order"]
+    ST --> V
+    V --> OK(["Intact"])
+    V --> BR(["First broken seq: a record&lt;br/&gt;edited, removed or reordered"])
+</pre>
+          </div>
+          <figcaption>Built in <code>services/platform/app/</code>: <code>domain/audit.py</code> (record, canonical JSON, chain maths, AUD-1 map), <code>repo/audit.py</code> (append, verify), <code>events/audit_consumer.py</code>. Two workers append at once without sharing a <code>seq</code>: each transaction writes the head first, so the second waits and retries on the new head (tested with 20 concurrent appends).</figcaption>
         </figure>
 
         <div class="sub" id="platform-audit">
           <h3>Audit chain</h3>
           <ul>
-            <li>Consumer group <code>audit</code> reads every <code>mms.*.events</code> topic and skips notification-only events (<code>*.reminder</code>, <code>*.digest</code>, <code>visit.sync_conflict</code>).</li>
-            <li>A single writer assigns <code>seq = last_seq + 1</code> and <code>hash = SHA-256(prev_hash ‖ canonical(record))</code>, updating <code>audit_state</code> in the same transaction. Duplicates fail on <code>_id = event_id</code>.</li>
+            <li>Consumer group <code>audit</code> reads every <code>mms.*.events</code> topic and skips notification-only events (<code>calibration.due_digest</code>, <code>request.review_reminder</code>, <code>report.finalize_reminder</code>, <code>visit.sync_conflict</code>).</li>
+            <li>Each append assigns <code>seq = last_seq + 1</code> and <code>hash = SHA-256(prev_hash ‖ canonical(record))</code>, updating <code>audit_state</code> in the same transaction. The chain order is the commit order, serialized on the head document (TRD 2.1 §12; it replaced a single writer task and gives the same guarantee with every worker consuming). Duplicates are dropped by <code>processed_events</code> and <code>_id = event_id</code>.</li>
+            <li>Canonical form: sorted keys, no spaces, UTF-8, times as UTC ISO 8601 with milliseconds.</li>
+            <li>An event that fails five times goes to <code>mms.dlq.audit</code>. To replay after a fix, stop platform and reset the <code>audit</code> group's offsets (dead letters are skipped, not committed to <code>processed_events</code>, so a replay applies them once).</li>
             <li>The audit Mongo user can only <code>find</code> and <code>insert</code> on <code>audit_events</code>. No API updates or deletes records.</li>
-            <li><code>POST /api/v1/audit/verify</code> recomputes the chain and reports the first broken <code>seq</code>; it also runs weekly with an alert.</li>
-            <li>A contract test checks that every AUD-1 action maps to an event type.</li>
+            <li><code>verify()</code> recomputes the chain and reports the first broken <code>seq</code>, including a deleted tail (the head no longer matches). The admin route <code>POST /api/v1/audit/verify</code> and the weekly cron come with the audit viewer (Phase 7).</li>
+            <li>A contract test checks that every AUD-1 action maps to event types, and that every auth event type has a schema and is mapped.</li>
           </ul>
         </div>
       </section>
@@ -1650,45 +2019,153 @@ flowchart LR
      ===================================================================== -->
       <section class="doc" id="frontend">
         <div class="doc-head">
-          <div class="row"><h2 id="frontend-h">Frontend</h2><span class="badge progress">Theme foundation built</span></div>
-          <p>A Vue 3.5 + TypeScript PWA built with Vite. Vuetify 4 supplies components; Tailwind CSS 4 supplies layout and spacing; both read one set of brand tokens. Three shells: client (top navigation), staff (sidebar) and field (phone stepper with bottom navigation and a sync badge).</p>
-          <span class="src">Sources: <a href="TRD.md">TRD §13</a> · <a href="DBD.md">DBD</a> · <a href="AFD.md">AFD §3, §5</a> · ADR-11 · code in <code>frontend/</code></span>
+          <div class="row"><h2 id="frontend-h">Frontend</h2><span class="badge progress">Shells and auth screens built (W4)</span></div>
+          <p>A Vue 3.5 + TypeScript PWA built with Vite. Vuetify 4 supplies components; Tailwind CSS 4 supplies layout and spacing; both read one set of brand tokens. Three frames: the public split panel; the <b>app shell</b> for staff and clients (decision W4-9): a slim rail of section icons with tooltips, an interactive pane with the section's pages as tabs and the page's list or controls, and a view with the details, as square tiles 5 px apart on the <code>ground</code> colour, which on phones become full-bleed panes; below 1024 px a docked bottom bar replaces the rail (W4-14); and the field shell (phone, bottom navigation and a sync badge). Since W4: the router with its guards, the session with the Web Lock refresh, the public auth pages, My profile, the admin Registrations, Users and Settings pages, Sync, and the minimal service worker. <b>Brand colours</b> (W4-12) come from a Material 3 theme: <code>app/theme/material.ts</code> maps its roles and palettes onto the DBD token names, <code>brand.ts</code> adds the fixed status colours, and <code>stores/branding.ts</code> keeps the organization's theme in step with the server. <b>Motion</b> (W4-10) is GSAP through <code>app/motion.ts</code>: the pane's width tween (the view follows), page and pane-list entrances, the rail's hover, sliding indicator and tooltips; all of it is instant under reduced motion or with Settings › Animations off.</p>
+          <span class="src">Sources: <a href="TRD.md">TRD §6.1, §13</a> · <a href="DBD.md">DBD</a> · <a href="AFD.md">AFD §3, §5, §6</a> · ADR-11 · F5, F9, F10, F13 · code in <code>frontend/</code></span>
         </div>
 
         <figure class="diagram" data-title="How the theme is wired (built)" data-kind="Data flow diagram">
           <div class="view" data-label="Mermaid">
 <pre class="mermaid-def">
 flowchart LR
-    L["layers.css&lt;br/&gt;first import in main.ts"] -.->|"declares the cascade layer order"| TW
-    B["brand.ts&lt;br/&gt;light and dark tokens"] --> V["vuetify.ts&lt;br/&gt;createVuetify: themes, global defaults, mdi-svg icons"]
+    L["public/layers.css&lt;br/&gt;first stylesheet in index.html"] -.->|"declares the cascade layer order"| TW
+    MJ["material-theme.json&lt;br/&gt;built-in Material 3 theme"] --> M["material.ts&lt;br/&gt;roles and palettes to DBD tokens"]
+    BC2["brandingCache.ts&lt;br/&gt;localStorage mms-branding"] -->|"the organization's theme, if any"| M
+    M --> B["brand.ts&lt;br/&gt;+ fixed status colours"]
+    B --> V["vuetify.ts&lt;br/&gt;createVuetify: themes, global defaults, mdi-svg icons"]
+    API["GET /api/v1/auth/branding&lt;br/&gt;at start, on return to the front"] --> BS["stores/branding.ts"]
+    BS -->|"write"| BC2
+    BS -->|"Object.assign theme colours"| V
     V --> CV["--v-theme-* CSS variables"]
     CV --> TW["tailwind.css @theme&lt;br/&gt;bg-primary, text-surface-700"]
+    CV --> BC["base.css&lt;br/&gt;element reset, bg-* on-colours, field hints, focus ring, reduced motion"]
     P["preference.ts&lt;br/&gt;localStorage mms-theme"] --> S["stores/theme.ts"]
+    ACC["the account's theme&lt;br/&gt;(GET or PATCH /auth/me)"] -->|"adopt() at sign-in"| S
     S -->|"useTheme().change()"| V
     S -->|"toggle .app-dark on html"| D["Tailwind dark: variant"]
     I["public/theme-init.js&lt;br/&gt;runs before first paint"] -->|".app-dark"| D
 </pre>
           </div>
-          <figcaption>One switch changes Vuetify's theme and the <code>.app-dark</code> class together. <code>theme-init.js</code> is an external file because the CSP is <code>script-src 'self'</code>.</figcaption>
+          <figcaption>One switch changes Vuetify's theme and the <code>.app-dark</code> class together; the account's setting wins at sign-in (DBD D2). The colours themselves come from a Material 3 theme (W4-12): the organization's, last fetched and kept on the device, else the built-in one; <code>stores/branding.ts</code> updates them in place when the server has a newer version. The layer order lives in <code>public/layers.css</code>, linked before every generated stylesheet: a production build links lazy chunks' CSS before the main bundle and drops a bare <code>@layer</code> statement from it, so an import in <code>main.ts</code> was not enough (decision W4-2).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="How a brand colour change reaches every device (built)" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    actor A as Admin
+    participant S as Settings page (BrandColours.vue)
+    participant B as stores/branding.ts
+    participant API as auth /api/v1/auth/branding
+    participant O as outbox to platform audit
+    participant D as Another device
+    A->>S: upload a file, pick one colour, or edit
+    S->>B: startPreview(draft)
+    Note over B: only this screen changes
+    A->>S: Save for everyone
+    S->>API: PUT {material, version}
+    API->>O: branding.updated, same transaction
+    API-->>S: 200 {material, version + 1}
+    S->>B: adoptSaved: localStorage mms-branding, Vuetify colours
+    D->>API: GET at start or back to the front (5 min at most)
+    API-->>D: newer version
+    Note over D: applies it and keeps a copy for offline and the first paint
+</pre>
+          </div>
+          <figcaption>A stale <code>version</code> is 409: the editor keeps the admin's draft, fetches the newer colours and asks them to save again or discard. Other tabs on the same device follow through the <code>storage</code> event. The service worker never caches the response (TRD §13.3).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Which shell, and which page, each user gets (built)" data-kind="Website flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    NAV(["Any navigation"]) --> BOOT["session.bootstrap()&lt;br/&gt;first time only: /auth/refresh"]
+    BOOT --> PUBQ{"Public page?"}
+    PUBQ -->|"yes, signed in, guest-only page"| NEXT["the saved next page,&lt;br/&gt;else /dashboard"]
+    PUBQ -->|"yes"| SPLIT["Public shell&lt;br/&gt;split panel, 120 px header on phones"]
+    PUBQ -->|"no"| SIGNED{"Signed in?"}
+    SIGNED -->|"no"| LOGIN["/login?next=page&lt;br/&gt;and a reason banner if the session ended"]
+    SIGNED -->|"yes"| ROLE{"Role allowed?&lt;br/&gt;route meta.roles"}
+    ROLE -->|"no"| NF["Not found page&lt;br/&gt;same as a missing record (ADR-16)"]
+    ROLE -->|"yes"| FIELDQ{"Staff on a phone,&lt;br/&gt;on a field route? /sync, /scan"}
+    FIELDQ -->|"yes"| FIELD["Field shell&lt;br/&gt;bottom bar, safe areas (F13)"]
+    FIELDQ -->|"no"| APP["App shell&lt;br/&gt;rail · pane · view (DBD 1.4)"]
+    APP --> SECT["Rail sections for the role&lt;br/&gt;clientSections or staffSections"]
+    SECT --> TABS["Pane tabs: the section's pages&lt;br/&gt;the role may open"]
+    END(["Session ends while a page is open&lt;br/&gt;refresh 401 or logout in another tab"]) --> LOGIN
+</pre>
+          </div>
+          <figcaption>As built in <code>app/router/index.ts</code> and <code>App.vue</code>. Public pages: <code>/login</code>, <code>/register</code>, <code>/register/pending</code>, <code>/forgot-password</code>, <code>/reset-password/:token</code>, <code>/invite/:token</code>; the first two are guest-only. <code>safeNext()</code> accepts only paths inside the app, never <code>//host</code> or an auth page. Pages of later phases are routed to <code>PlannedPage</code>, which names the phase, so every menu item works on staging.</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="How a page fills the app shell's pane and view (built)" data-kind="System flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    ROUTE(["Route, e.g. /admin/registrations/:id"]) --> NAV["navigation.ts&lt;br/&gt;sectionOf(route) → Admin"]
+    NAV --> RAIL["AppRail&lt;br/&gt;Admin icon active, dot if waiting"]
+    NAV --> TABS["Pane header&lt;br/&gt;Admin + its pages as tabs"]
+    ROUTE --> PAGE["Page component&lt;br/&gt;RegistrationsPage"]
+    PAGE -->|"&lt;PaneContent&gt; (Teleport)"| PANE["Pane body&lt;br/&gt;the list or the controls"]
+    PAGE -->|"&lt;PageBody&gt;"| VIEW["View tile&lt;br/&gt;header + scrolling body"]
+    PAGE -->|"usePaneSelection()"| SEL{"Record open?"}
+    SEL -->|"phone, yes"| ALONE["View alone, Back to the list"]
+    SEL -->|"phone, no"| STACK["Pane, then view"]
+    SEL -->|"tablet or desktop"| TILES["Rail · pane · view tiles&lt;br/&gt;pane hideable from 1024 px"]
+</pre>
+          </div>
+          <figcaption>As built in <code>app/shells/AppShell.vue</code>, <code>pane.ts</code>, <code>components/PaneContent.vue</code> and <code>PageBody.vue</code>. The shell provides the pane's element; <code>PaneContent</code> teleports into it and counts itself, so a page with neither tabs nor pane content gets the full width. The open record is in the URL, so a reload or Back keeps it. The hidden-pane choice is a per-device convenience in <code>localStorage</code> (<code>mms.pane.collapsed</code>); nothing else is stored.</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="One refresh at a time across tabs (built)" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant A as Tab A (app/auth/session.ts)
+    participant L as Web Lock mms-auth-refresh
+    participant B as Tab B
+    participant C as BroadcastChannel mms-auth
+    participant S as auth /api/v1/auth/refresh
+
+    A->>L: request (concurrent calls in a tab share one promise)
+    B->>L: request, queued
+    L-->>A: granted
+    A->>S: POST with the httpOnly refresh cookie
+    S-->>A: 200 access token (15 min) + rotated cookie
+    A->>C: session (token and profile, memory only)
+    C-->>B: session arrives, generation changes
+    A->>L: release
+    L-->>B: granted
+    B->>B: a fresh session arrived while waiting, so no second request
+    B->>L: release
+    Note over A,S: A 401 ends only this tab's session and never broadcasts, so a late answer can't sign out a tab that just logged in. Logout broadcasts ended to every tab. A network error or 5xx keeps the session (offline).
+</pre>
+          </div>
+          <figcaption>The token is never written to storage, a URL or a cache; a reload gets a new one from the cookie. The server's 30-second grace window covers the case where Tab B is granted the lock before Tab A's message reaches it. Tested in <code>session.spec.ts</code> with two module instances as two tabs, and end to end in <code>auth.spec.ts</code>.</figcaption>
         </figure>
 
         <div class="sub" id="frontend-files">
-          <h3>Files that exist today</h3>
+          <h3>Files as built</h3>
           <div class="table-wrap">
             <table>
               <thead><tr><th>File</th><th>Role</th></tr></thead>
               <tbody>
-                <tr><td><code>src/main.ts</code></td><td>Entry. CSS import order is deliberate: <code>layers.css</code> first, then fonts, <code>tailwind.css</code>, <code>base.css</code></td></tr>
-                <tr><td><code>src/app/theme/brand.ts</code></td><td>Brand tokens for the <code>light</code> and <code>dark</code> Vuetify themes (Horizon blue primary is a placeholder until D1)</td></tr>
-                <tr><td><code>src/app/theme/vuetify.ts</code></td><td><code>createVuetify</code>: themes, global defaults (the DBD look), <code>mdi-svg</code> icon set, display thresholds equal to Tailwind's breakpoints</td></tr>
-                <tr><td><code>src/app/theme/settings.scss</code></td><td>Vuetify Sass settings: <code>$utilities: false</code>, <code>$color-pack: false</code></td></tr>
-                <tr><td><code>src/app/theme/layers.css</code></td><td><code>vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final</code></td></tr>
-                <tr><td><code>src/app/theme/tailwind.css</code></td><td>Tailwind theme + utilities in the <code>tailwind</code> layer, no preflight; default palette removed; colours mapped to <code>--v-theme-*</code>; <code>dark:</code> uses <code>.app-dark</code>; safelist for prop-generated classes</td></tr>
-                <tr><td><code>src/app/theme/base.css</code></td><td>Sets Vuetify's body and heading fonts to Inter</td></tr>
-                <tr><td><code>src/app/theme/icons.ts</code></td><td>The MDI icons the app uses, as SVG paths from <code>@mdi/js</code></td></tr>
-                <tr><td><code>src/app/theme/preference.ts</code>, <code>src/stores/theme.ts</code></td><td>Light / Dark / System preference and the store that applies it</td></tr>
-                <tr><td><code>public/theme-init.js</code></td><td>Sets <code>.app-dark</code> before first paint</td></tr>
-                <tr><td><code>src/app/router/index.ts</code>, <code>src/features/dashboard/DashboardPage.vue</code></td><td>Placeholder route and page; shells, guards and real pages arrive in Phase 1</td></tr>
+                <tr><td><code>index.html</code>, <code>public/layers.css</code></td><td><code>layers.css</code> is the first stylesheet: it fixes the layer order <code>vuetify-core, vuetify-components, vuetify-overrides, vuetify-utilities, tailwind, vuetify-final</code>. <code>viewport-fit=cover</code> (F13), the Apple touch icon, <code>theme-init.js</code></td></tr>
+                <tr><td><code>src/main.ts</code></td><td>Entry: fonts, <code>tailwind.css</code>, <code>base.css</code>, then Vuetify, Pinia and the router</td></tr>
+                <tr><td><code>src/App.vue</code></td><td>Picks the shell for the route and role (public, app or field); registers the service worker once (<code>usePwa</code>); the update prompt</td></tr>
+                <tr><td><code>src/app/navigation.ts</code></td><td>Rail sections by role (<code>staffSections</code>, <code>clientSections</code>), their pages as pane tabs, <code>sectionsFor()</code> and <code>sectionOf()</code>; the field bottom bar</td></tr>
+                <tr><td><code>src/app/router/</code></td><td><code>routes.ts</code> (AFD §3 routes with <code>meta.layout</code>, <code>roles</code>, <code>guestOnly</code>, <code>phase</code>), <code>index.ts</code> (guards, titles, chunk-load errors to the update prompt, redirect when a session ends), <code>next.ts</code> (<code>safeNext</code>)</td></tr>
+                <tr><td><code>src/app/auth/session.ts</code></td><td>The session without Vue: access token in memory, <code>refreshSession()</code> under the Web Lock, BroadcastChannel <code>mms-auth</code>, refresh one minute before expiry</td></tr>
+                <tr><td><code>src/api/</code></td><td><code>http.ts</code> (token, one refresh and retry on 401, <code>cache: no-store</code>), <code>problem.ts</code> (<code>ApiError</code>, <code>NetworkError</code>), <code>auth.ts</code> (auth, users, organizations), <code>types/auth.ts</code> generated from <code>openapi/auth.json</code></td></tr>
+                <tr><td><code>src/stores/</code></td><td><code>session</code> (user, roles, <code>canAct</code>, bootstrap, login, logout), <code>theme</code>, <code>update</code> (the new-version prompt), <code>registrations</code> (the Admin dot on the rail and the Registrations tab count)</td></tr>
+                <tr><td><code>src/app/shells/</code></td><td><code>PublicShell</code>; <code>AppShell</code> (ground, tiles, pane header and tabs) with <code>AppRail</code>, <code>RailButton</code>, <code>RailTip</code> (CSS tooltip on hover and focus) and <code>AppTabBar</code> (phones); <code>pane.ts</code> (<code>usePane</code>, <code>usePaneSelection</code>); <code>FieldShell</code></td></tr>
+                <tr><td><code>src/features/</code></td><td><code>auth/</code> (Log in, Register, Waiting for approval, Forgot password, Set password for reset and invitation), <code>profile/</code>, <code>admin/</code> (Registrations with the organization match, Users with Invite user), <code>field/SyncPage</code>, <code>dashboard/</code></td></tr>
+                <tr><td><code>src/components/</code></td><td><code>AppLogo</code>, <code>FormField</code>, <code>PasswordField</code>, <code>FeedbackBanner</code>, <code>AccountStatusChip</code>, <code>AppearanceToggle</code>, <code>UserMenu</code>, <code>SyncBadge</code>, <code>UpdatePrompt</code>, <code>PageBody</code> (the view's header and scrolling body), <code>PaneContent</code> (puts a page's list or controls in the pane)</td></tr>
+                <tr><td><code>src/app/brand.ts</code>, <code>src/assets/brand/</code>, <code>scripts/brand-assets.mjs</code></td><td>Product name and logo files (<code>mark.svg</code>, <code>wordmark.svg</code>, <code>wordmark-white.svg</code>); <code>npm run brand</code> rebuilds them and the PWA icons from <code>/logo/logo.svg</code> and <code>/logo/logo_main.svg</code> (the wordmark is cut from the stacked logo)</td></tr>
+                <tr><td><code>src/sw/sw.ts</code></td><td>The service worker (below)</td></tr>
+                <tr><td><code>src/app/theme/</code></td><td><code>brand.ts</code>, <code>vuetify.ts</code> (defaults incl. <code>hideDetails: 'auto'</code>), <code>settings.scss</code>, <code>tailwind.css</code>, <code>base.css</code>, <code>icons.ts</code>, <code>preference.ts</code></td></tr>
+                <tr><td><code>e2e/</code>, <code>src/**/__tests__/</code></td><td>Playwright journeys and Vitest unit tests</td></tr>
               </tbody>
             </table>
           </div>
@@ -1752,37 +2229,38 @@ flowchart TD
     end
 </pre>
           </div>
-          <figcaption>Route paths are in <a href="AFD.md">AFD §3</a>. The router saves the target page as <code>next</code> for logged-out users and returns there after login.</figcaption>
+          <figcaption>The whole app as designed (<a href="AFD.md">AFD §3</a>). Built in W4: the public pages except QR landing, Verify and Unlock; Dashboard (a first version), My profile, Sync status, Registrations and Users.</figcaption>
         </figure>
 
         <div class="split">
           <div class="sub" id="frontend-structure">
-            <h3>Planned structure</h3>
+            <h3>Structure</h3>
 <pre class="code"><code>frontend/src/
-  app/          router, guards, layouts (client, staff, field, public), theme/
-  api/          typed clients (openapi-typescript), auth interceptor (Web Lock refresh)
-  features/     auth/ dashboard/ requests/ visits/ stations/ sensors/ calibration/
-                documents/ reports/ client-reports/ admin/ audit/ notifications/
-  offline/      db.ts (Dexie), session.ts (PIN), outbox.ts, sync.ts, blobs.ts, bundles.ts
-  charts/       ApexCharts presets (also built into the report image)
-  components/   SignaturePad, MediaCapture, StationCard, StatusChip, SyncBadge, ...
-  stores/       Pinia
-  sw/           service worker (Workbox injectManifest)</code></pre>
+  app/          router/ shells/ auth/ pwa/ pages/ composables/ theme/  (built)
+  api/          http, problem details, auth clients, generated types  (built)
+  features/     auth/ dashboard/ profile/ admin/ field/  (built)
+                requests/ visits/ stations/ sensors/ ...  (later phases)
+  offline/      db.ts (Dexie), session.ts (PIN), outbox.ts, sync.ts  (Phase 5)
+  charts/       ApexCharts presets  (Phase 7)
+  components/   shared building blocks  (built: 10)
+  stores/       Pinia  (built: session, theme, update, registrations)
+  sw/           service worker, Workbox injectManifest  (built, minimal)</code></pre>
           </div>
           <div class="sub" id="frontend-sw">
-            <h3>Service worker and live updates</h3>
+            <h3>Service worker (minimal, W4)</h3>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Resource</th><th>Strategy</th></tr></thead>
                 <tbody>
-                  <tr><td>App shell, JS, CSS, fonts, <code>theme-init.js</code></td><td>Precache</td></tr>
-                  <tr><td>Map tiles (OSM)</td><td>Cache-first, 2,000 entries, 30 days; never bulk-prefetched</td></tr>
-                  <tr><td>API requests</td><td><b>Never cached</b>; offline data comes only from Dexie</td></tr>
-                  <tr><td>Mutations, uploads</td><td>Never cached; sent through the outbox</td></tr>
+                  <tr><td>App shell: JS, CSS, fonts, icons, <code>index.html</code>, <code>layers.css</code>, <code>theme-init.js</code></td><td>Precache (about 60 files, 1.1 MB; Latin font subsets only)</td></tr>
+                  <tr><td>Page navigations</td><td>Precached <code>index.html</code>; never for <code>/api/</code>, <code>/ws</code>, <code>/internal/</code>, <code>/.well-known/</code>, <code>/.releases/</code></td></tr>
+                  <tr><td>API requests, mutations, uploads, files host</td><td><b>Never cached</b>, not routed</td></tr>
+                  <tr><td>Map tiles (OSM)</td><td>Not yet: decided with the map (F1, Phase 2)</td></tr>
+                  <tr><td>Updates</td><td>The new worker waits; the prompt offers <b>Reload now</b> (<code>SKIP_WAITING</code>) or <b>Later</b>. Checked hourly while online and when the app returns to the foreground. A chunk that fails to load after a deploy shows the same prompt (F9).</td></tr>
                 </tbody>
               </table>
             </div>
-            <p class="small muted">WebSocket <code>wss://&lt;host&gt;/ws</code>: auth message within 5 s, server heartbeat every 25 s, messages <code>notification</code> and <code>entity.updated</code>.</p>
+            <p class="small muted"><code>sw.js</code>, <code>index.html</code>, <code>theme-init.js</code> and <code>manifest.webmanifest</code> are served <code>no-cache</code> (F10). Manifest: name MARS-MMS, <code>id</code> and <code>start_url</code> <code>/</code>, standalone, icons 64, 192, 512 and a maskable 512 on primary-600. Chromium refuses a worker on an untrusted certificate, so the Playwright project starts it with <code>--ignore-certificate-errors</code> for the local stack, and phones need staging's real certificate.</p>
           </div>
         </div>
       </section>
@@ -1831,6 +2309,7 @@ flowchart TD
                 <tr><td>Nginx</td><td>Path routing, rate limits, request IDs; 404 for <code>/internal/</code> and <code>/.well-known/</code>. No token checks; same-origin API</td></tr>
                 <tr><td>Each service</td><td>Verifies the EdDSA JWT locally; <code>require_roles(...)</code>; org filter in the repository; hides internal and draft data from clients; station ownership on work records</td></tr>
                 <tr><td>MongoDB</td><td>One user per database; the audit user can only <code>find</code> and <code>insert</code> on <code>audit_events</code></td></tr>
+                <tr><td>Kafka</td><td>SASL/SCRAM-SHA-512 on <code>kafka:9092</code>; one user per service with ACLs on exactly its topics, dead letters and consumer groups (<code>infra/kafka/users.yml</code>); controller and plaintext listeners on loopback only (W4-16)</td></tr>
                 <tr><td>S3 store</td><td>One access key per service, limited to its buckets; all buckets private; presigned URLs only; CORS limited to the app origin</td></tr>
                 <tr><td>Device</td><td>Offline field data opens only after PIN unlock for the cached staff user</td></tr>
                 <tr><td>Infrastructure</td><td>Only ports 80 and 443 public; SeaweedFS, Kafka UI and Grafana via VPN or SSH tunnel</td></tr>
@@ -1861,7 +2340,7 @@ Strict-Transport-Security: max-age=31536000</code></pre>
      ===================================================================== -->
       <section class="doc" id="config">
         <div class="doc-head">
-          <div class="row"><h2 id="config-h">Configuration</h2><span class="badge planned">Planned</span></div>
+          <div class="row"><h2 id="config-h">Configuration</h2><span class="badge progress">auth and platform built</span></div>
           <p>Each service reads environment variables through <code>pydantic-settings</code>, with its own prefix. The values below are the designed defaults; when a service is built, its variable names go in the last column and this table becomes the reference.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §16.3 and the sections named per row</a></span>
         </div>
@@ -1880,7 +2359,7 @@ Strict-Transport-Security: max-age=31536000</code></pre>
               </tbody>
             </table>
           </div>
-          <p class="small muted">Environments: <code>local</code> = <code>compose.yml</code> + <code>compose.dev.yml</code> (hot reload, seeded data, Mailpit, self-signed TLS); <code>staging</code> and <code>production</code> = <code>compose.yml</code> + <code>compose.prod.yml</code>, images tagged with the commit SHA. Only <code>OPS_MONGO_URI</code>, <code>OPS_AUTO_CLOSE_DAYS</code> and <code>OPS_REVIEW_REMINDER_DAYS</code> are named in the TRD so far; the other examples follow the convention.</p>
+          <p class="small muted">Environments: <code>local</code> = <code>compose.yml</code> + <code>compose.dev.yml</code> (hot reload, seeded data, Mailpit, self-signed TLS); <code>staging</code> and <code>production</code> = <code>compose.yml</code> + <code>compose.prod.yml</code>, images tagged with the commit SHA. Every service has <code>&lt;PREFIX&gt;_ENVIRONMENT</code>, <code>_MONGO_URI</code>, <code>_MONGO_DB</code>, <code>_REDIS_URL</code>, <code>_KAFKA_BOOTSTRAP</code>, <code>_KAFKA_USERNAME</code> and <code>_KAFKA_PASSWORD</code> (SCRAM; required in staging and production), <code>_AUTH_JWKS_URL</code>, <code>_RUN_BACKGROUND</code> and, if it produces events, <code>_OUTBOX_TOPIC</code> (template <code>app/config.py</code>). In Compose, each Mongo URI names the service's own user and <code>authSource</code>.</p>
         </div>
 
         <div class="sub" id="config-values">
@@ -1894,17 +2373,29 @@ Strict-Transport-Security: max-age=31536000</code></pre>
             <table id="config-table">
               <thead><tr><th>Setting</th><th>Default</th><th>Owner</th><th>Source</th><th>Env var</th></tr></thead>
               <tbody>
-                <tr><td>Access token lifetime</td><td>15 min</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
-                <tr><td>Refresh token lifetime</td><td>30 days</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
-                <tr><td>Refresh rotation grace window</td><td>30 s</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
-                <tr><td>Login throttle</td><td>5 failures → 15 min</td><td>auth</td><td>TRD §6.2</td><td>Phase 1</td></tr>
-                <tr><td>Password minimum length</td><td>10</td><td>auth</td><td>AUTH-9</td><td>Phase 1</td></tr>
-                <tr><td>Reset / invitation token expiry</td><td>1 hour / 7 days</td><td>auth</td><td>TRD §6.2</td><td>Phase 1</td></tr>
-                <tr><td>Pending registration purge</td><td>30 days</td><td>auth</td><td>AUTH-5</td><td>Phase 1</td></tr>
-                <tr><td>JWKS cache</td><td>10 min</td><td>all services</td><td>TRD §6.1</td><td>Phase 1</td></tr>
-                <tr><td>Service token lifetime</td><td>5 min</td><td>auth</td><td>TRD §6.1</td><td>Phase 1</td></tr>
-                <tr><td>Outbox leader lease / renewal</td><td>10 s / 3 s</td><td>all producers</td><td>TRD §8.2</td><td>Phase 1</td></tr>
-                <tr><td>Consumer retries</td><td>5, backoff 1 s → 30 s, then DLQ</td><td>all consumers</td><td>TRD §8.1</td><td>Phase 1</td></tr>
+                <tr><td>Access token lifetime</td><td>15 min</td><td>auth</td><td>TRD §6.1</td><td>Fixed: <code>mms_common.auth.tokens.ACCESS_TTL</code></td></tr>
+                <tr><td>Refresh token lifetime</td><td>30 days from the last refresh</td><td>auth</td><td>TRD §6.1</td><td><code>AUTH_REFRESH_TTL_DAYS</code></td></tr>
+                <tr><td>Refresh rotation grace window</td><td>30 s</td><td>auth</td><td>TRD §6.1</td><td><code>AUTH_REFRESH_GRACE_S</code></td></tr>
+                <tr><td>Login throttle</td><td>5 failures → 15 min</td><td>auth</td><td>TRD §6.2</td><td><code>AUTH_LOGIN_MAX_FAILURES</code>, <code>AUTH_LOGIN_LOCK_S</code></td></tr>
+                <tr><td>Password minimum length</td><td>10</td><td>auth</td><td>AUTH-9</td><td>Fixed: <code>app/domain/passwords.py</code></td></tr>
+                <tr><td>Reset / invitation token expiry</td><td>1 hour / 7 days</td><td>auth</td><td>TRD §6.2</td><td><code>AUTH_RESET_TTL_S</code>, <code>AUTH_INVITATION_TTL_DAYS</code></td></tr>
+                <tr><td>Pending registration purge</td><td>30 days, checked daily</td><td>auth</td><td>AUTH-5</td><td><code>AUTH_PENDING_PURGE_DAYS</code></td></tr>
+                <tr><td>JWKS cache</td><td>10 min; refetch on unknown <code>kid</code> at most every 30 s</td><td>all services</td><td>TRD §6.1</td><td>Fixed: <code>mms_common.auth.jwks</code>; URL <code>&lt;PREFIX&gt;_AUTH_JWKS_URL</code></td></tr>
+                <tr><td>Service token lifetime</td><td>5 min</td><td>auth</td><td>TRD §6.1</td><td>Fixed: <code>mms_common.auth.tokens.SERVICE_TTL</code></td></tr>
+                <tr><td>Reset requests per email</td><td>3 per hour (more are accepted silently, not sent)</td><td>auth</td><td>AUTH-8</td><td><code>AUTH_RESET_REQUESTS_PER_HOUR</code></td></tr>
+                <tr><td>Breached-password check</td><td><code>hibp</code> with a local fallback</td><td>auth</td><td>AUTH-9, T1</td><td><code>AUTH_BREACHED_CHECK</code>, <code>AUTH_BREACHED_FILE</code>, <code>AUTH_HIBP_URL</code></td></tr>
+                <tr><td>Argon2id cost</td><td>time 3, 64 MiB, 4 lanes</td><td>auth</td><td>TRD §6.2</td><td><code>AUTH_ARGON2_TIME_COST</code>, <code>AUTH_ARGON2_MEMORY_KIB</code>, <code>AUTH_ARGON2_PARALLELISM</code></td></tr>
+                <tr><td>Signing key</td><td>Ed25519 PEM file</td><td>auth</td><td>TRD §6.1, §15</td><td><code>AUTH_SIGNING_KEY_FILE</code></td></tr>
+                <tr><td>Service secrets</td><td>JSON <code>{"platform": "…"}</code></td><td>auth</td><td>TRD §6.4</td><td><code>AUTH_SERVICE_SECRETS</code></td></tr>
+                <tr><td>App origin for links</td><td><code>https://mms.localhost</code></td><td>auth</td><td>AFD J1, J2</td><td><code>AUTH_APP_URL</code></td></tr>
+                <tr><td>Audit database and topics</td><td><code>audit</code>; the four producer topics</td><td>platform</td><td>TRD §3.5, §12</td><td><code>PLATFORM_AUDIT_MONGO_URI</code>, <code>PLATFORM_AUDIT_DB</code>, <code>PLATFORM_AUDIT_TOPICS</code></td></tr>
+                <tr><td>Account email relay</td><td>Mailpit, port 1025, no TLS (local); <code>starttls</code> or <code>ssl</code> required in production</td><td>platform</td><td>NOT-3, T3, W4-1</td><td><code>PLATFORM_SMTP_HOST</code>, <code>PLATFORM_SMTP_PORT</code>, <code>PLATFORM_SMTP_SECURITY</code>, <code>PLATFORM_SMTP_USERNAME</code>, <code>PLATFORM_SMTP_PASSWORD</code></td></tr>
+                <tr><td>Email sender and links</td><td><code>MARS-MMS &lt;no-reply@mms.localhost&gt;</code>; links to <code>https://MMS_HOST</code>; queue polled every 5 s</td><td>platform</td><td>NOT-3, DBD D1</td><td><code>PLATFORM_MAIL_FROM</code>, <code>PLATFORM_APP_URL</code>, <code>PLATFORM_EMAIL_POLL_S</code></td></tr>
+                <tr><td>auth for account links</td><td><code>http://auth:8000</code>, platform's service secret</td><td>platform</td><td>TRD §6.2, §6.4</td><td><code>PLATFORM_AUTH_URL</code>, <code>PLATFORM_SERVICE_SECRET</code></td></tr>
+                <tr><td>Release images</td><td><code>ghcr.io/tajay59/mars-mms</code>, tag = commit SHA</td><td>staging, production</td><td>TRD §18</td><td><code>MMS_REGISTRY</code>, <code>MMS_TAG</code>, <code>MMS_ENVIRONMENT</code>, <code>MMS_TLS_DIR</code>, <code>MMS_SECRETS_DIR</code> (the host's <code>infra/.env</code>)</td></tr>
+                <tr><td>Background tasks (relay, consumers, cron)</td><td>on</td><td>every service</td><td>TRD §3.0</td><td><code>&lt;PREFIX&gt;_RUN_BACKGROUND</code> (off in API tests)</td></tr>
+                <tr><td>Outbox leader lease / renewal</td><td>10 s / every relay pass (≤ 1 s)</td><td>all producers</td><td>TRD §8.2</td><td>Fixed: <code>mms_common.outbox</code>, <code>mms_common.relay</code></td></tr>
+                <tr><td>Consumer retries</td><td>5, backoff 1 s → 30 s, then DLQ</td><td>all consumers</td><td>TRD §8.1</td><td>Fixed: <code>mms_common.consumer</code></td></tr>
                 <tr><td>Rate limit <code>api</code> / <code>auth</code> zones</td><td>300/min burst 100 / 10/min burst 5</td><td>Nginx</td><td>TRD §2.1</td><td><code>infra/nginx/</code></td></tr>
                 <tr><td>API body size</td><td>10 MB</td><td>Nginx</td><td>TRD §2.1</td><td><code>infra/nginx/</code></td></tr>
                 <tr><td>Review reminders</td><td>Days 7, 21, 28</td><td>operations</td><td>TRD §3.2</td><td><code>OPS_REVIEW_REMINDER_DAYS</code></td></tr>
@@ -1922,6 +2413,7 @@ Strict-Transport-Security: max-age=31536000</code></pre>
                 <tr><td>Finalize reminders</td><td>After 2 and 5 working days</td><td>report</td><td>TRD §3.4</td><td>Phase 6</td></tr>
                 <tr><td>Resume stuck finalize</td><td>15 min</td><td>report</td><td>TRD §11.2</td><td>Phase 6</td></tr>
                 <tr><td>Dashboard cache</td><td>60 s</td><td>report</td><td>TRD §9</td><td>Phase 7</td></tr>
+                <tr><td>Kafka users and ACLs</td><td>One SCRAM-SHA-512 user per service; passwords 16+ letters, digits, - or _</td><td>infra</td><td>TRD §15, W4-16</td><td><code>infra/kafka/users.yml</code>; <code>KAFKA_AUTH_PASSWORD</code>, <code>KAFKA_PLATFORM_PASSWORD</code> (the host's <code>infra/.env</code>) → <code>AUTH_KAFKA_PASSWORD</code>, <code>PLATFORM_KAFKA_PASSWORD</code></td></tr>
                 <tr><td>Kafka partitions / retention</td><td>3 / 14 days; DLQ 30 days</td><td>infra</td><td>TRD §8.1</td><td><code>infra/kafka/topics.yml</code></td></tr>
                 <tr><td>Notification retention</td><td>1 year</td><td>platform</td><td>TRD §5.5</td><td>Phase 3</td></tr>
               </tbody>
@@ -1951,10 +2443,36 @@ Strict-Transport-Security: max-age=31536000</code></pre>
      ===================================================================== -->
       <section class="doc" id="infrastructure">
         <div class="doc-head">
-          <div class="row"><h2 id="infrastructure-h">Infrastructure</h2><span class="badge planned">Planned · Phases 1, 7</span></div>
+          <div class="row"><h2 id="infrastructure-h">Infrastructure</h2><span class="badge progress">Local stack built · production Phase 7</span></div>
           <p>Docker Compose on the organization's own production host, with a second host for staging and backups. Only Nginx is published; everything else is on an internal Docker network.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §16</a> · ADR-10</span>
         </div>
+
+        <figure class="diagram" id="infrastructure-local" data-title="The local Compose stack as built" data-kind="Architecture diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    B["Browser"] -->|"443 mms.localhost"| NG["nginx 1.31.7"]
+    B -->|"443 files.mms.localhost"| NG
+    subgraph NET["Docker network backend (only Nginx publishes ports)"]
+        NG -->|"/api/v1/auth, users, organizations"| AU["auth, 2 workers"]
+        NG -->|"/api/v1/notifications, audit, /ws"| PL["platform, 2 workers"]
+        NG -.->|"other /api/v1 prefixes: 503 until built"| TBD(["operations, media, report"])
+        NG -->|"files host"| SW[("SeaweedFS 4.48")]
+        AU --> MG[("MongoDB 8.0 rs0&lt;br/&gt;one user per database")]
+        PL --> MG
+        AU --> RD[("Redis 7.4")]
+        PL --> RD
+        AU -->|"outbox relay, leader only"| KF[("Kafka 4.3 KRaft")]
+        KF -->|"group audit"| PL
+        PL -->|"JWKS"| AU
+        MP["Mailpit, dev only"]
+    end
+    INIT["One-shots: dev-certs, dev-secrets,&lt;br/&gt;mongo-init, kafka-init, seaweedfs-init"] -.-> NET
+</pre>
+          </div>
+          <figcaption><code>infra/compose.yml</code> + <code>compose.dev.yml</code>. auth reads its signing key from <code>infra/secrets/auth_signing_key.pem</code> (made by <code>dev-secrets</code>; staging and production mount the operator's key). Debug ports on 127.0.0.1 only: MongoDB 27018, Redis 6379, S3 8333, Mailpit 8025.</figcaption>
+        </figure>
 
         <div class="sub" id="infrastructure-containers">
           <h3>Containers</h3>
@@ -1963,7 +2481,7 @@ Strict-Transport-Security: max-age=31536000</code></pre>
               <thead><tr><th>Container</th><th>Image</th><th>Notes</th></tr></thead>
               <tbody>
                 <tr><td>nginx</td><td>nginx:alpine + SPA build</td><td>Ports 80/443; gateway config in <code>infra/nginx/</code></td></tr>
-                <tr><td>auth, operations, platform</td><td>python:3.13-slim</td><td>uvicorn, 2 workers</td></tr>
+                <tr><td>auth, operations, platform</td><td>python:3.13-slim, built from the repository root (<code>.dockerignore</code> sends only <code>libs/mms_common</code> and <code>services/*/app</code>)</td><td>uvicorn, 2 workers, uid 10001, <code>FORWARDED_ALLOW_IPS=*</code> (reachable only through Nginx); auth and platform built</td></tr>
                 <tr><td>media</td><td>python:3.13-slim + ffmpeg, libmagic</td><td>API</td></tr>
                 <tr><td>media-worker</td><td>same image as media</td><td>arq; <code>cpus: 2</code></td></tr>
                 <tr><td>report</td><td>python:3.13-slim + WeasyPrint deps + Chromium</td><td>API</td></tr>
@@ -2019,6 +2537,34 @@ Strict-Transport-Security: max-age=31536000</code></pre>
           </div>
         </div>
 
+        <div class="sub" id="infrastructure-staging">
+          <h3>Staging</h3>
+          <p>Staging (issue #4) runs <code>compose.yml</code> + <code>compose.prod.yml</code> + <code>compose.staging.yml</code>: images from GHCR tagged with the commit SHA, no builds, no Mailpit. <code>release.yml</code> deploys every push to <code>main</code>. Staff only until the Phase 8 pilot.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Item</th><th>Staging (decision W4-8)</th></tr></thead>
+              <tbody>
+                <tr><td>App host</td><td><code>https://rnd.yanacreations.com</code> (<code>MMS_HOST</code>, <code>STAGING_URL</code>)</td></tr>
+                <tr><td>Files host</td><td><code>files.yanacreations.com</code> (<code>FILES_HOST</code>; a CNAME to the app host)</td></tr>
+                <tr><td>Server</td><td><code>84.247.187.64</code> (<code>STAGING_HOST</code>), Ubuntu 22.04, 4 vCPU, 6 GB RAM, shared with other sites. Deploy user <code>mms</code> (<code>STAGING_USER</code>, in the <code>docker</code> group); stack in <code>/opt/mms/infra</code>, secrets in <code>/opt/mms/secrets</code>, the hop certificate in <code>/opt/mms/tls</code></td></tr>
+                <tr><td>Edge</td><td>The server's own Nginx (container <code>printit-nginx</code>) holds ports 80 and 443, terminates TLS with the Let's Encrypt certificate <code>/etc/letsencrypt/live/rnd.yanacreations.com</code> (both names) and passes requests unbuffered to MMS's Nginx, alias <code>mms-gateway</code> on the Docker network <code>kong-net</code>. Site file: <code>infra/nginx/staging-edge.conf</code>, installed by hand as <code>/srv/edge-sites/mms-staging.conf</code></td></tr>
+                <tr><td>MMS's Nginx</td><td>Unchanged rules (headers, CSP, cache, rate limits). Publishes only <code>127.0.0.1:8453</code> for checks on the server. Trusts the edge's <code>X-Real-IP</code> through <code>snippets/real-ip.conf</code>, which <code>compose.staging.yml</code> replaces, so rate limits, the login throttle and audit records see the client</td></tr>
+                <tr><td>Memory</td><td>About 2 GB free: Mongo cache 0.25 GB, Kafka heap 384 MB, and a <code>mem_limit</code> on every container, so MMS can't starve the other sites</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>To prepare a staging host:</p>
+          <ol>
+            <li><b>Host:</b> Docker Engine with Compose 2.24.4 or later (<code>!reset</code>, <code>!override</code>), a deploy user in the <code>docker</code> group, <code>rsync</code>, and <code>/opt/mms/infra</code> owned by that user. DNS for <code>MMS_HOST</code> and <code>FILES_HOST</code>. If the host has its own edge proxy, adjust <code>compose.staging.yml</code> and the edge site file to it; otherwise drop the edge parts and publish 80 and 443.</li>
+            <li><b>TLS:</b> a real certificate for both names on whatever terminates TLS for browsers (phones refuse a service worker on a self-signed one). <code>MMS_TLS_DIR</code> holds MMS's Nginx certificate as <code>tls.crt</code> and <code>tls.key</code>: the real one if MMS's Nginx faces browsers, or a self-signed one if an edge sits in front (as on this staging server).</li>
+            <li><b>Secrets:</b> a directory outside the repo (<code>MMS_SECRETS_DIR</code>) holding <code>auth_signing_key.pem</code> from <code>openssl genpkey -algorithm ed25519</code>, readable by uid 10001.</li>
+            <li><b><code>/opt/mms/infra/.env</code>:</b> start from <code>.env.example</code> and regenerate every password, key and secret. Add <code>MMS_ENVIRONMENT=staging</code>, <code>MMS_REGISTRY=ghcr.io/tajay59/mars-mms</code>, the two directories, the host names, and the Gmail relay (W4-1): <code>PLATFORM_SMTP_HOST=smtp.gmail.com</code>, <code>PLATFORM_SMTP_PORT=465</code>, <code>PLATFORM_SMTP_SECURITY=ssl</code>, the account and its app password, and <code>PLATFORM_MAIL_FROM</code> with that address. Each Kafka user's password: <code>KAFKA_AUTH_PASSWORD</code> and <code>KAFKA_PLATFORM_PASSWORD</code> (<code>openssl rand -hex 24</code>). Leave out <code>AUTH_SEED_PASSWORD</code> unless staging should carry the seed users.</li>
+            <li><b>GitHub</b> (Settings › Secrets and variables › Actions): variables <code>STAGING_HOST</code>, <code>STAGING_USER</code>, <code>STAGING_URL</code>; secrets <code>STAGING_SSH_KEY</code> (a key only for this) and <code>STAGING_KNOWN_HOSTS</code> (<code>ssh-keyscan</code> output). The next push to <code>main</code> deploys; or run <code>release</code> by hand.</li>
+            <li><b>First admin:</b> <code>docker compose -f compose.yml -f compose.prod.yml -f compose.staging.yml exec auth python -m app.cli create-admin --email … --name …</code>.</li>
+          </ol>
+          <p class="small muted">Kafka needs SASL/SCRAM since W4-16; a host whose <code>.env</code> predates it needs the two Kafka passwords before the next deploy, or Compose refuses to start. Checked on staging on 2026-10-18: J1/J2 by hand into the audit chain, and the update prompt between two real releases (a browser held release N open while release 0.1 deployed). Still to do: J1/J2 and the offline shell on a real iPhone and Android phone (issue #8). After a host reboot, check <code>docker ps</code>: every MMS container should be <code>healthy</code>. The deploy tries <code>compose up</code> five times, 30 s apart, so a data store that is still restarting doesn't fail it; when it does fail, the job prints <code>compose ps -a</code> and the failing service's last log lines. Fix the cause and rerun the failed job (<code>gh run rerun &lt;id&gt; --failed</code>).</p>
+        </div>
+
         <div class="sub" id="infrastructure-observability">
           <h3>Observability and alerts</h3>
           <ul>
@@ -2034,27 +2580,55 @@ Strict-Transport-Security: max-age=31536000</code></pre>
      ===================================================================== -->
       <section class="doc" id="cicd">
         <div class="doc-head">
-          <div class="row"><h2 id="cicd-h">CI/CD and testing</h2><span class="badge progress">Frontend CI built</span></div>
-          <p>GitHub Actions tests only what changed, builds images tagged with the commit SHA, deploys <code>main</code> to staging and promotes the same images to production after a manual approval. Today only the frontend workflow exists.</p>
+          <div class="row"><h2 id="cicd-h">CI/CD and testing</h2><span class="badge progress">CI and release pipeline built · staging host pending</span></div>
+          <p>GitHub Actions checks every pull request in full. Each push to <code>main</code> runs the same checks, builds the images tagged with the commit SHA, scans them, pushes them to GHCR and deploys them to staging with a smoke test. Production promotion of the same images after a manual approval, and the nightly runs, come in Phase 7.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §17, §18</a> · <a href="TP.md">TP.md</a> · <code>.github/workflows/</code></span>
         </div>
 
-        <figure class="diagram" data-title="Pipeline" data-kind="Process flow diagram">
+        <figure class="diagram" id="cicd-built" data-title="CI/CD as built" data-kind="Process flow diagram">
           <div class="view" data-label="Mermaid">
 <pre class="mermaid-def">
-flowchart LR
-    PR["Push or PR"] --> CH{"Changed paths"}
-    CH -->|"services/name"| PY["Ruff · mypy · pytest"]
-    CH -->|"libs/mms_common"| ALL["Test every service"]
-    CH -->|"frontend"| FE["ESLint · vue-tsc · Vitest · build"]
-    CH -->|"infra/nginx"| NG["nginx -t"]
-    PY &amp; ALL &amp; FE &amp; NG --> IMG["Build images sha-commit&lt;br/&gt;Trivy scan"]
-    IMG -->|"main only"| STG["Push to GHCR&lt;br/&gt;deploy to staging&lt;br/&gt;Playwright smoke"]
-    STG --> NIGHT["Nightly on staging&lt;br/&gt;Playwright in 3 browsers,&lt;br/&gt;visual regression, ZAP"]
-    NIGHT -->|"manual approval"| PROD["Production&lt;br/&gt;same images + smoke"]
+flowchart TD
+    PR["Pull request"] --> CHK
+    MAIN["Push to main&lt;br/&gt;release.yml, one at a time"] --> CHK
+    subgraph CHK["Checks: frontend.yml + backend.yml"]
+        FE["frontend check&lt;br/&gt;ESLint · Vitest · API type drift · vue-tsc · build"]
+        LIB["mms_common&lt;br/&gt;Ruff · mypy · pytest"]
+        SVC["auth, platform&lt;br/&gt;Ruff · mypy · pytest, coverage 70%&lt;br/&gt;auth: OpenAPI matches frontend/openapi"]
+        TPL["service template, both variants"]
+        NG["nginx -t"]
+        STK["compose stack&lt;br/&gt;infra/tests, then Playwright journeys"]
+    end
+    CHK --> IMG["images.yml per image: auth, platform, web&lt;br/&gt;web = SPA build + earlier releases' assets (F9)&lt;br/&gt;docker build · nginx -t in the web image · Trivy HIGH/CRITICAL"]
+    IMG --> Q{"From main?"}
+    Q -->|"no, pull request"| DONE(["Report the checks"])
+    Q -->|yes| PUSH["Push to GHCR&lt;br/&gt;tags: commit SHA and main"]
+    PUSH --> H{"STAGING_HOST set?"}
+    H -->|no| SKIP(["Staging skipped"])
+    H -->|yes| DEP["SSH: rsync infra/, compose pull,&lt;br/&gt;up -d with MMS_TAG = SHA,&lt;br/&gt;wait for auth and platform healthy"]
+    DEP --> SMK["Playwright @smoke against STAGING_URL&lt;br/&gt;headers, auth routed, login page, offline shell"]
+    SMK --> OK(["Staging runs this commit"])
 </pre>
           </div>
-          <figcaption>A nightly failure blocks the next production deploy. Rollback is redeploying the previous tag. Weekly: restore drill with the audit chain check, and mutation tests on the state machines.</figcaption>
+          <figcaption>As built in <code>.github/workflows/</code>. A pull request runs the checks and builds and scans the images without pushing. Rollback: rerun the release workflow for an earlier commit, or set <code>MMS_TAG</code> to the earlier SHA on the host and <code>up -d</code>. Production (manual approval, same images), nightly cross-browser and ZAP runs, and the restore drill come in Phase 7.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="cicd-new-service" data-title="Adding a service from the copier template" data-kind="Process flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["copier copy templates/service services/name&lt;br/&gt;--data service_name=name --data env_prefix=PREFIX"] --> B["Generated: app layers, Settings with PREFIX_,&lt;br/&gt;lifespan with migrations, relay under the lease,&lt;br/&gt;JWT auth from JWKS, migrations/0001_common"]
+    B --> C["pip install -e with editable_mode=compat"]
+    C --> D{"pytest passes unchanged?"}
+    D -->|"health, architecture (import-linter,&lt;br/&gt;no direct produce), empty matrix"| E["Add domain rules, repo, routes"]
+    E --> F["Every route goes in the matrix table&lt;br/&gt;with the roles from PRD 2.3"]
+    F --> G{"Matrix, leak check,&lt;br/&gt;API tests pass?"}
+    G -->|no| E
+    G -->|yes| H["Add the service to infra/compose.yml&lt;br/&gt;and to the service job in backend.yml"]
+    H --> I["Stack tests and the docs site updated"]
+</pre>
+          </div>
+          <figcaption>The IP Phase 1 exit criterion: CI generates a throwaway service in both variants (with and without events) and runs its checks unchanged on every pull request.</figcaption>
         </figure>
 
         <div class="split">
@@ -2064,8 +2638,10 @@ flowchart LR
               <table>
                 <thead><tr><th>Workflow</th><th>Runs</th><th>Status</th></tr></thead>
                 <tbody>
-                  <tr><td><code>frontend.yml</code></td><td>On pushes to <code>main</code> that touch <code>frontend/</code>, and on every pull request (job <code>check</code> is meant to be a required status): <code>npm ci</code>, lint, type-check + build on Node 24, <code>ubuntu-24.04</code></td><td><span class="badge built">Built</span></td></tr>
-                  <tr><td>Per-service pipeline</td><td>Ruff, mypy, pytest, images, Trivy, staging deploy</td><td><span class="badge planned">Phase 1</span></td></tr>
+                  <tr><td><code>frontend.yml</code></td><td>Every pull request, and from <code>release.yml</code> (job <code>check</code> is meant to be a required status): <code>npm ci</code>, lint, Vitest, API type drift, type-check + build on Node 24, <code>ubuntu-24.04</code></td><td><span class="badge built">Built</span></td></tr>
+                  <tr><td><code>backend.yml</code></td><td>Every pull request, and from <code>release.yml</code>: <code>mms_common</code> (Ruff, mypy, tests with throwaway containers); one job per service (<code>auth</code>, <code>platform</code>: Ruff, mypy, tests, coverage ≥ 70%; auth's OpenAPI against <code>frontend/openapi</code>); the service template in both variants; <code>nginx -t</code>; the Compose stack built and tested, then the Playwright journeys</td><td><span class="badge built">Built (W2–W4)</span></td></tr>
+                  <tr><td><code>images.yml</code></td><td>Every pull request (build and scan only), and from <code>release.yml</code> with <code>push: true</code>: images <code>auth</code>, <code>platform</code>, <code>web</code>; Trivy fails on fixable HIGH or CRITICAL (exceptions in <code>.trivyignore</code> with a reason and review date)</td><td><span class="badge built">Built (W4)</span></td></tr>
+                  <tr><td><code>release.yml</code></td><td>Push to <code>main</code> or by hand, never two at once: checks → images pushed to GHCR → staging deploy over SSH → <code>@smoke</code> tests. The deploy job is skipped until the <code>STAGING_*</code> repository variables exist (see Infrastructure › Staging)</td><td><span class="badge progress">Built (W4) · host pending</span></td></tr>
                 </tbody>
               </table>
             </div>
@@ -2086,7 +2662,7 @@ flowchart LR
                 </tbody>
               </table>
             </div>
-            <p class="small muted">Coverage: 90% for <code>domain/</code>, 70% overall. Tests carry requirement IDs (<code>@pytest.mark.req("REQ-3")</code>, Playwright <code>@REQ-3</code>).</p>
+            <p class="small muted">Coverage: 90% for <code>domain/</code>, 70% overall. Tests carry requirement IDs (<code>@pytest.mark.req("REQ-3")</code>, Playwright <code>@REQ-3</code>). As of W4: <code>mms_common</code> 91 tests; auth 122 (88% overall, domain 97–100%); platform 53; stack 35+; frontend Vitest 44; Playwright 8 (J1, J2 ×2, invitations, offline shell, update prompt, 2 smoke).</p>
           </div>
         </div>
       </section>
@@ -2154,6 +2730,33 @@ flowchart LR
                 <tr><td>P5</td><td>Notification email moves to Phase 1</td><td>2026-10-16</td></tr>
                 <tr><td>UI</td><td>Vuetify 4 + Tailwind 4 replace PrimeVue 4; Material Design Icons replace PrimeIcons</td><td>Before 2026-10-16</td></tr>
                 <tr><td>Docs</td><td>This site (<code>docs/index.html</code>) is the living wiring reference, updated every phase; Mermaid by default, draw.io for hand-laid diagrams</td><td>2026-10-16</td></tr>
+                <tr><td>W3-1</td><td>Reset and invitation links are minted on send: events carry no token; platform's notification module calls <code>POST /internal/account-links</code> when it sends the email</td><td>2026-10-17</td></tr>
+                <tr><td>W3-2</td><td><code>/register</code> takes the organization name as free text (no public list of client organizations); the admin links or creates the organization at approval</td><td>2026-10-17</td></tr>
+                <tr><td>W3-3</td><td>Disabling a user, deactivating an organization, a password reset or a role change revokes access tokens at once through a Redis revocation list every service checks</td><td>2026-10-17</td></tr>
+                <tr><td>W3-4</td><td>Refresh expiry slides: 30 days from the last refresh. The grace successor is sealed under a key derived from the replaced token, so the database never holds a usable token</td><td>2026-10-17</td></tr>
+                <tr><td>W3-5</td><td>Breached-password check fails open: HIBP, then the local file, then accept with a metric, so an outage never blocks registration (T1)</td><td>2026-10-17</td></tr>
+                <tr><td>W3-6</td><td>Audit appends serialize on the <code>audit_state</code> head in each transaction instead of a single writer task; every platform worker consumes</td><td>2026-10-17</td></tr>
+                <tr><td>W3-7</td><td>New events: <code>auth.password_reset_requested</code>, <code>auth.token_reuse_detected</code>, <code>user.created</code>, <code>user.purged</code>; every <code>user.*</code> event carries the directory fields; the envelope's actor carries <code>name</code></td><td>2026-10-17</td></tr>
+                <tr><td>W3-8</td><td>Logout and refresh need only the cookie; an invited user can finish through a password reset; the first admin comes from <code>python -m app.cli create-admin</code></td><td>2026-10-17</td></tr>
+                <tr><td>W3-9</td><td>Template layers: <code>api → jobs → events → repo → domain</code> (cron jobs that change state write events)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-2</td><td>The cascade layer order is declared in <code>public/layers.css</code>, linked first in <code>index.html</code>, instead of the first import in <code>main.ts</code>: production builds link lazy chunks' CSS (VMenu, ripple) before the main bundle and drop a bare <code>@layer</code> statement from it, which put <code>vuetify-core</code> above <code>vuetify-components</code></td><td>2026-10-17</td></tr>
+                <tr><td>W4-3</td><td>The app shows the product name <b>MARS-MMS</b> and the logo from <code>/logo</code> (mark and wordmark); <code>npm run brand</code> derives the UI files and PWA icons. Brand colours stay Horizon blue. D1 partly closed. The vector SVGs arrived the same day, so the UI files are SVG and PDFs can use them</td><td>2026-10-17</td></tr>
+                <tr><td>W4-4</td><td>Frontend session: the access token lives only in <code>app/auth/session.ts</code> memory; refresh runs under the Web Lock <code>mms-auth-refresh</code> and shares the new session on BroadcastChannel <code>mms-auth</code>; a failed refresh ends only that tab's session (no broadcast), logout ends every tab's; network errors and 5xx keep the session</td><td>2026-10-17</td></tr>
+                <tr><td>W4-5</td><td>Pages of later phases are routed to a placeholder that names their phase, so every menu item works on staging; global search in the staff top bar waits for something to search (Phase 2)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-6</td><td>Account emails use the product name <b>MARS-MMS</b>, as the app does (DBD D1): subjects, header, sign-off and the default sender name. Only the three PNGs <code>npm run brand</code> reads are committed from <code>/logo</code>; the <code>.psd</code> and the watermarked <code>.jpg</code> files stay out of git</td><td>2026-10-17</td></tr>
+                <tr><td>W4-7</td><td>Release pipeline: <code>release.yml</code> on <code>main</code> reuses the PR checks, then <code>images.yml</code> pushes images tagged with the commit SHA to GHCR, and the staging job deploys them over SSH (the host keeps its own <code>.env</code>, certificates and secrets; <code>infra/</code> is copied on each deploy) and runs the Playwright <code>@smoke</code> tests, which need no seed users. The update prompt is tested locally by changing the served <code>sw.js</code>, and by hand on staging after two deploys</td><td>2026-10-17</td></tr>
+                <tr><td>W4-14</td><td>Below 1024 px the rail becomes a <b>bottom bar</b> docked to the bottom edge: translucent surface with a blur, a top border and an upward shadow, five items centred within 448 px, the open section a filled primary pill with a bold label, the others bare icons with a hover tint, labels always shown (12 px). Tablets (768–1023 px) keep the pane and view side by side above it. Replaces W4-9's floating tab tile (DBD 1.6, AFD 1.5)</td><td>2026-10-18</td></tr>
+                <tr><td>W4-15</td><td>Pane lists of people are <b>message-style</b> (after Google Messages): 72 px rows, 48 px avatar (W4-13's gradients kept), name with a short time on its right (<code>formatListTime</code>: <code>14:09</code> today, <code>Fri</code> this week, <code>4 Oct</code> this year), one line below, the open row fully round, 4 px gaps. <b>Motion curves</b>: the pane's width on Material 3's emphasized curve (400 ms open, 300 ms close; a short ease-in-out read as a jump); a record opened from the pane rises in (<code>PageBody</code> <code>record</code>, 450 ms, emphasized decelerate); rows shrink while pressed and spring back (<code>pressDown</code>, <code>pressUp</code>, <code>pressPulse</code> in <code>app/motion.ts</code>) (DBD 1.6)</td><td>2026-10-18</td></tr>
+                <tr><td>W4-16</td><td><b>Kafka SASL/SCRAM</b> (TRD 2.3 §15): clients authenticate with SCRAM-SHA-512 on the <code>CLIENT</code> listener; each service has its own user with ACLs from <code>infra/kafka/users.yml</code>, applied by <code>kafka-init</code> on every deploy. The controller and a plaintext <code>LOCAL</code> listener bind to 127.0.0.1; <code>kafka-init</code> joins the broker's network namespace (<code>network_mode: service:kafka</code>) to reach it, so no bootstrap admin password exists and the already-formatted KRaft volumes keep working. <code>mms_common.kafka.kafka_auth</code> refuses to start a service without credentials in staging or production; the tests' throwaway brokers stay open</td><td>2026-10-18</td></tr>
+                <tr><td>W4-17</td><td><b>App version</b> (TRD 2.4 §13.3): <code>frontend/package.json</code> is the release number, shown as <code>Version 0.1.0</code> under the product name on the public pages (<code>APP_VERSION</code> in <code>app/brand.ts</code>, from the Vite define <code>__APP_VERSION__</code>). Only a deliberate bump changes it: a per-commit value would change a precached file, so <code>sw.js</code>, on every deploy, and every phone would be asked to reload after back-end-only releases. Release 0.1 is the first</td><td>2026-10-18</td></tr>
+                <tr><td>W4-18</td><td><b>Mongo survives a plain restart</b> (TRD 2.4 §16.1). After the shared staging host rebooted, Docker restarted the existing <code>mms-mongo-1</code>, whose <code>/tmp</code> still held the last start's key file (0400, owned by <code>mongodb</code>). With <code>fs.protected_regular=2</code> even root may not reopen that file in sticky <code>/tmp</code>, so mongod restart-looped and staging was down until the fix deployed. The entrypoint now deletes the file and writes a new one under <code>umask 077</code>; <code>infra/tests</code> restarts Mongo and waits for <code>healthy</code></td><td>2026-10-18</td></tr>
+                <tr><td>W4-10</td><td>Motion for the app shell with <b>GSAP</b> (bundled, <code>app/motion.ts</code>): the pane's width tweens when it opens, closes or changes size (the view tile follows through flex), a new page rises in while the old one goes at once (so the pane's blocks swap in one step), a new page's pane list slides in, phones slide between list and record; on the rail a hover lift with overshoot, a press bounce, one sliding active indicator, and tooltips that fade and slide out (Escape closes them). Durations 0 under <code>prefers-reduced-motion</code> or with the per-device Animations setting (DBD 1.5)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-11</td><td>A <b>Settings</b> page for admins, <code>/admin/settings/:part?</code>, the last Admin tab: Appearance (their own Light / Dark / System, and Animations on or off on this device) and Brand colours (AFD 1.4)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-12</td><td>The brand colours are a <b>Material 3 theme</b> (Material Theme Builder export), closing the colour part of DBD D1: built in from <code>frontend/src/app/theme/material-theme.json</code> (seed <code>#026D88</code>) and changeable by admins <b>for everyone</b> (upload, one colour, single colours, JSON; preview first, contrast warnings). Stored in auth (<code>settings</code>, <code>GET</code> public, <code>PUT</code> admin, <code>branding.updated</code> audited; PRD 1.3 AUD-1). Each device keeps the last copy in <code>localStorage</code> for the first paint and offline. Status, success and warning colours stay fixed. The PWA icon and manifest use the built-in primary (DBD 1.5, TRD 2.2, BSD 1.3)</td><td>2026-10-17</td></tr>
+                <tr><td>W4-13</td><td><b>Person avatars</b>: initials in white on a 135° gradient of two brand tones (30–40), picked by the person's id: the one exception to DBD's "no decorative gradients". Decoration only (<code>aria-hidden</code>); first used on the Registrations list</td><td>2026-10-17</td></tr>
+                <tr><td>W4-9</td><td>The app shell replaces the client and staff shells (DBD 1.4, AFD 1.3 §5.1), from the approved "AWS-MMS three-pane layout" mock-up: square tiles 5 px apart on a new <code>ground</code> colour: a 64 px rail of section icons that never expands (a CSS tooltip on hover and focus names the section and what it holds), an interactive pane (section tabs, then the page's list or controls; hideable from 1024 px) and a view (header and details). No app-wide top bar. On phones the pane and view are full-bleed, a chosen record opens alone with Back, and the rail becomes a floating tab tile (four sections and Me). Records chosen in the pane are in the URL (<code>/admin/registrations/:id</code>). Vuetify's <code>VTooltip</code> was dropped for the rail: it leaves empty <code>role="tooltip"</code> nodes that fail axe. The field shell and split panel are unchanged</td><td>2026-10-17</td></tr>
+                <tr><td>W4-8</td><td>Staging runs on a shared server (<code>rnd.yanacreations.com</code>, files host <code>files.yanacreations.com</code>) instead of a dedicated second host (TRD §16.2). The server's own Nginx keeps ports 80 and 443 and the Let's Encrypt certificate, and passes both names to MMS's Nginx over <code>kong-net</code>; MMS's Nginx keeps all its own rules and trusts the edge's <code>X-Real-IP</code>. <code>compose.staging.yml</code> holds this wiring and the memory caps (about 2 GB free). Staging is not sized like production, so load and media-worker timings there (W11) are lower bounds only. Also fixed: <code>compose.prod.yml</code> used <code>!reset</code> on Nginx's volumes, which drops them; it is <code>!override</code></td><td>2026-10-17</td></tr>
+                <tr><td>W4-1</td><td>Interim mail relay for staff-only staging: a Gmail account (<code>smtp.gmail.com:465</code>, <code>PLATFORM_SMTP_SECURITY=ssl</code>, app password only in the staging host's <code>infra/.env</code>). Local stays on Mailpit. T3 (the organization's relay and sending domain) stays open and is needed before the pilot</td><td>2026-10-17</td></tr>
               </tbody>
             </table>
           </div>
@@ -2230,7 +2833,7 @@ flowchart LR
                 <tr><td>Process flow diagram</td><td>Outlining steps and decisions in a process</td><td>One actor's steps with decisions: field visit (J6), CI pipeline, station import</td><td>Mermaid flowchart</td><td>In these docs (J6, pipeline)</td></tr>
                 <tr><td>Workflow diagram</td><td>Illustrating and refining team workflows</td><td>Staff routines outside the app's own flow: hypercare triage, calibration-due follow-up, release routine</td><td>Mermaid or draw.io</td><td>Suggested · Phase 7–8</td></tr>
                 <tr><td>Data flow diagram</td><td>How data moves through a process or system</td><td>Event wiring between services, where secrets and tokens live, theme tokens, notification fan-out, backups</td><td>Mermaid flowchart</td><td>In these docs (events, theme, notifications) · Suggested · Phase 1 (credentials)</td></tr>
-                <tr><td>Swimlane flowchart</td><td>Cross-functional processes between teams</td><td>Hand-offs between roles and services: J1 registration and approval, J4 approve and assign, J8 client review</td><td>draw.io (true lanes); Mermaid subgraphs as a stand-in</td><td>In these docs (request roles, approximated) · Suggested · Phase 1 (J1)</td></tr>
+                <tr><td>Swimlane flowchart</td><td>Cross-functional processes between teams</td><td>Hand-offs between roles and services: J1 registration and approval, J4 approve and assign, J8 client review</td><td>draw.io (true lanes); Mermaid subgraphs as a stand-in</td><td>In these docs: <a href="#auth-j1">J1 registration</a> (draw.io, true lanes) and request roles (approximated in Mermaid)</td></tr>
                 <tr><td>Decision tree diagram</td><td>Branching decisions (Figma: process improvement)</td><td>Rules with many branches: <code>derive_status</code>, sync conflict handling, document access for clients</td><td>Mermaid flowchart</td><td>Suggested · Phase 3, 5</td></tr>
                 <tr><td>System flowchart</td><td>How external inputs get processed in a system</td><td>Requests through the gateway, the media processing pipeline, report rendering</td><td>Mermaid flowchart</td><td>In these docs (gateway) · Suggested · Phase 4 (media)</td></tr>
                 <tr><td>Document flowchart</td><td>Forms needing multiple approvals</td><td>Documents that collect signatures: visit report (staff signatures → final → client sign-off), client report form → PDF</td><td>Mermaid or draw.io</td><td>Suggested · Phase 6</td></tr>
@@ -2272,7 +2875,7 @@ flowchart LR
             <table>
               <thead><tr><th>Phase</th><th>Suggested diagrams</th></tr></thead>
               <tbody>
-                <tr><td>P1 · Foundations</td><td><strong>Chosen 2026-10-16 (all twelve):</strong> Swimlane: J1 registration, approval and invitation (draw.io) · Code flowchart: <code>/login</code> and <code>/refresh</code> rotation · Sequence: J2 password reset · Use case: roles × auth actions · Data flow: credentials and tokens (security review) · Event storming: auth events → consumers · Sequence: outbox leader handover when the leader dies · Data flow: audit hash chain and tamper check · Website flowchart: shells, guards and redirects · Architecture: the local Compose stack as built · Process flow: new service from the copier template · Process flow: CI/CD as built (replaces the planned pipeline). Updated to as built as well: login and refresh sequences, account status, pages, outbox sequence, system context.</td></tr>
+                <tr><td>P1 · Foundations</td><td><strong>Added in W3 (9):</strong> <a href="#auth-login-code"><code>/login</code></a> and <a href="#auth-refresh-code"><code>/refresh</code></a> code flowcharts, <a href="#auth-reset">J2 password reset</a>, <a href="#auth-usecases">auth use cases</a>, <a href="#auth-credentials">credentials and tokens</a>, <a href="#events-storming-auth">auth event storming</a>, <a href="#events-handover">outbox leader handover</a>, <a href="#platform-chain">audit hash chain</a>, <a href="#infrastructure-local">local Compose stack</a>, <a href="#cicd-new-service">new service from the template</a>. <strong>W4:</strong> added the <a href="#frontend">website flowchart (shells, guards)</a> and the <a href="#frontend">refresh across tabs</a> sequence; the <a href="#cicd-built">CI/CD as built</a> process flow and the <a href="#platform-email-state">email queue state</a>; the <a href="#auth-j1">J1 swimlane</a> (draw.io) and the <a href="#auth-login">login sequence</a> with the PWA side (startSession, BroadcastChannel). All twelve are in. <strong>Chosen 2026-10-16 (all twelve):</strong> Swimlane: J1 registration, approval and invitation (draw.io) · Code flowchart: <code>/login</code> and <code>/refresh</code> rotation · Sequence: J2 password reset · Use case: roles × auth actions · Data flow: credentials and tokens (security review) · Event storming: auth events → consumers · Sequence: outbox leader handover when the leader dies · Data flow: audit hash chain and tamper check · Website flowchart: shells, guards and redirects · Architecture: the local Compose stack as built · Process flow: new service from the copier template · Process flow: CI/CD as built (replaces the planned pipeline). Updated to as built as well: login and refresh sequences, account status, pages, outbox sequence, system context.</td></tr>
                 <tr><td>P2 · Stations</td><td>Product flowchart: sensor inventory · State: sensor unit status · Sequence: document upload and a client's model-document download · Process flow: station import with dry run · ER: stations module as built</td></tr>
                 <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
                 <tr><td>P4 · Visits online</td><td>State: visit status · Sequence: visit end in one transaction (inventory reconciliation) · Code flowchart: sensor action apply, reverse, re-apply · System flowchart: media processing pipeline · State: media status</td></tr>
@@ -2298,6 +2901,17 @@ flowchart LR
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-18</td><td>P1 · W4</td><td>The staging deploy no longer gives up the moment a dependency is unhealthy: <code>release.yml</code> tries <code>compose up</code> five times, 30 s apart, and prints <code>compose ps -a</code> and the failing service's logs when it stops. The update prompt puts its buttons on a row under the text (it was a narrow column beside them) and fits a 360 px phone (it was 380 px wide and ran off the left edge).</td></tr>
+              <tr><td>2026-10-18</td><td>P1 · W4</td><td><b>W4 checks on staging passed.</b> The product owner's test client registered, was approved, logged in and reset their password through the Gmail relay; all of it is in the audit chain and <code>verify()</code> is clean (the Phase 1 exit criterion). The update prompt was watched between two real releases: a browser on release N got the prompt without reloading, kept what was typed, offered it again after "Later", and "Reload now" brought up <b>release 0.1</b>, which shows <code>Version 0.1.0</code> on the public pages (W4-17). A host reboot exposed a Mongo restart bug that took staging down; fixed with a regression test (W4-18). New PWA finding F14: the first install takes about 16 s on staging. TRD 2.4. Tests: <code>infra/tests</code> 44.</td></tr>
+              <tr><td>2026-10-18</td><td>P1 · W4</td><td>W4 close-out. <b>Kafka SASL/SCRAM</b> (W4-16): per-service users and ACLs (<code>infra/kafka/users.yml</code>, <code>kafka/create-users.sh</code>), loopback-only controller and plaintext listeners, <code>KafkaAuth</code> in <code>mms_common.kafka</code> and <code>&lt;PREFIX&gt;_KAFKA_USERNAME</code> / <code>_PASSWORD</code> in auth, platform and the template; stack tests prove an anonymous client, a wrong password, another service's topic and another service's group are all refused. <b>App shell</b>: the bottom bar below 1024 px (W4-14), message-style Registrations, the record rise-in, row press and hover, the pane on the emphasized curve, and the rail tooltips no longer stick open after a fast sweep (W4-15; <code>e2e/shell.spec.ts</code>). Added the <a href="#auth-j1">J1 swimlane</a> (draw.io) and the PWA side of the <a href="#auth-login">login sequence</a>: all twelve Phase 1 charts are in. DBD 1.6, TRD 2.3, AFD 1.5. Tests: <code>mms_common</code> 102, auth 135 (89%), platform 53 (85%), template 8 + 8, <code>infra/tests</code> 43, Vitest 63, Playwright 10.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>Motion, Settings and brand colours (W4-10 to W4-13). GSAP for the pane's width, page and pane-list entrances, rail hover, sliding indicator and tooltips. New <code>/admin/settings/:part?</code> (Appearance; Brand colours with upload, seed colour, colour by colour and JSON, preview and contrast warnings). The built-in colours are now the Material 3 theme in <code>material-theme.json</code>; auth gets <code>GET</code>/<code>PUT /api/v1/auth/branding</code>, the <code>settings</code> collection and the <code>branding.updated</code> event (audited). Registration rows show a gradient initials avatar. PWA icons rebuilt on the new primary. Auth 135 tests (89%), Vitest 59, Playwright 9 (new: Settings and brand colours, axe light and dark, into the audit chain). DBD 1.5, TRD 2.2, AFD 1.4, PRD 1.3, BSD 1.3. Added the "brand colour change" sequence diagram and updated the theme data flow.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>The logo is vector: <code>npm run brand</code> builds <code>mark.svg</code>, <code>wordmark.svg</code> and <code>wordmark-white.svg</code> from <code>/logo/logo.svg</code> and <code>/logo/logo_main.svg</code> (metadata and tracing specks dropped, viewBox trimmed) and renders the PWA icons and favicon from the vector mark. Replaces the PNG UI files.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>The app shell (decision W4-9): <code>AppShell</code>, <code>AppRail</code>, <code>AppTabBar</code>, <code>PaneContent</code> and a new <code>PageBody</code> replace <code>ClientShell</code>, <code>StaffShell</code> and <code>SidebarLink</code>. Registrations is list → record (<code>/admin/registrations/:id?</code>); Users has its status filters in the pane; My profile lists its sections in the pane; the dashboard's "Needs your attention" is in the pane. New <code>ground</code> token. DBD 1.4, AFD 1.3. Vitest 44 (sections by role); Playwright's invitation journey checks the technician's Work section; axe passes in light and dark. Added the "page fills the pane and view" system flowchart and updated the shells website flowchart.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>Staging host prepared (decision W4-8): <code>rnd.yanacreations.com</code> and <code>files.yanacreations.com</code> on a shared server, behind its edge Nginx. Added <code>compose.staging.yml</code> (edge network, <code>real-ip.conf</code>, memory caps), <code>nginx/staging-edge.conf</code> and <code>snippets/real-ip.conf</code>; the staging job adds <code>compose.staging.yml</code>. Fixed <code>compose.prod.yml</code>, whose <code>!reset</code> dropped Nginx's certificate mounts (<code>!override</code>). Repository variables and secrets for the deploy set. Service images no longer ship pip: its vendored urllib3, msgpack and setuptools failed the Trivy scan (also in the service template).</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>Account emails built in platform (consumer group <code>notification</code>, <code>email_queue</code>, the sender with links minted on send; 53 platform tests) and renamed to MARS-MMS. Release pipeline built: <code>images.yml</code> (auth, platform, web; Trivy), <code>release.yml</code> (GHCR, staging deploy over SSH, <code>@smoke</code> tests), <code>compose.prod.yml</code>, the web image. Playwright: smoke tests and the update prompt between two releases. Added the CI/CD as built flowchart, the email queue state and the Staging section; the J2 reset sequence is as built. Decisions W4-6, W4-7. Waiting on the staging host for the first deploy and the real-phone test.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W4</td><td>Frontend shells and auth screens built from the approved mock-ups: public split panel, client, staff and field shells; Log in, Register, Waiting for approval, Forgot password, Set password (reset and invitation), My profile, Registrations (with the organization match), Users (with Invite user), Sync. Router guards and <code>next</code>, the session with the Web Lock refresh, typed API clients from <code>openapi/auth.json</code>, the minimal service worker and manifest (F5, F9, F10, F13), the MARS-MMS logo and icons. Vitest (37 tests) and Playwright (J1, J2, invitations, offline shell; axe light and dark, CSP) in CI. Fixed the layer order in production builds. Decisions W4-2 to W4-5.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W3</td><td>auth service built (registration and approval, invitations, login with throttle, refresh rotation with grace and reuse detection, logout, reset, profile, users, organizations, JWKS, service tokens, account links, snapshots, AUTH-5 purge, CLI). platform's audit module builds the hash chain from every topic. <code>mms_common</code> gains <code>auth</code>, auth event schemas, <code>migrations</code>, <code>cron</code>, <code>relay</code> and the <code>testing</code> harnesses (authorization matrix, leak check, seed users). The template now wires migrations, the relay and JWT auth. Compose runs auth and platform; CI has per-service jobs; the stack test runs J1/J2 end to end into the audit chain. Status, routes, events, schemas, config and decisions updated; nine Phase 1 diagrams added. Decisions W3-1 to W3-9.</td></tr>
+              <tr><td>2026-10-17</td><td>P1 · W2</td><td>(Recorded in W3.) <code>mms_common</code> core, the copier service template, the local Compose stack behind Nginx and backend CI.</td></tr>
               <tr><td>2026-10-16</td><td>P0</td><td>GitHub: project board AWS-MMS, milestones P0–P8 and Phase 0 issues #1–#10. Frontend CI runs on every pull request and is pinned to <code>ubuntu-24.04</code>. Repo made public; <code>main</code> protected (pull request, green <code>check</code>, linear history, admins included); secret scanning with push protection and Dependabot alerts on.</td></tr>
               <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike: Firefox 158 passed (20 MiB in 1.0 s, 50.9 MiB video in 2.5 s, abandon and abort). Every planned spike check is done.</td></tr>
               <tr><td>2026-10-16</td><td>P0</td><td>SeaweedFS spike: phone run passed (Android Chrome over Wi-Fi, 152.8 MiB video in 20 parts, 47.5 s, read back intact; abandon, list and abort). Only the Firefox run is left.</td></tr>

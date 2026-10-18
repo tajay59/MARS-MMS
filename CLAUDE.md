@@ -4,20 +4,27 @@ AWS-MMS (Automatic Weather Station Maintenance Management System). A self-hosted
 
 ## Think like a PWA expert first (required)
 
-AWS-MMS is a PWA: technicians record whole visits on iPhones and Android phones with no signal, and nothing may be lost or duplicated. **Before starting any task in this repo (code, review, plan or document), load the `pwa` skill ([.claude/skills/pwa/](.claude/skills/pwa/SKILL.md)) with the Skill tool and answer its pre-flight questions.** For back-end-only work this takes seconds, but still check the effect on the device: sync contracts, idempotency, auth refresh, caching headers, CSP, presigned uploads. The skill holds the PWA rules from the TRD, verified browser facts (iOS Safari first), the vite-plugin-pwa, Workbox and Dexie patterns, PWA work per phase, the open findings (F1–F13) and the sources. When browser reality and a planning document disagree, raise it as a finding; don't work around it silently. A `SessionStart` hook in [.claude/settings.json](.claude/settings.json) repeats this reminder at the start of every session and after `/clear` or compaction (text in [.claude/hooks/pwa-session-start.json](.claude/hooks/pwa-session-start.json)).
+AWS-MMS is a PWA: technicians record whole visits on iPhones and Android phones with no signal, and nothing may be lost or duplicated. **Before starting any task in this repo (code, review, plan or document), load the `pwa` skill ([.claude/skills/pwa/](.claude/skills/pwa/SKILL.md)) with the Skill tool and answer its pre-flight questions.** For back-end-only work this takes seconds, but still check the effect on the device: sync contracts, idempotency, auth refresh, caching headers, CSP, presigned uploads. The skill holds the PWA rules from the TRD, verified browser facts (iOS Safari first), the vite-plugin-pwa, Workbox and Dexie patterns, PWA work per phase, the open findings (F1–F14) and the sources. When browser reality and a planning document disagree, raise it as a finding; don't work around it silently. A `SessionStart` hook in [.claude/settings.json](.claude/settings.json) repeats this reminder at the start of every session and after `/clear` or compaction (text in [.claude/hooks/pwa-session-start.json](.claude/hooks/pwa-session-start.json)).
 
 ## Current state
 
-**Planning is done; Phase 1 (Foundations) W2 is under way** on branch `feat/p1-w2-foundations`. The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill), the **frontend theme foundation** in [frontend/](frontend/) (Vite, Vue, Vuetify 4, Tailwind 4, brand themes, fonts, icons; no shells or pages yet), and the first backend foundations:
+**Planning is done; Phase 1 (Foundations) W2, W3 and W4 are built**: the frontend shells, auth and admin screens, the minimal service worker, Playwright J1/J2, the account emails, the release pipeline, Kafka SASL/SCRAM (W4-16) and all twelve Phase 1 charts. Staging is live and every merge to `main` deploys to it. **The W4 checks on staging passed on 2026-10-18**: register → approve → log in → reset into the audit chain (36 records, `verify()` clean; the IP Phase 1 exit criterion), and the update prompt between two real releases (release 0.1, `Version 0.1.0` on the public pages, decision W4-17). **Still open for Phase 1:** a test on a real iPhone and Android phone (issue #8), including how long the first install takes (finding F14). The repo holds the planning documents, the design reference library, project skills (including the `pwa` expert skill), the **frontend** in [frontend/](frontend/) and the backend.
 
-- [libs/mms_common/](libs/mms_common/): `ids` (UUIDv7, seeded for tests), `time` (injectable clock), `errors` (problem details), `logging`, `events` (envelope + `(type, version)` registry), `mongo`, `outbox` (transactional add, relay under the Redis leader lease), `consumer` (TRD §8.5 rules: dedupe, retry, DLQ), `snapshot` (backfill paging, `aggregate_version` guard), `kafka`, `web` (request IDs, error handlers, `/health` `/ready` `/metrics`), `checks` (no-direct-produce). Not yet: `auth` (W3).
-- [templates/service/](templates/service/): the copier service template. Its `tests/unit/test_architecture.py` runs import-linter (rule 7, layers) and the no-direct-produce check (rule 2); a generated service passes unchanged.
-- [infra/](infra/): `compose.yml` + `compose.dev.yml` (Nginx gateway, MongoDB `rs0` with one user per service database and an insert-only audit role, Redis, Kafka KRaft, SeaweedFS with per-service S3 keys and the four buckets, Mailpit, self-signed TLS) and `infra/tests/test_stack.py`. No application services yet; their routes answer 503 problem+json until they exist.
-- **Verified 2026-10-17:** `infra/tests` (35 checks, every container on its pinned image) and `mms_common` (52 tests, including the leader lease on real Redis and an outbox → relay → Kafka → consumer round trip). **Kafka has no SASL/SCRAM yet** (TRD §15); add it before staging.
-- **Gotchas:** Python's `open(p, "w")` on Windows writes CRLF, which breaks shell scripts mounted into containers; keep `infra/` files LF. In Nginx, a `location ^~ /api/` would hide every regex location (all API routes 404); the catch-all stays a plain prefix.
+- [frontend/](frontend/) (W4, from the approved mock-ups in the "AWS-MMS W4 screens" design canvas): the public split panel, the **app shell** for staff and clients (decision W4-9, DBD 1.4: square tiles 5 px apart on the `ground` colour: a 64 px rail of section icons with CSS tooltips, an interactive pane with the section's pages as tabs and the page's list or controls via `PaneContent`, and a view filled by `PageBody`; phones get full-bleed panes, and below 1024 px a docked bottom bar replaces the rail (W4-14); sections in `app/navigation.ts`), the field shell, router guards and `next` (AFD §5.2), `app/auth/session.ts` (access token in memory, refresh under the Web Lock `mms-auth-refresh`, BroadcastChannel `mms-auth`), typed API clients generated from `openapi/auth.json`, the pages Log in, Register, Waiting for approval, Forgot password, Set password (reset and invitation), My profile, Registrations (message-style rows with a gradient initials avatar, `UserAvatar`, and a short list time, `formatListTime`; decisions W4-13, W4-15), Users, **Settings** (`/admin/settings/:part?`: Appearance and Brand colours, W4-11), Sync and a first Dashboard; pages of later phases show `PlannedPage`. **Brand colours** (W4-12) come from a Material 3 theme: the built-in `app/theme/material-theme.json`, or the organization's from `GET /api/v1/auth/branding` (kept in `localStorage` `mms-branding`; `stores/branding.ts`), mapped onto the DBD tokens by `app/theme/material.ts`; status colours stay fixed in `brand.ts`. **Motion** (W4-10) is GSAP through `app/motion.ts` (pane width on Material 3's emphasized curve, page and pane-list entrances, a record rising in through `PageBody`'s `record`, row press `pressDown`/`pressUp`, rail hover, sliding indicator, tooltips; W4-15), instant under reduced motion or Settings › Animations off. The minimal service worker and manifest (F5: precache, navigation fallback, update prompt; F9 chunk errors, F13 safe areas). The MARS-MMS logo from `/logo` (`npm run brand`). 63 Vitest tests and 10 Playwright tests (J1, J2, invitations, offline shell, the update prompt between two releases, gateway smoke, rail tooltips; axe light and dark, CSP). Tests tagged `@smoke` need no seed users and run against staging after each deploy.
+
+The backend:
+
+- [libs/mms_common/](libs/mms_common/): `ids` (UUIDv7, seeded for tests), `time` (injectable clock), `errors` (problem details), `logging`, `events` (envelope + `(type, version)` registry), `mongo`, `outbox` (transactional add, relay under the Redis leader lease), `consumer` (TRD §8.5 rules: dedupe, retry, DLQ), `snapshot` (backfill paging, `aggregate_version` guard), `kafka`, `web` (request IDs, error handlers, `/health` `/ready` `/metrics`), `checks` (no-direct-produce); since W3 also `auth` (EdDSA tokens, JWKS cache, Redis revocation list, `require_roles`/`require_staff`/`require_service`, `actor_for`, `scoped`), `events.auth` (auth event schemas), `migrations` (forward-only, `_migrations` lock), `cron` (Redis lock per run), `relay` (the outbox run loop) and `testing` (seed users + `TestIssuer`, authorization `Matrix`, `find_leaks`, container fixtures as the pytest plugin `mms_common.testing.containers`).
+- [templates/service/](templates/service/): the copier service template. A generated service runs migrations on startup, the outbox relay under its lease and JWT auth from JWKS. Its tests run import-linter (rule 7; layers `api → jobs → events → repo → domain`), the no-direct-produce check (rule 2) and an empty authorization matrix, and pass unchanged in both variants (`produces_events` true and false).
+- [services/auth/](services/auth/) (W3): everything in TRD §3.1, plus `POST /internal/account-links` (reset and invitation links are **minted on send**, never put in an event), `GET`/`PUT /api/v1/auth/branding` (the organization's brand colours in the `settings` collection, `branding.updated` audited; W4-12) and `python -m app.cli create-admin | seed`. 135 tests, including the authorization matrix, the client leak check, the refresh race, JWT attacks and injection.
+- [services/platform/](services/platform/) (W3, W4): the audit module (consumer group `audit` → hash chain in the `audit` database, `verify()`) and the notification module's account emails (consumer group `notification` → `email_queue` → the sender job, which calls auth `/internal/account-links` at send time and sends over SMTP; Mailpit locally). The emails say MARS-MMS (decision W4-6). The rest of notification: Phase 3.
+- [infra/](infra/): `compose.yml` + `compose.dev.yml` (Nginx gateway, MongoDB `rs0` with one user per service database and an insert-only audit role, Redis, Kafka KRaft with SASL/SCRAM (one user per service, ACLs from `infra/kafka/users.yml`, applied by `kafka-init`; controller and plaintext listeners on loopback only, W4-16), SeaweedFS with per-service S3 keys and the four buckets, Mailpit, self-signed TLS) and `infra/tests/test_stack.py`. Since W3 it also runs the `auth` and `platform` containers (built from the repo root; `.dockerignore` keeps the context small) and a `dev-secrets` one-shot that makes the auth signing key in `infra/secrets/` (git-ignored). Routes of services not built yet answer 503 problem+json.
+- **Verified 2026-10-17 (W3):** `mms_common` 91 tests, auth 122 (88% coverage, domain 97–100%), platform 26, and `infra/tests` 35 on the running stack, including register → approve → log in → refresh → reset through Nginx into the audit chain. Ruff and mypy are clean everywhere. **Verified 2026-10-18 (W4 close-out):** `mms_common` 102, auth 135 (89%), platform 53 (85%), template 8 + 8, `infra/tests` 43 (including Kafka: anonymous, wrong password, another service's topic or group all refused), Vitest 63, Playwright 10. **Verified 2026-10-18 on staging:** J1/J2 by hand into the audit chain (`verify()` clean over 36 records), the update prompt between two real releases, and `infra/tests` 44 in CI (new: Mongo comes back after a plain restart).
+- **Gotchas:** Python's `open(p, "w")` on Windows writes CRLF, which breaks shell scripts mounted into containers; keep `infra/` files LF. In Nginx, a `location ^~ /api/` would hide every regex location (all API routes 404); the catch-all stays a plain prefix. FastAPI 0.143 includes routers lazily, so `app.routes` doesn't list their routes: use `fastapi.routing.iter_route_contexts` (the matrix does). In Git Bash, `docker compose exec <svc> /abs/path` needs `MSYS_NO_PATHCONV=1`. Give `uvicorn[standard]` a lower bound (`>=0.40`): unbounded, pip backtracked through every old uvicorn for over 15 minutes in the image build. An existing local `infra/.env` needs the keys added to `.env.example` since it was copied (`PLATFORM_SERVICE_SECRET`, `AUTH_BREACHED_CHECK`, `AUTH_SEED_PASSWORD`, `KAFKA_AUTH_PASSWORD`, `KAFKA_PLATFORM_PASSWORD`); so does the staging host's. A new service needs a Kafka user: an entry in `infra/kafka/users.yml`, its password in every `.env` and in `kafka-init`'s environment, and `<PREFIX>_KAFKA_USERNAME`/`_PASSWORD` on its container. Kafka's admin tools run inside the broker against `127.0.0.1:9094` (the loopback plaintext listener), not `kafka:9092`. A restarted container keeps its `/tmp`, and `fs.protected_regular=2` (Ubuntu and Docker Desktop) stops even root from reopening another user's file in a sticky folder: delete such a file before rewriting it (the Mongo key file took staging down after a host reboot, W4-18). The staging deploy tries `compose up` five times, 30 s apart, before failing (a store still restarting after a reboot); if it still fails, it prints `compose ps -a` and the service's logs: fix the cause and rerun the failed job (`gh run rerun <id> --failed`). The app version comes from `frontend/package.json` (`__APP_VERSION__`); bump it for a release, never stamp a commit SHA into the bundle (every deploy would prompt every phone to reload). To replay audit dead letters after a fix: stop platform, reset the `audit` group to earliest (`kafka-consumer-groups.sh --reset-offsets --to-earliest --group audit --all-topics --execute`), start it again.
 
 - **Repository:** GitHub `tajay59/MARS-MMS`, branch `main` (remote `origin`). Text files are LF (`.gitattributes`, `.editorconfig`); keep it that way, because shell scripts and configs run in Linux containers.
-- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, type-check and build (job `check`, `ubuntu-24.04`) on pushes to `main` that touch `frontend/` and on **every** pull request, so `check` can be a required status. [.github/workflows/backend.yml](.github/workflows/backend.yml) does the same for the back end: `mms_common` (Ruff, mypy, tests with throwaway containers), `service template` (generates a service and runs its checks unchanged), `nginx -t`, and `compose stack` (brings the stack up and runs `infra/tests`). W4 replaces both with the full pipeline (per-service jobs, Trivy, GHCR, staging deploy).
+- **CI:** [.github/workflows/frontend.yml](.github/workflows/frontend.yml) runs lint, Vitest, the API type drift check, type-check and build (job `check`, `ubuntu-24.04`) on pushes to `main` that touch `frontend/` and on **every** pull request, so `check` can be a required status. [.github/workflows/backend.yml](.github/workflows/backend.yml) does the same for the back end: `mms_common` (Ruff, mypy, tests with throwaway containers), one job per service (`auth`, `platform`: Ruff, mypy, tests, coverage ≥ 70%), `service template` (generates both variants and runs their checks unchanged), `nginx -t`, and `compose stack` (builds and starts the stack, waits for auth and platform to be healthy, runs `infra/tests`, then the Playwright journeys). The auth job also checks `frontend/openapi/auth.json` matches the service. Both run on every pull request and are called by [release.yml](.github/workflows/release.yml) on pushes to `main`: checks → [images.yml](.github/workflows/images.yml) (`auth`, `platform`, `web`; Trivy; pushed to GHCR `ghcr.io/tajay59/mars-mms/<image>:<sha>`) → staging deploy over SSH with [infra/compose.prod.yml](infra/compose.prod.yml) → Playwright `@smoke`. The deploy job is skipped until the repository variables `STAGING_HOST`, `STAGING_USER`, `STAGING_URL` and secrets `STAGING_SSH_KEY`, `STAGING_KNOWN_HOSTS` exist; host preparation is in the docs site, Infrastructure › Staging.
+- **Staging host (decision W4-8, 2026-10-17):** `https://rnd.yanacreations.com`, files host `files.yanacreations.com` (CNAME), on a **shared** server `84.247.187.64` (Ubuntu 22.04, 6 GB RAM, about 2 GB free; also runs PrintIT and Kreativ Wrist; root SSH alias `kw-server`). Its edge Nginx `printit-nginx` owns 80/443 and the Let's Encrypt certificates (`/srv/edge-sites/*.conf`; ours is `mms-staging.conf` from [infra/nginx/staging-edge.conf](infra/nginx/staging-edge.conf)) and proxies to our Nginx as `mms-gateway` on `kong-net`. [infra/compose.staging.yml](infra/compose.staging.yml) adds that network, `snippets/real-ip.conf` and the memory caps. Deploy user `mms`; `/opt/mms/{infra,secrets,tls}`; the host's `infra/.env` has fresh secrets. The repository variables and secrets are set. Changes to the edge or certbot affect the other sites: ask first. Compose override tags: `!reset` empties a value, `!override` replaces it.
 - **GitHub tracking:** project board [AWS-MMS](https://github.com/users/tajay59/projects/2) (linked to the repo), milestones P0–P8 (one per IP phase); Phase 0 work is issues #1–#10. New issues get a milestone and are added to the board. **`main` is protected** (the repo is public since 2026-10-16): no direct pushes, even for admins. Work on a branch, open a pull request, and merge by squash or rebase once the checks are green and the branch is up to date. Secret scanning blocks pushes that contain secrets. **The repo is public:** never commit client names, real station data, credentials or internal addresses; keep those in the organization's systems or in uncommitted `.env` files.
 - **SeaweedFS spike:** [infra/spikes/seaweedfs/](infra/spikes/seaweedfs/) (throwaway, Phase 0). Not part of the app stack. **Passed 2026-10-16** on SeaweedFS 4.48 (T7 confirmed); Chrome, Firefox 158 and a 152.8 MiB video from an Android phone all passed the same day. All checks done; an iPhone run is optional.
 - **Tools installed:** Docker Desktop 29.8.2 (Compose v5.6.0) and draw.io desktop 32.4.1. Docker's CLI is at `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin`; terminals opened before the install don't have it on PATH.
@@ -80,13 +87,13 @@ Read these before writing a new document or any code. Requirement IDs (AUTH-1, R
 
 | File | Document | Version | Live copy (Claude Doc) |
 |---|---|---|---|
-| [docs/PRD.md](docs/PRD.md) | Product Requirements | 1.1 | — |
-| [docs/TRD.md](docs/TRD.md) | Technical Requirements | 2.0 | — |
-| [docs/AFD.md](docs/AFD.md) | App Flow (journeys J1–J10, routes, menus, edge states) | 1.1 | [link](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0, stale) |
-| [docs/DBD.md](docs/DBD.md) | Design Brief (colour, type, shells, components) | 1.2 | [link](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1, stale) |
-| [docs/BSD.md](docs/BSD.md) | Background Schema (data location, schemas, access, retention) | 1.1 | [link](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0, stale) |
+| [docs/PRD.md](docs/PRD.md) | Product Requirements | 1.3 | — |
+| [docs/TRD.md](docs/TRD.md) | Technical Requirements | 2.4 | — |
+| [docs/AFD.md](docs/AFD.md) | App Flow (journeys J1–J10, routes, menus, edge states) | 1.5 | [link](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0, stale) |
+| [docs/DBD.md](docs/DBD.md) | Design Brief (colour, type, shells, components) | 1.6 | [link](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1, stale) |
+| [docs/BSD.md](docs/BSD.md) | Background Schema (data location, schemas, access, retention) | 1.3 | [link](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0, stale) |
 | [docs/IP.md](docs/IP.md) | Implementation Plan (phases 0–8, 25 weeks) | 1.1 draft | [link](https://claude.ai/code/artifact/de63972b-b743-4ad1-b5fa-85325dc22312) (1.0, stale) |
-| [docs/TP.md](docs/TP.md) | Test Plan (levels, rule-enforcement tests, seed users, CI stages, tests by phase) | 1.1 draft | [link](https://claude.ai/code/artifact/d6d1344c-a8be-466d-931c-2b8c8f5ec225) (1.0, stale) |
+| [docs/TP.md](docs/TP.md) | Test Plan (levels, rule-enforcement tests, seed users, CI stages, tests by phase) | 1.2 draft | [link](https://claude.ai/code/artifact/d6d1344c-a8be-466d-931c-2b8c8f5ec225) (1.0, stale) |
 
 - The App Flow file is `docs/AFD.md`. Some older notes call it "APD"; it is the same document.
 - [docs/drafts/](docs/drafts/) holds the earlier drafts (Claude, DeepSeek, GPT) and the original `Specification.txt`. The final documents supersede them. Don't edit them, and don't treat them as a source of truth.
@@ -101,7 +108,7 @@ Read these before writing a new document or any code. Requirement IDs (AUTH-1, R
 | Q | PRD §12 | Open |
 | T | TRD §22 | Open, with defaults; T7 decided (SeaweedFS) |
 | A | AFD §7 | A7, A9, A10 decided |
-| D | DBD | D2–D4 decided; D1, D5, D6 open |
+| D | DBD | D1–D4 decided (D1: logo, name and brand colours, 2026-10-17); D5, D6 open |
 | B | BSD | B2–B6 closed or decided; B1 open |
 | P | IP | P5 decided; P1–P4 open |
 | V | TP | V1–V5 open, with defaults |
@@ -124,6 +131,15 @@ Read these before writing a new document or any code. Requirement IDs (AUTH-1, R
   - **Reopening a report** during Client Review returns the request to In progress; after Closed it stays Closed (RPT-6).
   - **Offline PIN unlock** for staff (ADR-20, AUTH-12).
   - **Files fail closed**: staff-only until the owning service shares them (ADR-19).
+- **Motion, Settings and brand colours, 2026-10-17** (DBD 1.5, TRD 2.2, AFD 1.4, PRD 1.3, BSD 1.3; docs site decisions W4-10 to W4-13):
+  - **GSAP** animates the app shell; every tween uses `dur()` from `app/motion.ts`, so reduced motion makes it instant.
+  - **Brand colours are a Material 3 theme**, changeable by admins **for everyone** on Settings. Status, success and warning colours never come from the theme.
+  - **Person avatars** may use a brand gradient: the one exception to DBD's "no decorative gradients".
+- **Building auth, 2026-10-17** (TRD 2.1, PRD 1.2, AFD 1.2, DBD 1.3, BSD 1.2; docs site decisions W3-1 to W3-9):
+  - **Account links are minted on send**: no token in any event; notification calls auth `POST /internal/account-links` when it sends the email.
+  - **`/register` takes the organization name as free text**; there is no public list of client organizations. The admin links or creates the organization at approval.
+  - **Access tokens are revoked at once** (disabling, org deactivation, reset, role change) through a Redis list every service checks.
+  - Refresh expiry slides (30 days from the last refresh); the grace successor is sealed; the breached-password check fails open with a fallback and a metric; audit appends serialize on the `audit_state` head.
 
 ## Architecture (TRD)
 
@@ -193,11 +209,12 @@ Every service exposes `GET /health`, `GET /ready`, `GET /metrics` and OpenAPI at
 ## Frontend and design
 
 - docs/DBD.md is the design source of truth. Brand tokens live in [frontend/src/app/theme/brand.ts](frontend/src/app/theme/brand.ts), which defines Vuetify's `light` and `dark` themes. Tailwind reads the same colours through `@theme` mapped to Vuetify's `--v-theme-*` variables ([tailwind.css](frontend/src/app/theme/tailwind.css)); Tailwind's default palette is removed.
-- Primary colour is Horizon blue `#22569A`, a placeholder until the organization supplies branding (D1). Neutrals are slate. **Status colours are reserved** for request and station status (chips, map markers, timeline dots) and are never used for decoration.
+- Brand and neutral colours come from a **Material 3 theme** (W4-12): built in from `app/theme/material-theme.json` (primary `#0A6780`, seed `#026D88`), replaceable by admins for everyone; `app/theme/material.ts` maps it onto the token names, so pages only ever use tokens. **Status colours are reserved** for request and station status (chips, map markers, timeline dots) and are never used for decoration.
 - Fonts are Inter and JetBrains Mono from `@fontsource-variable`, bundled (no CDN). Icons are Material Design Icons as SVG from `@mdi/js` (outline variants), listed in `app/theme/icons.ts`. No icon font.
-- There are three shells: client (top nav), staff (sidebar) and field (phone: stepper Before → Work → After → Review, bottom nav, sync badge). Public pages, including `/unlock`, use the split panel.
+- Staff and clients use the **app shell** (DBD "The shells"): rail · interactive pane · view, as square tiles on `ground`. A page fills the view with `PageBody` (title, subtitle, `#actions`, `back` for phones) and puts its list or controls in the pane with `<PaneContent>`; a record it opens goes in the URL and is reported with `usePaneSelection()`. No bordered cards inside tiles. Rail tooltips are CSS (`RailTip`): Vuetify's `VTooltip` leaves empty `role="tooltip"` nodes that fail axe. The field shell (phone: stepper Before → Work → After → Review, bottom nav, sync badge) is unchanged. Public pages, including `/unlock`, use the split panel.
 - Dark mode switches Vuetify's theme (`useTheme().change()`) and the `.app-dark` class on `<html>` together ([stores/theme.ts](frontend/src/stores/theme.ts)); Tailwind's `dark:` variant uses `.app-dark`. `public/theme-init.js` is an external script because the CSP is `script-src 'self'`, which rules out inline scripts.
-- `app/theme/layers.css` must stay the first import in `main.ts`; the CSS import order there is deliberate (an ESLint import-sort exception).
+- The cascade layer order lives in `public/layers.css`, which must stay the first stylesheet in `index.html`: a production build links lazy chunks' CSS before the main bundle, and the first file to name a layer fixes its place. The CSS import order in `main.ts` is still deliberate (an ESLint import-sort exception).
+- Tailwind's preflight is off, so `base.css` adds the few resets Vuetify's leaves out (plain `button` and `a`, in the `vuetify-core` layer), the `on-*` text colour for `bg-*` (filled buttons rely on it), full-contrast field hints, the focus ring and reduced motion. `VAppBar` makes buttons inside it `text`: set `variant` explicitly there.
 - Use Vuetify for components and Tailwind for layout and spacing. Avoid custom component CSS unless there is no other way.
 - Vuetify's own utility and colour classes are off (`$utilities: false`, `$color-pack: false`, `theme.utilities: false`), so `rounded-*`, `bg-*`, `text-*` and spacing classes are always Tailwind's. Set the look through global `defaults` in `app/theme/vuetify.ts`, not per-page props. Classes Vuetify adds from props (`rounded-md`, `rounded-card`, `elevation-8`) are safelisted in `tailwind.css`. Vuetify's display thresholds match Tailwind's breakpoints (640/768/1024/1280/1536).
 - Viewers see read-only views. Action buttons are hidden, not disabled.
@@ -252,11 +269,17 @@ Frontend (run in `frontend/`):
 
 ```sh
 npm install
-npm run dev          # dev server on http://localhost:3000
-npm run type-check   # vue-tsc
+npm run dev          # dev server on http://localhost:3000 (no service worker; build + preview for that)
+npm run type-check   # vue-tsc (app, worker, tests)
 npm run lint         # ESLint (eslint-config-vuetify); lint:fix to fix
-npm run build        # type-check + production build
+npm test             # Vitest unit tests
+npm run build        # type-check + production build (Nginx serves frontend/dist)
+npm run test:e2e     # Playwright against the running local stack (seeds it first); --project=chromium
+npm run api:types    # regenerate src/api/types from openapi/*.json
+npm run brand        # rebuild the logo files and PWA icons from /logo
 ```
+
+OpenAPI schemas for the frontend (run from the repo root): `.venv/Scripts/python infra/scripts/export_openapi.py`, then `npm run api:types`. CI fails if either drifts. Playwright needs `npx playwright install chromium` once; its Chromium runs with `--ignore-certificate-errors` because Chromium won't register a service worker on the stack's self-signed certificate.
 
 SeaweedFS spike (run in `infra/spikes/seaweedfs/`; needs Docker):
 
@@ -294,14 +317,25 @@ cd services/<name>
 ../../.venv/Scripts/ruff check . && ../../.venv/Scripts/mypy app
 ```
 
+A service (run in `services/<name>/`, for example `auth` or `platform`; API tests start throwaway Mongo and Redis):
+
+```sh
+../../.venv/Scripts/python -m pip install -e ".[dev]" --config-settings editable_mode=compat
+../../.venv/Scripts/python -m pytest -q --cov      # unit, API, matrix, architecture
+../../.venv/Scripts/ruff check . && ../../.venv/Scripts/mypy app
+```
+
 Local stack (run in `infra/`; needs Docker; Nginx serves the last `npm run build` from `frontend/dist`):
 
 ```sh
 cp .env.example .env                              # dev-only values; never commit .env
-docker compose -f compose.yml -f compose.dev.yml up -d
-../.venv/Scripts/python -m pytest tests -q        # gateway, CSP, DB isolation, audit role, topics, buckets
+docker compose -f compose.yml -f compose.dev.yml up -d --build
+docker compose -f compose.yml -f compose.dev.yml exec -e AUTH_SEED_PASSWORD=dev-seed-password-1 auth python -m app.cli seed
+../.venv/Scripts/python -m pytest tests -q        # gateway, CSP, DB isolation, audit role, topics, buckets, J1/J2 into the audit chain
 docker compose -f compose.yml -f compose.dev.yml down      # add -v to delete the data volumes
 ```
+
+- Seed users (TP): `admin@example.org`, `tech1@example.org`, `client.a1@example.org`, `viewer@example.org` and the rest of `mms_common.testing.seed.SEED_USERS`, all with `AUTH_SEED_PASSWORD`. On staging and production, create the first admin with `python -m app.cli create-admin --email … --name …` (password from `AUTH_ADMIN_PASSWORD` or a prompt); `seed` refuses production.
 
 - App: `https://mms.localhost` (accept the self-signed certificate once). Files host: `https://files.mms.localhost`. Mailpit: `http://127.0.0.1:8025`.
 - Published on 127.0.0.1 only, for debugging: MongoDB on `MONGO_DEV_PORT` (default **27018**, because a locally installed MongoDB often holds 27017; connect with `directConnection=true`), Redis 6379, SeaweedFS S3 8333.
@@ -309,9 +343,7 @@ docker compose -f compose.yml -f compose.dev.yml down      # add -v to delete th
 
 Not yet available. Add these as they are built (IP Phase 1):
 
-- hot reload and seeded data in the local stack (the services and `infra/scripts/seed.py`)
-- frontend tests (Vitest, Playwright)
-- regenerate OpenAPI types (`openapi-typescript`)
+- hot reload in the local stack (seed users exist through `python -m app.cli seed` in auth; stations and requests come with their services)
 - rebuild a read model (`infra/scripts/backfill.py --consumer <service>`)
 
 ## Definition of done (IP)

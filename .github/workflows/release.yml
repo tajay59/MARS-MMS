@@ -1,0 +1,121 @@
+# The main pipeline (TRD §18): on every push to main, run the checks, build and scan the
+# images and push them to GHCR, then deploy them to staging and smoke-test it.
+#
+# Staging is skipped until the host exists (issue #4). To turn it on, set in the repository
+# (Settings > Secrets and variables > Actions):
+#   variables  STAGING_HOST (DNS name or IP), STAGING_USER, STAGING_URL (https://...)
+#   secrets    STAGING_SSH_KEY (private key for STAGING_USER), STAGING_KNOWN_HOSTS
+#              (ssh-keyscan output for STAGING_HOST)
+# and prepare the host once as described in docs/index.html, "Staging". compose.staging.yml
+# holds what is particular to the staging server (behind its shared edge Nginx, memory caps).
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# One release at a time, in order; never cancel a deploy halfway.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    uses: ./.github/workflows/backend.yml
+
+  frontend:
+    uses: ./.github/workflows/frontend.yml
+
+  images:
+    needs: [backend, frontend]
+    uses: ./.github/workflows/images.yml
+    with:
+      push: true
+
+  staging:
+    name: deploy to staging
+    needs: images
+    if: vars.STAGING_HOST != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+    env:
+      HOST: ${{ vars.STAGING_HOST }}
+      USER_AT: ${{ vars.STAGING_USER }}@${{ vars.STAGING_HOST }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/staging
+          chmod 600 ~/.ssh/staging
+          echo "${{ secrets.STAGING_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf 'Host %s\n  IdentityFile ~/.ssh/staging\n  IdentitiesOnly yes\n' "$HOST" > ~/.ssh/config
+
+      # The host keeps its own infra/.env, TLS certificates and secrets; the repository's
+      # infra/ files (compose, init scripts, topic list) are copied over on every deploy.
+      - name: Copy the stack definition
+        run: |
+          rsync -az --delete \
+            --exclude .env --exclude secrets/ --exclude 'nginx/certs/' --exclude 'nginx/carry/' \
+            --exclude tests/ --exclude spikes/ --exclude data/ --exclude __pycache__/ \
+            infra/ "$USER_AT:/opt/mms/infra/"
+
+      - name: Pull and start the new images
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            ssh "$USER_AT" docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          ssh "$USER_AT" MMS_TAG="$GITHUB_SHA" sh -s <<'EOF'
+          set -eu
+          cd /opt/mms/infra
+          compose="docker compose -f compose.yml -f compose.prod.yml -f compose.staging.yml"
+          $compose pull --quiet
+          # `up` stops at the first dependency that is unhealthy at that moment, such as a data
+          # store still restarting after a host reboot (W4-18). Give it a few tries before failing.
+          for attempt in 1 2 3 4 5; do
+            $compose up -d --no-build --remove-orphans && break
+            if [ "$attempt" = 5 ]; then
+              $compose ps -a
+              exit 1
+            fi
+            echo "up failed (attempt $attempt of 5); trying again in 30 s"
+            sleep 30
+          done
+          for svc in auth platform; do
+            for _ in $(seq 1 60); do
+              status="$(docker inspect -f '{{.State.Health.Status}}' "$($compose ps -q "$svc")")"
+              [ "$status" = healthy ] && break
+              sleep 3
+            done
+            echo "$svc: $status"
+            if [ "$status" != healthy ]; then
+              $compose ps -a
+              $compose logs --tail 40 "$svc"
+              exit 1
+            fi
+          done
+          docker logout ghcr.io
+          EOF
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Smoke tests
+        working-directory: frontend
+        env:
+          MMS_E2E_URL: ${{ vars.STAGING_URL }}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test --project=chromium --grep @smoke

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from mms_common.kafka import KafkaAuth, kafka_auth
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,9 +18,21 @@ class Settings(BaseSettings):
     mongo_db: str = "{{ service_name }}"
     redis_url: str = "redis://localhost:6379/0"
     kafka_bootstrap: str = "localhost:9092"
-{% if produces_events %}
-    outbox_topic: str = Field(default="mms.{{ service_name }}.events")
-{% endif %}
+    # The service's own Kafka user (SASL/SCRAM, TRD §15); required in staging and production.
+    kafka_username: str | None = None
+    kafka_password: SecretStr | None = None
+    # Public signing keys, over the internal network only (TRD §6.1).
+    auth_jwks_url: str = "http://auth:8000/.well-known/jwks.json"
+{%- if produces_events %}
+    outbox_topic: str = "mms.{{ service_name }}.events"
+{%- endif %}
+    # Outbox relay, consumers and cron jobs. Off in API tests.
+    run_background: bool = True
+
+    @property
+    def kafka(self) -> KafkaAuth | None:
+        password = self.kafka_password.get_secret_value() if self.kafka_password else None
+        return kafka_auth(self.environment, self.kafka_username, password)
 
     @property
     def docs_enabled(self) -> bool:

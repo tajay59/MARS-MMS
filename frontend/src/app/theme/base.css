@@ -3,3 +3,92 @@
   --v-font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --v-font-heading: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
+
+/*
+  The few element resets Vuetify's reset leaves out, because Tailwind's preflight is off
+  (TRD §13.2). In the lowest layer, so every Vuetify and Tailwind style still wins over them.
+*/
+@layer vuetify-core {
+  button {
+    background-color: transparent;
+    border: 0;
+    padding: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* The DBD focus ring on plain buttons and links; Vuetify components draw their own */
+  :where(a, button, input[type='radio'], input[type='checkbox'], [tabindex]):focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+  }
+
+  /* No double-tap zoom delay and no grey flash on tap; the focus ring shows the press */
+  :where(a, button, label) {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/*
+  Vuetify's colour classes are off, so Tailwind's bg-* sets the background only. Vuetify's own
+  bg-* also set the matching on-* text colour, which filled buttons (color="primary") rely on.
+  In vuetify-utilities, below Tailwind, so an explicit text-* class still wins.
+*/
+@layer vuetify-utilities {
+  .bg-primary { color: rgb(var(--v-theme-on-primary)); }
+  .bg-surface { color: rgb(var(--v-theme-on-surface)); }
+  .bg-success { color: rgb(var(--v-theme-on-success)); }
+  .bg-info { color: rgb(var(--v-theme-on-info)); }
+  .bg-warning { color: rgb(var(--v-theme-on-warning)); }
+  .bg-error { color: rgb(var(--v-theme-on-error)); }
+}
+
+/*
+  Field hints and errors at full contrast (WCAG 1.4.3). Vuetify draws them at medium-emphasis
+  opacity, under 4.5:1 on white; DBD sets secondary text to surface-600 and error text to the
+  on-error-container colour in both themes.
+*/
+.v-messages {
+  opacity: 1;
+  color: rgb(var(--v-theme-surface-600));
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Hints line up with the label above the field, as in the DBD forms */
+.v-input__details {
+  padding-inline: 0;
+}
+
+.v-input--error .v-messages {
+  color: rgb(var(--v-theme-on-error-container));
+}
+
+/*
+  Respect the device's reduced-motion setting, or the person's "Animations: off" in Settings
+  (the .app-reduced-motion class, app/motion.ts): no slides, fades or spinners that move
+  (WCAG 2.3.3). GSAP tweens check the same two things.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.app-reduced-motion *,
+.app-reduced-motion ::before,
+.app-reduced-motion ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

@@ -6,7 +6,7 @@ from pydantic import BaseModel, ValidationError
 from mms_common.events import SCHEMAS, Envelope, Resource, UnknownEvent, register, validate
 
 
-def make(type_="user.approved", version=1, data=None):
+def make(type_="widget.approved", version=1, data=None):
     return Envelope(
         event_id="0192f0c4-0000-7000-8000-000000000001",
         type=type_,
@@ -29,7 +29,7 @@ def _clean_registry():
 
 
 def test_valid_payload_passes():
-    @register("user.approved")
+    @register("widget.approved")
     class Approved(BaseModel):
         user_id: str
 
@@ -42,7 +42,7 @@ def test_unknown_type_is_rejected_for_the_dlq():
 
 
 def test_unknown_version_is_rejected():
-    @register("user.approved", 1)
+    @register("widget.approved", 1)
     class V1(BaseModel):
         user_id: str
 
@@ -51,7 +51,7 @@ def test_unknown_version_is_rejected():
 
 
 def test_invalid_payload_is_rejected():
-    @register("user.approved")
+    @register("widget.approved")
     class Approved(BaseModel):
         user_id: str
 
@@ -60,12 +60,29 @@ def test_invalid_payload_is_rejected():
 
 
 def test_duplicate_registration_fails():
-    @register("user.approved")
+    @register("widget.approved")
     class A(BaseModel):
         pass
 
     with pytest.raises(ValueError):
 
-        @register("user.approved")
+        @register("widget.approved")
         class B(BaseModel):
             pass
+
+
+def test_auth_schemas_are_registered_on_import():
+    for type_ in ("auth.login_succeeded", "auth.login_failed", "user.registered", "user.invited",
+                  "user.approved", "user.rejected", "user.updated", "user.disabled", "org.created",
+                  "org.updated", "auth.password_reset_requested", "auth.token_reuse_detected",
+                  "branding.updated"):
+        assert (type_, 1) in SCHEMAS, type_
+
+
+def test_auth_events_never_carry_secrets():
+    """Reset and invitation links are minted on send; no event schema has a token field."""
+    for (type_, _), model in SCHEMAS.items():
+        for name in model.model_fields:
+            assert not any(word in name for word in ("token", "password", "secret", "hash")) or (
+                name == "email_hash"
+            ), f"{type_}.{name}"
