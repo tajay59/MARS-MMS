@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 2.4 |
+| **Version** | 2.5 |
 | **Date** | 2026-10-18 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
@@ -15,6 +15,7 @@
 | **Changes in 2.2** | Brand colours, motion and Settings (2026-10-17, decisions W4-10 to W4-13). The brand colours are a **Material 3 theme** that admins can change for everyone: `GET /api/v1/auth/branding` (public) and `PUT` (admin, with `version`), stored in auth's `settings` collection, audited as `branding.updated` (§3.1, §5.1, §8.4, §13.2). The PWA keeps the last answer in `localStorage` for the first paint and offline; the service worker still caches no API response (§13.3). Frontend adds **GSAP** for the shell's motion and `@material/material-color-utilities` (loaded only by Settings) to make a theme from one colour (§1.1, §13.2) |
 | **Changes in 2.3** | Kafka authentication as built (decision W4-16, 2026-10-18, §15): SASL/SCRAM-SHA-512 on the broker's client listener, one Kafka user per service with ACLs on exactly its topics, dead-letter topics and consumer groups (`infra/kafka/users.yml`), and the controller and plaintext listeners on loopback only |
 | **Changes in 2.4** | From the W4 checks on staging (2026-10-18): the app version comes from `frontend/package.json` and changes only on a deliberate bump, so back-end-only releases don't prompt phones to reload (W4-17, §13.3); the Mongo entrypoint writes the replica-set key file fresh on every start, including a plain restart (W4-18, §16.1) |
+| **Changes in 2.5** | From the Android phone check (2026-10-18, decision W4-19, finding F14): the service worker installs its precache **six files at a time**, each tried up to three times, the build makes few large chunks and leaves icons out of the precache, and the app registers the worker again after a failed install (§13.3) |
 | **Changes in 2.1** | From building auth and the audit module (IP Phase 1 W3, 2026-10-17). Reset and invitation links are **minted on send** through `POST /internal/account-links`; no event carries a token (§3.1, §4.2, §6.2). `/register` takes the organization name as free text. Disabling a user, deactivating an organization, a reset or a role change **revokes access tokens at once** through a Redis revocation list (§6.1, §9). Refresh expiry slides (30 days from the last refresh); the grace successor is sealed under a key derived from the replaced token; the cookie is `__Secure-mms_refresh`; login and refresh return `refresh_expires_at` (§6.1). The breached-password check fails open with a fallback and a metric (§6.2). New events `auth.password_reset_requested`, `auth.token_reuse_detected`, `user.created`, `user.purged`; `user.*` data carry the directory fields; the envelope's actor carries `name` (§8.3, §8.4). Audit appends serialize on the `audit_state` head instead of a single writer task (§12). `GET /users/{id}` added; logout needs only the cookie |
 
 Requirement IDs in this document (AUTH-1, VIS-7, …) refer to the PRD.
@@ -1173,6 +1174,13 @@ frontend/src/
 | Mutations, uploads | Never cached; sent through the outbox |
 
 A new release waits for the user: the update prompt, never a silent reload (F5). Any change to a precached file changes `sw.js` and so shows the prompt on every device. The version the app shows (`Version 0.1.0` on the public pages) therefore comes from `frontend/package.json` and changes only when it is bumped for a release, never per commit (W4-17).
+
+The first install must be quick on a phone's link, because until it ends the phone has no offline shell (W4-19, F14). Workbox installs a precache one file at a time, so the time is the number of files times a round trip: 71 files took about 180 s on Android over LTE. So:
+
+- The worker installs the precache **six files at a time**, and tries each file up to three times before the install fails (`src/sw/sw.ts`).
+- The build makes few, large chunks: `vendor` (the libraries the first page needs), `app` (all of `src/`), and one per library that a single page loads with `import()`. A large library used by one page goes behind `import()`, never into `app`.
+- PNG icons and the favicon are not precached; the operating system keeps the installed app's icons.
+- If an install fails, the app registers the worker again when the connection returns or the app comes back to the foreground and no worker is installed or installing.
 
 ### 13.4 WebSocket client
 
