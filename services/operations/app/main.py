@@ -29,10 +29,17 @@ from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.api import internal_routes
-from app.api.stations import calibration_routes, sensor_routes, station_routes
+from app.api.stations import (
+    calibration_routes,
+    config_routes,
+    document_routes,
+    sensor_routes,
+    station_routes,
+)
 from app.config import Settings
-from app.events import org_consumer
+from app.events import consumer
 from app.jobs import org_backfill
+from app.repo.stations.media_client import MediaApi, MediaClient
 
 
 def create_app(
@@ -41,6 +48,7 @@ def create_app(
     *,
     clock: Clock | None = None,
     keys: KeySource | None = None,
+    media: MediaApi | None = None,
 ) -> FastAPI:
     """App factory. Tests pass their own settings, readiness checks, clock and token keys."""
     settings = settings or Settings()
@@ -71,6 +79,11 @@ def create_app(
         stop = asyncio.Event()
         tasks: list[asyncio.Task[None]] = []
         http = httpx.AsyncClient()
+        tokens = ServiceTokens(
+            settings.auth_url, "operations", settings.service_secret.get_secret_value(),
+            clock, http,
+        )
+        app.state.media = media or MediaClient(settings.media_url, tokens, http)
         if settings.run_background:
             # The outbox relay runs in every worker; only the lease holder publishes (§8.2).
             lease = LeaderLease(redis, settings.service_name, new_id())
@@ -83,19 +96,15 @@ def create_app(
                 stop,
             )
 
-            def make_orgs(send_to_dlq: SendToDlq) -> EventProcessor:
-                return org_consumer.processor(client, db, send_to_dlq, clock)
+            def make_consumer(send_to_dlq: SendToDlq) -> EventProcessor:
+                return consumer.processor(client, db, send_to_dlq, clock)
 
-            tokens = ServiceTokens(
-                settings.auth_url, "operations", settings.service_secret.get_secret_value(),
-                clock, http,
-            )
             tasks += [
                 asyncio.create_task(relay),
                 asyncio.create_task(
                     consume_forever(
-                        settings.kafka_bootstrap, org_consumer.GROUP, org_consumer.TOPICS,
-                        make_orgs, stop, settings.kafka,
+                        settings.kafka_bootstrap, consumer.GROUP, consumer.TOPICS,
+                        make_consumer, stop, settings.kafka,
                     )
                 ),
                 asyncio.create_task(org_backfill.run(db, http, tokens, settings.auth_url, stop)),
@@ -136,6 +145,9 @@ def create_app(
     app.include_router(sensor_routes.model_router)
     app.include_router(sensor_routes.unit_router)
     app.include_router(calibration_routes.router)
+    app.include_router(document_routes.router)
+    app.include_router(document_routes.station_router)
+    app.include_router(config_routes.router)
     app.include_router(internal_routes.router)
     return app
 

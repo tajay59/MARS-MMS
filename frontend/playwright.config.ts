@@ -29,6 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      grepInvert: /@phone/,
       use: {
         ...devices['Desktop Chrome'],
         // Chromium won't register a service worker on an untrusted certificate, even with

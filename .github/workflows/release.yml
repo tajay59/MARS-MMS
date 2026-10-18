@@ -89,7 +89,7 @@ jobs:
             echo "up failed (attempt $attempt of 5); trying again in 30 s"
             sleep 30
           done
-          for svc in auth operations platform; do
+          for svc in auth operations media platform; do
             for _ in $(seq 1 60); do
               status="$(docker inspect -f '{{.State.Health.Status}}' "$($compose ps -q "$svc")")"
               [ "$status" = healthy ] && break

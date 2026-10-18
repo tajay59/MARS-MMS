@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "api:types": "openapi-typescript openapi/auth.json -o src/api/types/auth.ts && openapi-typescript openapi/operations.json -o src/api/types/operations.ts",
+    "api:types": "openapi-typescript openapi/auth.json -o src/api/types/auth.ts && openapi-typescript openapi/operations.json -o src/api/types/operations.ts && openapi-typescript openapi/media.json -o src/api/types/media.ts",
     "brand": "node scripts/brand-assets.mjs"
   },
   "dependencies": {

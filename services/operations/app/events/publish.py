@@ -21,6 +21,10 @@ STATION_FIELDS = (
     "elevation_m", "parameters", "logger", "comms", "power", "install_date", "status",
     "access_notes",
 )
+DOCUMENT_FIELDS = (
+    "scope", "scope_id", "doc_type", "title", "version_label", "language", "description",
+    "client_visible", "media_id", "supersedes_id", "is_current", "status",
+)
 MODEL_FIELDS = ("kind", "manufacturer", "model", "parameters", "default_calibration_interval_days")
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
@@ -63,6 +67,14 @@ def calibration_data(doc: dict[str, Any], due_at: Any) -> dict[str, Any]:
         "calibration_id": doc["_id"], "unit_id": doc["sensor_unit_id"],
         "station_id": doc.get("station_id"), "method": doc["method"], "at": doc["at"],
         "result": doc["result"], "due_at": due_at,
+    }
+
+
+def document_data(doc: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "document_id": doc["_id"], "scope": doc["scope"], "scope_id": doc["scope_id"],
+        "doc_type": doc["doc_type"], "title": doc["title"],
+        "client_visible": bool(doc["client_visible"]), "media_id": doc["media_id"],
     }
 
 
@@ -190,7 +202,52 @@ class Emitter:
                                            "certificate_media_id", "performed_by", "notes")},
         )
 
+    async def document(
+        self, model: type[BaseModel], doc: dict[str, Any], session: AsyncClientSession, *,
+        before: dict[str, Any] | None = None, **extra: Any,
+    ) -> Envelope:
+        """`document.uploaded` / `document.updated`, keyed by the station (or the model)."""
+        type_ = "document.uploaded" if model is ev.DocumentUploaded else "document.updated"
+        return await self.emit(
+            model(**document_data(doc), **extra), type_=type_, key=doc["scope_id"],
+            resource=("document", doc["_id"]), aggregate_version=doc["version"],
+            org_id=doc.get("org_id"), session=session,
+            before=view(before, DOCUMENT_FIELDS), after=view(doc, DOCUMENT_FIELDS),
+        )
+
+    async def visibility(
+        self, doc: dict[str, Any], visibility: str, session: AsyncClientSession
+    ) -> Envelope:
+        """Ask media to show a document's file to the owner organization, or hide it again
+        (ADR-19). Sent in the transaction that attaches or changes the document, and
+        versioned by the document, so media applies only the newest request."""
+        return await self.emit(
+            ev.MediaVisibilityRequested(
+                media_ids=[doc["media_id"]], visibility=visibility,
+                visibility_version=doc["version"],
+            ),
+            type_="media.visibility_requested", key=doc["scope_id"],
+            resource=("document", doc["_id"]), aggregate_version=doc["version"],
+            org_id=doc.get("org_id"), session=session,
+        )
+
+    async def config_version(
+        self, version: dict[str, Any], station: dict[str, Any], session: AsyncClientSession
+    ) -> Envelope:
+        return await self.emit(
+            ev.ConfigVersionCreated(
+                station_id=version["station_id"], version=version["version"],
+                file_count=len(version["files"]), visit_id=version.get("visit_id"),
+            ),
+            type_="config.version_created", key=version["station_id"],
+            resource=("config_version", version["_id"]), aggregate_version=version["version"],
+            org_id=station["owner_org_id"], session=session,
+            after={"version": version["version"], "notes": version.get("notes"),
+                   "files": [f["filename"] for f in version["files"]]},
+        )
+
 
 __all__ = [
-    "Emitter", "calibration_data", "ev", "model_data", "station_data", "unit_data", "view",
+    "Emitter", "calibration_data", "document_data", "ev", "model_data", "station_data",
+    "unit_data", "view",
 ]

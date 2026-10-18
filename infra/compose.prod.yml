@@ -30,6 +30,18 @@ services:
     environment:
       OPS_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
 
+  media:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/media:${MMS_TAG:?}
+    environment:
+      MEDIA_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+
+  media-worker:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/media:${MMS_TAG:?}
+    environment:
+      MEDIA_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+
   platform:
     build: !reset null
     image: ${MMS_REGISTRY:?}/platform:${MMS_TAG:?}

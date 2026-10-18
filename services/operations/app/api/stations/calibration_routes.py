@@ -11,6 +11,7 @@ from mms_common.ids import UUID7_PATTERN, new_id
 from pymongo.asynchronous.client_session import AsyncClientSession
 
 from app.api.context import CtxDep
+from app.api.stations.document_routes import file_facts
 from app.api.stations.schemas import (
     CalibrationIn,
     CalibrationOut,
@@ -20,6 +21,7 @@ from app.api.stations.schemas import (
     DueUnit,
     ModelSummary,
 )
+from app.domain.stations import documents
 from app.domain.stations import sensors as rules
 from app.repo.stations import history, models, stations, units
 from app.repo.stations.common import stamp
@@ -93,13 +95,23 @@ async def list_calibrations(
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def record_calibration(body: CalibrationIn, user: Writer, ctx: CtxDep) -> CalibrationOut:
     """CAL-1. The unit's last calibration and due date follow the newest record (CAL-3); a
-    failed one flags the unit for follow-up (CAL-6). Certificates arrive with documents (W6)."""
+    failed one flags the unit for follow-up (CAL-6). A certificate is a PDF the person already
+    uploaded for this unit (`calibration:<unit id>`) that has passed media's checks."""
     unit = await units.require(ctx.db, body.sensor_unit_id)
     model = await models.get(ctx.db, unit["model_id"])
     now = ctx.clock.now()
     rules.check_when(body.at, now)
     readings = [r.model_dump() for r in body.readings]
     rules.check_readings(readings)
+    certificate: str | None = None
+    if body.certificate_media_id:
+        facts = await file_facts(ctx, body.certificate_media_id)
+        documents.check_file(
+            facts, owner=documents.certificate_owner_ref(unit["_id"]),
+            kinds=documents.CERTIFICATE_KINDS, user_id=user.id, ready_only=True,
+            field="certificate_media_id",
+        )
+        certificate = body.certificate_media_id
     station_id = unit.get("current_station_id")
     doc = stamp({
         "_id": new_id(), "sensor_unit_id": unit["_id"], "station_id": station_id,
@@ -107,7 +119,7 @@ async def record_calibration(body: CalibrationIn, user: Writer, ctx: CtxDep) -> 
         "method": body.method,
         "reference_instrument": body.reference_instrument.model_dump(mode="json")
         if body.reference_instrument else None,
-        "readings": readings, "result": body.result, "certificate_media_id": None,
+        "readings": readings, "result": body.result, "certificate_media_id": certificate,
         "performed_by": body.performed_by or user.name, "notes": body.notes,
     }, now, user.id)
     changes = rules.unit_after_calibration(unit, model, body.at, body.result)

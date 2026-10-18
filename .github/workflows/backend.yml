@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, operations, platform]
+        service: [auth, operations, media, platform]
     defaults:
       run:
         working-directory: services/${{ matrix.service }}
@@ -88,7 +88,7 @@ jobs:
 
       # The frontend's API types come from frontend/openapi/<service>.json: it must match.
       - name: OpenAPI matches frontend/openapi
-        if: matrix.service == 'auth' || matrix.service == 'operations'
+        if: matrix.service == 'auth' || matrix.service == 'operations' || matrix.service == 'media'
         working-directory: .
         run: |
           python infra/scripts/export_openapi.py ${{ matrix.service }}
@@ -186,7 +186,7 @@ jobs:
             [ "$code" = 0 ]
           done
           # Then the application services must report healthy.
-          for svc in auth operations platform; do
+          for svc in auth operations media platform; do
             for _ in $(seq 1 60); do
               cid="$(docker compose -f compose.yml -f compose.dev.yml ps -q "$svc")"
               [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break

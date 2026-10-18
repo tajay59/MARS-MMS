@@ -105,8 +105,19 @@ export const routes: RouteRecordRaw[] = [
 
   // Staff
   later('/queue', 'queue', 'Queue', 3, ['technician', 'admin']),
-  later('/sensors', 'sensors', 'Sensors', 2, STAFF),
-  later('/calibration', 'calibration', 'Calibration due', 2, STAFF),
+  {
+    // The catalogue of sensor models, with their documents and units (CAL-1, DOC-1)
+    path: '/sensors/:id?',
+    name: 'sensors',
+    component: () => import('@/features/sensors/SensorsPage.vue'),
+    meta: { title: 'Sensors', layout: 'app', roles: STAFF },
+  },
+  {
+    path: '/calibration',
+    name: 'calibration',
+    component: () => import('@/features/calibration/CalibrationDuePage.vue'),
+    meta: { title: 'Calibration due', layout: 'app', roles: STAFF },
+  },
 
   // Field (staff on phones)
   { ...later('/scan', 'scan', 'Scan', 4, STAFF), meta: { title: 'Scan', layout: 'field', phase: 4, roles: STAFF } },

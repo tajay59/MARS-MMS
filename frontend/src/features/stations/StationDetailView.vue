@@ -186,6 +186,16 @@
         </div>
       </v-tabs-window-item>
 
+      <!-- Documents: the station's own and its sensor models' manuals (DOC-1 to DOC-4) -->
+      <v-tabs-window-item value="documents">
+        <StationDocuments v-if="tab === 'documents'" :can-write="canWrite" :is-staff="isStaff" :station="station" />
+      </v-tabs-window-item>
+
+      <!-- Configurations: numbered sets of logger and modem files that never change (staff) -->
+      <v-tabs-window-item v-if="isStaff" value="configurations">
+        <StationConfigurations v-if="tab === 'configurations'" :can-write="canWrite" :station="station" />
+      </v-tabs-window-item>
+
       <!-- Tabs whose data arrives in later phases keep their place (approved mock-up) -->
       <v-tabs-window-item v-for="t in laterTabs" :key="t.key" :value="t.key">
         <div class="flex flex-col items-center gap-2 py-14 text-center">
@@ -211,11 +221,13 @@
   import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import ParameterTags from './ParameterTags.vue'
+  import StationConfigurations from './StationConfigurations.vue'
+  import StationDocuments from './StationDocuments.vue'
   import { isStatus, kindLabel, methodLabel, resultLook, sortInstalled, statusLook } from './stations'
 
   // The body of /stations/:id (DBD "Station page"). Clients see a summary: no configurations,
   // calibration records or history, and the server leaves out the QR token (rule 6).
-  const props = defineProps<{ station: StationDetail, isStaff: boolean }>()
+  const props = defineProps<{ station: StationDetail, isStaff: boolean, canWrite?: boolean }>()
 
   const route = useRoute()
   const router = useRouter()
@@ -226,8 +238,8 @@
   const tabs = computed<Tab[]>(() => ([
     { key: 'overview', label: 'Overview' },
     { key: 'sensors', label: 'Sensors', count: props.station.installed.length },
-    { key: 'documents', label: 'Documents', later: 'Manuals, photos and other documents arrive in week 6.' },
-    { key: 'configurations', label: 'Configurations', staff: true, later: 'Logger configurations arrive in week 6.' },
+    { key: 'documents', label: 'Documents' },
+    { key: 'configurations', label: 'Configurations', staff: true },
     { key: 'requests', label: 'Requests', later: 'Requests for this station arrive in phase 3.' },
     { key: 'visits', label: 'Visits', later: 'Site visits arrive in phase 4.' },
     { key: 'reports', label: 'Reports', later: 'Visit reports arrive in phase 6.' },

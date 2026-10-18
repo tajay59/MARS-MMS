@@ -171,7 +171,7 @@
         @saved="saved"
       />
 
-      <StationDetailView v-else :is-staff="isStaff" :station="detail" />
+      <StationDetailView v-else :can-write="canWrite" :is-staff="isStaff" :station="detail" />
     </template>
 
     <!-- The view: the list -->

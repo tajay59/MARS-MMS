@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 # Services with a public API. platform's notification routes arrive in Phase 3.
-SERVICES = ["auth", "operations"]
+SERVICES = ["auth", "operations", "media"]
 
 
 def export(service: str) -> Path:

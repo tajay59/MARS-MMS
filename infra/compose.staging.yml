@@ -45,6 +45,14 @@ services:
   operations:
     mem_limit: 512m
 
+  # The documents path. ClamAV does not fit on this host (TRD T8): MEDIA_SCAN_MODE=off here,
+  # and files are staff-only until an owner shares them, scanned or not (ADR-19).
+  media:
+    mem_limit: 256m
+
+  media-worker:
+    mem_limit: 256m
+
   platform:
     mem_limit: 512m
 

@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, DueList, Places, SensorUnitDetail, StationDetail, StationIn, StationPage, StationPatch, StationStatus } from './models'
+import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, SensorModelList, SensorUnitDetail, SensorUnitPage, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -26,12 +26,54 @@ export const stationsApi = {
 
 // Staff only: clients get 403 from these
 export const calibrationsApi = {
-  due: (withinDays: number, signal?: AbortSignal) =>
-    api.get<DueList>('/calibrations/due', { query: { within_days: withinDays }, signal }),
+  due: (withinDays: number, signal?: AbortSignal, filters: { org_id?: string, country?: string } = {}) =>
+    api.get<DueList>('/calibrations/due', { query: { within_days: withinDays, ...filters }, signal }),
   list: (query: { station_id?: string, sensor_unit_id?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
     api.get<CalibrationPage>('/calibrations', { query: { ...query }, signal }),
 }
 
 export const sensorUnitsApi = {
   get: (id: string, signal?: AbortSignal) => api.get<SensorUnitDetail>(`/sensor-units/${id}`, { signal }),
+  list: (query: { model_id?: string, station_id?: string, status?: string, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
+    api.get<SensorUnitPage>('/sensor-units', { query: { ...query }, signal }),
+}
+
+// The catalogue of makes and models (staff)
+export const sensorModelsApi = {
+  list: (query: { kind?: string, q?: string, parameter?: string } = {}, signal?: AbortSignal) =>
+    api.get<SensorModelList>('/sensor-models', { query: { ...query }, signal }),
+}
+
+export interface DocumentQuery {
+  scope?: 'model' | 'station'
+  scope_id?: string
+  doc_type?: string
+  /** false lists earlier versions too (staff) */
+  current?: boolean
+  after?: string
+  limit?: number
+}
+
+// Documents (DOC-1 to DOC-4). A client sees only current, client-visible, clean ones.
+export const documentsApi = {
+  list: (query: DocumentQuery = {}, signal?: AbortSignal) =>
+    api.get<DocumentPage>('/documents', { query: { ...query }, signal }),
+  forStation: (stationId: string, signal?: AbortSignal) =>
+    api.get<StationDocuments>(`/stations/${stationId}/documents`, { signal }),
+  // Staff who write (technician, admin). `body.id` and `body.media_id` are made on the device.
+  create: (body: DocumentIn) => api.post<DocumentOut>('/documents', body),
+  update: (id: string, body: DocumentPatch) => api.patch<DocumentOut>(`/documents/${id}`, body),
+  /** A ten-minute link for the file; never kept (TRD §7.6) */
+  download: (id: string, inline = true) =>
+    api.get<DownloadOut>(`/documents/${id}/download`, { query: { inline } }),
+}
+
+// Configuration versions (CFG-1 to CFG-3). Staff only.
+export const configVersionsApi = {
+  list: (stationId: string, signal?: AbortSignal) =>
+    api.get<ConfigVersionOut[]>(`/stations/${stationId}/config-versions`, { signal }),
+  create: (stationId: string, body: ConfigVersionIn) =>
+    api.post<ConfigVersionOut>(`/stations/${stationId}/config-versions`, body),
+  diff: (stationId: string, version: number, against?: number, signal?: AbortSignal) =>
+    api.get<ConfigDiff>(`/stations/${stationId}/config-versions/${version}/diff`, { query: { against }, signal }),
 }

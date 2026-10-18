@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # organizations snapshot (TRD §6.4, §8.6).
     auth_url: str = "http://auth:8000"
     service_secret: SecretStr = SecretStr("")
+    # media's /internal/* routes: file checks and download links (TRD §3.2, §3.3).
+    media_url: str = "http://media:8000"
     outbox_topic: str = "mms.operations.events"
     # Outbox relay, consumers and cron jobs. Off in API tests.
     run_background: bool = True

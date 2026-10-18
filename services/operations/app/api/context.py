@@ -16,6 +16,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from app.config import Settings
 from app.events.publish import Emitter
+from app.repo.stations.media_client import MediaApi
 
 
 @dataclass
@@ -25,6 +26,7 @@ class Ctx:
     clock: Clock
     client: AsyncMongoClient[dict[str, Any]]
     db: AsyncDatabase[dict[str, Any]]
+    media: MediaApi
 
     @property
     def request_id(self) -> str | None:
@@ -39,7 +41,10 @@ class Ctx:
 
 def get_ctx(request: Request) -> Ctx:
     s = request.app.state
-    return Ctx(request=request, settings=s.settings, clock=s.clock, client=s.mongo, db=s.db)
+    return Ctx(
+        request=request, settings=s.settings, clock=s.clock, client=s.mongo, db=s.db,
+        media=s.media,
+    )
 
 
 CtxDep = Annotated[Ctx, Depends(get_ctx)]
