@@ -3,6 +3,25 @@ import { watch } from 'vue'
 import { useUpdateStore } from '@/stores/update'
 
 const HOUR = 60 * 60 * 1000
+const SW_URL = `${import.meta.env.BASE_URL}sw.js`
+
+/*
+  The first install can fail on a bad link (F14): one precache file that still fails after its
+  retries fails the install, and the browser drops the worker. Nothing would try again until the
+  next page load, so a phone could keep working without an offline shell. Register again when
+  the connection returns or the app comes back to the foreground and no worker is installed or
+  installing. The prompt for a later release comes with the next start.
+*/
+export async function ensureWorker (): Promise<void> {
+  if (!navigator.onLine) {
+    return
+  }
+  const registration = await navigator.serviceWorker.getRegistration(import.meta.env.BASE_URL)
+  if (registration?.active || registration?.installing || registration?.waiting) {
+    return
+  }
+  await navigator.serviceWorker.register(SW_URL, { scope: import.meta.env.BASE_URL }).catch(() => undefined)
+}
 
 /*
   Registers /sw.js once, from App.vue (pwa skill vite-pwa-vue.md §4). Looks for a new release
@@ -14,6 +33,13 @@ export function usePwa (): void {
     return
   }
   const updates = useUpdateStore()
+
+  window.addEventListener('online', () => void ensureWorker())
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void ensureWorker()
+    }
+  })
 
   const { needRefresh, updateServiceWorker } = useRegisterSW({
     onRegisteredSW (swUrl, registration) {
