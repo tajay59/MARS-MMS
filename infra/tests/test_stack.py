@@ -82,7 +82,7 @@ def test_integrations_are_reserved_with_501(web):
     assert r.status_code == 501 and r.json()["code"] == "not_implemented"
 
 
-@pytest.mark.parametrize("path", ["/api/v1/stations", "/api/v1/uploads", "/api/v1/reports"])
+@pytest.mark.parametrize("path", ["/api/v1/uploads", "/api/v1/reports"])
 def test_routes_to_a_service_that_is_not_up_yet_answer_503(web, path):
     r = get(web, path)
     assert r.status_code == 503 and r.json()["code"] == "service_unavailable"
@@ -400,6 +400,8 @@ def test_services_are_routed_and_check_tokens_themselves(web):
     r = get(web, "/api/v1/auth/me", headers={"Authorization": "Bearer not.a.token"})
     assert r.status_code == 401
     assert get(web, "/api/v1/audit/events").status_code == 404  # platform: not built until P7
+    r = get(web, "/api/v1/stations")  # operations (Phase 2)
+    assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
     assert get(web, "/api/v1/users").headers["cache-control"] == "no-store"
 
 
@@ -452,6 +454,50 @@ def test_register_approve_login_reset_lands_in_the_audit_chain(web, seeded, mong
             assert after["prev_hash"] == before["hash"]
         head = root.audit.audit_state.find_one({"_id": "chain"})
         assert head["last_seq"] >= chain[-1]["seq"]  # more may have arrived since
+    finally:
+        root.close()
+
+
+# --- operations: stations (Phase 2) -----------------------------------------------------------
+
+
+def _login(web, email: str, password: str) -> str:
+    r = api(web, "POST", "/api/v1/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return str(r.json()["access_token"])
+
+
+def test_seeded_stations_are_scoped_by_organization_and_audited(web, seeded, mongo_up):
+    """STN-6, ORG-3 through Nginx, and station events into the audit chain (AUD-1)."""
+    import time
+
+    for _ in range(30):  # operations copies the organizations from auth (events or backfill)
+        r = _compose("exec", "-T", "operations", "python", "-m", "app.cli", "seed")
+        if r.returncode == 0 and "Errors" not in r.stdout:
+            break
+        time.sleep(2)
+    assert r.returncode == 0, r.stdout + r.stderr
+    admin = _login(web, "admin@example.org", seeded)
+    client = _login(web, "client.a1@example.org", seeded)
+    staff = api(web, "GET", "/api/v1/stations", admin, params={"q": "-00"})
+    codes = {s["code"] for s in staff.json()["items"]}
+    assert {"JM-KIN-001", "TT-POS-001"} <= codes
+    mine = api(web, "GET", "/api/v1/stations", client).json()["items"]
+    assert mine and {s["owner_org_id"] for s in mine} == {ORG_A}
+    other = next(s for s in staff.json()["items"] if s["code"] == "TT-POS-001")
+    assert api(web, "GET", f"/api/v1/stations/{other['id']}", client).status_code == 404
+    kingston = next(s for s in staff.json()["items"] if s["code"] == "JM-KIN-001")
+    detail = api(web, "GET", f"/api/v1/stations/{kingston['id']}", client).json()
+    assert detail["installed"] and detail["qr_token"] is None
+    root = root_mongo()
+    try:
+        for _ in range(60):  # outbox relay -> Kafka -> platform audit consumer
+            found = root.audit.audit_events.find_one(
+                {"action": "station.created", "resource.id": kingston["id"]})
+            if found:
+                break
+            time.sleep(1)
+        assert found is not None
     finally:
         root.close()
 

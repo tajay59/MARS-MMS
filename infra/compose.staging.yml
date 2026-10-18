@@ -42,6 +42,9 @@ services:
   auth:
     mem_limit: 512m
 
+  operations:
+    mem_limit: 512m
+
   platform:
     mem_limit: 512m
 

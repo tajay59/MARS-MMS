@@ -1,0 +1,12 @@
+station_code,kind,manufacturer,model,serial,parameter,installed_at,last_calibrated_at,default_calibration_interval_days
+JM-KIN-001,sensor,Vaisala,HMP155,V-1,AT,2019-03-14,2026-01-10,365
+JM-KIN-001,sensor,Vaisala,HMP155,V-2,RH,2019-03-14,,365
+JM-KIN-001,sensor,Vaisala,HMP155,V-3,AT,2019-03-14,,
+JM-KIN-001,battery,Trojan,SCS200,B-1,,2024-02-01,,
+JM-MBJ-002,sensor,Gill,WindSonic,G-1,WS,2020-07-02,,730
+JM-MBJ-002,sensor,Vaisala,HMP155,V-1,RH,2020-07-02,,
+JM-BAD-004,sensor,Vaisala,HMP155,V-9,AT,,,
+XX-NONE-01,sensor,Vaisala,HMP155,V-10,AT,,,
+JM-MBJ-002,sensor,Vaisala,HMP155,,AT,2099-01-01,,
+JM-MBJ-002,modem,Gill,WindSonic,G-2,,,,
+TT-OLD-009,sensor,Vaisala,HMP155,V-11,AT,,,

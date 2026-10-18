@@ -43,3 +43,22 @@ async def test_snapshot_and_event_converge_in_either_order(mongo):
     await upsert_if_newer(mongo.b, event)
     assert (await mongo.a.find_one({"_id": "x"}))["v"] == "event"
     assert (await mongo.b.find_one({"_id": "x"}))["v"] == "event"
+
+
+async def test_a_stale_version_inside_a_transaction_leaves_it_usable(mongo):
+    """A consumer applies events in a transaction (TRD §8.5). A late, older event must be
+    skipped without aborting it: the write after it still commits."""
+    from mms_common.mongo import in_transaction
+
+    await upsert_if_newer(mongo.rm, {"_id": "a", "aggregate_version": 3, "v": "three"})
+
+    async def body(session):
+        written = await upsert_if_newer(
+            mongo.rm, {"_id": "a", "aggregate_version": 2, "v": "old"}, session=session
+        )
+        await mongo.other.insert_one({"_id": "after"}, session=session)
+        return written
+
+    assert await in_transaction(mongo.client, body) is False
+    assert await mongo.other.find_one({"_id": "after"}) is not None
+    assert (await mongo.rm.find_one({"_id": "a"}))["v"] == "three"

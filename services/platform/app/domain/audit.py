@@ -37,7 +37,8 @@ AUD1: dict[str, tuple[str, ...]] = {
     ),
     "registration approvals and rejections": ("user.registered", "user.approved", "user.rejected"),
     "station, sensor and calibration changes": (
-        "station.created", "station.updated", "sensor_unit.created", "sensor_unit.updated",
+        "station.created", "station.updated", "sensor_model.created", "sensor_model.updated",
+        "sensor_unit.created", "sensor_unit.updated",
         "sensor.installed", "sensor.removed", "sensor.application_reversed",
         "calibration.recorded", "calibration.voided",
     ),

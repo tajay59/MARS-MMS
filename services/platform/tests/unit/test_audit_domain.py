@@ -75,11 +75,20 @@ def test_aud1_lists_no_notification_only_event():
     assert not set(all_aud1_types()) & NOTIFICATION_ONLY
 
 
+# Event types of the producers built so far: auth (Phase 1), operations' stations module
+# (Phase 2). Extend as each producer is built.
+BUILT_PREFIXES = (
+    "auth.", "user.", "org.", "branding.",
+    "station.", "sensor_model.", "sensor_unit.", "sensor.", "calibration.recorded",
+    "calibration.voided",
+)
+
+
 @pytest.mark.req("AUD-1")
 def test_every_aud1_action_built_so_far_has_an_event_schema():
     """TRD §12 completeness: each AUD-1 action maps to event types, and every type from a
     service that exists has a registered schema. Extend as each producer is built."""
-    built_sources = ("auth.", "user.", "org.", "branding.")
+    built_sources = BUILT_PREFIXES
     for action, types in AUD1.items():
         assert types, action
         for type_ in types:
@@ -87,7 +96,7 @@ def test_every_aud1_action_built_so_far_has_an_event_schema():
                 assert (type_, 1) in SCHEMAS, f"{action}: {type_} has no schema"
 
 
-def test_every_auth_event_is_audited():
+def test_every_built_event_is_audited():
     for type_, _ in SCHEMAS:
-        if type_.startswith(("auth.", "user.", "org.", "branding.")):
+        if type_.startswith(BUILT_PREFIXES):
             assert type_ in set(all_aud1_types()), f"{type_} is not mapped to an AUD-1 action"

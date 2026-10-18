@@ -1,0 +1,11 @@
+Station Code,Station Name,Organisation,Country,Time zone,Type,Lat,Lon,Elevation,Parameters,Status,Install date
+jm-kin-001,Kingston Harbour,Organization A,Jamaica,,Synoptic,17.97,-76.79,4,AT;RH;RAIN,Operational,2019-03-14
+JM-MBJ-002,Montego Bay,Organization A,JM,America/Jamaica,Aviation,18.50,-77.91,1,AT RH,degraded,
+,No Code Station,Organization A,JM,,,18.0,-77.0,,,,
+JM-BAD-004,Unknown Org,Organization Z,JM,,,18.0,-77.0,,,,
+JM-BAD-005,Bad Place,Organization A,Narnia,,,95,-77.0,,,,
+JM-KIN-001,Duplicate Code,Organization A,JM,,,18.0,-77.0,,,,
+US-NYC-007,Many Zones,Organization B,US,,,40.7,-74.0,,,,
+TT-POS-008,Bad Status,Organization B,TT,,,10.6,-61.5,,,closed,14/03/2019
+,,,,,,,,,,,
+TT-OLD-009,Already There,Organization B,TT,,,10.6,-61.5,,,,

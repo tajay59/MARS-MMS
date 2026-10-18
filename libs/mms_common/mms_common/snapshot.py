@@ -51,16 +51,31 @@ async def upsert_if_newer(
 
     Returns True when written. Equal or older versions are ignored, so applying an event
     and a snapshot in either order ends in the same state.
+
+    It reads first and never provokes a duplicate-key error: inside a transaction (a
+    consumer's, TRD §8.5) that error aborts the transaction on the server even when caught,
+    and the driver then retries the whole transaction until its timeout. A concurrent writer
+    shows up as a write conflict instead, which the transaction retries cleanly.
     """
-    try:
-        await collection.replace_one(
-            {"_id": doc["_id"], "aggregate_version": {"$lt": doc["aggregate_version"]}},
-            doc,
-            upsert=True,
-            session=session,
+    for _ in range(2):
+        current = await collection.find_one(
+            {"_id": doc["_id"]}, {"aggregate_version": 1}, session=session
         )
-    except DuplicateKeyError:
-        # The filter missed because a document with an equal or newer version exists, so
-        # the upsert's insert hit the existing _id. Ours is stale.
-        return False
-    return True
+        if current is not None:
+            if current.get("aggregate_version", 0) >= doc["aggregate_version"]:
+                return False
+            result = await collection.replace_one(
+                {"_id": doc["_id"], "aggregate_version": {"$lt": doc["aggregate_version"]}},
+                doc,
+                session=session,
+            )
+            return result.matched_count == 1
+        if session is not None and session.in_transaction:
+            await collection.insert_one(doc, session=session)
+            return True
+        try:
+            await collection.insert_one(doc, session=session)
+        except DuplicateKeyError:
+            continue  # inserted meanwhile (no transaction): compare with that one
+        return True
+    return False

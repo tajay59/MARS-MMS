@@ -86,3 +86,23 @@ def test_auth_events_never_carry_secrets():
             assert not any(word in name for word in ("token", "password", "secret", "hash")) or (
                 name == "email_hash"
             ), f"{type_}.{name}"
+
+
+def test_operations_stations_module_events_are_registered():
+    """TRD §8.4: the stations module's events (Phase 2)."""
+    from mms_common.events import operations  # noqa: F401 - registers on import
+
+    for type_ in (
+        "station.created", "station.updated", "sensor_model.created", "sensor_model.updated",
+        "sensor_unit.created", "sensor_unit.updated", "sensor.installed", "sensor.removed",
+        "sensor.application_reversed", "calibration.recorded", "calibration.voided",
+    ):
+        assert (type_, 1) in SCHEMAS, type_
+
+
+def test_a_station_event_validates_and_forbids_unknown_fields():
+    data = {"station_id": "s1", "code": "BB-CHR-014", "name": "Christ Church", "org_id": "o1",
+            "country": "BB", "status": "operational"}
+    assert validate(make("station.created", data=data)).via == "api"
+    with pytest.raises(ValidationError):
+        validate(make("station.created", data={**data, "qr_token": "secret"}))
