@@ -14,6 +14,7 @@ from mms_common.ids import UUID7_PATTERN
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.domain.stations import sensors as unit_rules
+from app.domain.stations import stations as station_rules
 
 Id = Annotated[str, StringConstraints(pattern=UUID7_PATTERN)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -26,7 +27,9 @@ ExternalId = Annotated[
 ]
 Country = Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}$")]
 TimeZone = Annotated[str, StringConstraints(min_length=1, max_length=64)]
-Parameter = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)]
+Parameter = Annotated[str, StringConstraints(
+    strip_whitespace=True, min_length=1, max_length=station_rules.PARAMETER_MAX_LENGTH,
+)]
 StationStatus = Literal["operational", "degraded", "offline", "decommissioned"]
 Kind = Literal["sensor", "logger", "modem", "battery", "solar_panel", "other"]
 UnitStatus = Literal["in_stock", "installed", "in_repair", "retired"]

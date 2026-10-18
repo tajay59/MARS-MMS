@@ -53,6 +53,16 @@ def test_parameters_are_codes_deduplicated_in_order():
     assert rules.check_parameters(["at", "RH", "AT", "soil_t"]) == ["AT", "RH", "SOIL_T"]
     with pytest.raises(ValidationFailed):
         rules.check_parameters(["air temp"])
+    longest = "L" * rules.PARAMETER_MAX_LENGTH
+    found = rules.check_parameters(["soil_moisture_10cm", longest])
+    assert found == ["SOIL_MOISTURE_10CM", longest]
+    with pytest.raises(ValidationFailed):
+        rules.check_parameters([longest + "X"])
+    many = [f"P{n}" for n in range(rules.MAX_PARAMETERS)]
+    assert rules.check_parameters(many) == many
+    with pytest.raises(ValidationFailed) as exc:
+        rules.check_parameters([*many, "ONE_MORE"])
+    assert exc.value.extra["field"] == "parameters"
 
 
 def test_place_is_checked():

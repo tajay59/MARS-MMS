@@ -60,7 +60,7 @@ async def list_models(
     staff: Staff,
     ctx: CtxDep,
     kind: Annotated[Kind | None, Query()] = None,
-    parameter: Annotated[str | None, Query(max_length=16)] = None,
+    parameter: Annotated[str | None, Query(max_length=station_rules.PARAMETER_MAX_LENGTH)] = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
 ) -> SensorModelList:
     found = await models.search(

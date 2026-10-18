@@ -1,6 +1,6 @@
 """Organizations from the organization's existing system (decision W5-8; TRD T4). No I/O here.
 
-The source is a MongoDB export of its `org` collection: a JSON array (`mongoexport
+The source is a MongoDB export of its `entities` collection: a JSON array (`mongoexport
 --jsonArray`) or one document per line. Each document becomes an organization:
 
 | Source         | Organization  |

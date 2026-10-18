@@ -576,7 +576,7 @@
           "parameter": {
             "anyOf": [
               {
-                "maxLength": 16,
+                "maxLength": 32,
                 "minLength": 1,
                 "type": "string"
               },
@@ -1139,7 +1139,7 @@
           "parameters": {
             "default": [],
             "items": {
-              "maxLength": 16,
+              "maxLength": 32,
               "minLength": 1,
               "type": "string"
             },
@@ -1302,7 +1302,7 @@
             "anyOf": [
               {
                 "items": {
-                  "maxLength": 16,
+                  "maxLength": 32,
                   "minLength": 1,
                   "type": "string"
                 },
@@ -2310,7 +2310,7 @@
           "parameters": {
             "default": [],
             "items": {
-              "maxLength": 16,
+              "maxLength": 32,
               "minLength": 1,
               "type": "string"
             },
@@ -2556,7 +2556,7 @@
             "anyOf": [
               {
                 "items": {
-                  "maxLength": 16,
+                  "maxLength": 32,
                   "minLength": 1,
                   "type": "string"
                 },
@@ -3165,7 +3165,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 16,
+                  "maxLength": 32,
                   "type": "string"
                 },
                 {
@@ -3884,7 +3884,7 @@
             "schema": {
               "anyOf": [
                 {
-                  "maxLength": 16,
+                  "maxLength": 32,
                   "type": "string"
                 },
                 {
