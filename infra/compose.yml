@@ -138,7 +138,8 @@ services:
       kafka:
         condition: service_healthy
     network_mode: service:kafka
-    entrypoint: ["/bin/bash", "-c", "/opt/mms/create-topics.sh /opt/mms/topics.yml && /opt/mms/create-users.sh /opt/mms/users.yml"]
+    # Through bash: the mounted scripts needn't be executable (create-topics.sh isn't in git)
+    entrypoint: ["/bin/bash", "-c", "bash /opt/mms/create-topics.sh /opt/mms/topics.yml && bash /opt/mms/create-users.sh /opt/mms/users.yml"]
     environment:
       KAFKA_BOOTSTRAP: 127.0.0.1:9094
       KAFKA_AUTH_PASSWORD: ${KAFKA_AUTH_PASSWORD:?}
