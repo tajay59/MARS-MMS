@@ -38,7 +38,7 @@
                 <!-- The name is the button; the whole row is its target -->
                 <button
                   :aria-current="selected?.id === row.id ? 'true' : undefined"
-                  class="min-w-0 grow truncate text-left text-base font-medium text-surface-900 after:absolute after:inset-0 after:rounded-full"
+                  class="min-w-0 grow truncate text-left text-base font-medium text-surface-900 after:absolute after:inset-0 after:rounded-full focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-primary"
                   type="button"
                   @click="open(row)"
                 >{{ row.name }}</button>

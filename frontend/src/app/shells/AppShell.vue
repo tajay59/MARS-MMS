@@ -9,7 +9,7 @@
     view (the details). On phones the pane and view fill the screen; below 1024 px the rail is a bar docked to the bottom.
   -->
   <div
-    class="flex h-dvh flex-col overflow-y-auto bg-surface pb-[calc(84px+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:flex-row md:gap-[5px] md:overflow-hidden md:bg-ground md:p-[5px] md:pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-[5px]"
+    class="flex h-dvh scroll-pb-[calc(84px+env(safe-area-inset-bottom))] flex-col overflow-y-auto bg-surface pb-[calc(84px+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:flex-row md:gap-[5px] md:overflow-hidden md:bg-ground md:p-[5px] md:pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-[5px]"
   >
     <AppRail v-if="lgAndUp" :badges="badges" :current="section" :sections="sections" />
 
