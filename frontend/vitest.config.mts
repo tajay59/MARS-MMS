@@ -5,6 +5,7 @@ import { defineConfig } from 'vitest/config'
 
 // Unit tests (TP "Frontend unit"): stores, the refresh lock, guards and components.
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify('0.0.0-test') },
   plugins: [vue(), vuetify({ autoImport: true })],
   resolve: {
     alias: { '@': fileURLToPath(new URL('src', import.meta.url)) },

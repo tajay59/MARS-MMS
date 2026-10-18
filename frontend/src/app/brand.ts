@@ -9,5 +9,7 @@ import wordmark from '@/assets/brand/wordmark.svg'
 
 export const APP_NAME = 'MARS-MMS'
 export const APP_LONG_NAME = 'Automatic Weather Station Maintenance Management System'
+/** The release (frontend/package.json), so a phone shows which build it runs. */
+export const APP_VERSION = __APP_VERSION__
 
 export const logo = { mark, wordmark, wordmarkWhite }
