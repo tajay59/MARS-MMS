@@ -20,6 +20,7 @@ TABLE: dict[Route, Expect] = {
     # Stations: everyone reads (clients their own organization's), staff write (STN-1, STN-6).
     ("GET", "/api/v1/stations"): Expect(ANY),
     ("GET", "/api/v1/stations/facets"): Expect(ANY),
+    ("GET", "/api/v1/stations/places"): WRITE,  # the station form's time zones
     ("POST", "/api/v1/stations"): WRITE,
     ("POST", "/api/v1/stations/import"): roles("admin"),  # STN-8
     ("GET", "/api/v1/stations/{id}"): Expect(ANY),

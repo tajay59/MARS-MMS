@@ -161,6 +161,12 @@ class StationFacets(BaseModel):
     organizations: list[OrgOption]  # empty for clients: they see one organization
 
 
+class Places(BaseModel):
+    """The form's time zone choices: each country's IANA zones, from `tzdata` (W5-7)."""
+
+    time_zones: dict[str, list[str]]
+
+
 class ModelSummary(BaseModel):
     id: str
     kind: str

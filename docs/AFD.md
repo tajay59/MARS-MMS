@@ -118,6 +118,7 @@ flowchart TD
 | Shared | Dashboard | `/dashboard` | All roles (one variant each) | Login, logo, `/` |
 | Shared | Stations list | `/stations` | All roles (clients: own org) | Main menu |
 | Shared | Station page | `/stations/:id` | All roles (clients: summary) | Stations list, map, QR landing, request page |
+| Staff | New station, Edit station | `/stations/new`, `/stations/:id/edit` | Technician, admin (needs a connection) | "New station" on the Stations list, "Edit" on the station page |
 | Shared | Map | `/map` | All roles | Main menu |
 | Shared | Requests list | `/requests` | All roles (clients: own org) | Main menu, dashboard widgets |
 | Shared | New request | `/requests/new` | Client, Admin | "Report a problem" (dashboard, station page, QR landing), "New request" |

@@ -69,3 +69,72 @@ test('A client sees only their organization’s stations, and less of each @STN-
   await page.goto('/stations/01900000-0000-7000-8000-000000000000')
   await expect(page.getByText('We can’t find this station.')).toBeVisible()
 })
+
+test('A technician adds a station, edits it, and is warned before leaving unsaved changes @STN-1 @STN-2', async ({ watched: page }) => {
+  const code = `E2E-${Date.now().toString(36).toUpperCase()}`
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/stations')
+  await page.getByRole('link', { name: 'New station' }).click()
+  await expect(page).toHaveURL(/\/stations\/new/)
+  await expect(page.getByRole('heading', { level: 1, name: 'New station' })).toBeVisible()
+  await checkA11y(page, '/stations/new')
+
+  // An empty form says what is missing, with a summary linked to each field
+  await page.getByRole('button', { name: 'Create station' }).click()
+  await expect(page.getByText(/Fix \d+ things to save/)).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Enter the station’s name' })).toBeVisible()
+
+  await page.getByLabel('Code', { exact: true }).fill(code.toLowerCase())
+  await page.getByLabel('Name', { exact: true }).fill('E2E Test Station')
+  await page.getByLabel('Owner organization').click()
+  await page.getByRole('option', { name: 'Organization A' }).click()
+  await page.getByLabel('Country').fill('Jamaica') // a long list: type to find it
+  await page.getByRole('option', { name: 'Jamaica' }).click()
+  await expect(page.getByLabel('Time zone')).toHaveValue('America/Jamaica') // a one-zone country
+  await page.getByLabel('Latitude').fill('18.0123')
+  await page.getByLabel('Longitude').fill('-76.8')
+  await expect(page.getByRole('img', { name: 'Location 18.0123, -76.8000' })).toBeVisible()
+  await page.getByRole('button', { name: '+ AT' }).click()
+  await page.getByLabel('Add a parameter').fill('soil_t')
+  await page.getByLabel('Add a parameter').press('Enter')
+  await expect(page.getByText('2 of 40')).toBeVisible()
+  await page.getByLabel('Logger model').fill('CR1000X')
+
+  // Another station has the code
+  await page.getByLabel('Code', { exact: true }).fill('JM-KIN-001')
+  await page.getByRole('button', { name: 'Create station' }).click()
+  await expect(page.getByText('Another station has this code. Use a different one.')).toBeVisible()
+
+  await page.getByLabel('Code', { exact: true }).fill(code.toLowerCase())
+  await page.getByRole('button', { name: 'Create station' }).click()
+  await expect(page).toHaveURL(/\/stations\/[0-9a-f-]{36}$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E Test Station' })).toBeVisible()
+  await expect(page.getByText(code, { exact: true }).first()).toBeVisible() // saved in capitals
+  await expect(page.getByText('SOIL_T').first()).toBeVisible()
+
+  // Edit: only the name changes; the owner is fixed
+  await page.getByRole('link', { name: 'Edit' }).click()
+  await expect(page).toHaveURL(/\/edit/)
+  await expect(page.getByLabel('Owner organization')).toHaveAttribute('readonly', '')
+  await checkA11y(page, '/stations/:id/edit')
+  await page.getByLabel('Name', { exact: true }).fill('E2E Test Station East')
+
+  // Leaving with a change asks first; staying keeps it
+  await page.getByRole('button', { name: 'Cancel' }).first().click()
+  await expect(page.getByRole('alertdialog', { name: 'Leave without saving?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('E2E Test Station East')
+
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'E2E Test Station East' })).toBeVisible()
+  await expect(page).not.toHaveURL(/\/edit/)
+})
+
+test('Viewers and clients do not get the station forms @STN-1 @STN-2', async ({ watched: page }) => {
+  await logIn(page, 'viewer@example.org')
+  await page.goto('/stations')
+  await expect(page.getByRole('table', { name: /Stations/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'New station' })).toHaveCount(0)
+  await page.goto('/stations/new')
+  await expect(page).toHaveURL(/\/stations$/) // back to the list
+})

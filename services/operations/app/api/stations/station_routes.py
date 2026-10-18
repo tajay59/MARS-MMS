@@ -18,6 +18,7 @@ from app.api.stations.schemas import (
     ImportReport,
     InstallationOut,
     OrgOption,
+    Places,
     StationDetail,
     StationFacets,
     StationIn,
@@ -26,7 +27,7 @@ from app.api.stations.schemas import (
     StationStatus,
     StationSummary,
 )
-from app.domain.stations import importing
+from app.domain.stations import importing, places
 from app.domain.stations import stations as rules
 from app.events.publish import ev
 from app.jobs import station_import
@@ -104,6 +105,13 @@ async def station_facets(viewer: Reader, ctx: CtxDep) -> StationFacets:
         countries=found["countries"], types=found["types"], parameters=found["parameters"],
         organizations=options,
     )
+
+
+@router.get("/places")
+async def station_places(_: Writer) -> Places:
+    """Each country's time zones, for the station form (a one-zone country gets it filled in)."""
+    zones = places.zones_by_country()
+    return Places(time_zones={code: list(found) for code, found in zones.items()})
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

@@ -237,6 +237,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/stations/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Station Places
+         * @description Each country's time zones, for the station form (a one-zone country gets it filled in).
+         */
+        get: operations["station_places_api_v1_stations_places_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/stations/{id}": {
         parameters: {
             query?: never;
@@ -582,6 +602,16 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * Places
+         * @description The form's time zone choices: each country's IANA zones, from `tzdata` (W5-7).
+         */
+        Places: {
+            /** Time Zones */
+            time_zones: {
+                [key: string]: string[];
+            };
         };
         /** Power */
         Power: {
@@ -1639,6 +1669,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    station_places_api_v1_stations_places_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Places"];
                 };
             };
         };
