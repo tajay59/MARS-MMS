@@ -53,8 +53,11 @@ export default defineConfig({
           { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
+      // The installed app's icons live with the operating system, and the favicon only shows in a
+      // browser tab: none of them is precached (F14), so they cost an install nothing.
+      includeManifestIcons: false,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,woff2,png,svg,ico}'],
+        globPatterns: ['**/*.{js,css,html,woff2,svg}'],
         // Inter and JetBrains Mono: only the Latin subsets are used (caching.md §3)
         globIgnores: ['**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
       },
@@ -74,6 +77,21 @@ export default defineConfig({
     // Fonts never become data: URIs: the CSP has no font-src, so default-src 'self' blocks them
     // (TRD §15). Small images may still be inlined.
     assetsInlineLimit: (file: string) => /\.(?:woff2?|ttf|otf)$/.test(file) ? false : undefined,
+    rolldownOptions: {
+      output: {
+        // Few, larger chunks (F14): the worker precaches every chunk on install, and each file costs
+        // a round trip on a phone's link. `vendor` is the libraries the first page needs, which
+        // change rarely, so an update downloads `app` again but not them. `app` is all of src/ and
+        // what its pages import. A large library used by one page stays out of both only behind
+        // a dynamic import(), as materialGenerate is.
+        codeSplitting: {
+          groups: [
+            { name: 'vendor', test: /[\\/]node_modules[\\/]/, tags: ['$initial'], priority: 2 },
+            { name: 'app', test: id => /[\\/]src[\\/]/.test(id) && !/materialGenerate/.test(id), priority: 1 },
+          ],
+        },
+      },
+    },
   },
   server: {
     port: 3000,

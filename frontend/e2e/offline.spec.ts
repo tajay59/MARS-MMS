@@ -34,5 +34,8 @@ test('the app opens offline from the precache, and no API response is cached @NF
   expect(cached.length).toBeGreaterThan(10)
   expect(cached.every(entry => entry.startsWith('workbox-precache'))).toBe(true)
   expect(cached.some(entry => entry.includes('/api/'))).toBe(false)
+  // Few files, so the first install is quick on a phone's link (F14): icons stay out of it
+  expect(cached.some(entry => /\.(?:png|ico)$/.test(entry))).toBe(false)
+  expect(cached.length).toBeLessThan(30)
   await context.setOffline(false)
 })
