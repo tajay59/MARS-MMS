@@ -518,3 +518,24 @@ def test_approval_and_reset_emails_arrive_and_the_reset_link_works(web, seeded, 
     assert api(web, "POST", "/api/v1/auth/password-reset/confirm",
                json={"token": match.group(1), "password": f"again {uuid.uuid4().hex}"}
                ).status_code == 410
+
+
+# --- Restarts (last: the stack must come back for whatever runs next) -------------------------
+
+
+def test_mongo_comes_back_after_a_plain_restart(mongo_up):
+    # A host reboot or crash restarts the same container, so /tmp still holds the last start's
+    # key file. Staging, 2026-10-18: after a reboot mongod never came back (protected_regular).
+    import time
+
+    r = _compose("restart", "mongo")
+    assert r.returncode == 0, r.stderr
+    deadline = time.monotonic() + 120
+    health = ""
+    while time.monotonic() < deadline:
+        health = _compose("ps", "--format", "{{.Health}}", "mongo").stdout.strip()
+        if health == "healthy":
+            break
+        time.sleep(2)
+    assert health == "healthy", _compose("logs", "--tail", "20", "mongo").stdout
+    assert mongo_as("auth").admin.command("ping")["ok"] == 1
