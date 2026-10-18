@@ -57,11 +57,19 @@ async def make_plan(db: Db, tables: dict[str, importing.Table], clock: Clock) ->
         for name in importing.SENSOR_COLUMNS["station_code"]
         if (v := row.get(name)) not in (None, "")
     ]
+    external_ids = sorted({
+        str(v).strip()
+        for _, row in station_table
+        for name in importing.STATION_COLUMNS["external_id"]
+        if (v := row.get(name)) not in (None, "")
+    })
     return importing.plan(
         station_table,
         sensor_table,
         orgs_by_key=await orgs.active_by_key(db),
+        orgs_by_external=await orgs.active_by_external_id(db),
         existing_codes=await stations.by_codes(db, sorted(set(codes))),
+        existing_external_ids=await stations.by_external_ids(db, external_ids),
         models_by_key=await models.by_key(db),
         units_by_model_serial=await units.by_model_serial(db),
         today=clock.now().date(),

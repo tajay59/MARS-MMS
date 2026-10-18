@@ -312,7 +312,7 @@ export interface components {
             sensors?: string | null;
             /**
              * Stations
-             * @description XLSX workbook or stations CSV
+             * @description XLSX workbook, stations CSV, or the existing system's site export (JSON)
              */
             stations: string;
         };
@@ -854,6 +854,8 @@ export interface components {
             current_config_version: number | null;
             /** Elevation M */
             elevation_m: number | null;
+            /** External Id */
+            external_id?: string | null;
             /** Id */
             id: string;
             /** Install Date */
@@ -926,6 +928,8 @@ export interface components {
             country: string;
             /** Elevation M */
             elevation_m?: number | null;
+            /** External Id */
+            external_id?: string | null;
             /** Install Date */
             install_date?: string | null;
             /** Latitude */
@@ -979,6 +983,8 @@ export interface components {
             country?: string | null;
             /** Elevation M */
             elevation_m?: number | null;
+            /** External Id */
+            external_id?: string | null;
             /** Install Date */
             install_date?: string | null;
             /** Latitude */
@@ -1020,6 +1026,8 @@ export interface components {
             code: string;
             /** Country */
             country: string;
+            /** External Id */
+            external_id?: string | null;
             /** Id */
             id: string;
             /** Last Visit At */

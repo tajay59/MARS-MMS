@@ -146,6 +146,34 @@ async def test_create_and_edit_an_org(auth):
     assert [e.type for e in await auth.outbox()] == ["org.created", "org.updated"]
 
 
+@pytest.mark.req("ORG-1")
+async def test_short_name_and_external_id(auth):
+    """Decision W5-8: the short name for tables, and the ID in the system the data came from."""
+    body = {"name": "Organization C Met Service", "short_name": "OCMS",
+            "external_id": "ENT0123456789abcdef", "country": "BB"}
+    r = await auth.http.post("/api/v1/organizations", json=body, headers=auth.bearer("admin"))
+    assert r.status_code == 201, r.text
+    org = r.json()
+    assert (org["short_name"], org["external_id"]) == ("OCMS", "ENT0123456789abcdef")
+    [created] = await auth.outbox("org.created")
+    assert created.data["short_name"] == "OCMS"
+    assert created.data["external_id"] == "ENT0123456789abcdef"
+
+    dup = await auth.http.post("/api/v1/organizations",
+                               json={**body, "name": "Another", "short_name": None},
+                               headers=auth.bearer("admin"))
+    assert (dup.status_code, dup.json()["code"]) == (409, "org_external_id_taken")
+    # Unset external IDs never clash with each other
+    for name in ("No ID one", "No ID two"):
+        r = await auth.http.post("/api/v1/organizations", json={"name": name, "country": "BB"},
+                                 headers=auth.bearer("admin"))
+        assert r.status_code == 201, r.text
+    bad = await auth.http.post("/api/v1/organizations",
+                               json={"name": "Bad", "country": "BB", "external_id": "a b"},
+                               headers=auth.bearer("admin"))
+    assert bad.status_code == 422
+
+
 @pytest.mark.req("ORG-4")
 async def test_deactivating_an_org_signs_its_users_out_and_keeps_its_data(auth):
     client_token = auth.bearer("client_a1")

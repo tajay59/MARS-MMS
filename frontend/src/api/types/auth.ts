@@ -519,10 +519,14 @@ export interface components {
             contact_email?: string | null;
             /** Country */
             country: string;
+            /** External Id */
+            external_id?: string | null;
             /** Name */
             name: string;
             /** Phone */
             phone?: string | null;
+            /** Short Name */
+            short_name?: string | null;
         };
         /** OrgOut */
         OrgOut: {
@@ -532,12 +536,16 @@ export interface components {
             contact_email: string | null;
             /** Country */
             country: string;
+            /** External Id */
+            external_id: string | null;
             /** Id */
             id: string;
             /** Name */
             name: string;
             /** Phone */
             phone: string | null;
+            /** Short Name */
+            short_name: string | null;
             /** Status */
             status: string;
             /** Version */
@@ -558,10 +566,14 @@ export interface components {
             contact_email?: string | null;
             /** Country */
             country?: string | null;
+            /** External Id */
+            external_id?: string | null;
             /** Name */
             name?: string | null;
             /** Phone */
             phone?: string | null;
+            /** Short Name */
+            short_name?: string | null;
             /** Status */
             status?: ("active" | "inactive") | null;
             /** Version */

@@ -18,7 +18,7 @@
           },
           "stations": {
             "contentMediaType": "application/octet-stream",
-            "description": "XLSX workbook or stations CSV",
+            "description": "XLSX workbook, stations CSV, or the existing system's site export (JSON)",
             "title": "Stations",
             "type": "string"
           }
@@ -1943,6 +1943,17 @@
             ],
             "title": "Elevation M"
           },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -2239,6 +2250,18 @@
             ],
             "title": "Elevation M"
           },
+          "external_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9._:\\-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
           "install_date": {
             "anyOf": [
               {
@@ -2456,6 +2479,18 @@
             ],
             "title": "Elevation M"
           },
+          "external_id": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9._:\\-]{1,64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
           "install_date": {
             "anyOf": [
               {
@@ -2642,6 +2677,17 @@
           "country": {
             "title": "Country",
             "type": "string"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
           },
           "id": {
             "title": "Id",

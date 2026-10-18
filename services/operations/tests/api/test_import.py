@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from mms_common.events import Actor
-from mms_common.testing.seed import ORG_B
+from mms_common.testing.seed import ORG_A, ORG_B
 
 from app.events.publish import Emitter
 from app.jobs import seed_data, station_import
+from tests.conftest import station_body
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
@@ -102,3 +104,49 @@ async def test_the_demo_seed_imports_cleanly_and_only_once(ops):
     second = await station_import.run(client, db, ops.clock, emitter, seed_data.tables(),
                                       dry_run=False, by=None)
     assert second.stations_created == 0 and len(second.skipped) == 5 + 16
+
+
+# --- The existing system's site export (decision W5-8) -----------------------------------------
+
+ENT_A = "ENT" + "a" * 32
+
+
+def site_export() -> bytes:
+    """A made-up site with two devices (the repo is public)."""
+    devices = [
+        {"name": name, "longname": f"{name.title()} Station", "id": f"DEV{n:032x}",
+         "lat": 18.0 + n / 100, "lon": -77.0, "timezone": "America/Jamaica",
+         "params": [{"base": "RAIN", "param": "RAIN"}, {"base": "BV", "param": "BV"}]}
+        for n, name in ((1, "HILLTOP"), (2, "RIVERSIDE"))
+    ]
+    site = {"type": "site", "id": "SITE" + "1" * 32, "name": "SITE ONE", "entity": ENT_A,
+            "enabled": True, "devices": devices}
+    return json.dumps([site]).encode()
+
+
+@pytest.mark.req("STN-8")
+async def test_the_site_export_imports_each_device_once(ops):
+    await ops.db["organizations"].update_one({"_id": ORG_A}, {"$set": {"external_id": ENT_A}})
+    upload = {"stations": ("sites.json", site_export(), "application/json")}
+    response = await ops.http.post("/api/v1/stations/import?dry_run=false", files=upload,
+                                   headers=ops.bearer("admin"))
+    assert response.status_code == 200, response.text
+    assert (response.json()["stations_created"], response.json()["errors"]) == (2, [])
+    found = (await ops.http.get("/api/v1/stations", params={"q": f"DEV{2:032x}"},
+                                headers=ops.bearer("client_a1"))).json()
+    assert [(s["code"], s["external_id"], s["country"]) for s in found["items"]] == [
+        ("RIVERSIDE", f"DEV{2:032x}", "JM"),
+    ]
+    again = await ops.http.post("/api/v1/stations/import?dry_run=false", files=upload,
+                                headers=ops.bearer("admin"))
+    assert again.json()["stations_created"] == 0
+    assert len(again.json()["skipped"]) == 2
+
+
+async def test_an_external_id_belongs_to_one_station(ops):
+    await ops.station(code="ONE-001", external_id="DEV-1")
+    response = await ops.http.post(
+        "/api/v1/stations", json=station_body(code="TWO-002", external_id="DEV-1"),
+        headers=ops.bearer("tech1"),
+    )
+    assert (response.status_code, response.json()["code"]) == (409, "external_id_taken")

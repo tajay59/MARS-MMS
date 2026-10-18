@@ -41,7 +41,9 @@ def _query(viewer: User, f: Filters) -> dict[str, Any]:
     if f.parameter:
         query["parameters"] = f.parameter
     if f.q:
-        query["$or"] = [{"code": contains(f.q)}, {"name": contains(f.q)}]
+        query["$or"] = [
+            {"code": contains(f.q)}, {"name": contains(f.q)}, {"external_id": f.q.strip()},
+        ]
     return scoped(viewer, query, STATION_OWNER)
 
 
@@ -90,6 +92,11 @@ async def require(
 
 async def by_codes(db: Db, codes: list[str]) -> dict[str, dict[str, Any]]:
     return {d["code"]: d async for d in col(db).find({"code": {"$in": codes}})}
+
+
+async def by_external_ids(db: Db, ids: list[str]) -> dict[str, dict[str, Any]]:
+    """Stations already imported from the existing system, by its device ID (decision W5-8)."""
+    return {d["external_id"]: d async for d in col(db).find({"external_id": {"$in": ids}})}
 
 
 async def ids_where(db: Db, *, country: str | None, station_id: str | None) -> list[str]:

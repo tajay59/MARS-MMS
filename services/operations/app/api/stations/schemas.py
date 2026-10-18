@@ -20,6 +20,10 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)]
 LongText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 Code = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=32)]
+# A station's ID in the system its data was imported from, for search and matching (W5-8)
+ExternalId = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[A-Za-z0-9._:\-]{1,64}$")
+]
 Country = Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}$")]
 TimeZone = Annotated[str, StringConstraints(min_length=1, max_length=64)]
 Parameter = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=16)]
@@ -60,6 +64,7 @@ class Power(In):
 
 class StationFields(In):
     name: Text | None = None
+    external_id: ExternalId | None = None
     type: Annotated[str, StringConstraints(strip_whitespace=True, max_length=60)] | None = None
     country: Country | None = None
     time_zone: TimeZone | None = None
@@ -114,6 +119,7 @@ class StationSummary(BaseModel):
     country: str
     time_zone: str
     region: str | None
+    external_id: str | None = None
     parameters: list[str]
     latitude: float | None
     longitude: float | None
@@ -128,7 +134,8 @@ class StationSummary(BaseModel):
             status=doc["status"], owner_org_id=doc["owner_org_id"],
             owner_org_name=doc.get("owner_org_name"), country=doc["country"],
             time_zone=doc["time_zone"], region=doc.get("region"),
-            parameters=list(doc.get("parameters", [])), latitude=lat, longitude=lon,
+            external_id=doc.get("external_id"), parameters=list(doc.get("parameters", [])),
+            latitude=lat, longitude=lon,
             next_calibration_due_at=due,
         )
 

@@ -14,6 +14,7 @@ from mms_common.testing.seed import ORG_A
 
 from app.events import org_consumer
 from app.jobs import org_backfill
+from app.repo.stations import orgs
 
 NEW_ORG = "01900000-0000-7000-8000-00000000d000"
 
@@ -106,3 +107,18 @@ async def test_snapshots_for_backfill(ops):
     assert stations["items"][0]["code"] == "JM-KIN-001" and stations["next_after"] is None
     empty = await ops.http.get("/internal/snapshot/calibrations", headers=ops.service("report"))
     assert empty.json() == {"items": [], "next_after": None}
+
+
+async def test_the_copy_keeps_the_short_name_and_external_id(ops):
+    """Decision W5-8: the station import matches a site's entity to the external ID."""
+    processor = org_consumer.processor(ops.app.state.mongo, ops.app.state.db, _no_dlq, ops.clock)
+    event = org_event("org.created", 1, "Imported Met Service", NEW_ORG,
+                      short_name="IMS", external_id="ENT" + "c" * 32)
+    assert await processor.process(event) is Outcome.APPLIED
+    copy = await ops.db["organizations"].find_one({"_id": NEW_ORG})
+    assert (copy["short_name"], copy["external_id"]) == ("IMS", "ENT" + "c" * 32)
+    assert set(await orgs.active_by_external_id(ops.db)) == {"ENT" + "c" * 32}
+
+
+async def _no_dlq(raw: bytes, reason: str) -> None:
+    raise AssertionError(reason)

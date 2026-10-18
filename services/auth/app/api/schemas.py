@@ -16,6 +16,12 @@ Password = Annotated[str, StringConstraints(max_length=1024)]
 Token = Annotated[str, StringConstraints(min_length=20, max_length=200)]
 Country = Annotated[str, StringConstraints(pattern=r"^[A-Z]{2}$")]
 OrgName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+# The short name for tables and chips (an acronym), and the organization's ID in the system its data
+# was imported from, used to match its stations on import (decision W5-8)
+ShortName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+ExternalId = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[A-Za-z0-9._:-]{1,64}$")
+]
 Role = Literal["client", "technician", "admin", "viewer"]
 ThemeName = Literal["system", "light", "dark"]
 
@@ -85,6 +91,8 @@ class UserPatch(In):
 
 class OrgIn(In):
     name: OrgName
+    short_name: ShortName | None = None
+    external_id: ExternalId | None = None
     country: Country
     contact_email: Email | None = None
     phone: Phone | None = None
@@ -94,6 +102,8 @@ class OrgIn(In):
 class OrgPatch(In):
     version: int
     name: OrgName | None = None
+    short_name: ShortName | None = None
+    external_id: ExternalId | None = None
     country: Country | None = None
     contact_email: Email | None = None
     phone: Phone | None = None
@@ -207,6 +217,8 @@ class UserPage(BaseModel):
 class OrgOut(BaseModel):
     id: str
     name: str
+    short_name: str | None
+    external_id: str | None
     country: str
     contact_email: str | None
     phone: str | None
@@ -219,6 +231,8 @@ class OrgOut(BaseModel):
         return cls(
             id=doc["_id"],
             name=doc["name"],
+            short_name=doc.get("short_name"),
+            external_id=doc.get("external_id"),
             country=doc["country"],
             contact_email=doc.get("contact_email"),
             phone=doc.get("phone"),

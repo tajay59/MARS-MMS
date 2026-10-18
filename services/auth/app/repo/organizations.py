@@ -76,3 +76,14 @@ async def update(
             raise VersionConflict()
         raise NotFound()
     return doc
+
+
+async def known_keys(db: Db) -> tuple[set[str], set[str]]:
+    """Every external ID and name key in use, for the organization import (W5-8)."""
+    ids: set[str] = set()
+    names: set[str] = set()
+    async for doc in col(db).find({}, {"external_id": 1, "name_key": 1}):
+        if doc.get("external_id"):
+            ids.add(doc["external_id"])
+        names.add(doc["name_key"])
+    return ids, names

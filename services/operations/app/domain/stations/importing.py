@@ -8,13 +8,23 @@ valid rows are imported and invalid ones skipped (IP risk "Station data is poor"
 
 The organization is matched by name to an existing one: an admin creates missing
 organizations first. A station code that already exists is skipped, so the import can be
-run again after fixing rows.
+run again after fixing rows. The country defaults to the organization's.
+
+**The existing system's export** (decision W5-8, TRD T4) is a third format: a MongoDB export
+of its `site` collection (`.json`, a JSON array or one document per line). Each *device* in a
+site becomes a station: `name` the code, `longname` the name, `id` the external ID, `lat`,
+`lon`, `timezone`, and `params[].param` the parameters. The site's `entity` is matched to an
+organization's external ID (`python -m app.cli import-orgs` in auth brings them in first),
+and a disabled site's devices are decommissioned. Nothing else is read. Rows are numbered from
+1 in the order the devices appear in the file. A device whose ID is already on a station is
+skipped.
 """
 
 from __future__ import annotations
 
 import csv
 import io
+import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -37,7 +47,9 @@ SENSORS = "Sensors"
 STATION_COLUMNS: dict[str, tuple[str, ...]] = {
     "code": ("code", "stationcode", "stationid"),
     "name": ("name", "stationname"),
+    "external_id": ("externalid", "deviceid"),
     "organization": ("organization", "organisation", "org", "owner", "client"),
+    "organization_external_id": ("organizationexternalid", "orgexternalid", "entity"),
     "country": ("country", "countrycode"),
     "time_zone": ("timezone", "tz"),
     "type": ("type", "stationtype"),
@@ -59,7 +71,10 @@ STATION_COLUMNS: dict[str, tuple[str, ...]] = {
     "power_controller": ("powercontroller", "controller"),
     "access_notes": ("accessnotes", "access", "notes"),
 }
-STATION_REQUIRED = ("code", "name", "organization", "country", "latitude", "longitude")
+STATION_REQUIRED = ("code", "name", "latitude", "longitude")
+# One of these names the owner: the organization's name, or its external ID (W5-8)
+OWNER_COLUMNS = ("organization", "organization_external_id")
+_EXTERNAL_ID = re.compile(r"^[A-Za-z0-9._:\-]{1,64}$")
 
 SENSOR_COLUMNS: dict[str, tuple[str, ...]] = {
     "station_code": ("stationcode", "station", "code"),
@@ -188,8 +203,61 @@ def read_xlsx(content: bytes) -> dict[str, Table]:
     return tables
 
 
+def _json_documents(content: bytes) -> list[Any]:
+    try:
+        text = content.decode("utf-8-sig").strip()
+    except UnicodeDecodeError as exc:
+        raise SheetError("The file is not UTF-8 text") from exc
+    try:
+        if text.startswith("["):
+            docs = json.loads(text)
+        else:
+            docs = [json.loads(line) for line in text.splitlines() if line.strip()]
+    except json.JSONDecodeError as exc:
+        raise SheetError(f"The file is not JSON (line {exc.lineno})") from exc
+    if not isinstance(docs, list):
+        raise SheetError("Expected one JSON object per site")
+    return docs
+
+
+def read_sites(content: bytes) -> Table:
+    """The existing system's `site` export as a stations table, one row per device (W5-8).
+    Only the fields below are read; everything else in the documents is ignored."""
+    table: Table = []
+    for site in _json_documents(content):
+        devices = site.get("devices") if isinstance(site, dict) else None
+        if not isinstance(devices, list):
+            continue
+        status = "decommissioned" if site.get("enabled") is False else "operational"
+        for device in devices:
+            if not isinstance(device, dict):
+                continue
+            params = [
+                p.get("param") or p.get("base") for p in device.get("params") or []
+                if isinstance(p, dict)
+            ]
+            table.append((len(table) + 1, {
+                "code": device.get("name"),
+                "name": device.get("longname") or device.get("name"),
+                "externalid": device.get("id"),
+                "organizationexternalid": site.get("entity"),
+                "timezone": device.get("timezone"),
+                "latitude": device.get("lat"),
+                "longitude": device.get("lon"),
+                "parameters": ";".join(p for p in params if isinstance(p, str)),
+                "status": status,
+            }))
+    if len(table) > MAX_STATION_ROWS:
+        raise SheetError(f"Import at most {MAX_STATION_ROWS} stations at once")
+    if not table:
+        raise SheetError("No sites with devices in the file")
+    return table
+
+
 def read_file(filename: str, content: bytes) -> dict[str, Table]:
     lower = filename.lower()
+    if lower.endswith(".json"):
+        return {STATIONS: read_sites(content)}
     if lower.endswith(".xlsx"):
         tables = read_xlsx(content)
         if STATIONS not in tables and len(tables) >= 1:
@@ -198,7 +266,7 @@ def read_file(filename: str, content: bytes) -> dict[str, Table]:
         return tables
     if lower.endswith((".csv", ".txt")):
         return {STATIONS: read_csv(content)}
-    raise SheetError("Upload an XLSX workbook or a CSV file")
+    raise SheetError("Upload an XLSX workbook, a CSV file or the site export (JSON)")
 
 
 # --- Cell values -----------------------------------------------------------------------------
@@ -302,10 +370,15 @@ def plan(
     models_by_key: Mapping[str, dict[str, Any]],
     units_by_model_serial: Mapping[tuple[str, str], dict[str, Any]],
     today: date,
+    orgs_by_external: Mapping[str, dict[str, Any]] | None = None,
+    existing_external_ids: Mapping[str, dict[str, Any]] | None = None,
 ) -> Plan:
     """Check every row. `orgs_by_key`: active organizations by `org_key(name)`;
     `existing_codes`: stations already in the system; `models_by_key` and
-    `units_by_model_serial`: the inventory, to match sensors to what exists."""
+    `units_by_model_serial`: the inventory, to match sensors to what exists.
+    `orgs_by_external` and `existing_external_ids`: the same by external ID (W5-8)."""
+    orgs_by_external = orgs_by_external or {}
+    existing_external_ids = existing_external_ids or {}
     if len(station_table) > MAX_STATION_ROWS or len(sensor_table) > MAX_SENSOR_ROWS:
         raise SheetError(
             f"Import at most {MAX_STATION_ROWS} stations and {MAX_SENSOR_ROWS} sensors at once"
@@ -313,6 +386,8 @@ def plan(
     result = Plan(station_rows=len(station_table), sensor_rows=len(sensor_table))
     for column in _missing_columns(station_table, STATION_COLUMNS, STATION_REQUIRED):
         result.errors.append(RowError(STATIONS, 1, column, f"No {column} column"))
+    if station_table and len(_missing_columns(station_table, STATION_COLUMNS, OWNER_COLUMNS)) == 2:
+        result.errors.append(RowError(STATIONS, 1, "organization", "No organization column"))
     for column in _missing_columns(sensor_table, SENSOR_COLUMNS, SENSOR_REQUIRED):
         result.errors.append(RowError(SENSORS, 1, column, f"No {column} column"))
     if result.errors:
@@ -320,8 +395,10 @@ def plan(
 
     by_code: dict[str, StationRow] = {}
     bad_codes: dict[str, int] = {}
+    by_external: dict[str, int] = {}
     for number, raw in station_table:
-        row = _station_row(number, _pick(raw, STATION_COLUMNS), orgs_by_key, result)
+        row = _station_row(number, _pick(raw, STATION_COLUMNS), orgs_by_key, orgs_by_external,
+                           result)
         if row is None:
             code = _pick(raw, STATION_COLUMNS).get("code")
             if code:
@@ -339,6 +416,22 @@ def plan(
                 RowError(STATIONS, number, "code", f"Station {code} already exists")
             )
             continue
+        external_id = row.fields.get("external_id")
+        if external_id and external_id in by_external:
+            result.errors.append(RowError(
+                STATIONS, number, "external_id",
+                f"External ID {external_id} is also on row {by_external[external_id]}",
+            ))
+            continue
+        if external_id and external_id in existing_external_ids:
+            already = existing_external_ids[external_id].get("code", "")
+            result.skipped.append(RowError(
+                STATIONS, number, "external_id",
+                f"{external_id} was already imported as station {already}",
+            ))
+            continue
+        if external_id:
+            by_external[external_id] = number
         by_code[code] = row
         result.stations.append(row)
 
@@ -373,7 +466,11 @@ def plan(
 
 
 def _station_row(
-    number: int, cells: dict[str, Any], orgs_by_key: Mapping[str, dict[str, Any]], result: Plan
+    number: int,
+    cells: dict[str, Any],
+    orgs_by_key: Mapping[str, dict[str, Any]],
+    orgs_by_external: Mapping[str, dict[str, Any]],
+    result: Plan,
 ) -> StationRow | None:
     errors: list[RowError] = []
 
@@ -397,16 +494,36 @@ def _station_row(
             code = None
     name = get("name", lambda v: _text(v, 120))
     org_name = get("organization")
-    org = orgs_by_key.get(org_key(org_name)) if org_name else None
-    if org_name and org is None:
+    org_external = get("organization_external_id")
+    org: dict[str, Any] | None = None
+    if org_name:
+        org = orgs_by_key.get(org_key(org_name))
+        if org is None:
+            errors.append(RowError(
+                STATIONS, number, "organization",
+                f"No active organization named {org_name!r}: create it first",
+            ))
+    elif org_external:
+        org = orgs_by_external.get(org_external)
+        if org is None:
+            errors.append(RowError(
+                STATIONS, number, "organization",
+                f"No active organization with external ID {org_external}: import the "
+                "organizations first",
+            ))
+    else:
+        errors.append(RowError(STATIONS, number, "organization", "organization is required"))
+    external_id = get("external_id", lambda v: _text(v, 64))
+    if external_id is not None and not _EXTERNAL_ID.match(external_id):
         errors.append(RowError(
-            STATIONS, number, "organization",
-            f"No active organization named {org_name!r}: create it first",
+            STATIONS, number, "external_id", "Use letters, digits and . _ : - only (64 at most)"
         ))
     country_raw = get("country")
     country = places.country_code(country_raw) if country_raw else None
     if country_raw and country is None:
         errors.append(RowError(STATIONS, number, "country", f"{country_raw!r} is not a country"))
+    elif country_raw is None and org is not None:
+        country = org.get("country")  # the organization's, when the row gives none
     time_zone = get("time_zone")
     if time_zone is None and country is not None:
         time_zone = places.default_time_zone(country)
@@ -463,7 +580,7 @@ def _station_row(
         row=number,
         org=org,
         fields={
-            "code": code, "name": name, "type": type_,
+            "code": code, "name": name, "type": type_, "external_id": external_id,
             "owner_org_id": org["_id"], "owner_org_name": org["name"],
             "country": country, "time_zone": time_zone, "region": region,
             "location": location, "elevation_m": elevation, "parameters": parameters,
