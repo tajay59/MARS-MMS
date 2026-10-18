@@ -50,17 +50,17 @@
 
               <ul v-else class="m-0 flex list-none flex-col p-0 text-sm">
                 <li v-for="unit in attention" :key="unit.unit_id" class="border-t border-surface-200 first:border-t-0">
-                  <button class="flex w-full items-center justify-between gap-3 py-2.5 text-left hover:text-primary" type="button" @click="tab = 'sensors'">
-                    <span class="min-w-0">{{ unit.model.manufacturer }} {{ unit.model.model }} · <span class="font-mono">{{ unit.parameter ?? kindLabel(unit.model.kind) }}</span></span>
+                  <router-link class="flex w-full items-center justify-between gap-3 py-2.5 text-left text-surface-900 no-underline hover:text-primary" replace :to="sensorsTab">
+                    <span class="min-w-0">{{ unit.model.manufacturer }} {{ unit.model.model }} · <span class="font-mono" translate="no">{{ unit.parameter ?? kindLabel(unit.model.kind) }}</span></span>
                     <CalibrationDueChip :due="unit.calibration_due_at" :state="asDue(unit.due_state)" :time-zone="station.time_zone" />
-                  </button>
+                  </router-link>
                 </li>
 
                 <li class="border-t border-surface-200" :class="attention.length === 0 ? 'border-t-0' : ''">
-                  <button class="flex w-full items-center justify-between gap-3 py-2.5 text-left text-surface-700 hover:text-primary" type="button" @click="tab = 'sensors'">
+                  <router-link class="flex w-full items-center justify-between gap-3 py-2.5 text-left text-surface-700 no-underline hover:text-primary" replace :to="sensorsTab">
                     <span>{{ restSummary }}</span>
                     <v-icon :icon="mdiChevronRight" size="20" />
-                  </button>
+                  </router-link>
                 </li>
               </ul>
             </section>
@@ -84,10 +84,10 @@
 
             <tbody>
               <tr v-for="unit in units" :key="unit.unit_id" class="h-13 border-t border-surface-200">
-                <td class="whitespace-nowrap px-4" :class="unit.parameter ? 'font-mono text-surface-900' : 'text-surface-600'">{{ unit.parameter ?? kindLabel(unit.model.kind) }}</td>
+                <td class="whitespace-nowrap px-4" :class="unit.parameter ? 'font-mono text-surface-900' : 'text-surface-600'" :translate="unit.parameter ? 'no' : undefined">{{ unit.parameter ?? kindLabel(unit.model.kind) }}</td>
                 <td class="px-4 text-surface-900">{{ unit.model.manufacturer }} {{ unit.model.model }}</td>
 
-                <td class="whitespace-nowrap px-4 font-mono text-surface-900">
+                <td class="whitespace-nowrap px-4 font-mono text-surface-900" translate="no">
                   {{ unit.serial }}
                   <v-icon
                     v-if="isStaff && unit.needs_review"
@@ -122,7 +122,7 @@
             </span>
 
             <span class="text-sm text-surface-600">
-              <span class="font-mono">{{ unit.serial }}</span>
+              <span class="font-mono" translate="no">{{ unit.serial }}</span>
               · {{ unit.last_calibrated_at ? `Calibrated ${formatDate(unit.last_calibrated_at, station.time_zone)}` : 'Not calibrated' }}
             </span>
           </li>
@@ -190,8 +190,8 @@
       <v-tabs-window-item v-for="t in laterTabs" :key="t.key" :value="t.key">
         <div class="flex flex-col items-center gap-2 py-14 text-center">
           <v-icon class="text-surface-500" :icon="mdiProgressClock" size="40" />
-          <h2 class="m-0 text-h3 text-surface-900">{{ t.label }} aren’t built yet</h2>
-          <p class="m-0 max-w-sm text-sm text-surface-600">They arrive in phase {{ t.phase }} of the plan.</p>
+          <h2 class="m-0 text-h3 text-surface-900">{{ t.label }} aren’t here yet</h2>
+          <p class="m-0 max-w-sm text-sm text-surface-600">{{ t.later }}</p>
         </div>
       </v-tabs-window-item>
     </v-tabs-window>
@@ -221,20 +221,20 @@
   const router = useRouter()
   const { mdAndUp } = useDisplay()
 
-  interface Tab { key: string, label: string, staff?: boolean, phase?: number, count?: number }
+  interface Tab { key: string, label: string, staff?: boolean, later?: string, count?: number }
 
   const tabs = computed<Tab[]>(() => ([
     { key: 'overview', label: 'Overview' },
     { key: 'sensors', label: 'Sensors', count: props.station.installed.length },
-    { key: 'documents', label: 'Documents', phase: 2 },
-    { key: 'configurations', label: 'Configurations', staff: true, phase: 2 },
-    { key: 'requests', label: 'Requests', phase: 3 },
-    { key: 'visits', label: 'Visits', phase: 4 },
-    { key: 'reports', label: 'Reports', phase: 6 },
+    { key: 'documents', label: 'Documents', later: 'Manuals, photos and other documents arrive in week 6.' },
+    { key: 'configurations', label: 'Configurations', staff: true, later: 'Logger configurations arrive in week 6.' },
+    { key: 'requests', label: 'Requests', later: 'Requests for this station arrive in phase 3.' },
+    { key: 'visits', label: 'Visits', later: 'Site visits arrive in phase 4.' },
+    { key: 'reports', label: 'Reports', later: 'Visit reports arrive in phase 6.' },
     { key: 'calibration', label: 'Calibration', staff: true },
-    { key: 'history', label: 'History', staff: true, phase: 7 },
+    { key: 'history', label: 'History', staff: true, later: 'The station’s change history arrives in phase 7.' },
   ] as Tab[]).filter(t => props.isStaff || !t.staff))
-  const laterTabs = computed(() => tabs.value.filter(t => t.phase !== undefined))
+  const laterTabs = computed(() => tabs.value.filter(t => t.later !== undefined))
 
   const tab = computed<string>({
     get: () => {
@@ -246,6 +246,8 @@
     },
   })
 
+  /** The Sensors tab as a link (modifier-click opens it in a new tab). */
+  const sensorsTab = computed(() => ({ query: { ...route.query, tab: 'sensors' } }))
   const status = computed(() => isStatus(props.station.status) ? props.station.status : 'decommissioned')
   const units = computed(() => sortInstalled(props.station.installed))
   const attention = computed(() => units.value.filter(u => u.due_state === 'overdue' || u.due_state === 'due_soon'))
@@ -268,6 +270,11 @@
     return latitude === null || longitude === null ? '' : formatCoordinates(latitude, longitude)
   })
 
+  /** `cellular` from an import as `Cellular`. */
+  function capitalized (text: string | null | undefined): string | null {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : null
+  }
+
   const facts = computed(() => {
     const s = props.station
     const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ') || '—'
@@ -287,7 +294,7 @@
       { label: 'Installed', value: formatPlainDate(s.install_date) },
       { label: 'Measures', value: s.parameters.length > 0 ? '' : '—' },
       { label: 'Logger', value: join(logger?.model, logger?.serial, logger?.firmware && `firmware ${logger.firmware}`) },
-      { label: 'Communications', value: join(comms?.type, comms?.provider, props.isStaff ? comms?.identifier : null) },
+      { label: 'Communications', value: join(capitalized(comms?.type), comms?.provider, props.isStaff ? comms?.identifier : null) },
       {
         label: 'Power',
         value: join(

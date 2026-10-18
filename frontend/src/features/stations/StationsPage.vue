@@ -8,10 +8,9 @@
     :wide="!routeId"
   >
     <template v-if="detail" #subtitle>
-      <span class="font-mono font-medium text-surface-900">{{ detail.code }}</span>
+      <span class="font-mono font-medium text-surface-900" translate="no">{{ detail.code }}</span>
       <StationStatusChip :status="detail.status" />
-      <span :title="detail.time_zone">{{ countryName(detail.country) }} · {{ zoneAbbreviation(detail.time_zone) }}</span>
-      <span v-if="isStaff && detail.owner_org_name">· {{ detail.owner_org_name }}</span>
+      <span><span :title="detail.time_zone">{{ countryName(detail.country) }} · {{ zoneAbbreviation(detail.time_zone) }}</span><template v-if="isStaff && detail.owner_org_name"> · {{ detail.owner_org_name }}</template></span>
     </template>
 
     <template v-if="!routeId && isClient" #actions>
@@ -26,12 +25,13 @@
     <PaneContent>
       <div class="flex flex-col gap-4 px-3">
         <v-text-field
-          aria-label="Search stations by code or name"
+          aria-label="Search stations by code, name or ID"
           autocomplete="off"
           class="px-1"
           clearable
           hide-details
           :model-value="filters.q"
+          name="q"
           placeholder="Search code or name"
           :prepend-inner-icon="mdiMagnify"
           spellcheck="false"
@@ -121,7 +121,7 @@
                     :to="{ name: 'stations', params: { id: row.id }, query: listQuery }"
                   >{{ row.name }}</router-link>
 
-                  <span class="shrink-0 font-mono text-xs font-medium text-surface-600">{{ row.code }}</span>
+                  <span class="shrink-0 font-mono text-xs font-medium text-surface-600" translate="no">{{ row.code }}</span>
                 </span>
 
                 <span class="truncate text-sm text-surface-600">
@@ -155,7 +155,8 @@
 
       <template v-else>
         <!-- Numbers before charts (DBD): each with its words -->
-        <div class="flex flex-wrap gap-x-8 gap-y-3 border-b border-surface-200 pb-4">
+        <!-- Not on phones: the cards follow the filters there (approved mock-up) -->
+        <div class="hidden flex-wrap gap-x-8 gap-y-3 border-b border-surface-200 pb-4 md:flex">
           <div v-for="kpi in kpis" :key="kpi.label" class="flex flex-col">
             <span class="text-2xl font-semibold tabular-nums text-surface-900">{{ kpi.value }}</span>
 
@@ -181,13 +182,13 @@
 
             <thead>
               <tr class="bg-surface-100 text-left">
-                <th class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Code</th>
-                <th class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Name</th>
-                <th class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Status</th>
-                <th v-if="isStaff" class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Organization</th>
-                <th class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Country</th>
-                <th class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Last visit</th>
-                <th class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">Calibration</th>
+                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Code</th>
+                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Name</th>
+                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Status</th>
+                <th v-if="isStaff" class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Organization</th>
+                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Country</th>
+                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Last visit</th>
+                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Calibration</th>
               </tr>
             </thead>
 
@@ -198,23 +199,25 @@
                 class="h-13 cursor-pointer border-t border-surface-200 hover:bg-surface-50"
                 @click="openFromRow($event, row.id)"
               >
-                <td class="whitespace-nowrap px-4">
+                <td class="whitespace-nowrap px-3">
                   <router-link
                     class="font-mono font-medium text-primary no-underline hover:underline"
                     :to="{ name: 'stations', params: { id: row.id }, query: listQuery }"
+                    translate="no"
                   >{{ row.code }}</router-link>
                 </td>
 
-                <td class="px-4 text-surface-900">{{ row.name }}</td>
-                <td class="px-4"><StationStatusChip :status="row.status" /></td>
-                <td v-if="isStaff" class="whitespace-nowrap px-4 text-surface-900">{{ row.owner_org_name ?? '—' }}</td>
-                <td class="whitespace-nowrap px-4 text-surface-900">{{ countryName(row.country) }}</td>
+                <td class="min-w-32 px-3 text-surface-900">{{ row.name }}</td>
+                <td class="px-3"><StationStatusChip :status="row.status" /></td>
+                <!-- Long names (a real one has 50 characters) truncate; the full name is the title -->
+                <td v-if="isStaff" class="max-w-36 truncate px-3 text-surface-900" :title="row.owner_org_name ?? undefined">{{ row.owner_org_name ?? '—' }}</td>
+                <td class="max-w-28 truncate px-3 text-surface-900" :title="countryName(row.country)">{{ countryName(row.country) }}</td>
 
-                <td class="whitespace-nowrap px-4 tabular-nums" :class="row.last_visit_at ? 'text-surface-900' : 'text-surface-600'">
+                <td class="whitespace-nowrap px-3 tabular-nums" :class="row.last_visit_at ? 'text-surface-900' : 'text-surface-600'">
                   {{ row.last_visit_at ? formatDate(row.last_visit_at, row.time_zone) : 'None yet' }}
                 </td>
 
-                <td class="px-4">
+                <td class="px-3">
                   <CalibrationDueChip
                     v-if="row.next_calibration_due_at"
                     :due="row.next_calibration_due_at"
@@ -241,13 +244,13 @@
               <StationStatusChip :status="row.status" />
             </span>
 
-            <span class="font-mono text-xs font-medium text-surface-600">{{ row.code }}</span>
+            <span class="font-mono text-xs font-medium text-surface-600" translate="no">{{ row.code }}</span>
 
             <span class="text-sm text-surface-600">
               <template v-if="isStaff">{{ row.owner_org_name }} · </template>{{ countryName(row.country) }} · {{ zoneAbbreviation(row.time_zone) }}
             </span>
 
-            <ParameterTags v-if="row.parameters.length > 0" :parameters="row.parameters" />
+            <ParameterTags v-if="row.parameters.length > 0" :max="8" :parameters="row.parameters" />
 
             <span v-if="dueState(row.next_calibration_due_at, now) === 'overdue'">
               <CalibrationDueChip :due="row.next_calibration_due_at" state="overdue" :time-zone="row.time_zone" />

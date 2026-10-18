@@ -40,9 +40,9 @@
     <div v-if="facets.parameters.length > 0" :aria-labelledby="`${uid}-measures`" class="flex flex-col gap-2" role="group">
       <span :id="`${uid}-measures`" class="text-label text-surface-900">Measures</span>
 
-      <span class="flex flex-wrap gap-1.5">
+      <span v-if="measures.common.length > 0" class="flex flex-wrap gap-1.5">
         <button
-          v-for="p in facets.parameters"
+          v-for="p in measures.common"
           :key="p"
           :aria-pressed="filters.parameter === p"
           class="inline-flex h-7 items-center rounded-full border px-2.5 font-mono text-xs font-medium"
@@ -51,6 +51,20 @@
           @click="emit('change', { parameter: filters.parameter === p ? null : p })"
         >{{ p }}</button>
       </span>
+
+      <!-- The rest, searchable: the real stations measure about a hundred (W5-8) -->
+      <v-autocomplete
+        v-if="measures.other.length > 0"
+        :aria-label="measures.common.length > 0 ? 'Other measures' : 'Measures'"
+        auto-select-first
+        clearable
+        hide-details
+        :items="measures.other"
+        :model-value="otherSelected"
+        no-data-text="No measure matches"
+        :placeholder="measures.common.length > 0 ? 'Other measures' : 'All measures'"
+        @update:model-value="emit('change', { parameter: $event ?? null })"
+      />
     </div>
 
     <button
@@ -67,7 +81,7 @@
   import { computed, useId } from 'vue'
   import { countryName } from '@/app/countries'
   import FormField from '@/components/FormField.vue'
-  import { extraFilterCount } from './stations'
+  import { extraFilterCount, splitParameters } from './stations'
 
   // Organization (staff only), country, type and measures: in the pane, or the phone's sheet
   const props = defineProps<{
@@ -80,4 +94,10 @@
   const uid = useId()
   const countryItems = computed(() => props.facets.countries.map(code => ({ value: code, title: countryName(code) })))
   const active = computed(() => extraFilterCount(props.filters) > 0)
+  const measures = computed(() => splitParameters(props.facets.parameters))
+  /** The field shows the chosen measure only when it is one of the others (a chip shows its own). */
+  const otherSelected = computed(() => {
+    const p = props.filters.parameter
+    return p && measures.value.other.includes(p) ? p : null
+  })
 </script>

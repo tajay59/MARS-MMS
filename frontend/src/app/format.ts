@@ -3,6 +3,11 @@
   (TRD §13.2). Times are stored in UTC (rule 8); `timeZone` is the user’s or the station’s.
 */
 
+/** DBD's three-letter months: newer ICU (Chrome 120+, Node 22) writes `Sept` in en-GB. */
+function dbdMonths (text: string): string {
+  return text.replace(/\bSept\b/, 'Sep')
+}
+
 export function formatDateTime (iso: string | null | undefined, timeZone?: string | null): string {
   if (!iso) {
     return '—'
@@ -27,7 +32,7 @@ export function formatDateTime (iso: string | null | undefined, timeZone?: strin
     .find(p => p.type === 'timeZoneName')
     ?.value ?? ''
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === type)?.value ?? ''
-  return `${part('day')} ${part('month')} ${part('year')}, ${part('hour')}:${part('minute')} ${label}`.trim()
+  return dbdMonths(`${part('day')} ${part('month')} ${part('year')}, ${part('hour')}:${part('minute')} ${label}`.trim())
 }
 
 /**
@@ -59,7 +64,7 @@ export function formatListTime (iso: string | null | undefined, timeZone?: strin
   if (daysAgo < 7) {
     return format({ weekday: 'short' })
   }
-  return format(then.y === today.y ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' })
+  return dbdMonths(format(then.y === today.y ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }))
 }
 
 function validDate (iso: string | null | undefined): Date | null {
@@ -76,7 +81,7 @@ export function formatDate (iso: string | null | undefined, timeZone?: string | 
   if (!date) {
     return '—'
   }
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: timeZone ?? undefined }).format(date)
+  return dbdMonths(new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: timeZone ?? undefined }).format(date))
 }
 
 /** A day in running text or a chip: `14 Feb` this year, `14 Feb 2025` in another. */
@@ -91,7 +96,7 @@ export function formatShortDate (iso: string | null | undefined, timeZone?: stri
   if (year(date) !== year(now)) {
     options.year = 'numeric'
   }
-  return new Intl.DateTimeFormat('en-GB', options).format(date)
+  return dbdMonths(new Intl.DateTimeFormat('en-GB', options).format(date))
 }
 
 /** A calendar date with no time or zone (`2019-03-14`, an install date) as `14 Mar 2019`. */
@@ -101,8 +106,8 @@ export function formatPlainDate (value: string | null | undefined): string {
     return '—'
   }
   const [, y, m, d] = match.map(Number) as [number, number, number, number]
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(Date.UTC(y, m - 1, d)))
+  return dbdMonths(new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(y, m - 1, d))))
 }
 
 /** The short name of an IANA zone at `at` (`EST`, `AST`); the IANA name when there is none. */

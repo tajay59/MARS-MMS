@@ -115,7 +115,9 @@ export function queryFrom (filters: StationFilters): Record<string, string | und
 /** Every filter but status: the status buttons count what these leave. */
 export function matchesOthers (station: StationSummary, filters: StationFilters): boolean {
   const q = filters.q.trim().toLowerCase()
-  if (q && !station.code.toLowerCase().includes(q) && !station.name.toLowerCase().includes(q)) {
+  // The external ID too: staff paste the old system's device ID (W5-8)
+  const text = [station.code, station.name, station.external_id ?? ''].map(t => t.toLowerCase())
+  if (q && !text.some(t => t.includes(q))) {
     return false
   }
   if (filters.org && station.owner_org_id !== filters.org) {
@@ -171,6 +173,13 @@ export function facetsOf (stations: readonly StationSummary[]): {
 
 // The common parameters in the order people read them (TRD §5.2), then the rest A–Z
 const COMMON = ['AT', 'RH', 'BP', 'RAIN', 'WS', 'WD', 'SR']
+
+/** The common parameters present (shown as chips) and the rest (a searchable field): the real
+    stations measure about a hundred (W5-8), too many for a row of chips. */
+export function splitParameters (parameters: readonly string[]): { common: string[], other: string[] } {
+  const all = sortParameters(parameters)
+  return { common: all.filter(p => COMMON.includes(p)), other: all.filter(p => !COMMON.includes(p)) }
+}
 
 export function sortParameters (parameters: readonly string[]): string[] {
   const rank = (p: string) => {
