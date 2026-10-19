@@ -17,6 +17,10 @@
       <span v-if="selected.default_calibration_interval_days">calibrate every {{ selected.default_calibration_interval_days }} days</span>
     </template>
 
+    <template v-if="selected && canWrite" #actions>
+      <v-btn color="primary" :prepend-icon="mdiPencilOutline" variant="tonal" @click="editModel">Edit model</v-btn>
+    </template>
+
     <!-- The pane: search and kind of part -->
     <PaneContent>
       <div class="flex flex-col gap-3 px-3">
@@ -46,6 +50,15 @@
             @click="setFilters({ kind: k.value })"
           >{{ k.label }}</button>
         </div>
+
+        <v-btn
+          v-if="canWrite && !loadError"
+          class="ml-1 self-start"
+          color="primary"
+          :prepend-icon="mdiPlus"
+          variant="tonal"
+          @click="addModel"
+        >Add a model</v-btn>
 
         <p v-if="!loading && !loadError && shown.length === 0" class="m-0 px-2 text-sm text-surface-600">No models match.</p>
 
@@ -79,9 +92,19 @@
       <ModelDocuments :can-write="canWrite" :model="selected" />
 
       <section aria-labelledby="units-h">
-        <h2 id="units-h" class="m-0 mb-2 text-h3 text-surface-900">
-          Units of this model<span v-if="units" class="font-normal text-surface-600"> · {{ units.length }}</span>
-        </h2>
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 id="units-h" class="m-0 text-h3 text-surface-900">
+            Units of this model<span v-if="units" class="font-normal text-surface-600"> · {{ units.length }}</span>
+          </h2>
+
+          <v-btn
+            v-if="canWrite"
+            color="primary"
+            :prepend-icon="mdiPlus"
+            variant="tonal"
+            @click="addUnit"
+          >Add a unit</v-btn>
+        </div>
 
         <FeedbackBanner v-if="unitsError" type="error">{{ unitsError }}</FeedbackBanner>
 
@@ -98,6 +121,7 @@
             <thead>
               <tr class="bg-surface-100 text-left">
                 <th v-for="h in ['Serial', 'Status', 'Where', 'Calibration']" :key="h" class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">{{ h }}</th>
+                <th v-if="canWrite" class="w-14 px-2 py-3" scope="col"><span class="sr-only">Actions</span></th>
               </tr>
             </thead>
 
@@ -112,6 +136,26 @@
                 </td>
 
                 <td class="px-4"><CalibrationDueChip :due="u.calibration_due_at" :state="asDue(u.due_state)" /></td>
+
+                <td v-if="canWrite" class="px-2 text-right">
+                  <v-menu location="bottom end">
+                    <template #activator="{ props: activator }">
+                      <v-btn
+                        v-bind="activator"
+                        :aria-label="`More for ${u.serial}`"
+                        icon
+                        size="40"
+                        variant="text"
+                      >
+                        <v-icon class="text-surface-700" :icon="mdiDotsVertical" size="20" />
+                      </v-btn>
+                    </template>
+
+                    <v-list :aria-label="`Actions for ${u.serial}`" density="compact" role="menu">
+                      <v-list-item :prepend-icon="mdiPencilOutline" role="menuitem" title="Edit unit" @click="editUnit(u)" />
+                    </v-list>
+                  </v-menu>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -129,6 +173,24 @@
       <h2 class="m-0 text-h3 text-surface-900">Choose a sensor model</h2>
       <p class="m-0 max-w-sm text-sm text-surface-600">Its datasheets and manuals, and every unit of it, are here.</p>
     </div>
+
+    <ModelFormDialog
+      v-if="canWrite"
+      v-model="modelDialog"
+      :model="editingModel"
+      :suggestions="parameterSuggestions"
+      @reload="loadModels"
+      @saved="onModelSaved"
+    />
+
+    <UnitFormDialog
+      v-if="canWrite && selected"
+      v-model="unitDialog"
+      :model="selected"
+      :unit="editingUnit"
+      @reload="reloadUnits"
+      @saved="reloadUnits"
+    />
   </PageBody>
 </template>
 
@@ -136,7 +198,7 @@
   import type { SensorFilters } from './sensors'
   import type { SensorModelOut, SensorUnitOut } from '@/api/models'
   import type { DueState } from '@/features/stations/stations'
-  import { mdiMagnify } from '@mdi/js'
+  import { mdiDotsVertical, mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
   import { computed, onMounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { sensorModelsApi, sensorUnitsApi } from '@/api/operations'
@@ -148,10 +210,12 @@
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import ParameterTags from '@/features/stations/ParameterTags.vue'
-  import { kindLabel } from '@/features/stations/stations'
+  import { kindLabel, sortParameters } from '@/features/stations/stations'
   import { useSessionStore } from '@/stores/session'
   import ModelDocuments from './ModelDocuments.vue'
+  import ModelFormDialog from './ModelFormDialog.vue'
   import { kindFilters, matchesModel, modelLine, sensorFiltersFrom, sensorQueryFrom, unitStatusLabel, whereLabel } from './sensors'
+  import UnitFormDialog from './UnitFormDialog.vue'
 
   // /sensors and /sensors/:id (AFD §3; PRD CAL-1, DOC-1): the catalogue of models with their
   // datasheets and manuals and the units of each. Staff only. A few dozen models at most, so the
@@ -210,6 +274,52 @@
       unitsError.value = error instanceof NetworkError
         ? 'This needs a connection. It will load when you have signal.'
         : 'We couldn’t load the units. Reload the page to try again.'
+    }
+  }
+
+  // --- The forms (SEN-1, SEN-2) -----------------------------------------------------------------
+
+  const modelDialog = ref(false)
+  const editingModel = ref<SensorModelOut | null>(null)
+  const unitDialog = ref(false)
+  const editingUnit = ref<SensorUnitOut | null>(null)
+
+  /** Codes the catalogue already uses, offered when a model's parameters are typed. */
+  const parameterSuggestions = computed(() => sortParameters([...new Set(models.value.flatMap(m => m.parameters))]))
+
+  function addModel (): void {
+    editingModel.value = null
+    modelDialog.value = true
+  }
+
+  function editModel (): void {
+    editingModel.value = selected.value
+    modelDialog.value = true
+  }
+
+  function onModelSaved (saved: SensorModelOut): void {
+    const at = models.value.findIndex(m => m.id === saved.id)
+    if (at === -1) {
+      models.value = [...models.value, saved]
+      void router.push({ name: 'sensors', params: { id: saved.id }, query: listQuery.value })
+    } else {
+      models.value = models.value.map(m => m.id === saved.id ? saved : m)
+    }
+  }
+
+  function addUnit (): void {
+    editingUnit.value = null
+    unitDialog.value = true
+  }
+
+  function editUnit (unit: SensorUnitOut): void {
+    editingUnit.value = unit
+    unitDialog.value = true
+  }
+
+  async function reloadUnits (): Promise<void> {
+    if (modelId.value) {
+      await loadUnits(modelId.value)
     }
   }
 

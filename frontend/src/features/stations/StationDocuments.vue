@@ -95,6 +95,7 @@
                     v-if="canWrite"
                     :doc="doc"
                     :org-name="station.owner_org_name"
+                    @edit="startEdit(doc)"
                     @new-version="startUpload(doc)"
                     @visibility="setVisible(doc, $event)"
                   />
@@ -131,6 +132,7 @@
               v-if="canWrite"
               :doc="doc"
               :org-name="station.owner_org_name"
+              @edit="startEdit(doc)"
               @new-version="startUpload(doc)"
               @visibility="setVisible(doc, $event)"
             />
@@ -187,6 +189,14 @@
       :subject="station.name"
       @saved="onSaved"
     />
+
+    <DocumentDetailsDialog
+      v-if="canWrite"
+      v-model="editOpen"
+      :doc="editing"
+      @reload="onSaved"
+      @saved="onSaved"
+    />
   </div>
 </template>
 
@@ -199,6 +209,7 @@
   import { formatListTime } from '@/app/format'
   import { icons } from '@/app/theme/icons'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
+  import DocumentDetailsDialog from './DocumentDetailsDialog.vue'
   import DocumentMenu from './DocumentMenu.vue'
   import { docState, docTypeLabel, fileIcon, formatBytes, isDownloadable, openDownload, versionText } from './documents'
   import DocumentStateNote from './DocumentStateNote.vue'
@@ -221,6 +232,8 @@
   const error = ref<string | null>(null)
   const uploading = ref(false)
   const replacing = ref<DocumentOut | null>(null)
+  const editing = ref<DocumentOut | null>(null)
+  const editOpen = ref(false)
 
   /** Clients see only the models that have something for them. */
   const models = computed(() => (docs.value?.models ?? []).filter(m => props.isStaff || m.documents.length > 0))
@@ -284,6 +297,11 @@
   function startUpload (replaces: DocumentOut | null): void {
     replacing.value = replaces
     uploading.value = true
+  }
+
+  function startEdit (doc: DocumentOut): void {
+    editing.value = doc
+    editOpen.value = true
   }
 
   async function onSaved (): Promise<void> {

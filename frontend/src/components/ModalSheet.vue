@@ -28,10 +28,12 @@
 </template>
 
 <script lang="ts" setup>
+  import { nextTick, watch } from 'vue'
   import { useDisplay } from 'vuetify'
 
-  // The shell of the upload and new-version dialogs: the content brings its own heading, whose id
-  // is `labelledby`. `persistent` keeps a click outside from closing it while a file is going up.
+  // The shell of the upload, new-version and form dialogs: the content brings its own heading,
+  // whose id is `labelledby`. `persistent` keeps a click outside from closing it while a file is
+  // going up or a form has unsaved changes.
   defineProps<{
     labelledby: string
     maxWidth?: number | string
@@ -40,4 +42,18 @@
 
   const open = defineModel<boolean>({ required: true })
   const { mdAndUp } = useDisplay()
+
+  // Focus goes back to what opened the dialog (WCAG 2.4.3): Vuetify does that only for an activator
+  let opener: HTMLElement | null = null
+  watch(open, async isOpen => {
+    if (isOpen) {
+      opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    } else {
+      await nextTick()
+      if (opener?.isConnected) {
+        opener.focus({ preventScroll: true })
+      }
+      opener = null
+    }
+  })
 </script>

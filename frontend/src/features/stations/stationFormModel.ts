@@ -45,7 +45,7 @@ export const TEXT_MAX = 120
 export const NOTES_MAX = 2000
 export const MAX_PARAMETERS = 40
 export const PARAMETER_MAX = 32
-const PARAMETER_PATTERN = new RegExp(`^[A-Z][A-Z0-9_]{0,${PARAMETER_MAX - 1}}$`)
+export const PARAMETER_PATTERN = new RegExp(`^[A-Z][A-Z0-9_]{0,${PARAMETER_MAX - 1}}$`)
 const EXTERNAL_ID_PATTERN = /^[\w.:-]{1,64}$/
 
 export function emptyValues (): StationFormValues {
