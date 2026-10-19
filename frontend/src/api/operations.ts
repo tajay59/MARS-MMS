@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, SensorModelList, SensorUnitDetail, SensorUnitPage, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
+import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -36,12 +36,17 @@ export const sensorUnitsApi = {
   get: (id: string, signal?: AbortSignal) => api.get<SensorUnitDetail>(`/sensor-units/${id}`, { signal }),
   list: (query: { model_id?: string, station_id?: string, status?: string, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
     api.get<SensorUnitPage>('/sensor-units', { query: { ...query }, signal }),
+  // Staff who write (technician, admin). A unit reaches a station only through install (SEN-2).
+  create: (body: SensorUnitIn) => api.post<SensorUnitOut>('/sensor-units', body),
+  update: (id: string, body: SensorUnitPatch) => api.patch<SensorUnitOut>(`/sensor-units/${id}`, body),
 }
 
 // The catalogue of makes and models (staff)
 export const sensorModelsApi = {
   list: (query: { kind?: string, q?: string, parameter?: string } = {}, signal?: AbortSignal) =>
     api.get<SensorModelList>('/sensor-models', { query: { ...query }, signal }),
+  create: (body: SensorModelIn) => api.post<SensorModelOut>('/sensor-models', body),
+  update: (id: string, body: SensorModelPatch) => api.patch<SensorModelOut>(`/sensor-models/${id}`, body),
 }
 
 export interface DocumentQuery {
@@ -60,6 +65,7 @@ export const documentsApi = {
     api.get<DocumentPage>('/documents', { query: { ...query }, signal }),
   forStation: (stationId: string, signal?: AbortSignal) =>
     api.get<StationDocuments>(`/stations/${stationId}/documents`, { signal }),
+  get: (id: string, signal?: AbortSignal) => api.get<DocumentOut>(`/documents/${id}`, { signal }),
   // Staff who write (technician, admin). `body.id` and `body.media_id` are made on the device.
   create: (body: DocumentIn) => api.post<DocumentOut>('/documents', body),
   update: (id: string, body: DocumentPatch) => api.patch<DocumentOut>(`/documents/${id}`, body),

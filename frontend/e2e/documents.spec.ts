@@ -150,6 +150,137 @@ test('Staff browse the sensor catalogue and the calibration due list @CAL-4 @DOC
   await checkA11y(page, '/calibration')
 })
 
+test('Technicians add and edit sensor models and units, and viewers cannot @SEN-1 @SEN-2', async ({ watched: page, browser }) => {
+  const run = Date.now().toString(36)
+  const name = `T-${run}`
+  const serial = `SN-${run}`
+
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/sensors')
+
+  // Add a model: the form asks for what the server needs, then opens the new model
+  await page.getByRole('button', { name: 'Add a model' }).click()
+  const model = page.getByRole('dialog', { name: 'Add a sensor model' })
+  await model.getByRole('button', { name: 'Add model' }).click()
+  await expect(model.getByText('Enter the make')).toBeVisible()
+  await expect(model.getByText('Enter the model')).toBeVisible()
+  await model.getByLabel('Make').fill('Testco')
+  await model.getByLabel('Model', { exact: true }).fill(name)
+  await model.getByLabel(/Parameters it measures/).fill('at, rh')
+  await model.getByLabel(/Parameters it measures/).press('Enter')
+  await expect(model.getByRole('list', { name: /Parameters it measures/ }).getByText('RH')).toBeVisible()
+  await model.getByLabel(/Calibrate every/).fill('365')
+  await checkA11y(page, 'model dialog')
+  await model.getByRole('button', { name: 'Add model' }).click()
+  await expect(model).toBeHidden()
+  await expect(page.getByRole('heading', { level: 1, name: `Testco ${name}` })).toBeVisible()
+  await expect(page.getByText('calibrate every 365 days')).toBeVisible()
+
+  // The same make and model again is refused on the field; leaving asks first
+  await page.getByRole('button', { name: 'Add a model' }).click()
+  await model.getByLabel('Make').fill('Testco')
+  await model.getByLabel('Model', { exact: true }).fill(name)
+  await model.getByRole('button', { name: 'Add model' }).click()
+  await expect(model.getByText(`Testco ${name} is already in the catalogue.`)).toBeVisible()
+  await model.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('alertdialog', { name: 'Leave without saving?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Leave', exact: true }).click()
+  await expect(model).toBeHidden()
+
+  // Edit it: Save waits for a change
+  await page.getByRole('button', { name: 'Edit model' }).click()
+  const edit = page.getByRole('dialog', { name: `Edit Testco ${name}` })
+  await expect(edit.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await edit.getByLabel(/Calibrate every/).fill('180')
+  await edit.getByRole('button', { name: 'Save' }).click()
+  await expect(edit).toBeHidden()
+  await expect(page.getByText('calibrate every 180 days')).toBeVisible()
+
+  // Add a unit; the same serial twice is refused on the field
+  await expect(page.getByText('No units of this model are registered yet.')).toBeVisible()
+  await page.getByRole('button', { name: 'Add a unit' }).click()
+  const add = page.getByRole('dialog', { name: 'Add a unit' })
+  await add.getByRole('button', { name: 'Add unit' }).click()
+  await expect(add.getByText('Enter the serial number')).toBeVisible()
+  await add.getByLabel('Serial number').fill(serial)
+  await checkA11y(page, 'unit dialog')
+  await add.getByRole('button', { name: 'Add unit' }).click()
+  await expect(add).toBeHidden()
+  const units = page.getByRole('table', { name: `Units of Testco ${name}` })
+  await expect(units.getByRole('row', { name: new RegExp(serial) }).getByText('In stock')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add a unit' }).click()
+  await add.getByLabel('Serial number').fill(serial)
+  await add.getByRole('button', { name: 'Add unit' }).click()
+  await expect(add.getByText(`${serial} is already registered for this model.`)).toBeVisible()
+  await add.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('button', { name: 'Leave', exact: true }).click()
+  await expect(add).toBeHidden()
+
+  // Edit the unit from its row: put it in repair
+  await page.getByRole('button', { name: `More for ${serial}` }).click()
+  await page.getByRole('menuitem', { name: 'Edit unit' }).click()
+  const unit = page.getByRole('dialog', { name: 'Edit unit' })
+  await expect(unit.getByRole('button', { name: 'Save' })).toBeDisabled()
+  await unit.getByLabel('Status').click({ force: true }) // the selected text sits over the input
+  await page.getByRole('option', { name: 'In repair' }).click()
+  await unit.getByRole('button', { name: 'Save' }).click()
+  await expect(unit).toBeHidden()
+  await expect(units.getByRole('row', { name: new RegExp(serial) }).getByText('In repair')).toBeVisible()
+
+  // A viewer sees the catalogue and none of the buttons
+  const viewerContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  const viewer = await viewerContext.newPage()
+  await logIn(viewer, 'viewer@example.org')
+  await viewer.goto('/sensors')
+  await expect(viewer.getByRole('heading', { level: 1, name: 'Sensors' })).toBeVisible()
+  await expect(viewer.getByRole('button', { name: 'Add a model' })).toHaveCount(0)
+  await viewer.getByRole('list', { name: 'Sensor models' }).getByRole('link', { name: `Testco ${name}` }).click()
+  await expect(viewer.getByRole('heading', { name: /^Units of this model/ })).toBeVisible()
+  await expect(viewer.getByRole('button', { name: 'Edit model' })).toHaveCount(0)
+  await expect(viewer.getByRole('button', { name: 'Add a unit' })).toHaveCount(0)
+  await expect(viewer.getByRole('button', { name: `More for ${serial}` })).toHaveCount(0)
+  await viewerContext.close()
+})
+
+test('A technician edits a document’s details @DOC-4', async ({ watched: page }) => {
+  const run = Date.now().toString(36)
+  const title = `Mast layout ${run}`
+  const renamed = `Mast layout, revised ${run}`
+
+  await logIn(page, 'tech1@example.org')
+  await openStation(page, 'Documents')
+  await page.getByRole('button', { name: 'Upload document' }).click()
+  const upload = page.getByRole('dialog', { name: 'Upload a document' })
+  await upload.getByTestId('document-file').setInputFiles({ name: `mast-${run}.pdf`, mimeType: 'application/pdf', buffer: pdf('details') })
+  await upload.getByLabel('Title').fill(title)
+  await upload.getByRole('button', { name: 'Upload', exact: true }).click()
+  await expect(upload).toBeHidden()
+
+  const table = page.getByRole('table', { name: /Documents for Kingston Harbour/ })
+  await expect(table.getByRole('row', { name: new RegExp(title) })).toBeVisible()
+  await page.getByRole('button', { name: `More for ${title}` }).click()
+  await page.getByRole('menuitem', { name: 'Edit details' }).click()
+  const details = page.getByRole('dialog', { name: 'Edit details' })
+  await expect(details.getByRole('button', { name: 'Save' })).toBeDisabled()
+
+  // A title is required; leaving with a change asks first
+  await details.getByLabel('Title').fill('')
+  await details.getByRole('button', { name: 'Save' }).click()
+  await expect(details.getByText('Enter a title')).toBeVisible()
+  await details.getByLabel('Title').fill(renamed)
+  await details.getByLabel('Type').click({ force: true }) // the selected text sits over the input
+  await page.getByRole('option', { name: 'Installation' }).click()
+  await checkA11y(page, 'document details dialog')
+  await details.getByRole('button', { name: 'Save' }).click()
+  await expect(details).toBeHidden()
+
+  const row = table.getByRole('row', { name: new RegExp(renamed) })
+  await expect(row).toBeVisible()
+  await expect(row.getByText('Installation')).toBeVisible()
+  await expect(table.getByRole('row', { name: new RegExp(`^${title}`) })).toHaveCount(0)
+})
+
 test('A client cannot open the staff pages @DOC-1', async ({ watched: page }) => {
   await logIn(page, 'client.a1@example.org')
   // A page the role can't use looks like a missing one (AFD §5.2)
@@ -174,4 +305,20 @@ test('On a phone the documents are a list and the upload is a sheet @phone @DOC-
   expect(box!.y + box!.height).toBeGreaterThan(viewport.height - 4)
   expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width)
   await checkA11y(page, 'upload sheet (phone)')
+})
+
+test('On a phone the model form is a sheet @phone @SEN-1', async ({ watched: page }) => {
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/sensors')
+  await page.getByRole('button', { name: 'Add a model' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Add a sensor model' })
+  await expect(sheet).toBeVisible()
+  const box = await sheet.boundingBox()
+  const viewport = page.viewportSize()!
+  // A sheet rising from the bottom edge, inside the screen, with its button still reachable
+  expect(box!.y + box!.height).toBeGreaterThan(viewport.height - 4)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width)
+  await sheet.getByRole('button', { name: 'Add model' }).scrollIntoViewIfNeeded()
+  await expect(sheet.getByRole('button', { name: 'Add model' })).toBeInViewport()
+  await checkA11y(page, 'model sheet (phone)')
 })

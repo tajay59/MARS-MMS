@@ -198,7 +198,7 @@ function sorted<T> (items: readonly T[], compare: (a: T, b: T) => number): T[] {
 
 // --- Installed units ----------------------------------------------------------------------------
 
-const kinds: Record<string, string> = {
+export const kinds: Record<string, string> = {
   sensor: 'Sensor',
   logger: 'Logger',
   modem: 'Modem',

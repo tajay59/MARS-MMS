@@ -72,6 +72,7 @@
                 v-if="canWrite"
                 :doc="doc"
                 org-name="clients"
+                @edit="startEdit(doc)"
                 @new-version="startUpload(doc)"
                 @visibility="setVisible(doc, $event)"
               />
@@ -106,6 +107,7 @@
           v-if="canWrite"
           :doc="doc"
           org-name="clients"
+          @edit="startEdit(doc)"
           @new-version="startUpload(doc)"
           @visibility="setVisible(doc, $event)"
         />
@@ -121,6 +123,14 @@
       :subject="`${model.manufacturer} ${model.model}`"
       @saved="load(true)"
     />
+
+    <DocumentDetailsDialog
+      v-if="canWrite"
+      v-model="editOpen"
+      :doc="editing"
+      @reload="load(true)"
+      @saved="load(true)"
+    />
   </section>
 </template>
 
@@ -133,6 +143,7 @@
   import { ApiError, NetworkError } from '@/api/problem'
   import { icons } from '@/app/theme/icons'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
+  import DocumentDetailsDialog from '@/features/stations/DocumentDetailsDialog.vue'
   import DocumentMenu from '@/features/stations/DocumentMenu.vue'
   import { docState, docTypeLabel, fileIcon, formatBytes, isDownloadable, languageLabel, openDownload } from '@/features/stations/documents'
   import DocumentStateNote from '@/features/stations/DocumentStateNote.vue'
@@ -150,6 +161,8 @@
   const error = ref<string | null>(null)
   const uploading = ref(false)
   const replacing = ref<DocumentOut | null>(null)
+  const editing = ref<DocumentOut | null>(null)
+  const editOpen = ref(false)
   const checking = computed(() => (docs.value ?? []).some(d => docState(d) === 'checking'))
 
   function wording (caught: unknown, action: string): string {
@@ -208,6 +221,11 @@
   function startUpload (replaces: DocumentOut | null): void {
     replacing.value = replaces
     uploading.value = true
+  }
+
+  function startEdit (doc: DocumentOut): void {
+    editing.value = doc
+    editOpen.value = true
   }
 
   async function download (doc: DocumentOut): Promise<void> {
