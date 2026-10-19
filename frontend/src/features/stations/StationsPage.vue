@@ -392,8 +392,18 @@
     })),
   ])
 
+  // The route updates only when a navigation finishes. A second change made before then (a click on
+  // a status and straight away typing a search) must build on the first, not on the old URL.
+  let pendingFilters: StationFilters | null = null
+
   function setFilters (patch: Partial<StationFilters>): void {
-    void router.replace({ query: { ...route.query, ...queryFrom({ ...filters.value, ...patch }) } })
+    const next = { ...(pendingFilters ?? filters.value), ...patch }
+    pendingFilters = next
+    void router.replace({ query: { ...route.query, ...queryFrom(next) } }).finally(() => {
+      if (pendingFilters === next) {
+        pendingFilters = null
+      }
+    })
   }
 
   function clearFilters (): void {
