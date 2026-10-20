@@ -29,6 +29,7 @@
   import type { StationSummary } from '@/api/models'
   import type * as L from 'leaflet'
   import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+  import { useTheme } from 'vuetify'
   import StationStatusMark from '@/components/StationStatusMark.vue'
   import { dueLabel, dueState, lookOf, STATUSES, statusLook } from '@/features/stations/stations'
   import {
@@ -39,16 +40,14 @@
     MARKER_SIZE_SELECTED,
     markerLabel,
     markerSvg,
-    TILE_ATTRIBUTION,
-    TILE_MAX_ZOOM,
-    TILE_URL,
   } from './map'
+  import { CachedRangeSource, TILE_MAX_ZOOM, TILES_DATA_ZOOM, TILES_URL } from './tiles'
 
   /*
     The Leaflet map (MAP-1, MAP-2). Markers are the status shapes from map.ts, clustered into plain
     brand circles with a count. Leaflet draws into its own DOM, so station text only ever goes in
-    with textContent, never as HTML. Tiles are OpenStreetMap's, requested with CORS (`crossOrigin`)
-    so the service worker can keep the ones that were looked at (F1); nothing is fetched ahead.
+    with textContent, never as HTML. The basemap is our own Protomaps file, drawn by protomaps-leaflet
+    and kept range by range in Cache Storage as it is looked at (tiles.ts; F1, W7-9).
   */
   const props = defineProps<{
     stations: Positioned[]
@@ -65,6 +64,9 @@
   let unmounted = false
   let map: L.Map | null = null
   let cluster: L.MarkerClusterGroup | null = null
+  let basemap: L.Layer | null = null
+  let makeBasemap: ((flavor: 'light' | 'dark') => L.Layer) | null = null
+  const theme = useTheme()
   const markers = new Map<string, L.Marker>()
   let selected: string | null = null
 
@@ -192,12 +194,22 @@
     // eslint-disable-next-line unicorn/no-array-callback-reference, unicorn/no-array-method-this-argument -- Leaflet's map is not Array#map
     map = lf.map(el.value, { zoomControl: false, attributionControl: true, worldCopyJump: true })
     lf.control.zoom({ position: 'topright', zoomInTitle: 'Zoom in', zoomOutTitle: 'Zoom out' }).addTo(map)
-    lf.tileLayer(TILE_URL, {
-      attribution: TILE_ATTRIBUTION,
+    const { PMTiles } = await import('pmtiles')
+    const { leafletLayer } = await import('protomaps-leaflet')
+    if (!el.value || unmounted) {
+      return
+    }
+    const source = new CachedRangeSource(TILES_URL)
+    void source.prune()
+    const archive = new PMTiles(source)
+    makeBasemap = flavor => leafletLayer({
+      url: archive,
+      flavor,
       maxZoom: TILE_MAX_ZOOM,
-      crossOrigin: true, // CORS, so the worker's cache holds readable responses, not opaque ones
-      keepBuffer: 1, // no tiles beyond the view are asked for: the usage policy bans fetching ahead
-    }).addTo(map)
+      maxDataZoom: TILES_DATA_ZOOM,
+      lang: 'en',
+    }) as unknown as L.Layer
+    showBasemap()
 
     cluster = lf.markerClusterGroup({
       showCoverageOnHover: false,
@@ -217,6 +229,16 @@
     fit()
   })
 
+  /** The basemap in the theme's colours: light or dark flavor, swapped when the theme changes. */
+  function showBasemap (): void {
+    if (!map || !makeBasemap) {
+      return
+    }
+    basemap?.remove()
+    basemap = makeBasemap(theme.global.name.value === 'dark' ? 'dark' : 'light').addTo(map)
+  }
+
+  watch(() => theme.global.name.value, () => showBasemap())
   watch(() => props.stations, () => {
     draw()
   })
@@ -227,6 +249,7 @@
     map?.remove()
     map = null
     cluster = null
+    basemap = null
     markers.clear()
   })
 </script>
@@ -274,10 +297,5 @@
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
     border-radius: 50%;
-  }
-
-  /* Dark theme: the standard tiles are light, so darken them (the map stays readable at night) */
-  .app-dark .leaflet-tile-pane {
-    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
   }
 </style>

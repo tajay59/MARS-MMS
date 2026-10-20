@@ -17,6 +17,7 @@ services:
     volumes: !override
       - ./nginx/office-ips.conf:/etc/nginx/office-ips.conf:ro
       - ${MMS_TLS_DIR:?set MMS_TLS_DIR to the host's certificate directory}:/etc/nginx/certs:ro
+      - ${MMS_TILES_DIR:-/opt/mms/tiles}:/var/tiles:ro
 
   auth:
     build: !reset null

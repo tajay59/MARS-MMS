@@ -6,4 +6,4 @@ add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
 add_header X-Frame-Options "DENY" always;
 add_header X-Request-ID $mms_request_id always;
-add_header Content-Security-Policy "default-src 'self'; img-src 'self' https://${FILES_HOST} https://tile.openstreetmap.org data: blob:; media-src 'self' https://${FILES_HOST} blob:; connect-src 'self' https://${FILES_HOST} https://tile.openstreetmap.org wss://${MMS_HOST}; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'" always;
+add_header Content-Security-Policy "default-src 'self'; img-src 'self' https://${FILES_HOST} data: blob:; media-src 'self' https://${FILES_HOST} blob:; connect-src 'self' https://${FILES_HOST} wss://${MMS_HOST}; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'" always;

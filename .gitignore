@@ -23,6 +23,9 @@ coverage.xml
 # Node (frontend/.gitignore covers its own build output)
 node_modules/
 
+# Basemap extracts (infra/scripts/extract-tiles.sh); too big for git
+infra/tiles/
+
 # Test output
 playwright-report/
 test-results/

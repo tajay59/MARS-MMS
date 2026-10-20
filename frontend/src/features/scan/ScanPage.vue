@@ -229,21 +229,20 @@
     return scanner.state.value === 'starting' ? 'Starting the camera…' : 'Point the camera at the code on the station'
   })
 
-  function onFound (text: string): void {
+  /** Whether the text is one of our labels; the scanner keeps looking when it is not. */
+  function onFound (text: string): boolean {
     const token = tokenFromScan(text)
     if (token) {
       void router.push({ name: 'scan-result', params: { token } })
-      return
+      return true
     }
-    // Not one of ours: say so, and look again
+    // Not one of ours: say so for a moment while the camera goes on looking
     notLabel.value = true
     clearTimeout(notLabelTimer)
     notLabelTimer = setTimeout(() => {
       notLabel.value = false
-      if (phase.value === 'camera') {
-        void scanner.start()
-      }
     }, 1800)
+    return false
   }
 
   async function useCamera (): Promise<void> {

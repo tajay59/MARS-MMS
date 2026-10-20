@@ -32,6 +32,7 @@ services:
       - ./nginx/office-ips.conf:/etc/nginx/office-ips.conf:ro
       - ${MMS_TLS_DIR:-./nginx/certs}:/etc/nginx/certs:ro
       - ${MMS_SPA_DIR:-../frontend/dist}:/usr/share/nginx/html:ro
+      - ${MMS_TILES_DIR:-./tiles}:/var/tiles:ro
     networks:
       backend:
         # Containers reach the files host by the name the browser uses, so presigned URLs

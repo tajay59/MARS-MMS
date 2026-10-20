@@ -39,17 +39,7 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), {
   denylist: [/^\/api\//, /^\/ws(\/|$)/, /^\/internal\//, /^\/\.well-known\//],
 }))
 
-// 3. Map tiles, as viewed (TRD §13.3). Read caching.md and findings.md F1 before changing.
-registerRoute(
-  ({ url, request }) => url.origin === 'https://tile.openstreetmap.org' && request.destination === 'image',
-  new CacheFirst({
-    cacheName: 'mms-tiles',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [200] }),          // never cache opaque (status 0) responses
-      new ExpirationPlugin({ maxEntries: 2000, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true }),
-    ],
-  }),
-)
+// 3. Map tiles: no route. The map page keeps its own tile ranges (features/map/tiles.ts, W7-9, F1).
 
 // 4. Everything else (API, files host, WebSocket) is not routed: it goes to the network untouched.
 

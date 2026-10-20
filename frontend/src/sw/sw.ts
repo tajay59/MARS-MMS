@@ -4,20 +4,17 @@
   The AWS-MMS service worker, minimal version (F5, IP W4; TRD §13.3).
   - Precaches the app shell the build emitted, so the app opens with no signal.
   - Answers page navigations with the precached index.html, never API or internal paths.
-  - Keeps the map tiles that were looked at (W7, finding F1) and nothing else: API responses,
-    uploads and the files host always go to the network (TRD §7.6). Background Sync arrives in a
-    later phase.
+  - Caches nothing else: API responses, uploads, the files host and the map's tile file (which the
+    page keeps itself, features/map/tiles.ts) always go to the network (TRD §7.6). Background Sync
+    arrives in a later phase.
   - Waits for the user to accept an update (the prompt), and never calls skipWaiting on its own.
   Keep the file name: the build emits it as /sw.js for ever (pwa skill service-worker.md §3).
 */
 
 import type { PrecacheEntry } from 'workbox-precaching'
-import { CacheableResponsePlugin } from 'workbox-cacheable-response'
 import { clientsClaim } from 'workbox-core'
-import { ExpirationPlugin } from 'workbox-expiration'
 import { cleanupOutdatedCaches, PrecacheController, PrecacheRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
-import { CacheFirst } from 'workbox-strategies'
 import { eachLimited, withRetry } from './limit'
 
 declare let self: ServiceWorkerGlobalScope
@@ -65,24 +62,6 @@ registerRoute(new PrecacheRoute(precache))
 registerRoute(new NavigationRoute(precache.createHandlerBoundToURL('/index.html'), {
   denylist: [/^\/api\//, /^\/ws(\/|$)/, /^\/internal\//, /^\/\.well-known\//, /^\/\.releases\//],
 }))
-
-/*
-  Map tiles, as viewed (TRD §13.3, W7). Never fetched ahead: the page asks for the tiles it shows
-  and the worker keeps what comes back, so a map looked at once can be looked at again with no
-  signal. The leaflet layer asks with CORS (`crossOrigin`), so an answer is readable and only a
-  200 is stored; an opaque answer would count about 7 MB against the quota each (caching.md §4).
-  The cache is emptied when the session ends (app/pwa/runtimeCaches.ts; keep the name in step).
-*/
-registerRoute(
-  ({ url, request }) => url.origin === 'https://tile.openstreetmap.org' && request.destination === 'image',
-  new CacheFirst({
-    cacheName: 'mms-tiles',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [200] }),
-      new ExpirationPlugin({ maxEntries: 2000, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true }),
-    ],
-  }),
-)
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const data = event.data as { type?: unknown } | null

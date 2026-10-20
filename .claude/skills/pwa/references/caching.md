@@ -10,7 +10,7 @@ Cache Storage holds **static files only**. Data lives in Dexie. This is TRD §7.
 |---|---|---|
 | App shell: `index.html`, JS and CSS chunks, fonts, `theme-init.js`, icons, manifest | **Precache** (build-time list, revisioned) | `precacheAndRoute(self.__WB_MANIFEST)` |
 | SPA navigations (`/visits/123/field`) | Precached `index.html` | `NavigationRoute` with denylist |
-| Map tiles `tile.openstreetmap.org` | Cache-first, 2,000 entries, 30 days, as viewed only | TRD §13.3; **see F1** |
+| Map tiles (our own PMTiles file, `/tiles/`) | Not a worker route: the page keeps each byte range it reads in `mms-tiles` (`features/map/tiles.ts`), as viewed only | TRD §13.3; F1, W7-9 |
 | `/api/**` | **Never cached.** Network only (no route) | TRD §7.6 |
 | Mutations and uploads | **Never cached.** Through the Dexie outbox | TRD §13.3 |
 | `files.<host>` (presigned GET/PUT) | **Not routed.** Offline copies are blobs in Dexie `files` / `blobs` | TRD §7.1 |
@@ -44,7 +44,7 @@ Don't add a route without updating TRD §13.3 in the same change.
   - `CacheableResponsePlugin({ statuses: [200] })`, so an opaque response is never stored.
 - `ExpirationPlugin({ maxEntries: 2000, maxAgeSeconds: 30 days, purgeOnQuotaError: true })`.
 - CSP: the tile host is in `img-src` and `connect-src` (the worker fetches tiles), TRD §15.
-- **OSM policy (F1):** "Offline use is not permitted on tile.openstreetmap.org." Caching viewed tiles for repeat views is allowed; prefetch or "save area for offline" is banned; caching must honour `Cache-Control`, `Expires` and `ETag`. Cache-first for 30 days ignores the server's `max-age` (about 6 days) and keeps maps working offline from cached tiles. This needs a decision (findings.md F1). Never add prefetching.
+- **Map tiles (F1, W7-9):** OSM's servers say "Offline use is not permitted", so production uses our own Protomaps extract. The worker does not touch it; `CachedRangeSource` stores `Range` answers (206 only, exact length) under a synthetic key `…?bytes=a-b`. A file name is never reused, because the keys are offsets. Never add prefetching of the whole file to the service worker: it is 552 MB.
 - Attribution "© OpenStreetMap contributors" stays visible on every map.
 - Logout clears `mms-tiles` (TRD §7.6: "clears runtime caches").
 

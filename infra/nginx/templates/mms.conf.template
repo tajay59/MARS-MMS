@@ -114,6 +114,18 @@ server {
     try_files $uri =404;
   }
 
+  # The basemap: a Protomaps extract of the Caribbean, one PMTiles file the page reads in byte
+  # ranges (W7-9). It lives on the host (MMS_TILES_DIR), not in the web image. A file name is
+  # never reused for new content, so it can be cached for a year; Nginx answers Range requests
+  # for static files by itself. The file is already compressed: no gzip.
+  location ^~ /tiles/ {
+    include /etc/nginx/conf.d/snippets/security-headers.conf;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    gzip off;
+    alias /var/tiles/;
+    try_files $uri =404;
+  }
+
   # Release manifests of the web image (F9): build metadata, not for browsers.
   location ^~ /.releases/ { return 404; }
 
