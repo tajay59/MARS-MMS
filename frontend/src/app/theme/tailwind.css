@@ -77,7 +77,8 @@
   --color-station-offline: rgb(var(--v-theme-station-offline));
   --color-station-decommissioned: rgb(var(--v-theme-station-decommissioned));
 
-  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Google Sans Variable', 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', Consolas, monospace;
 
   /* DBD type scale; text-sm (14/20) and text-xs (12/16) are Tailwind's own */

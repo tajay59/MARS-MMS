@@ -186,7 +186,7 @@
 
     <div v-else-if="!loading && !loadError" class="flex max-w-xl flex-col items-start gap-2">
       <template v-if="rows.length > 0">
-        <p class="m-0 text-kpi tabular-nums text-surface-900">{{ rows.length }}</p>
+        <p class="m-0 font-heading text-kpi tabular-nums text-surface-900">{{ rows.length }}</p>
         <p class="m-0 text-surface-900">{{ summary }}</p>
         <p class="m-0 text-sm text-surface-600">Choose someone in the list to approve or reject them.</p>
       </template>

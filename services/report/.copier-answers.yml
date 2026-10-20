@@ -1,0 +1,5 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: templates/service
+env_prefix: REPORT
+produces_events: true
+service_name: report

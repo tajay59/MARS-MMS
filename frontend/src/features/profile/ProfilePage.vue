@@ -132,6 +132,8 @@
 
       <button class="hidden" type="submit" />
     </form>
+
+    <DiscardConfirm v-model="askLeave" message="Your changes to your profile will be lost." @leave="leave" />
   </PageBody>
 </template>
 
@@ -143,8 +145,10 @@
   import { orgsApi } from '@/api/auth'
   import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
+  import { useLeaveGuard } from '@/app/composables/useLeaveGuard'
   import { MIN_PASSWORD, usePasswordRule } from '@/app/composables/usePasswordRule'
   import AppearanceToggle from '@/components/AppearanceToggle.vue'
+  import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import PageBody from '@/components/PageBody.vue'
@@ -248,7 +252,8 @@
   }
   onMounted(() => window.addEventListener('beforeunload', warnOnUnload))
   onBeforeUnmount(() => window.removeEventListener('beforeunload', warnOnUnload))
-  onBeforeRouteLeave(() => !dirty.value || window.confirm('Leave without saving your changes?'))
+  const { askLeave, confirmLeave, leave } = useLeaveGuard(dirty)
+  onBeforeRouteLeave(confirmLeave)
 
   async function save (): Promise<void> {
     tried.value = true

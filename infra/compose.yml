@@ -5,7 +5,7 @@
 # Only Nginx publishes ports (TRD §15). Everything else is on the internal `backend` network.
 # Secrets come from infra/.env (copy .env.example; never commit .env).
 # Application services are added as they are built from templates/service: auth and platform
-# (Phase 1), operations (Phase 2); media and report follow.
+# (Phase 1), operations, media and report (Phase 2).
 
 name: mms
 
@@ -146,6 +146,7 @@ services:
       KAFKA_OPERATIONS_PASSWORD: ${KAFKA_OPERATIONS_PASSWORD:?}
       KAFKA_MEDIA_PASSWORD: ${KAFKA_MEDIA_PASSWORD:?}
       KAFKA_PLATFORM_PASSWORD: ${KAFKA_PLATFORM_PASSWORD:?}
+      KAFKA_REPORT_PASSWORD: ${KAFKA_REPORT_PASSWORD:?}
     volumes:
       - ./kafka/create-topics.sh:/opt/mms/create-topics.sh:ro
       - ./kafka/topics.yml:/opt/mms/topics.yml:ro
@@ -210,7 +211,7 @@ services:
       AUTH_APP_URL: https://${MMS_HOST}
       AUTH_SIGNING_KEY_FILE: /run/mms-secrets/auth_signing_key.pem
       # Secrets other services exchange for service tokens (TRD §6.4).
-      AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}", "operations": "${OPS_SERVICE_SECRET:?}", "media": "${MEDIA_SERVICE_SECRET:?}"}'
+      AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}", "operations": "${OPS_SERVICE_SECRET:?}", "media": "${MEDIA_SERVICE_SECRET:?}", "report": "${REPORT_SERVICE_SECRET:?}"}'
       AUTH_BREACHED_CHECK: ${AUTH_BREACHED_CHECK:-hibp}
     volumes:
       - ${MMS_SECRETS_DIR:-./secrets}:/run/mms-secrets:ro
@@ -287,6 +288,47 @@ services:
     command: ["python", "-m", "app.worker"]
     depends_on: *media-deps
     environment: *media-env
+    networks: [backend]
+
+  # Label sheets (QR-6) and, from Phase 6, visit reports: Jinja templates drawn to PDF by
+  # WeasyPrint. report-worker draws them from a Redis queue; the API only queues and answers.
+  report:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/report/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/report:${MMS_TAG:-local}
+    depends_on: *media-deps
+    environment: &report-env
+      REPORT_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      REPORT_MONGO_URI: mongodb://report:${REPORT_DB_PASSWORD}@mongo:27017/?replicaSet=rs0&authSource=report
+      REPORT_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      REPORT_KAFKA_BOOTSTRAP: kafka:9092
+      REPORT_KAFKA_USERNAME: report
+      REPORT_KAFKA_PASSWORD: ${KAFKA_REPORT_PASSWORD:?}
+      REPORT_AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
+      REPORT_AUTH_URL: http://auth:8000
+      REPORT_OPS_URL: http://operations:8000
+      REPORT_SERVICE_SECRET: ${REPORT_SERVICE_SECRET:?}
+      # The address a QR label points at, and the host the browser downloads PDFs from.
+      REPORT_APP_URL: https://${MMS_HOST}
+      REPORT_S3_URL: http://seaweedfs:8333
+      REPORT_FILES_URL: https://${FILES_HOST}
+      REPORT_S3_ACCESS_KEY: ${REPORT_S3_ACCESS_KEY:?}
+      REPORT_S3_SECRET_KEY: ${REPORT_S3_SECRET_KEY:?}
+      REPORT_LABEL_CONTACT_PHONE: ${REPORT_LABEL_CONTACT_PHONE:-}
+    healthcheck: *app-health
+    networks: [backend]
+
+  report-worker:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: services/report/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/report:${MMS_TAG:-local}
+    command: ["python", "-m", "app.worker"]
+    depends_on: *media-deps
+    environment: *report-env
     networks: [backend]
 
   # ClamAV for the virus scan (MED-3). Needs about 3 GB and a few minutes to load its

@@ -1,5 +1,6 @@
 <template>
-  <v-main class="bg-background">
+  <!-- tag="div": VMain renders a <main>, and the form column below is the page's one main landmark -->
+  <v-main class="bg-background" tag="div">
     <div class="flex min-h-dvh flex-col md:flex-row">
       <!-- Split panel (DBD "The three shells"): primary-950 with the logo; no station photo yet (D5) -->
       <aside

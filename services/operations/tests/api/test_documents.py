@@ -310,6 +310,29 @@ async def test_staff_see_a_stations_documents_and_its_sensors_manuals(ops):
     assert tab["models"][0]["documents"][0]["media_id"] == media_id  # staff see the file
 
 
+@pytest.mark.req("SEN-1")
+async def test_a_models_photos_make_its_gallery_not_a_stations_documents(ops):
+    model = await ops.model()
+    station = await ops.station()
+    await ops.install(await ops.unit(model["id"]), station)
+    assert (await ops.http.get("/api/v1/sensor-models", headers=ops.bearer("viewer"))
+            ).json()["items"][0]["cover_document_id"] is None
+    ids = []
+    for title in ("Mounted", "Filter"):
+        media_id = ops.media.add(f"document:model:{model['id']}")
+        response = await ops.http.post("/api/v1/documents", headers=ops.bearer("tech1"), json={
+            "id": new_id(), "scope": "model", "scope_id": model["id"], "doc_type": "photo",
+            "title": title, "media_id": media_id})
+        assert response.status_code == 201, response.text
+        ids.append(response.json()["id"])
+    listed = (await ops.http.get("/api/v1/sensor-models", headers=ops.bearer("viewer"))
+              ).json()["items"][0]
+    assert listed["photo_count"] == 2 and listed["cover_document_id"] == ids[0]
+    tab = (await ops.http.get(f"/api/v1/stations/{station['id']}/documents",
+                              headers=ops.bearer("viewer"))).json()
+    assert tab["models"] == []  # photos are not documents of the station
+
+
 async def test_editing_a_document_checks_the_version(ops):
     station = await ops.station()
     response, _ = await make_doc(ops, station["id"])

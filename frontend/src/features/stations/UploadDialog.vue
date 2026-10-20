@@ -8,7 +8,7 @@
   >
     <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
       <div>
-        <h2 id="ud-h" class="m-0 text-h2 text-surface-900">{{ replaces ? 'Upload a new version' : 'Upload a document' }}</h2>
+        <h2 id="ud-h" class="m-0 text-h2 text-surface-900">{{ heading }}</h2>
 
         <p class="m-0 mt-0.5 text-sm text-surface-600">
           {{ subject }}<template v-if="code"> · <span class="font-mono" translate="no">{{ code }}</span></template>
@@ -29,12 +29,12 @@
         >
           <v-icon class="text-surface-600" :icon="icons.upload" size="28" />
           <div class="text-label text-surface-900">Choose a file, or drop it here</div>
-          <div class="text-xs text-surface-600">PDF, Word, Excel, PowerPoint, images or text · up to 50 MB</div>
+          <div class="text-xs text-surface-600">{{ isPhoto ? 'PNG or JPEG · up to 50 MB' : 'PDF, Word, Excel, PowerPoint, images or text · up to 50 MB' }}</div>
           <v-btn class="mt-1.5" color="primary" variant="outlined" @click="picker?.click()">{{ file ? 'Choose another file' : 'Choose file' }}</v-btn>
 
           <input
             ref="picker"
-            :accept="DOCUMENT_ACCEPT"
+            :accept="isPhoto ? IMAGE_ACCEPT : DOCUMENT_ACCEPT"
             aria-label="Choose a file"
             class="sr-only"
             data-testid="document-file"
@@ -89,7 +89,7 @@
         <div>Nothing is lost. When you’re back online it carries on from {{ formatBytes(upload?.sent ?? 0) }} by itself.</div>
       </FeedbackBanner>
 
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2" :class="locked ? 'opacity-75' : ''">
+      <div v-if="!isPhoto" class="grid grid-cols-1 gap-3 sm:grid-cols-2" :class="locked ? 'opacity-75' : ''">
         <FormField id="ud-type" label="Type">
           <v-select
             id="ud-type"
@@ -115,7 +115,7 @@
         </FormField>
       </div>
 
-      <FormField id="ud-title" label="Title">
+      <FormField id="ud-title" :label="isPhoto ? 'Caption' : 'Title'">
         <v-text-field
           id="ud-title"
           v-model="title"
@@ -124,12 +124,12 @@
           :error-messages="titleError"
           maxlength="120"
           name="title"
-          placeholder="Filled in from the file name"
+          :placeholder="isPhoto ? 'What the photo shows' : 'Filled in from the file name'"
           @update:model-value="titleTouched = true"
         />
       </FormField>
 
-      <FormField id="ud-language" label="Language">
+      <FormField v-if="!isPhoto" id="ud-language" label="Language">
         <v-select
           id="ud-language"
           v-model="language"
@@ -212,8 +212,10 @@
     documentKind,
     fileProblem,
     formatBytes,
+    IMAGE_ACCEPT,
     languages,
     percent,
+    PHOTO_TYPE,
     titleFromFilename,
   } from './documents'
 
@@ -231,6 +233,8 @@
     orgName?: string | null
     /** A new version of this (the current one) rather than a first document. */
     replaces?: DocumentOut | null
+    /** A photo of a sensor model (its gallery), not a document: pictures only, with a caption. */
+    photo?: boolean
   }>()
 
   const open = defineModel<boolean>({ required: true })
@@ -259,6 +263,14 @@
   const clientVisible = ref(false)
   // One ID per document made in this dialog: a retry after a lost answer finds it, never makes two
   let documentId = newId()
+
+  const isPhoto = computed(() => props.photo === true || props.replaces?.doc_type === PHOTO_TYPE)
+  const heading = computed(() => {
+    if (isPhoto.value) {
+      return props.replaces ? 'Replace this photo' : 'Add a photo'
+    }
+    return props.replaces ? 'Upload a new version' : 'Upload a document'
+  })
 
   const shareLabel = computed(() => props.scope === 'station'
     ? (props.orgName ? `Show to ${props.orgName}` : 'Show to the owner organization')
@@ -298,7 +310,7 @@
     title.value = props.replaces?.title ?? ''
     titleTouched.value = false
     titleError.value = undefined
-    docType.value = props.replaces?.doc_type ?? docTypes[props.scope][0]!.value
+    docType.value = props.replaces?.doc_type ?? (props.photo ? PHOTO_TYPE : docTypes[props.scope][0]!.value)
     language.value = props.replaces?.language ?? 'en'
     clientVisible.value = props.replaces?.client_visible ?? false
     documentId = newId()
@@ -314,7 +326,7 @@
     if (!picked) {
       return
     }
-    fileError.value = fileProblem(picked, 'document')
+    fileError.value = fileProblem(picked, isPhoto.value ? 'photo' : 'document')
     file.value = picked
     if (!fileError.value && !titleTouched.value && !props.replaces) {
       title.value = titleFromFilename(picked.name)
@@ -347,7 +359,7 @@
       title.value = titleFromFilename(f.name)
     }
     if (!title.value.trim()) {
-      titleError.value = 'Give the document a title.'
+      titleError.value = isPhoto.value ? 'Give the photo a caption.' : 'Give the document a title.'
       return
     }
     error.value = null

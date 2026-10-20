@@ -59,18 +59,26 @@
     return props.suggestions.filter(code => !have.has(code)).slice(0, 8)
   })
 
-  function add (raw: string): void {
-    const code = normalizeParameter(raw)
-    if (code && !codes.value.includes(code)) {
-      codes.value = [...codes.value, code]
+  /** The codes with `raws` added: each normalized, none twice. */
+  function withCodes (raws: readonly string[]): string[] {
+    const next = [...codes.value]
+    for (const raw of raws) {
+      const code = normalizeParameter(raw)
+      if (code && !next.includes(code)) {
+        next.push(code)
+      }
     }
+    return next
+  }
+
+  function add (raw: string): void {
+    codes.value = withCodes([raw])
   }
 
   function addTyped (): void {
-    // Commas and spaces separate codes, so a pasted list works
-    for (const part of typed.value.split(/[\s,;]+/)) {
-      add(part)
-    }
+    // Commas and spaces separate codes, so a pasted list works. All are added in one go: the
+    // model value only catches up on the next render, so adding them one by one lost all but the last
+    codes.value = withCodes(typed.value.split(/[\s,;]+/))
     typed.value = ''
   }
 

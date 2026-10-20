@@ -26,6 +26,9 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/api/v1/stations/{id}"): Expect(ANY),
     ("PATCH", "/api/v1/stations/{id}"): WRITE,
     ("GET", "/api/v1/stations/{id}/installations"): Expect(ANY),
+    # QR codes (QR-2, QR-4, QR-7): everyone resolves what their scope allows, admins regenerate.
+    ("GET", "/api/v1/qr/{token}"): Expect(ANY),
+    ("POST", "/api/v1/stations/{id}/qr/regenerate"): roles("admin"),
     # Sensor inventory and calibrations: staff (SEN-1, SEN-2, CAL-1, CAL-4).
     ("GET", "/api/v1/sensor-models"): STAFF,
     ("POST", "/api/v1/sensor-models"): WRITE,
@@ -55,6 +58,7 @@ TABLE: dict[Route, Expect] = {
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),
+    ("POST", "/internal/labels"): service("report"),  # the QR tokens a label sheet prints
 }
 
 
@@ -74,6 +78,7 @@ async def test_matrix(ops):
                 ("GET", "/api/v1/stations/{id}"): station["id"],
                 ("GET", "/api/v1/stations/{id}/installations"): station["id"],
                 ("GET", "/api/v1/stations/{id}/documents"): station["id"],
+                ("GET", "/api/v1/qr/{token}"): station["qr_token"],
             },
         )
         assert await matrix.run() == []

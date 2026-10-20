@@ -35,6 +35,7 @@ Kind = Literal["sensor", "logger", "modem", "battery", "solar_panel", "other"]
 UnitStatus = Literal["in_stock", "installed", "in_repair", "retired"]
 EditableUnitStatus = Literal["in_stock", "in_repair", "retired"]
 Interval = Annotated[int, Field(ge=1, le=3650)]
+MAX_SPECS = 8
 Latitude = Annotated[float, Field(ge=-90, le=90)]
 Longitude = Annotated[float, Field(ge=-180, le=180)]
 Positive = Annotated[float, Field(ge=0, le=1_000_000)]
@@ -249,12 +250,25 @@ class InstallationOut(BaseModel):
 # --- Sensor models ---------------------------------------------------------------------------
 
 
+class Spec(In):
+    """One line of a model's technical specifications: `Operating range: -80 to +60 °C`, with an
+    optional second line (`0 to 100 % RH`). Free text: loggers and sensors have different ones."""
+
+    label: Text
+    value: Text
+    detail: ShortText | None = None
+
+
+Specs = Annotated[list[Spec], Field(max_length=MAX_SPECS)]
+
+
 class SensorModelIn(In):
     kind: Kind
     manufacturer: Text
     model: Text
     parameters: Annotated[list[Parameter], Field(max_length=20)] = []
     default_calibration_interval_days: Interval | None = None
+    specs: Specs = []
 
 
 class SensorModelPatch(In):
@@ -264,6 +278,7 @@ class SensorModelPatch(In):
     model: Text | None = None
     parameters: Annotated[list[Parameter], Field(max_length=20)] | None = None
     default_calibration_interval_days: Interval | None = None
+    specs: Specs | None = None
 
 
 class SensorModelOut(BaseModel):
@@ -273,16 +288,27 @@ class SensorModelOut(BaseModel):
     model: str
     parameters: list[str]
     default_calibration_interval_days: int | None
+    specs: list[Spec]
+    # Units of this model by status (`in_stock`, `installed`, `in_repair`, `retired`), zero left out
+    unit_counts: dict[str, int]
+    photo_count: int  # current photos in its gallery
+    cover_document_id: str | None  # the first of them, for the list's thumbnail
     version: int
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def of(cls, doc: dict[str, Any]) -> SensorModelOut:
+    def of(
+        cls, doc: dict[str, Any], *, unit_counts: dict[str, int] | None = None,
+        photos: list[str] | None = None,
+    ) -> SensorModelOut:
         return cls(
             id=doc["_id"], kind=doc["kind"], manufacturer=doc["manufacturer"],
             model=doc["model"], parameters=list(doc.get("parameters", [])),
             default_calibration_interval_days=doc.get("default_calibration_interval_days"),
+            specs=[Spec(**s) for s in doc.get("specs", [])],
+            unit_counts=unit_counts or {}, photo_count=len(photos or []),
+            cover_document_id=photos[0] if photos else None,
             version=doc["version"], created_at=doc["created_at"], updated_at=doc["updated_at"],
         )
 
@@ -501,3 +527,12 @@ class ImportReport(BaseModel):
     skipped: list[ImportProblem]
     errors: list[ImportProblem]
     warnings: list[ImportProblem]
+
+
+class QrResolved(BaseModel):
+    """What a scanned label points at (QR-2, QR-3). `view` picks the page the app opens."""
+
+    station_id: str
+    code: str
+    name: str
+    view: Literal["staff", "client"]

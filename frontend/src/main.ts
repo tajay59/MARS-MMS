@@ -1,8 +1,9 @@
 /* eslint-disable perfectionist/sort-imports -- stylesheet order is significant */
 // The cascade layer order is fixed by public/layers.css, linked first in index.html (TRD §13.2).
 // Fonts, then Tailwind, then base.css; vuetify/styles comes with ./app/theme/vuetify.
-import '@fontsource-variable/inter'
+import '@fontsource-variable/google-sans'
 import '@fontsource-variable/jetbrains-mono'
+import '@fontsource-variable/roboto-flex'
 import './app/theme/tailwind.css'
 import './app/theme/base.css'
 

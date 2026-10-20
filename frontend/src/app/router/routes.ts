@@ -97,7 +97,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/stations/StationsPage.vue'),
     meta: { title: 'Stations', layout: 'app' },
   },
-  later('/map', 'map', 'Map', 2),
+  {
+    // Stations on a map (PRD MAP-1 to MAP-3); clients see their own organization's
+    path: '/map',
+    name: 'map',
+    component: () => import('@/features/map/MapPage.vue'),
+    meta: { title: 'Map', layout: 'app' },
+  },
   later('/requests', 'requests', 'Requests', 3),
   later('/requests/new', 'request-new', 'Report a problem', 3, ['client', 'admin']),
   later('/reports', 'reports', 'Reports', 7),
@@ -120,7 +126,21 @@ export const routes: RouteRecordRaw[] = [
   },
 
   // Field (staff on phones)
-  { ...later('/scan', 'scan', 'Scan', 4, STAFF), meta: { title: 'Scan', layout: 'field', phase: 4, roles: STAFF } },
+  {
+    path: '/scan',
+    name: 'scan',
+    component: () => import('@/features/scan/ScanPage.vue'),
+    meta: { title: 'Scan', layout: 'field', roles: STAFF },
+  },
+  {
+    // The address on every station label (PRD QR-2). Clients open it too: their camera app scans a
+    // label, and the server answers 404 for a station that is not theirs (QR-4).
+    path: '/s/:token',
+    name: 'scan-result',
+    component: () => import('@/features/scan/ScanLandingPage.vue'),
+    props: true,
+    meta: { title: 'Scan', layout: 'field' },
+  },
   {
     path: '/sync',
     name: 'sync',
@@ -143,7 +163,13 @@ export const routes: RouteRecordRaw[] = [
   },
   later('/admin/organizations', 'admin-organizations', 'Organizations', 2, ADMIN),
   later('/admin/checklists', 'admin-checklists', 'Checklist templates', 4, ADMIN),
-  later('/admin/stations-tools', 'admin-stations-tools', 'QR labels and import', 2, ADMIN),
+  {
+    // Label sheets (PRD QR-6); the station import joins this page later
+    path: '/admin/stations-tools',
+    name: 'admin-stations-tools',
+    component: () => import('@/features/admin/StationToolsPage.vue'),
+    meta: { title: 'QR labels and import', layout: 'app', roles: ADMIN },
+  },
   later('/admin/audit', 'admin-audit', 'Audit log', 7, ADMIN),
   {
     // Appearance (the admin's own) and the organization's brand colours (W4-11, W4-12)

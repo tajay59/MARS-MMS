@@ -1,4 +1,4 @@
-import type { SensorModelIn, SensorModelOut, SensorModelPatch, SensorUnitIn, SensorUnitOut, SensorUnitPatch } from '@/api/models'
+import type { SensorModelIn, SensorModelOut, SensorModelPatch, SensorSpec, SensorUnitIn, SensorUnitOut, SensorUnitPatch } from '@/api/models'
 import type { ApiError } from '@/api/problem'
 import { PARAMETER_PATTERN } from '@/features/stations/stationFormModel'
 import { kinds } from '@/features/stations/stations'
@@ -17,6 +17,8 @@ export const INTERVAL_MIN = 1
 export const INTERVAL_MAX = 3650
 /** A model's parameters (SensorModelIn allows 20). */
 export const MODEL_MAX_PARAMETERS = 20
+/** A model's technical specifications (SensorModelIn allows 8). */
+export const MODEL_MAX_SPECS = 8
 
 export const kindOptions = Object.entries(kinds).map(([value, label]) => ({ value, label }))
 
@@ -64,18 +66,26 @@ function same (a: unknown, b: unknown): boolean {
 
 // --- Sensor model -----------------------------------------------------------------------------
 
+/** One line of specifications as typed: `Operating range`, `-80 to +60 °C`, and an optional second line. */
+export interface SpecValues {
+  label: string
+  value: string
+  detail: string
+}
+
 export interface ModelValues {
   kind: string
   manufacturer: string
   model: string
   parameters: string[]
   interval: string
+  specs: SpecValues[]
 }
 
 export type ModelField = keyof ModelValues
 
 export function emptyModel (): ModelValues {
-  return { kind: 'sensor', manufacturer: '', model: '', parameters: [], interval: '' }
+  return { kind: 'sensor', manufacturer: '', model: '', parameters: [], interval: '', specs: [] }
 }
 
 export function modelValues (model: SensorModelOut): ModelValues {
@@ -85,7 +95,15 @@ export function modelValues (model: SensorModelOut): ModelValues {
     model: model.model,
     parameters: [...model.parameters],
     interval: model.default_calibration_interval_days === null ? '' : String(model.default_calibration_interval_days),
+    specs: model.specs.map(s => ({ label: s.label, value: s.value, detail: s.detail ?? '' })),
   }
+}
+
+/** The specs as the API takes them: a line needs both its label and its value, so half-typed ones are dropped. */
+export function specsBody (specs: readonly SpecValues[]): SensorSpec[] {
+  return specs
+    .filter(s => s.label.trim() && s.value.trim())
+    .map(s => ({ label: s.label.trim(), value: s.value.trim(), detail: blank(s.detail) }))
 }
 
 export function validateModel (v: ModelValues): Errors<ModelField> {
@@ -109,6 +127,13 @@ export function validateModel (v: ModelValues): Errors<ModelField> {
   if (interval) {
     e.interval = interval
   }
+  if (v.specs.length > MODEL_MAX_SPECS) {
+    e.specs = `Use at most ${MODEL_MAX_SPECS} specifications`
+  } else if (v.specs.some(s => (s.label.trim() === '') !== (s.value.trim() === ''))) {
+    e.specs = 'Give each specification a name and a value'
+  } else if (v.specs.some(s => s.label.trim().length > TEXT_MAX || s.value.trim().length > TEXT_MAX || s.detail.trim().length > TEXT_MAX)) {
+    e.specs = `Use at most ${TEXT_MAX} characters in each field`
+  }
   return e
 }
 
@@ -119,6 +144,7 @@ export function modelCreateBody (v: ModelValues): SensorModelIn {
     model: v.model.trim(),
     parameters: v.parameters,
     default_calibration_interval_days: parseDays(v.interval),
+    specs: specsBody(v.specs),
   }
 }
 
@@ -147,6 +173,11 @@ export function modelPatchBody (v: ModelValues, was: SensorModelOut): SensorMode
     body.default_calibration_interval_days = days
     changed = true
   }
+  const specs = specsBody(v.specs)
+  if (!same(specs, was.specs.map(s => ({ label: s.label, value: s.value, detail: s.detail ?? null })))) {
+    body.specs = specs
+    changed = true
+  }
   return changed ? body : null
 }
 
@@ -156,6 +187,7 @@ const MODEL_API_FIELDS: Record<string, ModelField> = {
   model: 'model',
   parameters: 'parameters',
   default_calibration_interval_days: 'interval',
+  specs: 'specs',
 }
 
 export function modelProblem (error: ApiError, typed: Pick<ModelValues, 'manufacturer' | 'model'>): SaveProblem<ModelField> {
@@ -322,3 +354,33 @@ export function unitProblem (error: ApiError, typed: Pick<UnitValues, 'serial'>)
 }
 
 export { normalizeParameter, PARAMETER_MAX } from '@/features/stations/stationFormModel'
+
+// --- Photos staged in the model form ----------------------------------------------------------
+
+/** Photos that can be attached while adding or editing a model (more go in from the gallery). */
+export const MAX_STAGED_PHOTOS = 5
+/** A phone's photo is a few MB; this keeps the gallery quick without a resize step. */
+export const PHOTO_MAX_BYTES = 10 * 1024 * 1024
+const PHOTO_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg'])
+
+/** Why this picture can't be attached, in words for the person; null when it can. */
+export function photoProblem (file: { name: string, size: number }, staged: readonly { name: string, size: number }[]): string | null {
+  const dot = file.name.lastIndexOf('.')
+  const ext = dot <= 0 ? '' : file.name.slice(dot).toLowerCase()
+  if (!PHOTO_EXTENSIONS.has(ext)) {
+    return `${file.name} isn’t a PNG or JPEG picture.`
+  }
+  if (file.size === 0) {
+    return `${file.name} is empty.`
+  }
+  if (file.size > PHOTO_MAX_BYTES) {
+    return `${file.name} is over 10 MB. Choose a smaller picture.`
+  }
+  if (staged.some(s => s.name === file.name && s.size === file.size)) {
+    return `${file.name} is already attached.`
+  }
+  if (staged.length >= MAX_STAGED_PHOTOS) {
+    return `Attach at most ${MAX_STAGED_PHOTOS} photos here. Add more from the model’s page.`
+  }
+  return null
+}

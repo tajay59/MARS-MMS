@@ -168,6 +168,8 @@ test('Technicians add and edit sensor models and units, and viewers cannot @SEN-
   await model.getByLabel('Model', { exact: true }).fill(name)
   await model.getByLabel(/Parameters it measures/).fill('at, rh')
   await model.getByLabel(/Parameters it measures/).press('Enter')
+  // Every code in a typed or pasted list is added, not only the last
+  await expect(model.getByRole('list', { name: /Parameters it measures/ }).getByText('AT', { exact: true })).toBeVisible()
   await expect(model.getByRole('list', { name: /Parameters it measures/ }).getByText('RH')).toBeVisible()
   await model.getByLabel(/Calibrate every/).fill('365')
   await checkA11y(page, 'model dialog')
@@ -321,4 +323,47 @@ test('On a phone the model form is a sheet @phone @SEN-1', async ({ watched: pag
   await sheet.getByRole('button', { name: 'Add model' }).scrollIntoViewIfNeeded()
   await expect(sheet.getByRole('button', { name: 'Add model' })).toBeInViewport()
   await checkA11y(page, 'model sheet (phone)')
+})
+
+// A 1 x 1 PNG: media checks the first bytes against the name
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+
+test('A technician adds a model with specifications and photos @SEN-1 @DOC-1', async ({ watched: page }) => {
+  const run = Date.now().toString(36)
+  const name = `P-${run}`
+
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/sensors')
+  await page.getByRole('button', { name: 'Add a model' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add a sensor model' })
+  await dialog.getByLabel('Make').fill('Photoco')
+  await dialog.getByLabel('Model', { exact: true }).fill(name)
+
+  // A specification needs both its name and its value
+  await dialog.getByRole('button', { name: 'Add a specification' }).click()
+  await dialog.getByLabel('Specification 1 name').fill('Operating range')
+  await dialog.getByRole('button', { name: 'Add model' }).click()
+  await expect(dialog.getByText('Give each specification a name and a value')).toBeVisible()
+  await dialog.getByLabel('Specification 1 value').fill('-80 to +60 °C')
+
+  // Only PNG and JPEG pictures can be attached
+  const photos = dialog.getByTestId('model-photo-input')
+  await photos.setInputFiles({ name: `bad-${run}.webp`, mimeType: 'image/webp', buffer: PNG })
+  await expect(dialog.getByText(`bad-${run}.webp isn’t a PNG or JPEG picture.`)).toBeVisible()
+  await photos.setInputFiles({ name: `probe-${run}.png`, mimeType: 'image/png', buffer: PNG })
+  await expect(dialog.getByRole('list', { name: 'Photos to attach' }).getByText(`probe-${run}.png`)).toBeVisible()
+  await checkA11y(page, 'model dialog (specs and photos)')
+
+  // Saving makes the model, then sends the photo and files it against it
+  await dialog.getByRole('button', { name: 'Add model' }).click()
+  await expect(dialog).toBeHidden({ timeout: 60_000 })
+  await expect(page.getByRole('heading', { level: 1, name: `Photoco ${name}` })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Specifications' })).toBeVisible()
+  await expect(page.getByText('Operating range')).toBeVisible()
+
+  // Media's checks finish in a few seconds: then the photo is in the gallery
+  const gallery = page.getByRole('group', { name: 'Photos of this model' })
+  await expect(gallery.getByRole('figure', { name: 'Photo 1 of 1' })).toBeVisible({ timeout: 60_000 })
+  await expect(gallery.getByRole('img', { name: `probe ${run}` })).toBeVisible()
+  await checkA11y(page, '/sensors/:id (photos and specifications)')
 })

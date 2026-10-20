@@ -11,6 +11,7 @@ import {
   startSession,
   updateUser,
 } from '@/app/auth/session'
+import { clearRuntimeCaches } from '@/app/pwa/runtimeCaches'
 import { useThemeStore } from './theme'
 
 const STAFF_ROLES: ReadonlySet<Role> = new Set(['technician', 'admin', 'viewer'])
@@ -38,6 +39,7 @@ export const useSessionStore = defineStore('session', () => {
       }
     } else {
       endedReason.value = reason ?? null
+      void clearRuntimeCaches()
     }
   })
 

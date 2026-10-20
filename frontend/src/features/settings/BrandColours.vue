@@ -176,6 +176,8 @@
     </div>
 
     <v-snackbar v-model="toast.show" location="bottom" :timeout="6000">{{ toast.text }}</v-snackbar>
+
+    <DiscardConfirm v-model="askLeave" message="The colours you changed will be lost." @leave="leave" />
   </div>
 </template>
 
@@ -184,9 +186,11 @@
   import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
   import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
   import { ApiError, NetworkError } from '@/api/problem'
+  import { useLeaveGuard } from '@/app/composables/useLeaveGuard'
   import { builtInMaterial } from '@/app/theme/brand'
   import { icons } from '@/app/theme/icons'
   import { contrastProblems, parseMaterialTheme, ROLES, SCHEMES, toExportJson } from '@/app/theme/material'
+  import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import { useBrandingStore } from '@/stores/branding'
@@ -403,9 +407,7 @@
 
   // --- Leaving with unsaved changes -----------------------------------------------------------------
 
-  function confirmLeave (): boolean {
-    return !dirty.value || window.confirm('Leave without saving the colours? Your changes will be lost.')
-  }
+  const { askLeave, confirmLeave, leave } = useLeaveGuard(dirty)
 
   function beforeUnload (event: BeforeUnloadEvent): void {
     if (dirty.value) {

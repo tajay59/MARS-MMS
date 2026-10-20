@@ -19,7 +19,7 @@
             <span class="text-sm text-surface-600">Check and approve new accounts</span>
           </span>
 
-          <span class="text-h2 tabular-nums text-surface-900">{{ registrations.pending ?? '—' }}</span>
+          <span class="font-heading text-h2 tabular-nums text-surface-900">{{ registrations.pending ?? '—' }}</span>
         </router-link>
 
         <p v-else class="m-0 px-2 text-sm text-surface-600">Nothing needs you right now.</p>

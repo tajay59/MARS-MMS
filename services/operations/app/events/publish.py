@@ -25,7 +25,9 @@ DOCUMENT_FIELDS = (
     "scope", "scope_id", "doc_type", "title", "version_label", "language", "description",
     "client_visible", "media_id", "supersedes_id", "is_current", "status",
 )
-MODEL_FIELDS = ("kind", "manufacturer", "model", "parameters", "default_calibration_interval_days")
+MODEL_FIELDS = (
+    "kind", "manufacturer", "model", "parameters", "default_calibration_interval_days", "specs",
+)
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
     "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "needs_review",
@@ -138,6 +140,19 @@ class Emitter:
             resource=("station", doc["_id"]), aggregate_version=doc["version"],
             org_id=doc["owner_org_id"], session=session,
             before=view(before, STATION_FIELDS), after=view(doc, STATION_FIELDS),
+        )
+
+    async def qr_regenerated(
+        self, station: dict[str, Any], session: AsyncClientSession
+    ) -> Envelope:
+        """QR-7. The tokens themselves stay out of the event and the audit record."""
+        return await self.emit(
+            ev.QrRegenerated(
+                station_id=station["_id"], code=station["code"], org_id=station["owner_org_id"]
+            ),
+            type_="qr.regenerated", key=station["_id"], resource=("station", station["_id"]),
+            aggregate_version=station["version"], org_id=station["owner_org_id"],
+            session=session,
         )
 
     async def sensor_model(

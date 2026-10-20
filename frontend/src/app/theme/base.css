@@ -1,7 +1,7 @@
 /* Vuetify reads its fonts from these variables, so it never asks for Roboto (TRD §13.2) */
 :root {
-  --v-font-body: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --v-font-heading: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --v-font-body: 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --v-font-heading: 'Google Sans Variable', 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /*
@@ -9,6 +9,11 @@
   (TRD §13.2). In the lowest layer, so every Vuetify and Tailwind style still wins over them.
 */
 @layer vuetify-core {
+  /* Google Sans for titles; Roboto Flex (inherited from the body) for everything else */
+  :where(h1, h2, h3, h4, legend) {
+    font-family: var(--v-font-heading);
+  }
+
   button {
     background-color: transparent;
     border: 0;

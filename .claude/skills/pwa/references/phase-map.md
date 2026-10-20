@@ -21,7 +21,7 @@ IP: shells, public pages, Web Lock refresh coordination, Nginx with CSP, Playwri
 
 ## Phase 2 · Stations (W5–W7)
 
-- QR scanning (`qr-scanner`) and the label scan on real phones (W7) also exercise camera permissions in the installed app. Test both installed and in the browser.
+- QR scanning (own camera loop; `BarcodeDetector` or jsQR in a worker, not `qr-scanner`: F16) and the label scan on real phones (W7) also exercise camera permissions in the installed app. Test both installed and in the browser.
 - Map with Leaflet: `crossOrigin: true` on the tile layer, attribution visible, no prefetch (caching.md §4).
 - Documents downloaded later for offline use: keep the download path blob-based so Phase 5 can reuse it.
 

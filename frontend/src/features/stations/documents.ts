@@ -35,7 +35,13 @@ export const languages = [
   { value: 'pt', label: 'Portuguese' },
 ]
 
+/** A sensor model's photo: a document the gallery shows rather than the document list (W6-12). */
+export const PHOTO_TYPE = 'photo'
+
 export function docTypeLabel (docType: string): string {
+  if (docType === PHOTO_TYPE) {
+    return 'Photo'
+  }
   for (const list of Object.values(docTypes)) {
     const found = list.find(t => t.value === docType)
     if (found) {
@@ -53,6 +59,9 @@ export function languageLabel (code: string | null | undefined): string {
 export const DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.txt', '.csv', '.png', '.jpg', '.jpeg']
 /** The `accept` list for the file picker. */
 export const DOCUMENT_ACCEPT = DOCUMENT_EXTENSIONS.join(',')
+/** A photo is a picture the browser can show; media checks the bytes match the name. */
+export const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg']
+export const IMAGE_ACCEPT = IMAGE_EXTENSIONS.join(',')
 
 /** Configuration sets take any extension except the ones an operating system will run. */
 export const BLOCKED_EXTENSIONS = ['.exe', '.dll', '.msi', '.bat', '.cmd', '.com', '.scr', '.ps1', '.vbs', '.js', '.mjs', '.jar', '.app', '.apk', '.html', '.htm', '.svg', '.hta', '.lnk', '.reg', '.sh']
@@ -68,7 +77,7 @@ export function documentKind (filename: string): 'pdf' | 'document' {
 }
 
 /** Why this file can't go up as it is, in words for the person; null when it can. */
-export function fileProblem (file: { name: string, size: number }, purpose: 'document' | 'config'): string | null {
+export function fileProblem (file: { name: string, size: number }, purpose: 'document' | 'config' | 'photo'): string | null {
   const ext = extensionOf(file.name)
   if (file.size === 0) {
     return 'This file is empty.'
@@ -78,6 +87,9 @@ export function fileProblem (file: { name: string, size: number }, purpose: 'doc
   }
   if (purpose === 'document' && !DOCUMENT_EXTENSIONS.includes(ext)) {
     return `${ext || 'This kind of'} files can’t be uploaded here. Use PDF, Word, Excel, PowerPoint, an image or text.`
+  }
+  if (purpose === 'photo' && !IMAGE_EXTENSIONS.includes(ext)) {
+    return 'A photo has to be a PNG or JPEG picture.'
   }
   if (purpose === 'config' && BLOCKED_EXTENSIONS.includes(ext)) {
     return `${ext} files can’t be uploaded here.`

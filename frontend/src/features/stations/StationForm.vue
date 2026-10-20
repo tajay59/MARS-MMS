@@ -366,17 +366,7 @@
       </div>
     </div>
 
-    <v-dialog v-model="askLeave" max-width="420">
-      <div aria-labelledby="sf-leave-h" class="flex flex-col gap-4 rounded-card bg-surface p-6" role="alertdialog">
-        <h2 id="sf-leave-h" class="m-0 text-h2 text-surface-900">Leave without saving?</h2>
-        <p class="m-0 text-surface-700">Your changes to this station will be lost.</p>
-
-        <div class="flex justify-end gap-2">
-          <v-btn variant="text" @click="answerLeave(false)">Keep editing</v-btn>
-          <v-btn color="error" @click="answerLeave(true)">Leave</v-btn>
-        </div>
-      </div>
-    </v-dialog>
+    <DiscardConfirm v-model="askLeave" message="Your changes to this station will be lost." @leave="leave" />
   </form>
 </template>
 
@@ -388,7 +378,9 @@
   import { orgsApi } from '@/api/auth'
   import { stationsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
+  import { useLeaveGuard } from '@/app/composables/useLeaveGuard'
   import { countries } from '@/app/countries'
+  import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import {
@@ -611,33 +603,8 @@
 
   // --- Leaving with unsaved changes -------------------------------------------------------------
 
-  const askLeave = ref(false)
-  let answer: ((leave: boolean) => void) | null = null
-
   /** The page asks before a route change; resolves true when leaving is fine. */
-  function confirmLeave (): Promise<boolean> {
-    if (!dirty.value) {
-      return Promise.resolve(true)
-    }
-    askLeave.value = true
-    return new Promise<boolean>(resolve => {
-      answer = resolve
-    })
-  }
-
-  function answerLeave (leave: boolean): void {
-    askLeave.value = false
-    answer?.(leave)
-    answer = null
-  }
-
-  watch(askLeave, open => {
-    // Closing the dialog with Escape or a click outside means "keep editing"
-    if (!open && answer) {
-      answer(false)
-      answer = null
-    }
-  })
+  const { askLeave, confirmLeave, leave } = useLeaveGuard(dirty)
 
   async function cancel (): Promise<void> {
     if (await confirmLeave()) {

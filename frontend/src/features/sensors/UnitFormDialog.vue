@@ -22,6 +22,10 @@
 
       <FeedbackBanner v-else-if="message" type="error">{{ message }}</FeedbackBanner>
 
+      <FeedbackBanner v-if="!online" :icon="mdiWifiOff" type="warning">
+        This needs a connection. What you’ve typed stays here until you’re back online.
+      </FeedbackBanner>
+
       <FeedbackBanner v-if="installed" type="info">
         Installed at <strong class="font-semibold">{{ unit?.station?.code }}</strong><template v-if="unit?.station"> ({{ unit.station.name }})</template>.
         Remove it from the station to put it in stock or in repair.
@@ -120,7 +124,7 @@
         <v-btn
           v-else
           color="primary"
-          :disabled="unit !== null && !dirty"
+          :disabled="!online || (unit !== null && !dirty)"
           :loading="busy"
           type="submit"
         >{{ unit ? 'Save' : 'Add unit' }}</v-btn>
@@ -134,11 +138,13 @@
 <script lang="ts" setup>
   import type { UnitField, UnitValues } from './sensorForms'
   import type { SensorModelOut, SensorUnitOut } from '@/api/models'
+  import { mdiWifiOff } from '@mdi/js'
   import { computed, reactive, ref, watch } from 'vue'
   import { sensorUnitsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
   import { useFormDialog } from '@/app/composables/useFormDialog'
+  import { useOnline } from '@/app/composables/useOnline'
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
@@ -176,6 +182,7 @@
     ? `Leave blank to use the model’s ${defaultInterval.value} days.`
     : 'Leave blank for no fixed interval.')
   const { askLeave, requestClose, leave } = useFormDialog(open, () => dirty.value)
+  const online = useOnline()
 
   watch(open, isOpen => {
     if (!isOpen) {
@@ -221,7 +228,7 @@
       open.value = false
     } catch (error) {
       if (error instanceof NetworkError) {
-        message.value = 'This needs a connection. It will save when you have signal.'
+        message.value = 'We couldn’t reach the server. What you typed is still here: try again when you have signal.'
       } else if (error instanceof ApiError) {
         const problem = unitProblem(error, values)
         if (problem.kind === 'stale') {

@@ -42,6 +42,18 @@ services:
     environment:
       MEDIA_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
 
+  report:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/report:${MMS_TAG:?}
+    environment:
+      REPORT_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+
+  report-worker:
+    build: !reset null
+    image: ${MMS_REGISTRY:?}/report:${MMS_TAG:?}
+    environment:
+      REPORT_ENVIRONMENT: ${MMS_ENVIRONMENT:?set staging or production}
+
   platform:
     build: !reset null
     image: ${MMS_REGISTRY:?}/platform:${MMS_TAG:?}

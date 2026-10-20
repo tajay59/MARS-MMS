@@ -119,6 +119,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/qr/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve
+         * @description QR-2, QR-3. A revoked code answers 410 to anyone who may see its station, and 404 to
+         *     everyone else, so a client learns nothing about another organization's stations.
+         */
+        get: operations["resolve_api_v1_qr__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sensor-models": {
         parameters: {
             query?: never;
@@ -453,6 +474,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/stations/{id}/qr/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate
+         * @description QR-7. Gives the station a new token and revokes the old one, in one transaction.
+         */
+        post: operations["regenerate_api_v1_stations__id__qr_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/attachable": {
         parameters: {
             query?: never;
@@ -469,6 +510,28 @@ export interface paths {
         get: operations["attachable_internal_attachable_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Labels
+         * @description What a label sheet prints (QR-6): the code, name and QR token of each station, in the
+         *     order asked. Stations that do not exist are left out. Tokens never travel in events or
+         *     snapshots, so this is the only place report can read them.
+         */
+        post: operations["labels_internal_labels_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -944,6 +1007,26 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /** LabelOut */
+        LabelOut: {
+            /** Code */
+            code: string;
+            /** Country */
+            country: string;
+            /** Name */
+            name: string;
+            /** Org Name */
+            org_name: string;
+            /** Qr Token */
+            qr_token: string;
+            /** Station Id */
+            station_id: string;
+        };
+        /** LabelsIn */
+        LabelsIn: {
+            /** Station Ids */
+            station_ids: string[];
+        };
         /** Logger */
         Logger: {
             /** Firmware */
@@ -1000,6 +1083,23 @@ export interface components {
             controller?: string | null;
             /** Panel W */
             panel_w?: number | null;
+        };
+        /**
+         * QrResolved
+         * @description What a scanned label points at (QR-2, QR-3). `view` picks the page the app opens.
+         */
+        QrResolved: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Station Id */
+            station_id: string;
+            /**
+             * View
+             * @enum {string}
+             */
+            view: "staff" | "client";
         };
         /** Reading */
         Reading: {
@@ -1059,6 +1159,11 @@ export interface components {
              * @default []
              */
             parameters: string[];
+            /**
+             * Specs
+             * @default []
+             */
+            specs: components["schemas"]["Spec"][];
         };
         /** SensorModelList */
         SensorModelList: {
@@ -1067,6 +1172,8 @@ export interface components {
         };
         /** SensorModelOut */
         SensorModelOut: {
+            /** Cover Document Id */
+            cover_document_id: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1084,6 +1191,14 @@ export interface components {
             model: string;
             /** Parameters */
             parameters: string[];
+            /** Photo Count */
+            photo_count: number;
+            /** Specs */
+            specs: components["schemas"]["Spec"][];
+            /** Unit Counts */
+            unit_counts: {
+                [key: string]: number;
+            };
             /**
              * Updated At
              * Format: date-time
@@ -1104,6 +1219,8 @@ export interface components {
             model?: string | null;
             /** Parameters */
             parameters?: string[] | null;
+            /** Specs */
+            specs?: components["schemas"]["Spec"][] | null;
             /** Version */
             version: number;
         };
@@ -1246,6 +1363,19 @@ export interface components {
             }[];
             /** Next After */
             next_after: string | null;
+        };
+        /**
+         * Spec
+         * @description One line of a model's technical specifications: `Operating range: -80 to +60 °C`, with an
+         *     optional second line (`0 to 100 % RH`). Free text: loggers and sensors have different ones.
+         */
+        Spec: {
+            /** Detail */
+            detail?: string | null;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
         };
         /** StationDetail */
         StationDetail: {
@@ -1760,6 +1890,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_api_v1_qr__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrResolved"];
                 };
             };
             /** @description Validation Error */
@@ -2517,6 +2678,37 @@ export interface operations {
             };
         };
     };
+    regenerate_api_v1_stations__id__qr_regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     attachable_internal_attachable_get: {
         parameters: {
             query: {
@@ -2538,6 +2730,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttachableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    labels_internal_labels_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LabelsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelOut"][];
                 };
             };
             /** @description Validation Error */

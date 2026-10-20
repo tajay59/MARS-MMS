@@ -3,6 +3,7 @@
 import type { components } from './types/auth'
 import type { components as MediaComponents } from './types/media'
 import type { components as OpsComponents } from './types/operations'
+import type { components as ReportComponents } from './types/report'
 
 type Auth = components['schemas']
 
@@ -32,6 +33,7 @@ export type StationSummary = Ops['StationSummary']
 export type StationPage = Ops['StationPage']
 export type StationDetail = Ops['StationDetail']
 export type StationFacets = Ops['StationFacets']
+export type QrResolved = Ops['QrResolved']
 export type StationIn = Ops['StationIn']
 export type StationPatch = Ops['StationPatch']
 export type Places = Ops['Places']
@@ -42,6 +44,7 @@ export type CalibrationPage = Ops['CalibrationPage']
 export type DueList = Ops['DueList']
 export type DueUnit = Ops['DueUnit']
 export type SensorModelOut = Ops['SensorModelOut']
+export type SensorSpec = Ops['Spec']
 export type SensorModelIn = Ops['SensorModelIn']
 export type SensorModelPatch = Ops['SensorModelPatch']
 export type SensorUnitIn = Ops['SensorUnitIn']
@@ -70,5 +73,11 @@ export type UploadOut = Media['UploadOut']
 export type MediaOut = Media['MediaOut']
 export type MediaDetail = Media['MediaDetail']
 export type MediaPage = Media['MediaPage']
+
+// The report service (openapi/report.json)
+type Report = ReportComponents['schemas']
+
+export type JobOut = Report['JobOut']
+export type LabelsIn = Report['LabelsIn']
 
 export type StationStatus = 'operational' | 'degraded' | 'offline' | 'decommissioned'

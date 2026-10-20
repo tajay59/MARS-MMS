@@ -56,7 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, operations, media, platform]
+        service: [auth, operations, media, report, platform]
     defaults:
       run:
         working-directory: services/${{ matrix.service }}
@@ -70,6 +70,12 @@ jobs:
           cache-dependency-path: |
             libs/mms_common/pyproject.toml
             services/${{ matrix.service }}/pyproject.toml
+
+      # WeasyPrint draws with Pango; the runner image has it, this makes sure (report only).
+      - name: Pango for WeasyPrint
+        if: matrix.service == 'report'
+        working-directory: .
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-inter
 
       - run: >-
           pip install -e ../../libs/mms_common -e ".[dev]"
@@ -88,7 +94,7 @@ jobs:
 
       # The frontend's API types come from frontend/openapi/<service>.json: it must match.
       - name: OpenAPI matches frontend/openapi
-        if: matrix.service == 'auth' || matrix.service == 'operations' || matrix.service == 'media'
+        if: contains(fromJSON('["auth", "operations", "media", "report"]'), matrix.service)
         working-directory: .
         run: |
           python infra/scripts/export_openapi.py ${{ matrix.service }}
@@ -186,7 +192,7 @@ jobs:
             [ "$code" = 0 ]
           done
           # Then the application services must report healthy.
-          for svc in auth operations media platform; do
+          for svc in auth operations media report platform; do
             for _ in $(seq 1 60); do
               cid="$(docker compose -f compose.yml -f compose.dev.yml ps -q "$svc")"
               [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break

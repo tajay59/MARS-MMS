@@ -48,6 +48,15 @@ class StationUpdated(StationData):
     changed_fields: list[str]
 
 
+@register("qr.regenerated")
+class QrRegenerated(_Data):
+    """A station's label code was replaced and the old one revoked (QR-7). Carries no token."""
+
+    station_id: str
+    code: str
+    org_id: str
+
+
 # --- sensor_model.* --------------------------------------------------------------------------
 
 

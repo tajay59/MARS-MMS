@@ -64,6 +64,14 @@
                 </li>
               </ul>
             </section>
+
+            <!-- Staff see the label's code; the server leaves the token out for clients -->
+            <StationQrCard
+              v-if="isStaff && station.qr_token"
+              :station="station"
+              :token="station.qr_token"
+              @replaced="emit('qr-replaced', $event)"
+            />
           </div>
         </div>
       </v-tabs-window-item>
@@ -223,11 +231,13 @@
   import ParameterTags from './ParameterTags.vue'
   import StationConfigurations from './StationConfigurations.vue'
   import StationDocuments from './StationDocuments.vue'
+  import StationQrCard from './StationQrCard.vue'
   import { isStatus, kindLabel, methodLabel, resultLook, sortInstalled, statusLook } from './stations'
 
   // The body of /stations/:id (DBD "Station page"). Clients see a summary: no configurations,
   // calibration records or history, and the server leaves out the QR token (rule 6).
   const props = defineProps<{ station: StationDetail, isStaff: boolean, canWrite?: boolean }>()
+  const emit = defineEmits<{ 'qr-replaced': [station: StationDetail] }>()
 
   const route = useRoute()
   const router = useRouter()
