@@ -7,7 +7,7 @@
   <span
     aria-hidden="true"
     class="inline-flex shrink-0 select-none items-center justify-center rounded-full bg-linear-135 font-semibold tracking-wide text-white"
-    :class="[GRADIENTS[pick], size === 'lg' ? 'size-14 text-lg' : 'size-12 text-base']"
+    :class="[GRADIENTS[pick], size === 'lg' ? 'size-16 text-xl' : 'size-14 text-lg']"
   >{{ initials }}</span>
 </template>
 

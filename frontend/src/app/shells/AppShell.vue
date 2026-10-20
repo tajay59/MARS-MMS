@@ -9,6 +9,7 @@
     view (the details). On phones the pane and view fill the screen; below 1024 px the rail is a bar docked to the bottom.
   -->
   <div
+    ref="rootEl"
     class="flex h-dvh scroll-pb-[calc(84px+env(safe-area-inset-bottom))] flex-col overflow-y-auto bg-surface pb-[calc(84px+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] md:flex-row md:gap-[5px] md:overflow-hidden md:bg-ground md:p-[5px] md:pb-[calc(76px+env(safe-area-inset-bottom))] lg:pb-[5px]"
   >
     <AppRail v-if="lgAndUp" :badges="badges" :current="section" :sections="sections" />
@@ -23,9 +24,11 @@
       ref="paneEl"
       aria-labelledby="pane-h"
       class="flex shrink-0 flex-col bg-surface md:min-h-0 md:w-[300px] lg:w-[360px] 2xl:w-[420px]"
+      :class="stuck ? 'sticky top-[env(safe-area-inset-top)] z-10 bg-surface-50 md:static md:bg-surface' : ''"
     >
       <div ref="paneInner" class="flex min-h-0 grow flex-col">
-        <div class="flex min-h-14 shrink-0 items-center gap-1 pl-5 pr-3 pt-2">
+        <!-- Phones: the bottom bar already says which section this is, so the title is for screen readers only -->
+        <div class="flex min-h-14 shrink-0 items-center gap-1 pl-5 pr-3 pt-2 max-md:sr-only">
           <h2 id="pane-h" class="m-0 grow truncate text-h2 text-surface-900">{{ paneTitle }}</h2>
 
           <v-btn
@@ -40,7 +43,7 @@
           </v-btn>
         </div>
 
-        <nav v-if="tabs.length > 1" :aria-label="`${paneTitle} pages`" class="flex flex-wrap gap-1 px-4 pt-2">
+        <nav v-if="tabs.length > 1" :aria-label="`${paneTitle} pages`" class="flex flex-wrap gap-1 px-4 pt-2 max-md:pt-3">
           <router-link
             v-for="tab in tabs"
             :key="tab.to"
@@ -66,9 +69,10 @@
         <div
           ref="target"
           class="flex grow flex-col pb-4 md:min-h-0 md:overflow-y-auto"
-          :class="tabs.length > 1 ? 'pt-3' : 'pt-1'"
+          :class="[tabs.length > 1 ? 'pt-3' : 'pt-1', stuck ? 'max-md:pb-2' : '']"
         />
       </div>
+
     </section>
 
     <main
@@ -87,7 +91,7 @@
 <script lang="ts" setup>
   import { mdiDockLeft } from '@mdi/js'
   import { storeToRefs } from 'pinia'
-  import { computed, nextTick, provide, ref, watch } from 'vue'
+  import { computed, nextTick, onBeforeUnmount, provide, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { dur, DURATION, EASE, gsap } from '@/app/motion'
@@ -122,6 +126,10 @@
   const target = ref<HTMLElement | null>(null)
   const blocks = ref(0)
   const selected = ref(false)
+  const pinned = ref(false)
+  const rootEl = ref<HTMLElement | null>(null)
+  // Phones only (the classes undo it from 768 px); the list is showing, not a record
+  const stuck = computed(() => pinned.value && !selected.value)
   const collapsed = ref(readCollapsed())
   const hasPane = computed(() => tabs.value.length > 1 || blocks.value > 0)
   const canExpand = computed(() => hasPane.value && collapsed.value && lgAndUp.value)
@@ -202,6 +210,22 @@
     }
   })
 
+  // The page's own header (PageBody) pins itself under the pane on phones: it needs the pane's height
+  let paneObserver: ResizeObserver | null = null
+  watch([stuck, paneEl], ([on, el]) => {
+    paneObserver?.disconnect()
+    paneObserver = null
+    if (on && el && typeof ResizeObserver !== 'undefined') {
+      paneObserver = new ResizeObserver(() => {
+        rootEl.value?.style.setProperty('--pane-h', `${Math.floor(el.getBoundingClientRect().height)}px`)
+      })
+      paneObserver.observe(el)
+    } else {
+      rootEl.value?.style.removeProperty('--pane-h')
+    }
+  }, { flush: 'post', immediate: true })
+  onBeforeUnmount(() => paneObserver?.disconnect())
+
   function toggle (): void {
     collapsed.value = !collapsed.value
     try {
@@ -219,7 +243,7 @@
     }
   }
 
-  provide(paneKey, { target, blocks, selected, collapsed, canExpand, toggle })
+  provide(paneKey, { target, blocks, selected, pinned, collapsed, canExpand, toggle })
   provide(shellKey, 'app')
 
   watch(() => route.name, () => {

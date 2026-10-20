@@ -3,6 +3,7 @@
     :back="isNew ? { name: 'stations', query: listQuery } : (editing && stationId ? { name: 'stations', params: { id: stationId }, query: listQuery } : (open ? { name: 'stations', query: listQuery } : undefined))"
     :back-label="editing ? 'Back to the station' : 'Back to stations'"
     :record="open ? (editing ? `${routeId}/edit` : routeId) : null"
+    :stacked="Boolean(detail) && !editing"
     :subtitle="open ? undefined : summary"
     :title="isNew ? 'New station' : (stationId ? (detail?.name ?? 'Station') : undefined)"
     :wide="!open"
@@ -10,7 +11,7 @@
     <template v-if="detail" #subtitle>
       <span class="font-mono font-medium text-surface-900" translate="no">{{ detail.code }}</span>
       <StationStatusChip :status="detail.status" />
-      <span><span :title="detail.time_zone">{{ countryName(detail.country) }} · {{ zoneAbbreviation(detail.time_zone) }}</span><template v-if="isStaff && detail.owner_org_name"> · {{ detail.owner_org_name }}</template></span>
+      <span class="max-md:basis-full"><span :title="detail.time_zone">{{ countryName(detail.country) }} · {{ zoneAbbreviation(detail.time_zone) }}</span><template v-if="isStaff && detail.owner_org_name"> · {{ detail.owner_org_name }}</template></span>
     </template>
 
     <template v-if="!open && isClient" #actions>
@@ -27,11 +28,17 @@
     </template>
 
     <template v-else-if="detail && canWrite && !editing" #actions>
-      <v-btn color="primary" :prepend-icon="mdiPencilOutline" :to="{ name: 'stations', params: { id: detail.id, mode: 'edit' }, query: listQuery }">Edit</v-btn>
+      <!-- Phones: a plain text button; the page is for reading, and Edit is one tap away -->
+      <v-btn
+        color="primary"
+        :prepend-icon="mdAndUp ? mdiPencilOutline : undefined"
+        :to="{ name: 'stations', params: { id: detail.id, mode: 'edit' }, query: listQuery }"
+        :variant="mdAndUp ? 'flat' : 'text'"
+      >Edit</v-btn>
     </template>
 
     <!-- The pane: search and filters for the list; with a station open, the stations to switch to -->
-    <PaneContent>
+    <PaneContent pin>
       <div class="flex flex-col gap-4 px-3">
         <v-text-field
           aria-label="Search stations by code, name or ID"
@@ -49,7 +56,7 @@
         />
 
         <!-- Phones: status as a row of chips, the rest in a sheet -->
-        <div v-if="!open && !mdAndUp" aria-label="Filter by status" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group">
+        <div v-if="!open && !mdAndUp" aria-label="Filter by status" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
           <button
             v-for="option in statusOptions"
             :key="option.value ?? 'all'"
@@ -118,8 +125,8 @@
               @pointerleave="release"
               @pointerup="release"
             >
-              <span class="grid size-10 shrink-0 place-items-center rounded-card" :class="lookOf(row.status).chip">
-                <v-icon :icon="lookOf(row.status).icon" size="20" />
+              <span class="grid size-12 shrink-0 place-items-center rounded-card" :class="lookOf(row.status).chip">
+                <v-icon :icon="lookOf(row.status).icon" size="24" />
               </span>
 
               <span class="flex min-w-0 grow flex-col">
@@ -267,30 +274,16 @@
           </table>
         </div>
 
-        <!-- Phones: cards -->
-        <ul v-else aria-label="Stations" class="m-0 flex list-none flex-col p-0">
-          <li v-for="row in shown" :key="row.id" class="relative flex flex-col gap-1.5 border-t border-surface-200 py-3.5">
-            <span class="flex items-start justify-between gap-2">
-              <router-link
-                class="text-base font-semibold text-surface-900 no-underline after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-primary"
-                :to="{ name: 'stations', params: { id: row.id }, query: listQuery }"
-              >{{ row.name }}</router-link>
-
-              <StationStatusChip :status="row.status" />
-            </span>
-
-            <span class="font-mono text-xs font-medium text-surface-600" translate="no">{{ row.code }}</span>
-
-            <span class="text-sm text-surface-600">
-              <template v-if="isStaff">{{ row.owner_org_name }} · </template>{{ countryName(row.country) }} · {{ zoneAbbreviation(row.time_zone) }}
-            </span>
-
-            <ParameterTags v-if="row.parameters.length > 0" :max="8" :parameters="row.parameters" />
-
-            <span v-if="dueState(row.next_calibration_due_at, now) === 'overdue'">
-              <CalibrationDueChip :due="row.next_calibration_due_at" state="overdue" :time-zone="row.time_zone" />
-            </span>
-          </li>
+        <!-- Phones: cards that slide up under the pinned header's curve -->
+        <ul v-else aria-label="Stations" class="m-0 flex list-none flex-col gap-1 p-0">
+          <StationCard
+            v-for="row in shown"
+            :key="row.id"
+            :is-staff="isStaff"
+            :now="now"
+            :station="row"
+            :to="{ name: 'stations', params: { id: row.id }, query: listQuery }"
+          />
         </ul>
       </template>
     </div>
@@ -330,7 +323,7 @@
   import StationStatusChip from '@/components/StationStatusChip.vue'
   import StationStatusMark from '@/components/StationStatusMark.vue'
   import { useSessionStore } from '@/stores/session'
-  import ParameterTags from './ParameterTags.vue'
+  import StationCard from './StationCard.vue'
   import StationDetailView from './StationDetailView.vue'
   import StationFilterFields from './StationFilterFields.vue'
   import StationForm from './StationForm.vue'

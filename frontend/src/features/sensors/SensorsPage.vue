@@ -21,8 +21,13 @@
       <v-btn color="primary" :prepend-icon="mdiPencilOutline" variant="tonal" @click="editModel">Edit model</v-btn>
     </template>
 
+    <!-- Phones: the button sits in the pinned header; from 768 px it is in the pane -->
+    <template v-else-if="!open && !mdAndUp && canWrite && !loadError" #actions>
+      <v-btn color="primary" :prepend-icon="mdiPlus" @click="addModel">Add a model</v-btn>
+    </template>
+
     <!-- The pane: search and kind of part -->
-    <PaneContent>
+    <PaneContent pin>
       <div class="flex flex-col gap-3 px-3">
         <v-text-field
           aria-label="Search by make, model or parameter"
@@ -40,14 +45,14 @@
         />
 
         <v-btn
-          v-if="canWrite && !loadError"
+          v-if="canWrite && !loadError && mdAndUp"
           block
           color="primary"
           :prepend-icon="mdiPlus"
           @click="addModel"
         >Add a model</v-btn>
 
-        <div aria-label="Filter by kind of part" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group">
+        <div aria-label="Filter by kind of part" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
           <button
             v-for="k in kindFilters"
             :key="k.value"
@@ -62,9 +67,10 @@
           </button>
         </div>
 
-        <p v-if="!loading && !loadError && shown.length === 0" class="m-0 px-2 text-sm text-surface-600">No models match.</p>
+        <!-- From 768 px the list is here; on phones it is the view, under the pinned header -->
+        <p v-if="mdAndUp && !loading && !loadError && shown.length === 0" class="m-0 px-2 text-sm text-surface-600">No models match.</p>
 
-        <ul v-else aria-label="Sensor models" class="m-0 flex list-none flex-col gap-1 p-0 max-sm:gap-2">
+        <ul v-else-if="mdAndUp" aria-label="Sensor models" class="m-0 flex list-none flex-col gap-1 p-0">
           <ModelRow
             v-for="m in shown"
             :key="m.id"
@@ -99,6 +105,21 @@
         @edit="editUnit"
       />
     </div>
+
+    <!-- Phones: the list, which slides up under the pinned header's curve -->
+    <template v-else-if="!mdAndUp && !modelId">
+      <p v-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600">No models match.</p>
+
+      <ul v-else aria-label="Sensor models" class="m-0 flex list-none flex-col gap-1 p-0">
+        <ModelRow
+          v-for="m in shown"
+          :key="m.id"
+          :active="false"
+          :model="m"
+          :to="{ name: 'sensors', params: { id: m.id }, query: listQuery }"
+        />
+      </ul>
+    </template>
 
     <!-- The view: nothing chosen yet (phones show the list alone) -->
     <div v-else-if="modelId" class="py-6">
@@ -138,6 +159,7 @@
   import { mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
   import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
+  import { useDisplay } from 'vuetify'
   import { sensorModelsApi, sensorUnitsApi } from '@/api/operations'
   import { NetworkError } from '@/api/problem'
   import { usePaneSelection } from '@/app/shells/pane'
@@ -164,6 +186,7 @@
   const session = useSessionStore()
   const route = useRoute()
   const router = useRouter()
+  const { mdAndUp } = useDisplay()
 
   const models = ref<SensorModelOut[]>([])
   const loading = ref(true)

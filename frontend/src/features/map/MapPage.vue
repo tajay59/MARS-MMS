@@ -8,8 +8,9 @@
     </template>
 
     <!-- The pane: status, then the same filters as the list. They live in the address, so a map view can be shared. -->
-    <PaneContent v-if="mdAndUp">
-      <div class="flex flex-col gap-4 px-3">
+    <!-- Phones: nothing in the pane but the tabs, which stay at the top with the header while the map scrolls under their curve -->
+    <PaneContent :pin="!mdAndUp">
+      <div v-if="mdAndUp" class="flex flex-col gap-4 px-3">
         <div aria-labelledby="map-status-h" class="flex flex-col gap-0.5" role="group">
           <h3 id="map-status-h" class="m-0 px-2 pb-1 text-sm font-semibold text-surface-900">Status</h3>
 
@@ -43,7 +44,8 @@
       </div>
     </PaneContent>
 
-    <div class="relative flex size-full min-h-[70dvh] flex-col md:min-h-0">
+    <!-- isolate: Leaflet's panes and controls have z-indexes of their own (up to 1000) and would draw over the pinned header's curve -->
+    <div class="relative isolate flex size-full min-h-[70dvh] flex-col md:min-h-0">
       <FeedbackBanner v-if="loadError" class="m-3" type="error">{{ loadError }}</FeedbackBanner>
 
       <div v-else-if="directory.loading && !directory.loaded" aria-label="Loading the map…" class="grid grow place-items-center" role="status">

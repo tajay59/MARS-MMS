@@ -19,21 +19,36 @@
       aria-label="Field"
       border="t"
       class="bg-surface pb-[env(safe-area-inset-bottom)]"
-      grow
       :height="64"
       tag="nav"
     >
-      <v-btn
+      <!-- The page open: coloured icon and label with a dot below, no background (same as AppTabBar) -->
+      <router-link
         v-for="item in fieldMenu"
         :key="item.to"
-        :aria-current="route.name === item.to ? 'page' : undefined"
-        :class="route.name === item.to ? 'font-semibold text-primary' : 'text-surface-600'"
-        height="64"
+        v-slot="{ href, navigate }"
+        custom
         :to="{ name: item.to }"
       >
-        <v-icon :icon="item.icon" size="24" />
-        <span class="text-xs">{{ item.label }}</span>
-      </v-btn>
+        <a
+          :aria-current="route.name === item.to ? 'page' : undefined"
+          :class="[tabItem, 'flex-1']"
+          :href="href"
+          @click="onLink($event, navigate)"
+          @pointercancel="tabUp"
+          @pointerdown="tabDown"
+          @pointerleave="tabUp"
+          @pointerup="tabUp"
+        >
+          <span :class="tabIcon(route.name === item.to)" data-tab-icon>
+            <v-icon :icon="item.icon" :size="22" />
+          </span>
+
+          <span :class="tabLabel(route.name === item.to)">{{ item.label }}</span>
+
+          <span aria-hidden="true" :class="tabDot(route.name === item.to)" />
+        </a>
+      </router-link>
     </v-bottom-navigation>
   </v-defaults-provider>
 </template>
@@ -44,10 +59,17 @@
   import { fieldMenu } from '@/app/navigation'
   import SyncBadge from '@/components/SyncBadge.vue'
   import { shellKey } from './pane'
+  import { tabDot, tabDown, tabIcon, tabItem, tabKey, tabLabel, tabUp } from './tabBar'
 
   // Field shell for staff on phones: 56 px app bar, 64 px bottom bar, 48 px targets (DBD, TRD §13.2).
   const route = useRoute()
   provide(shellKey, 'field')
+
+  function onLink (event: MouseEvent, navigate: (event: MouseEvent) => void): void {
+    tabKey(event)
+    navigate(event)
+  }
+
   const title = computed(() => route.meta.title ?? '')
 
   const fieldDefaults = {
