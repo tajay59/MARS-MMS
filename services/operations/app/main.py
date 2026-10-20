@@ -1,7 +1,8 @@
 """operations service entry point (TRD §3.2).
 
 Phase 2 builds the stations module: stations, sensor models and units, installations,
-calibrations and the station import. Requests (Phase 3) and visits (Phase 4) join it.
+calibrations and the station import. Phase 3 adds the requests module (W8: create, read,
+edit, approve, deny, cancel); visits (Phase 4) join it.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.api import internal_routes
+from app.api.requests import request_routes
 from app.api.stations import (
     calibration_routes,
     config_routes,
@@ -151,6 +153,7 @@ def create_app(
     app.include_router(document_routes.router)
     app.include_router(document_routes.station_router)
     app.include_router(config_routes.router)
+    app.include_router(request_routes.router)
     app.include_router(internal_routes.router)
     return app
 

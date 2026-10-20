@@ -205,3 +205,56 @@ class MediaVisibilityRequested(_Data):
     media_ids: list[str]
     visibility: str  # staff | org
     visibility_version: int
+
+
+# --- request.* (W8) --------------------------------------------------------------------------
+
+
+class RequestData(_Data):
+    """The fields read models need (TRD §5.4 `request_facts`): organization, stations, category,
+    priority and status. Keyed by `request_id`; `aggregate_version` is the request's version."""
+
+    request_id: str
+    ref: str  # MR-YYYY-NNNN
+    org_id: str
+    station_ids: list[str]
+    category: str
+    priority: str
+    status: str
+
+
+@register("request.submitted")
+class RequestSubmitted(RequestData):
+    """A new request: from a client (Submitted) or an admin (Approved, `by_admin`)."""
+
+    by_admin: bool = False
+
+
+@register("request.updated")
+class RequestUpdated(RequestData):
+    changed_fields: list[str]
+
+
+@register("request.approved")
+class RequestApproved(RequestData):
+    pass
+
+
+@register("request.denied")
+class RequestDenied(RequestData):
+    reason: str  # the client sees it
+
+
+@register("request.cancelled")
+class RequestCancelled(RequestData):
+    reason: str | None = None
+    cancelled_by: str  # client | admin
+
+
+@register("request.status_changed")
+class RequestStatusChanged(RequestData):
+    """Every status change, next to the specific event. `from_status` is null on creation."""
+
+    from_status: str | None = None
+    to_status: str
+    reason: str | None = None

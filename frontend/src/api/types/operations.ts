@@ -140,6 +140,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Requests
+         * @description REQ-8, REQ-15: newest first. A client sees their organization's requests only; the
+         *     date range is inclusive of both days.
+         */
+        get: operations["list_requests_api_v1_requests_get"];
+        put?: never;
+        /**
+         * Create Request
+         * @description REQ-1, REQ-2, REQ-4. A client's request starts Submitted; an admin's, made for an
+         *     organization, starts Approved. Sending the same `id` again returns the request that
+         *     was made (200), so a retry on a poor connection can't make a second one.
+         */
+        post: operations["create_request_api_v1_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Request
+         * @description REQ-8: the request with its status history. A client sees their organization's only.
+         */
+        get: operations["get_request_api_v1_requests__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Request
+         * @description REQ-11: a client edits their own request while it is Submitted, Approved or Assigned;
+         *     an admin until it is done. Only what is sent changes.
+         */
+        patch: operations["patch_request_api_v1_requests__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Request
+         * @description REQ-6: Submitted to Approved. The request then joins the queue.
+         */
+        post: operations["approve_request_api_v1_requests__id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Request
+         * @description REQ-11: a client cancels their own request up to Assigned; an admin any time before it
+         *     is done, with a reason from Scheduled on. Planned visits are cancelled in the same
+         *     transaction once visits exist (Phase 4).
+         */
+        post: operations["cancel_request_api_v1_requests__id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/deny": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deny Request
+         * @description REQ-6: Submitted to Denied. The reason is required and the client sees it.
+         */
+        post: operations["deny_request_api_v1_requests__id__deny_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sensor-models": {
         parameters: {
             query?: never;
@@ -548,7 +662,7 @@ export interface paths {
         /**
          * Snapshot
          * @description Current state for read-model backfill (TRD §8.6), shaped like the events' data.
-         *     Requests and visits join in Phases 3 and 4.
+         *     Visits join in Phase 4.
          */
         get: operations["snapshot_internal_snapshot__entity__get"];
         put?: never;
@@ -663,6 +777,11 @@ export interface components {
             /** Next After */
             next_after: string | null;
         };
+        /** CancelIn */
+        CancelIn: {
+            /** Reason */
+            reason?: string | null;
+        };
         /** Comms */
         Comms: {
             /** Identifier */
@@ -738,6 +857,11 @@ export interface components {
             version: number;
             /** Visit Id */
             visit_id: string | null;
+        };
+        /** DenyIn */
+        DenyIn: {
+            /** Reason */
+            reason: string;
         };
         /**
          * DocumentIn
@@ -908,6 +1032,21 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HistoryEntry */
+        HistoryEntry: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["PersonRef"] | null;
+            /** From Status */
+            from_status: string | null;
+            /** Note */
+            note: string | null;
+            /** To Status */
+            to_status: string;
+        };
         /** ImportProblem */
         ImportProblem: {
             /** Column */
@@ -1036,6 +1175,21 @@ export interface components {
             /** Serial */
             serial?: string | null;
         };
+        /** Milestones */
+        Milestones: {
+            /** Approved At */
+            approved_at?: string | null;
+            /** Assigned At */
+            assigned_at?: string | null;
+            /** Closed At */
+            closed_at?: string | null;
+            /** First Visit At */
+            first_visit_at?: string | null;
+            /** Review Started At */
+            review_started_at?: string | null;
+            /** Submitted At */
+            submitted_at?: string | null;
+        };
         /** ModelDocuments */
         ModelDocuments: {
             /** Documents */
@@ -1060,6 +1214,13 @@ export interface components {
         };
         /** OrgOption */
         OrgOption: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** PersonRef */
+        PersonRef: {
             /** Id */
             id: string;
             /** Name */
@@ -1135,6 +1296,146 @@ export interface components {
             status: "in_stock" | "in_repair" | "retired";
             /** Version */
             version: number;
+        };
+        /** RequestDetail */
+        RequestDetail: {
+            /** Actions */
+            actions: ("approve" | "deny" | "assign" | "cancel" | "edit")[];
+            /** Assigned Staff */
+            assigned_staff: components["schemas"]["PersonRef"][];
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Category */
+            category: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Denial Reason */
+            denial_reason: string | null;
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            milestones: components["schemas"]["Milestones"];
+            /** Org Id */
+            org_id: string;
+            /** Org Name */
+            org_name: string | null;
+            /** Priority */
+            priority: string;
+            /** Ref */
+            ref: string;
+            requested_by: components["schemas"]["PersonRef"] | null;
+            /** Stations */
+            stations: components["schemas"]["app__api__requests__schemas__StationRef"][];
+            /** Status */
+            status: string;
+            /** Status History */
+            status_history: components["schemas"]["HistoryEntry"][];
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * RequestIn
+         * @description REQ-1, REQ-2. `id` is made on the device (rule 9): sending the same one again returns
+         *     the request already made instead of a second one. An admin names the `org_id` (every
+         *     station must be that organization's); a client's is their own.
+         */
+        RequestIn: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "fault" | "communications" | "power" | "calibration" | "relocation" | "inspection" | "other";
+            /** Description */
+            description: string;
+            /** Id */
+            id?: string | null;
+            /** Org Id */
+            org_id?: string | null;
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /** Station Ids */
+            station_ids: string[];
+            /** Title */
+            title: string;
+        };
+        /** RequestPage */
+        RequestPage: {
+            /** Items */
+            items: components["schemas"]["RequestSummary"][];
+            /** Next After */
+            next_after: string | null;
+            /** Total */
+            total: number;
+        };
+        /**
+         * RequestPatch
+         * @description REQ-11. Only what is sent changes. `version` is the one the editor was looking at.
+         */
+        RequestPatch: {
+            /** Category */
+            category?: ("fault" | "communications" | "power" | "calibration" | "relocation" | "inspection" | "other") | null;
+            /** Description */
+            description?: string | null;
+            /** Priority */
+            priority?: ("low" | "normal" | "high" | "urgent") | null;
+            /** Station Ids */
+            station_ids?: string[] | null;
+            /** Title */
+            title?: string | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * RequestSummary
+         * @description A row of the request list (AFD `/requests`).
+         */
+        RequestSummary: {
+            /** Assigned Staff */
+            assigned_staff: components["schemas"]["PersonRef"][];
+            /** Category */
+            category: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Org Id */
+            org_id: string;
+            /** Org Name */
+            org_name: string | null;
+            /** Priority */
+            priority: string;
+            /** Ref */
+            ref: string;
+            requested_by: components["schemas"]["PersonRef"] | null;
+            /** Stations */
+            stations: components["schemas"]["app__api__requests__schemas__StationRef"][];
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * Scope
@@ -1258,7 +1559,7 @@ export interface components {
             parameter: string | null;
             /** Serial */
             serial: string;
-            station: components["schemas"]["StationRef"] | null;
+            station: components["schemas"]["app__api__stations__schemas__StationRef"] | null;
             /** Status */
             status: string;
             /**
@@ -1320,7 +1621,7 @@ export interface components {
             parameter: string | null;
             /** Serial */
             serial: string;
-            station: components["schemas"]["StationRef"] | null;
+            station: components["schemas"]["app__api__stations__schemas__StationRef"] | null;
             /** Status */
             status: string;
             /**
@@ -1562,15 +1863,6 @@ export interface components {
             /** Version */
             version: number;
         };
-        /** StationRef */
-        StationRef: {
-            /** Code */
-            code: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-        };
         /**
          * StationSummary
          * @description A row of the station list (DBD "Stations list").
@@ -1621,6 +1913,26 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** StationRef */
+        app__api__requests__schemas__StationRef: {
+            /** Code */
+            code: string;
+            /** Country */
+            country: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** StationRef */
+        app__api__stations__schemas__StationRef: {
+            /** Code */
+            code: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
     };
     responses: never;
@@ -1921,6 +2233,248 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QrResolved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_requests_api_v1_requests_get: {
+        parameters: {
+            query?: {
+                status?: string[] | null;
+                org_id?: string | null;
+                country?: string | null;
+                station_id?: string | null;
+                category?: string | null;
+                priority?: string | null;
+                assigned_to?: string | null;
+                from?: string | null;
+                to?: string | null;
+                q?: string | null;
+                after?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_request_api_v1_requests_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_request_api_v1_requests__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_request_api_v1_requests__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_request_api_v1_requests__id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_request_api_v1_requests__id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deny_request_api_v1_requests__id__deny_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DenyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
                 };
             };
             /** @description Validation Error */

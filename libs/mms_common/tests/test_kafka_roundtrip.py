@@ -24,7 +24,7 @@ from mms_common.time import ManualClock
 def _schema():
     before = dict(SCHEMAS)
 
-    @register("request.approved")
+    @register("demo.approved")
     class Approved(BaseModel):
         request_id: str
 
@@ -67,7 +67,7 @@ async def test_outbox_to_kafka_to_consumer(mongo_uri, redis_url, kafka_bootstrap
             async with client.start_session() as s, await s.start_transaction():
                 await producer_db.requests.insert_one({"_id": rid, "version": 1}, session=s)
                 await add(producer_db.outbox, Envelope(
-                    event_id=ids.new(), type="request.approved", occurred_at=clock.now(),
+                    event_id=ids.new(), type="demo.approved", occurred_at=clock.now(),
                     source=service, key=rid, aggregate_version=n,
                     resource=Resource(type="request", id=rid), data={"request_id": rid},
                 ), session=s, clock=clock)
@@ -92,7 +92,7 @@ async def test_outbox_to_kafka_to_consumer(mongo_uri, redis_url, kafka_bootstrap
         async def to_dlq(raw, reason):
             dlq.append(reason)
 
-        processor = EventProcessor(client, consumer_db, {"request.approved": handler},
+        processor = EventProcessor(client, consumer_db, {"demo.approved": handler},
                                    to_dlq, clock)
         task = asyncio.create_task(run_consumer(bootstrap, f"{service}-group", [topic], processor))
         try:

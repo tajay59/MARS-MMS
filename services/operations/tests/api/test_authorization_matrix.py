@@ -55,6 +55,16 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/stations/{id}/config-versions"): WRITE,
     ("GET", "/api/v1/stations/{id}/config-versions/{version}"): STAFF,
     ("GET", "/api/v1/stations/{id}/config-versions/{version}/diff"): STAFF,
+    # Requests (REQ-1, REQ-2, REQ-5, REQ-6, REQ-11): everyone reads what their scope allows;
+    # clients and admins create and edit; only admins approve and deny; a client cancels their
+    # own, an admin any (the state machine decides which, per status).
+    ("GET", "/api/v1/requests"): Expect(ANY),
+    ("POST", "/api/v1/requests"): roles("client", "admin"),
+    ("GET", "/api/v1/requests/{id}"): Expect(ANY),
+    ("PATCH", "/api/v1/requests/{id}"): roles("client", "admin"),
+    ("POST", "/api/v1/requests/{id}/approve"): roles("admin"),
+    ("POST", "/api/v1/requests/{id}/deny"): roles("admin"),
+    ("POST", "/api/v1/requests/{id}/cancel"): roles("client", "admin"),
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),
