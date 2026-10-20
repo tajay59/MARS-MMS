@@ -59,6 +59,7 @@ Record: sheet job time, printer, paper, any label that looks wrong.
 | # | Do | Expect | Android | iPhone |
 |---|---|---|---|---|
 | 5.1 | Deny the prompt | "The camera is turned off", telling you to allow the camera for MARS-MMS in the phone's settings; "Enter the station code" offered; no loop of prompts. Reopening Scan goes straight to this card | | |
+| 5.1b | Tap "Try the camera again" without changing anything | The card stays and now says "Still turned off. Open the site settings…" (the browser refuses a second ask at once, so there is no prompt) | | |
 | 5.2 | Allow it in the site settings, tap "Try the camera again" | The camera starts | | |
 | 5.3 | Start the camera in another app (a call), then open Scan | "The camera can't be used" (another app may be using it); the code field works | | |
 | 5.4 | Lock the screen with the camera on, unlock | The camera comes back, or Turn on the camera is offered; no frozen frame | | |

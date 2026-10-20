@@ -103,9 +103,7 @@
         :title="scanner.state.value === 'unavailable' ? 'The camera can’t be used' : 'The camera is turned off'"
         tone="primary"
       >
-        {{ scanner.state.value === 'unavailable'
-          ? 'This device has no camera the app can reach, or another app is using it. You can type the station code from the QR label.'
-          : 'Allow the camera for MARS-MMS in the phone’s settings, or type the station code from the QR label.' }}
+        {{ blockedText }}
         <template #actions>
           <v-btn
             block
@@ -120,7 +118,7 @@
             :prepend-icon="mdiRefresh"
             size="large"
             variant="text"
-            @click="useCamera"
+            @click="retryCamera"
           >Try the camera again</v-btn>
         </template>
       </ScanCard>
@@ -243,6 +241,26 @@
       notLabel.value = false
     }, 1800)
     return false
+  }
+
+  // After a "no", the browser answers a second ask at once without a prompt, so the page would
+  // flash and come back unchanged. The person has to allow the camera in the site settings.
+  const retried = ref(false)
+  const blockedText = computed(() => {
+    if (scanner.state.value === 'unavailable') {
+      return 'This device has no camera the app can reach, or another app is using it. You can type the station code from the QR label.'
+    }
+    return retried.value
+      ? 'Still turned off. Open the site settings from the address bar, allow Camera, then try again. Or type the station code from the QR label.'
+      : 'Allow the camera for MARS-MMS in the phone’s settings, or type the station code from the QR label.'
+  })
+
+  async function retryCamera (): Promise<void> {
+    retried.value = true
+    if (await cameraPermission() === 'denied') {
+      return // still blocked: stay on this card, which now says what to do
+    }
+    await useCamera()
   }
 
   async function useCamera (): Promise<void> {

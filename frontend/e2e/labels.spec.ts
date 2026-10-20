@@ -137,6 +137,33 @@ test.describe('map', () => {
   })
 })
 
+test('A denied camera stays denied: the card says what to do instead of flashing @QR-5', async ({ watched: page }) => {
+  // The phone has said no: the permission is `denied` and every ask is refused at once
+  await page.addInitScript(() => {
+    const asked = { count: 0 }
+    ;(window as unknown as { __asked: typeof asked }).__asked = asked
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getUserMedia: async () => {
+          asked.count++
+          throw new DOMException('Permission denied', 'NotAllowedError')
+        },
+      },
+    })
+  })
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/scan')
+  await page.getByRole('button', { name: 'Turn on the camera' }).click()
+  await expect(page.getByRole('heading', { name: 'The camera is turned off' })).toBeVisible()
+  await expect(page.getByText('Allow the camera for MARS-MMS')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Try the camera again' }).click()
+  await expect(page.getByText('Still turned off.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'The camera is turned off' })).toBeVisible()
+  await page.getByRole('button', { name: 'Enter the station code' }).first().click()
+  await expect(page.getByLabel('Station code')).toBeVisible()
+})
+
 test('An admin makes a sheet of labels @QR-6', async ({ watched: page }) => {
   await logIn(page, 'admin@example.org')
   await page.goto('/admin/stations-tools')
