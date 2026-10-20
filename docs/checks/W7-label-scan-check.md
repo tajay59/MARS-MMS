@@ -48,6 +48,7 @@ Record: sheet job time, printer, paper, any label that looks wrong.
 
 | # | Do | Expect | Android | iPhone |
 |---|---|---|---|---|
+| 4.0 | Open the camera on a phone with a flash | The torch button shows within about 2 seconds. If it does not, write down the phone model, Chrome version, installed or tab | | |
 | 4.1 | Dim the room, tap the torch button | The LED lights; the button says it is on | | |
 | 4.2 | Scan with the torch on | Reads the label | | |
 | 4.3 | Tap again; then leave the page with the torch on | LED goes off in both cases | | |
