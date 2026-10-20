@@ -72,6 +72,28 @@
   --color-on-error-container: rgb(var(--v-theme-on-error-container));
 
   /* Station status markers (DBD): the same colours in both themes, never decoration */
+  /* Request status (PRD §5.1): background and its text colour, reserved for status */
+  --color-status-submitted: rgb(var(--v-theme-status-submitted));
+  --color-on-status-submitted: rgb(var(--v-theme-on-status-submitted));
+  --color-status-approved: rgb(var(--v-theme-status-approved));
+  --color-on-status-approved: rgb(var(--v-theme-on-status-approved));
+  --color-status-assigned: rgb(var(--v-theme-status-assigned));
+  --color-on-status-assigned: rgb(var(--v-theme-on-status-assigned));
+  --color-status-scheduled: rgb(var(--v-theme-status-scheduled));
+  --color-on-status-scheduled: rgb(var(--v-theme-on-status-scheduled));
+  --color-status-in-progress: rgb(var(--v-theme-status-in-progress));
+  --color-on-status-in-progress: rgb(var(--v-theme-on-status-in-progress));
+  --color-status-client-review: rgb(var(--v-theme-status-client-review));
+  --color-on-status-client-review: rgb(var(--v-theme-on-status-client-review));
+  --color-status-reopened: rgb(var(--v-theme-status-reopened));
+  --color-on-status-reopened: rgb(var(--v-theme-on-status-reopened));
+  --color-status-closed: rgb(var(--v-theme-status-closed));
+  --color-on-status-closed: rgb(var(--v-theme-on-status-closed));
+  --color-status-denied: rgb(var(--v-theme-status-denied));
+  --color-on-status-denied: rgb(var(--v-theme-on-status-denied));
+  --color-status-cancelled: rgb(var(--v-theme-status-cancelled));
+  --color-on-status-cancelled: rgb(var(--v-theme-on-status-cancelled));
+
   --color-station-operational: rgb(var(--v-theme-station-operational));
   --color-station-degraded: rgb(var(--v-theme-station-degraded));
   --color-station-offline: rgb(var(--v-theme-station-offline));

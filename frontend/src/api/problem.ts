@@ -18,6 +18,8 @@ export class ApiError extends Error {
   readonly retryAfter: number | undefined
   readonly errors: FieldError[]
   readonly requestId: string | undefined
+  /** The body field a rule of ours refused (`reason`, `station_ids`), when the server names one. */
+  readonly field: string | undefined
 
   constructor (status: number, body: Record<string, unknown> | null) {
     const detail = typeof body?.detail === 'string' ? body.detail : (typeof body?.title === 'string' ? body.title : `HTTP ${status}`)
@@ -30,6 +32,7 @@ export class ApiError extends Error {
     this.retryAfter = typeof body?.retry_after === 'number' ? body.retry_after : undefined
     this.errors = Array.isArray(body?.errors) ? (body.errors as FieldError[]) : []
     this.requestId = typeof body?.request_id === 'string' ? body.request_id : undefined
+    this.field = typeof body?.field === 'string' ? body.field : undefined
   }
 
   /** The first message per body field: `{ password: 'Use at least 10 characters' }`. */

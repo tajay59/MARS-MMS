@@ -2173,7 +2173,7 @@
           },
           "stations": {
             "items": {
-              "$ref": "#/components/schemas/app__api__requests__schemas__StationRef"
+              "$ref": "#/components/schemas/RequestStation"
             },
             "title": "Stations",
             "type": "array"
@@ -2441,6 +2441,34 @@
         "title": "RequestPatch",
         "type": "object"
       },
+      "RequestStation": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "country"
+        ],
+        "title": "RequestStation",
+        "type": "object"
+      },
       "RequestSummary": {
         "description": "A row of the request list (AFD `/requests`).",
         "properties": {
@@ -2499,7 +2527,7 @@
           },
           "stations": {
             "items": {
-              "$ref": "#/components/schemas/app__api__requests__schemas__StationRef"
+              "$ref": "#/components/schemas/RequestStation"
             },
             "title": "Stations",
             "type": "array"
@@ -2960,7 +2988,7 @@
           "station": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/app__api__stations__schemas__StationRef"
+                "$ref": "#/components/schemas/StationRef"
               },
               {
                 "type": "null"
@@ -3196,7 +3224,7 @@
           "station": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/app__api__stations__schemas__StationRef"
+                "$ref": "#/components/schemas/StationRef"
               },
               {
                 "type": "null"
@@ -4210,6 +4238,29 @@
         "title": "StationPatch",
         "type": "object"
       },
+      "StationRef": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "StationRef",
+        "type": "object"
+      },
       "StationSummary": {
         "description": "A row of the station list (DBD \"Stations list\").",
         "properties": {
@@ -4395,57 +4446,6 @@
           "type"
         ],
         "title": "ValidationError",
-        "type": "object"
-      },
-      "app__api__requests__schemas__StationRef": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "country": {
-            "title": "Country",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "code",
-          "name",
-          "country"
-        ],
-        "title": "StationRef",
-        "type": "object"
-      },
-      "app__api__stations__schemas__StationRef": {
-        "properties": {
-          "code": {
-            "title": "Code",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "code",
-          "name"
-        ],
-        "title": "StationRef",
         "type": "object"
       }
     },

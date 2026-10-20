@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
+import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -32,6 +32,34 @@ export const qrApi = {
     api.get<QrResolved>(`/qr/${encodeURIComponent(token)}`, { signal }),
   /** Admin only: gives the station a new token and revokes the old one. */
   regenerate: (stationId: string) => api.post<StationDetail>(`/stations/${stationId}/qr/regenerate`),
+}
+
+export interface RequestQuery {
+  status?: string[]
+  org_id?: string
+  country?: string
+  station_id?: string
+  category?: string
+  priority?: string
+  q?: string
+  from?: string
+  to?: string
+  after?: string
+  limit?: number
+}
+
+// Maintenance requests (REQ-1 to REQ-16). A client sees their own organization's only; the server
+// decides which actions a person may take (`actions` on the detail) and the page shows only those.
+export const requestsApi = {
+  list: (query: RequestQuery = {}, signal?: AbortSignal) =>
+    api.get<RequestPage>('/requests', { query: { ...query, status: undefined }, signal }),
+  get: (id: string, signal?: AbortSignal) => api.get<RequestDetail>(`/requests/${id}`, { signal }),
+  // `body.id` is made on the device: sending it again returns the request already made (200)
+  create: (body: RequestIn) => api.post<RequestDetail>('/requests', body),
+  update: (id: string, body: RequestPatch) => api.patch<RequestDetail>(`/requests/${id}`, body),
+  approve: (id: string) => api.post<RequestDetail>(`/requests/${id}/approve`, {}),
+  deny: (id: string, reason: string) => api.post<RequestDetail>(`/requests/${id}/deny`, { reason }),
+  cancel: (id: string, reason?: string) => api.post<RequestDetail>(`/requests/${id}/cancel`, { reason: reason || null }),
 }
 
 export const calibrationsApi = {

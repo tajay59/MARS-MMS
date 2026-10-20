@@ -69,7 +69,7 @@ class CancelIn(In):
     reason: Reason | None = None  # required from Scheduled on (REQ-11)
 
 
-class StationRef(BaseModel):
+class RequestStation(BaseModel):
     id: str
     code: str
     name: str
@@ -100,7 +100,7 @@ class RequestSummary(BaseModel):
     status: str
     org_id: str
     org_name: str | None
-    stations: list[StationRef]
+    stations: list[RequestStation]
     requested_by: PersonRef | None
     assigned_staff: list[PersonRef]
     created_at: datetime
@@ -115,7 +115,7 @@ class RequestSummary(BaseModel):
             id=doc["_id"], ref=doc["ref"], title=doc["title"], category=doc["category"],
             priority=doc["priority"], status=doc["status"], org_id=doc["org_id"],
             org_name=orgs.get(doc["org_id"]),
-            stations=[StationRef(id=s["_id"], code=s["code"], name=s["name"],
+            stations=[RequestStation(id=s["_id"], code=s["code"], name=s["name"],
                                  country=s["country"]) for s in found],
             requested_by=PersonRef(id=doc["created_by"], name=doc["requester_name"])
             if doc.get("created_by") else None,

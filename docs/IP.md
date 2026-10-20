@@ -202,7 +202,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 | Week | Milestone |
 |---|---|
-| W8 | State machine with a test for every allowed and blocked transition, plus property tests on the derivation function. Request endpoints and screens. J3 works. |
+| W8 | State machine with a test for every allowed and blocked transition, plus property tests on the derivation function. Request endpoints and screens. J3 works. **Built 2026-10-21** (branch `feat/p3-w8-requests`): the requests module in `operations` (state table with 80 status and action pairs tested, `derive_status` with property tests, create idempotent by a device-made ID, list with filters, read, edit, approve, deny, cancel, `MR-YYYY-NNNN`, `request.*` events and the snapshot) and the screens from the approved "W8 Requests screens" mock-up (list, new and edit form, request page with timeline and History, deny and cancel dialogs; phones). Operations 319 tests, Vitest 308, 9 Playwright journeys. Decisions W8-1 to W8-9: approve and deny came into W8, PDF attachments moved to W9 with comments. |
 | W9 | Queue, assignment, claiming and comments. WebSocket and email notifications with preferences. J4 works. |
 
 **Delivers:** REQ-1 to REQ-11, REQ-15, REQ-16 (timestamps), NOT-1 to NOT-5, CAL-5. Journeys J3, J4, and the claim step of J5.

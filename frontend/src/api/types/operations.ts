@@ -1329,7 +1329,7 @@ export interface components {
             ref: string;
             requested_by: components["schemas"]["PersonRef"] | null;
             /** Stations */
-            stations: components["schemas"]["app__api__requests__schemas__StationRef"][];
+            stations: components["schemas"]["RequestStation"][];
             /** Status */
             status: string;
             /** Status History */
@@ -1400,6 +1400,17 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** RequestStation */
+        RequestStation: {
+            /** Code */
+            code: string;
+            /** Country */
+            country: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /**
          * RequestSummary
          * @description A row of the request list (AFD `/requests`).
@@ -1426,7 +1437,7 @@ export interface components {
             ref: string;
             requested_by: components["schemas"]["PersonRef"] | null;
             /** Stations */
-            stations: components["schemas"]["app__api__requests__schemas__StationRef"][];
+            stations: components["schemas"]["RequestStation"][];
             /** Status */
             status: string;
             /** Title */
@@ -1559,7 +1570,7 @@ export interface components {
             parameter: string | null;
             /** Serial */
             serial: string;
-            station: components["schemas"]["app__api__stations__schemas__StationRef"] | null;
+            station: components["schemas"]["StationRef"] | null;
             /** Status */
             status: string;
             /**
@@ -1621,7 +1632,7 @@ export interface components {
             parameter: string | null;
             /** Serial */
             serial: string;
-            station: components["schemas"]["app__api__stations__schemas__StationRef"] | null;
+            station: components["schemas"]["StationRef"] | null;
             /** Status */
             status: string;
             /**
@@ -1863,6 +1874,15 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** StationRef */
+        StationRef: {
+            /** Code */
+            code: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /**
          * StationSummary
          * @description A row of the station list (DBD "Stations list").
@@ -1913,26 +1933,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-        };
-        /** StationRef */
-        app__api__requests__schemas__StationRef: {
-            /** Code */
-            code: string;
-            /** Country */
-            country: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-        };
-        /** StationRef */
-        app__api__stations__schemas__StationRef: {
-            /** Code */
-            code: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
         };
     };
     responses: never;

@@ -24,6 +24,8 @@ export interface MenuItem {
   icon: string
   /** Shown only to these roles; everyone in the shell when absent. */
   roles?: readonly Role[]
+  /** Other routes that count as this page, so its tab stays marked (a form of the same list). */
+  also?: readonly string[]
 }
 
 export interface Section {
@@ -59,7 +61,7 @@ export const staffSections: Section[] = [
     icon: mdiClipboardTextOutline,
     items: [
       { label: 'Queue', to: 'queue', icon: mdiInboxOutline, roles: ['technician', 'admin'] },
-      { label: 'Requests', to: 'requests', icon: icons.request },
+      { label: 'Requests', to: 'requests', icon: icons.request, also: ['request-new'] },
     ],
     also: ['request-new'],
   },
