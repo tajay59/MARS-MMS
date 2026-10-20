@@ -61,7 +61,7 @@ def _free_port() -> int:
 @contextmanager
 def _container(docker: str, prefix: str, args: list[str]) -> Iterator[str]:
     name = f"mms-test-{prefix}-{uuid.uuid4().hex[:8]}"
-    subprocess.run([docker, "run", "-d", "--rm", "--name", name, *args], check=True,
+    subprocess.run([docker, "run", "-d", "--name", name, *args], check=True,
                    capture_output=True)
     try:
         yield name
