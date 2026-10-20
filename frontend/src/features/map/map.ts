@@ -71,11 +71,5 @@ export function boundsOf (stations: readonly Positioned[]): [[number, number], [
   return [[south, west], [north, east]]
 }
 
-/** OpenStreetMap's standard tiles. Tiles are shown as someone looks at them and kept by the service
-    worker for repeat views; nothing is ever fetched ahead (OSM tile usage policy; finding F1). */
-export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-export const TILE_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">OpenStreetMap</a> contributors'
-export const TILE_MAX_ZOOM = 19
-
-/** The view when no station has a position: the whole world, not an arbitrary country. */
-export const DEFAULT_VIEW = { center: [20, 0] as [number, number], zoom: 2 }
+/** The view when no station has a position: the Caribbean, the area the basemap file covers. */
+export const DEFAULT_VIEW = { center: [18.5, -73] as [number, number], zoom: 5 }

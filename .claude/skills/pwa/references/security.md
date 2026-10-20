@@ -18,7 +18,7 @@ Sources: TRD §2.1, §6.1, §7.6, §15; BSD "Data classification and encryption"
 
 ## 3. CSP and the worker
 
-TRD §15: `script-src 'self'; worker-src 'self'; connect-src 'self' https://files.<host> https://tile.openstreetmap.org wss://<host>; img-src 'self' https://files.<host> https://tile.openstreetmap.org data: blob:; media-src 'self' https://files.<host> blob:`.
+TRD §15: `script-src 'self'; worker-src 'self'; connect-src 'self' https://files.<host> wss://<host>; img-src 'self' https://files.<host> data: blob:; media-src 'self' https://files.<host> blob:`.
 
 - Register the worker from bundled code (`injectRegister: false` + `useRegisterSW`). No inline registration script.
 - The worker is same-origin at `/sw.js`; `worker-src 'self'` covers it and any Web Worker used for image resizing.

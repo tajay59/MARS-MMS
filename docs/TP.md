@@ -143,7 +143,7 @@ Display tests cover stations in several IANA zones across a DST change.
 ### Frontend quality
 
 - Every route in J1–J10, plus `/unlock`, runs an `@axe-core/playwright` check in light and dark (WCAG 2.2 AA, NFR-11).
-- Playwright fails the test on any console CSP violation, so a stray inline script or font from a CDN is caught. Map tiles from `tile.openstreetmap.org` load in the page and through the service worker.
+- Playwright fails the test on any console CSP violation, so a stray inline script or font from a CDN is caught. The map's tile file loads from `/tiles/` in byte ranges (206 where the extract is present, 404 in CI, where the map stays blank).
 - Screenshots of the client, staff and field shells in both themes at 390, 768 and 1280 px.
 - Browser projects: Chromium, Firefox and WebKit, with Pixel 7 and iPhone 15 emulation (NFR-5).
 - Viewers see no action buttons: a Playwright test per page checks that buttons are absent, not disabled.

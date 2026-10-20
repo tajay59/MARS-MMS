@@ -105,18 +105,11 @@ test('A technician finds a station by typing its code on /scan @QR-2', async ({ 
 })
 
 test.describe('map', () => {
-  // The worker would answer tile requests itself, out of reach of page.route
-  test.use({ serviceWorkers: 'block' })
-
-  const ONE_PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
-
   test('Stations appear on the map and open from it @MAP-1 @MAP-2', async ({ watched: page }) => {
-    await page.route('https://tile.openstreetmap.org/**', route => route.fulfill({
-      status: 200,
-      contentType: 'image/png',
-      headers: { 'access-control-allow-origin': '*' },
-      body: ONE_PIXEL,
-    }))
+    // The basemap is a file on our own host, read in byte ranges (W7-9). With the extract in
+    // infra/tiles the answer is 206; CI has none (404), and the map still works on a blank
+    // background. Either way the page asked in ranges and the CSP let it.
+    const tileRange = page.waitForResponse(response => response.url().includes('/tiles/') && response.request().headers().range !== undefined)
     await logIn(page, 'tech1@example.org')
 
     // One station by the address, so it is not folded into a cluster
@@ -124,6 +117,7 @@ test.describe('map', () => {
     const marker = page.getByRole('button', { name: /^Kingston Harbour, JM-KIN-001, / })
     await expect(marker).toBeVisible()
     await expect(page.getByRole('link', { name: 'OpenStreetMap' })).toBeVisible() // the attribution stays visible
+    expect([206, 404]).toContain((await tileRange).status())
     await expect(page.getByText('Several stations: zoom in')).toBeVisible()
     await checkA11y(page, '/map')
 
@@ -134,9 +128,6 @@ test.describe('map', () => {
   })
 
   test('A client sees only their organization’s stations on the map @MAP-3', async ({ watched: page }) => {
-    await page.route('https://tile.openstreetmap.org/**', route => route.fulfill({
-      status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: ONE_PIXEL,
-    }))
     await logIn(page, 'client.a1@example.org')
     await page.goto('/map')
     await expect(page.getByRole('heading', { level: 1, name: 'Map' })).toBeVisible()

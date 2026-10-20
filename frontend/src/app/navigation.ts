@@ -66,13 +66,14 @@ export const staffSections: Section[] = [
   {
     key: 'stations',
     label: 'Stations',
-    hint: 'Stations, map, sensors and calibration',
+    hint: 'Stations, map, sensors, calibration and scan',
     icon: icons.station,
     items: [
       { label: 'Stations', to: 'stations', icon: icons.station },
       { label: 'Map', to: 'map', icon: icons.map },
       { label: 'Sensors', to: 'sensors', icon: icons.sensor },
       { label: 'Calibration', to: 'calibration', icon: icons.calibration },
+      { label: 'Scan', to: 'scan', icon: icons.scanQr }, // opens the field layout (AFD §3: staff only)
     ],
   },
   {

@@ -41,9 +41,9 @@ MONGO_PORT = ENV.get("MONGO_DEV_PORT", "27018")
 
 # Exactly the CSP in TRD §15, with the local host names.
 EXPECTED_CSP = (
-    f"default-src 'self'; img-src 'self' https://{FILES} https://tile.openstreetmap.org data: "
+    f"default-src 'self'; img-src 'self' https://{FILES} data: "
     f"blob:; media-src 'self' https://{FILES} blob:; connect-src 'self' https://{FILES} "
-    f"https://tile.openstreetmap.org wss://{MMS}; script-src 'self'; worker-src 'self'; "
+    f"wss://{MMS}; script-src 'self'; worker-src 'self'; "
     "style-src 'self' 'unsafe-inline'"
 )
 

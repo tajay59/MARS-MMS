@@ -19,8 +19,17 @@ describe('sectionsFor', () => {
     expect(work?.items[0]?.to).toBe('queue')
   })
 
+  it('lets every staff role reach Scan, and no client', () => {
+    for (const role of ['technician', 'admin', 'viewer'] as const) {
+      const routes = sectionsFor(staffSections, [role]).flatMap(s => s.items.map(i => i.to))
+      expect(routes).toContain('scan')
+    }
+    expect(sectionsFor(clientSections, ['client']).flatMap(s => s.items.map(i => i.to))).not.toContain('scan')
+  })
+
   it('keeps client sections free of staff pages', () => {
     const routes = sectionsFor(clientSections, ['client']).flatMap(s => s.items.map(i => i.to))
+    expect(routes).not.toContain('scan')
     expect(routes).not.toContain('queue')
     expect(routes).not.toContain('sensors')
     expect(routes.some(r => r.startsWith('admin-'))).toBe(false)
