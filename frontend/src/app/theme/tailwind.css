@@ -12,6 +12,18 @@
   removed so status and decoration colours can't creep in (DBD rules).
 */
 @theme {
+  /*
+    Breakpoints in px, to agree with Vuetify's display thresholds (vuetify.ts), which JavaScript
+    measures in px. Tailwind's defaults are in rem, and a media query in rem follows the
+    browser's font size: on a tablet with large text the CSS switched layouts at a different
+    width from the script (the rail showed, the pane and view stacked).
+  */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
   --color-*: initial;
   --color-white: #fff;
   --color-black: #000;
