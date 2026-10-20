@@ -3,11 +3,12 @@
   <v-dialog
     v-if="mdAndUp"
     v-model="open"
+    :aria-labelledby="labelledby"
     :max-width="maxWidth"
     :persistent="persistent"
     scrollable
   >
-    <div :aria-labelledby="labelledby" class="flex max-h-[calc(100dvh-48px)] flex-col overflow-y-auto overscroll-contain rounded-card bg-surface p-6" role="dialog">
+    <div class="flex max-h-[calc(100dvh-48px)] flex-col overflow-y-auto overscroll-contain rounded-card bg-surface p-6">
       <slot />
     </div>
   </v-dialog>
@@ -15,13 +16,10 @@
   <v-bottom-sheet
     v-else
     v-model="open"
+    :aria-labelledby="labelledby"
     :persistent="persistent"
   >
-    <div
-      :aria-labelledby="labelledby"
-      class="flex max-h-[85dvh] flex-col overflow-y-auto overscroll-contain rounded-t-card bg-surface px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom))]"
-      role="dialog"
-    >
+    <div class="flex max-h-[85dvh] flex-col overflow-y-auto overscroll-contain rounded-t-card bg-surface px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom))]">
       <slot />
     </div>
   </v-bottom-sheet>

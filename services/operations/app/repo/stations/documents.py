@@ -77,9 +77,21 @@ async def for_station(db: Db, viewer: User, station_id: str, model_ids: list[str
     base = await visible(db, viewer)
     own = col(db).find(_both({"scope": "station", "scope_id": station_id, "is_current": True},
                              base)).sort("_id", 1)
+    # A model's photos belong in its gallery, not in a station's list of documents
     models = col(db).find(_both({"scope": "model", "scope_id": {"$in": model_ids},
-                                 "is_current": True}, base)).sort("_id", 1)
+                                 "is_current": True, "doc_type": {"$ne": "photo"}},
+                                base)).sort("_id", 1)
     return [d async for d in own], [d async for d in models]
+
+
+async def photos_by_model(db: Db) -> dict[str, list[str]]:
+    """The ready photos of each model, oldest first: the first is its cover (staff only)."""
+    query = {"scope": Scope.MODEL.value, "doc_type": "photo", "is_current": True,
+             "status": DocStatus.AVAILABLE.value}
+    found: dict[str, list[str]] = {}
+    async for d in col(db).find(query, {"scope_id": 1}).sort("_id", 1):
+        found.setdefault(d["scope_id"], []).append(d["_id"])
+    return found
 
 
 async def by_media(db: Db, media_id: str, session: Session = None) -> dict[str, Any] | None:

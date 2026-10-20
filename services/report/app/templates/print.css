@@ -1,0 +1,92 @@
+/* Print styles shared by every PDF the report service makes (TRD §11.1). A4, no margins: each
+   template sets its own layout inside the page. Labels print black on white for the best scan. */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+html {
+  font-family: "Inter", "DejaVu Sans", sans-serif;
+  font-size: 10pt;
+  color: #000;
+  background: #fff;
+}
+
+body {
+  margin: 0;
+}
+
+p, h1 {
+  margin: 0;
+}
+
+/* --- Label sheet (QR-6): 2 columns x 5 rows of 98 x 55 mm, so 10 per page. The sheet is
+   196 x 275 mm, centred on the page; labels are cut along their dashed edges. */
+.sheet {
+  box-sizing: border-box;
+  width: 196mm;
+  height: 275mm;
+  margin: 11mm 7mm;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  page-break-after: always;
+}
+
+.sheet:last-child {
+  page-break-after: auto;
+}
+
+.label {
+  box-sizing: border-box;
+  width: 98mm;
+  height: 55mm;
+  padding: 5mm;
+  display: flex;
+  align-items: center;
+  gap: 5mm;
+  border: 0.3mm dashed #888;
+  break-inside: avoid;
+}
+
+.qr {
+  flex: none;
+  width: 40mm;
+  height: 40mm;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand {
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 2mm;
+}
+
+h1 {
+  font-size: 13pt;
+  line-height: 1.2;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 11pt;
+  font-weight: 700;
+  margin-top: 1.5mm;
+}
+
+.org {
+  font-size: 8pt;
+  margin-top: 1.5mm;
+}
+
+.phone {
+  font-size: 7.5pt;
+  margin-top: 3mm;
+}

@@ -171,7 +171,13 @@
         @saved="saved"
       />
 
-      <StationDetailView v-else :can-write="canWrite" :is-staff="isStaff" :station="detail" />
+      <StationDetailView
+        v-else
+        :can-write="canWrite"
+        :is-staff="isStaff"
+        :station="detail"
+        @qr-replaced="detail = $event"
+      />
     </template>
 
     <!-- The view: the list -->

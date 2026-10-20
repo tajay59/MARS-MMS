@@ -10,6 +10,7 @@ Skipped when the stack is not running.
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import shutil
 import subprocess
@@ -82,10 +83,11 @@ def test_integrations_are_reserved_with_501(web):
     assert r.status_code == 501 and r.json()["code"] == "not_implemented"
 
 
-@pytest.mark.parametrize("path", ["/api/v1/reports", "/api/v1/dashboard/summary"])  # report: P6
-def test_routes_to_a_service_that_is_not_up_yet_answer_503(web, path):
+@pytest.mark.parametrize("path", ["/api/v1/reports/jobs/x", "/api/v1/dashboard/summary"])
+def test_report_routes_reach_the_report_service_which_checks_tokens(web, path):
+    """report is up since W7: no more 503, and the service itself asks for a token."""
     r = get(web, path)
-    assert r.status_code == 503 and r.json()["code"] == "service_unavailable"
+    assert r.status_code in (401, 404) and r.json()["code"] != "service_unavailable"
 
 
 def test_http_redirects_to_https():
@@ -623,6 +625,71 @@ def test_a_document_goes_through_the_gateway_and_the_files_host(web, seeded, mon
                 time.sleep(1)
             assert root.audit.audit_events.find_one(
                 {"action": action, "resource.id": resource}), action
+    finally:
+        root.close()
+
+
+# --- operations and report: QR codes and label sheets through the gateway (W7) ---------------
+
+
+@pytest.mark.req("QR-6")
+def test_a_label_sheet_is_drawn_and_a_regenerated_code_revokes_the_old_one(web, seeded, mongo_up):
+    """QR-2, QR-4, QR-6, QR-7 on the real stack: report asks operations for the tokens with a
+    service token, WeasyPrint draws the sheet, the PDF comes from the files host, and a code
+    that was regenerated says "no longer valid" (410) while the audit chain records it."""
+    import time
+
+    for _ in range(30):
+        r = _compose("exec", "-T", "operations", "python", "-m", "app.cli", "seed")
+        if r.returncode == 0 and "Errors" not in r.stdout:
+            break
+        time.sleep(2)
+    admin = _login(web, "admin@example.org", seeded)
+    tech = _login(web, "tech1@example.org", seeded)
+    client_a = _login(web, "client.a1@example.org", seeded)
+    client_b = _login(web, "client.b1@example.org", seeded)
+    items = api(web, "GET", "/api/v1/stations", admin, params={"q": "-00"}).json()["items"]
+    mine = next(s for s in items if s["code"] == "JM-KIN-001")  # organization A's
+    token = api(web, "GET", f"/api/v1/stations/{mine['id']}", admin).json()["qr_token"]
+
+    resolved = api(web, "GET", f"/api/v1/qr/{token}", client_a)
+    assert resolved.status_code == 200 and resolved.json()["view"] == "client"
+    assert api(web, "GET", f"/api/v1/qr/{token}", tech).json()["view"] == "staff"
+    assert api(web, "GET", f"/api/v1/qr/{token}", client_b).status_code == 404
+
+    assert api(web, "POST", "/api/v1/reports/labels", tech,
+               json={"station_ids": [mine["id"]]}).status_code == 403
+    started = api(web, "POST", "/api/v1/reports/labels", admin, json={
+        "station_ids": [s["id"] for s in items], "contact_phone": "+1 876 555 0100"})
+    assert started.status_code == 202, started.text
+    job_id = started.json()["id"]
+    for _ in range(60):  # queue -> report-worker -> operations -> WeasyPrint -> the store
+        job = api(web, "GET", f"/api/v1/reports/jobs/{job_id}", admin).json()
+        if job["status"] in ("done", "failed"):
+            break
+        time.sleep(1)
+    assert job["status"] == "done", job
+    assert job["result"]["stations"] == len(items)
+    assert api(web, "GET", f"/api/v1/reports/jobs/{job_id}", tech).status_code == 404
+    target, host = _to_files_host(job["result"]["download_url"])
+    pdf = web.get(target, headers={"Host": host}, timeout=60)
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+    assert pdf.headers["content-type"] == "application/pdf"
+
+    again = api(web, "POST", f"/api/v1/stations/{mine['id']}/qr/regenerate", admin)
+    assert again.status_code == 200 and again.json()["qr_token"] != token
+    assert api(web, "GET", f"/api/v1/qr/{token}", tech).status_code == 410
+    assert api(web, "GET", f"/api/v1/qr/{again.json()['qr_token']}", tech).status_code == 200
+    root = root_mongo()
+    try:
+        for _ in range(60):
+            found = root.audit.audit_events.find_one(
+                {"action": "qr.regenerated", "resource.id": mine["id"]})
+            if found:
+                break
+            time.sleep(1)
+        assert found is not None
+        assert token not in json.dumps(found, default=str)  # the audit record has no token
     finally:
         root.close()
 

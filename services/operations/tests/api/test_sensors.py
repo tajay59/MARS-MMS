@@ -36,6 +36,29 @@ async def test_the_model_catalogue(ops):
     assert first.key == model["id"] and first.org_id is None
 
 
+@pytest.mark.req("SEN-1")
+async def test_specs_and_unit_counts(ops):
+    specs = [{"label": "Operating range", "value": "-80 to +60 °C", "detail": "0 to 100 % RH"},
+             {"label": "Interface", "value": "RS-485"}]
+    model = await ops.model(specs=specs)
+    assert model["specs"] == [specs[0], {**specs[1], "detail": None}] and model["unit_counts"] == {}
+    await ops.unit(model["id"], "A")
+    await ops.unit(model["id"], "B")
+    listed = (await ops.http.get("/api/v1/sensor-models", headers=ops.bearer("viewer"))).json()
+    assert listed["items"][0]["unit_counts"] == {"in_stock": 2}
+
+    path = f"/api/v1/sensor-models/{model['id']}"
+    edited = await ops.http.patch(path, json={"version": 1, "specs": specs[:1]},
+                                  headers=ops.bearer("tech1"))
+    assert [s["label"] for s in edited.json()["specs"]] == ["Operating range"]
+    assert edited.json()["unit_counts"] == {"in_stock": 2}
+    [update] = await ops.outbox("sensor_model.updated")
+    assert update.data["changed_fields"] == ["specs"]
+    too_many = await ops.http.patch(path, json={"version": 2, "specs": specs * 5},
+                                    headers=ops.bearer("tech1"))
+    assert too_many.status_code == 422
+
+
 @pytest.mark.req("SEN-2")
 async def test_units_by_serial(ops):
     model = await ops.model()

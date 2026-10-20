@@ -57,9 +57,9 @@ export default defineConfig({
       // browser tab: none of them is precached (F14), so they cost an install nothing.
       includeManifestIcons: false,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,woff2,svg}'],
-        // Inter and JetBrains Mono: only the Latin subsets are used (caching.md §3)
-        globIgnores: ['**/*cyrillic*', '**/*greek*', '**/*vietnamese*'],
+        // Google Sans, Roboto Flex and JetBrains Mono: only the Latin subsets are precached
+        // (caching.md §3); Google Sans ships a file for every script
+        globPatterns: ['**/*.{js,css,html,svg}', '**/*-latin-*.woff2'],
       },
       devOptions: {
         enabled: false, // `npm run build && npm run preview` to work on the worker
@@ -83,11 +83,11 @@ export default defineConfig({
         // a round trip on a phone's link. `vendor` is the libraries the first page needs, which
         // change rarely, so an update downloads `app` again but not them. `app` is all of src/ and
         // what its pages import. A large library used by one page stays out of both only behind
-        // a dynamic import(), as materialGenerate is.
+        // a dynamic import(), as materialGenerate, the QR drawing (qrCode.ts) and Leaflet are.
         codeSplitting: {
           groups: [
             { name: 'vendor', test: /[\\/]node_modules[\\/]/, tags: ['$initial'], priority: 2 },
-            { name: 'app', test: id => /[\\/]src[\\/]/.test(id) && !/materialGenerate/.test(id), priority: 1 },
+            { name: 'app', test: id => /[\\/]src[\\/]/.test(id) && !/materialGenerate|[\\/]qrCode\.ts/.test(id), priority: 1 },
           ],
         },
       },

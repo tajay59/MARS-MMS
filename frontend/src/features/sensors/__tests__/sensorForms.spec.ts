@@ -10,6 +10,8 @@ import {
   modelProblem,
   modelValues,
   parseDays,
+  photoProblem,
+  specsBody,
   unitCreateBody,
   unitPatchBody,
   unitProblem,
@@ -26,6 +28,10 @@ function model (patch: Partial<SensorModelOut> = {}): SensorModelOut {
     model: 'HMP155',
     parameters: ['AT', 'RH'],
     default_calibration_interval_days: 365,
+    specs: [],
+    unit_counts: {},
+    photo_count: 0,
+    cover_document_id: null,
     version: 3,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -94,6 +100,7 @@ describe('model form', () => {
       model: 'HMP155',
       parameters: ['AT'],
       default_calibration_interval_days: 365,
+      specs: [],
     })
     expect(modelCreateBody({ ...v, interval: '' }).default_calibration_interval_days).toBeNull()
   })
@@ -194,5 +201,49 @@ describe('unit form', () => {
 describe('localToday', () => {
   it('is the device’s date as yyyy-mm-dd', () => {
     expect(localToday(new Date(2026, 9, 5, 23, 59))).toBe('2026-10-05')
+  })
+})
+
+describe('model specifications', () => {
+  const typed = { label: ' Operating range ', value: ' -80 to +60 °C ', detail: ' 0 to 100 % RH ' }
+
+  it('sends a line only when it has a name and a value, trimmed, with an empty second line as null', () => {
+    expect(specsBody([typed, { label: 'Accuracy', value: '±0.17 °C', detail: '' }, { label: 'Half', value: '', detail: 'x' }, { label: '', value: '', detail: '' }])).toEqual([
+      { label: 'Operating range', value: '-80 to +60 °C', detail: '0 to 100 % RH' },
+      { label: 'Accuracy', value: '±0.17 °C', detail: null },
+    ])
+  })
+
+  it('refuses a half-typed line and more than eight', () => {
+    const v = { ...emptyModel(), manufacturer: 'A', model: 'B' }
+    expect(validateModel({ ...v, specs: [{ label: 'Range', value: '', detail: '' }] }).specs).toBe('Give each specification a name and a value')
+    expect(validateModel({ ...v, specs: Array.from({ length: 9 }, () => typed) }).specs).toBe('Use at most 8 specifications')
+    expect(validateModel({ ...v, specs: [typed, { label: '', value: '', detail: '' }] })).toEqual({})
+  })
+
+  it('sends specs in a patch only when they changed', () => {
+    const was = model({ specs: [{ label: 'Range', value: '0-5 V', detail: null }] })
+    expect(modelPatchBody(modelValues(was), was)).toBeNull()
+    expect(modelPatchBody({ ...modelValues(was), specs: [] }, was)).toEqual({ version: 3, specs: [] })
+    const edited = modelValues(was)
+    edited.specs[0]!.value = '0-1 V'
+    expect(modelPatchBody(edited, was)).toEqual({ version: 3, specs: [{ label: 'Range', value: '0-1 V', detail: null }] })
+  })
+})
+
+describe('photos staged in the form', () => {
+  const pic = (name: string, size = 1000) => ({ name, size })
+
+  it('takes PNG and JPEG pictures up to 10 MB', () => {
+    expect(photoProblem(pic('a.jpg'), [])).toBeNull()
+    expect(photoProblem(pic('A.PNG'), [])).toBeNull()
+    expect(photoProblem(pic('a.webp'), [])).toMatch(/PNG or JPEG/)
+    expect(photoProblem(pic('a.jpg', 0), [])).toMatch(/empty/)
+    expect(photoProblem(pic('a.jpg', 10 * 1024 * 1024 + 1), [])).toMatch(/over 10 MB/)
+  })
+
+  it('refuses the same picture twice and more than five', () => {
+    expect(photoProblem(pic('a.jpg'), [pic('a.jpg')])).toMatch(/already attached/)
+    expect(photoProblem(pic('f.jpg'), ['a', 'b', 'c', 'd', 'e'].map(n => pic(`${n}.jpg`)))).toMatch(/at most 5/)
   })
 })

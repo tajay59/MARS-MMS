@@ -50,11 +50,12 @@
     <div
       ref="regionEl"
       :aria-labelledby="headingId"
-      class="grow md:min-h-0 md:overflow-y-auto"
+      class="grow md:min-h-0"
+      :class="bleed ? 'md:overflow-hidden' : 'md:overflow-y-auto'"
       role="region"
       tabindex="0"
     >
-      <div ref="contentEl" class="w-full p-4 md:px-8 md:py-7" :class="wide ? '' : 'max-w-270'">
+      <div ref="contentEl" class="w-full" :class="bleed ? 'h-full' : ['p-4 md:px-8 md:py-7', wide ? '' : 'max-w-270']">
         <slot />
       </div>
     </div>
@@ -79,6 +80,8 @@
     backLabel?: string
     /** Use the whole width of the view (tables, maps). */
     wide?: boolean
+    /** The page fills the view edge to edge with no padding and no scrolling of its own (the map). */
+    bleed?: boolean
     /** The record open in the view (its id): when it changes, the new one rises in. */
     record?: string | null
   }>()

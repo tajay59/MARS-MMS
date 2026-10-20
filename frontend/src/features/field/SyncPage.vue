@@ -19,7 +19,7 @@
           Less than 1 GB free on this phone. Free some space before recording videos.
         </FeedbackBanner>
 
-        <section aria-labelledby="storage-h" class="flex flex-col gap-3 rounded-card border border-surface-200 bg-surface p-4">
+        <section aria-labelledby="storage-h" class="flex flex-col gap-3 rounded-card bg-surface-50 p-4">
           <h2 id="storage-h" class="m-0 text-h3 text-surface-900">Storage on this phone</h2>
 
           <template v-if="storage">
@@ -110,13 +110,16 @@
 
   async function syncNow (): Promise<void> {
     checking.value = true
-    const result = await refreshSession()
-    offline.value = result.kind === 'offline'
-    checkedAt.value = offline.value
-      ? null
-      : new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())
-    await measure()
-    checking.value = false
+    try {
+      const result = await refreshSession()
+      offline.value = result.kind === 'offline'
+      checkedAt.value = offline.value
+        ? null
+        : new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date())
+      await measure()
+    } finally {
+      checking.value = false
+    }
   }
 
   onMounted(() => {

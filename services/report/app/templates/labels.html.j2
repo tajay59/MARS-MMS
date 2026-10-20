@@ -1,0 +1,22 @@
+{% extends "base.html.j2" %}
+{% block title %}Station labels{% endblock %}
+{% block body %}
+{% for page in pages %}
+<section class="sheet">
+  {% for item in page %}
+  <article class="label">
+    <img class="qr" src="{{ item.qr }}" alt="QR code for station {{ item.label.code }}">
+    <div class="text">
+      <p class="brand">MARS-MMS</p>
+      <h1>{{ item.label.name }}</h1>
+      <p class="code">{{ item.label.code }}</p>
+      <p class="org">{{ item.label.org_name }}</p>
+      {% if phone %}
+      <p class="phone">Problem with this station? Call {{ phone }}</p>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

@@ -90,6 +90,16 @@ async def require(
     return doc
 
 
+async def by_qr_token(
+    db: Db, token: str, viewer: User | None = None, session: Session = None
+) -> dict[str, Any] | None:
+    query: dict[str, Any] = {"qr_token": token}
+    if viewer is not None:
+        query = scoped(viewer, query, STATION_OWNER)
+    doc: dict[str, Any] | None = await col(db).find_one(query, session=session)
+    return doc
+
+
 async def by_codes(db: Db, codes: list[str]) -> dict[str, dict[str, Any]]:
     return {d["code"]: d async for d in col(db).find({"code": {"$in": codes}})}
 

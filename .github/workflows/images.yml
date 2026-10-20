@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [auth, operations, media, platform, web]
+        image: [auth, operations, media, report, platform, web]
     steps:
       - uses: actions/checkout@v7
 

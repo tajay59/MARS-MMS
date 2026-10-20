@@ -202,11 +202,12 @@ The other status sets use the dark pair of the matching hue: green = Closed, blu
 
 ## Typography
 
-The app uses two typefaces. **Inter** is for all interface and report text, and **JetBrains Mono** is for references, serial numbers, hashes and file names. Both are open-source (SIL OFL) and self-hosted as WOFF2 through `@fontsource-variable`. The CSP blocks font CDNs, and the service worker precaches the fonts so they work offline (TRD §13.3, §15).
+The app uses three typefaces. **Google Sans** is for titles (page and section headings, KPI numbers), **Roboto Flex** is for all other interface text, and **JetBrains Mono** is for references, serial numbers, hashes and file names. Both are open-source (SIL OFL) and self-hosted as WOFF2 through `@fontsource-variable`. The CSP blocks font CDNs, and the service worker precaches the fonts so they work offline (TRD §13.3, §15).
 
 | Family | Weights | Why | Fallback stack |
 | --- | --- | --- | --- |
-| Inter (variable) | 400 regular, 500 medium, 600 semibold | Very readable at 12–16 px on phones. Its tabular figures (`font-feature-settings: "tnum"`) keep numbers in tables and readings aligned. | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` |
+| Google Sans (variable) | 600 semibold for titles | The Material 3 display face; gives headings and KPI numbers their character. | Roboto Flex, then `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` |
+| Roboto Flex (variable) | 400 regular, 500 medium | Very readable at 12–16 px on phones. Its tabular figures (`font-feature-settings: "tnum"`) keep numbers in tables and readings aligned. | `system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` |
 | JetBrains Mono (variable) | 400, 500 | 0/O and 1/l/I are easy to tell apart, which serial numbers like `HMP155-K1230045` need | `ui-monospace, "SFMono-Regular", Consolas, monospace` |
 
 The same two files are embedded in WeasyPrint PDF templates (`base.html.j2`), so reports match the screen.
@@ -232,7 +233,7 @@ The base is 16 px. Sizes are in rem so they follow the browser zoom. Phones keep
 
 - Use sentence case everywhere: headings, buttons and menu items (“Report a problem”, not “Report A Problem”). The only capitals are DRAFT and SUPERSEDED in report watermarks.
 - Keep line length to 75 characters or fewer for reading text (comments, report narrative, descriptions), using `max-w-prose`.
-- Use bold (600) for headings, KPI numbers and key values in a sentence. Never use italics for emphasis, because Inter's italic is weak at small sizes.
+- Use bold (600) for headings, KPI numbers and key values in a sentence. Never use italics for emphasis, because Roboto Flex's italic is weak at small sizes.
 - Numbers in tables, readings and dates use tabular figures and right-align in numeric columns.
 - Show times as `16 Oct 2026, 14:05 AST`: day month year, a 24-hour clock and the zone label wherever station local time is shown (TRD §13.2, RPT-9).
 

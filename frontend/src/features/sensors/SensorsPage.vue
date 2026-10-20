@@ -32,51 +32,46 @@
           hide-details
           :model-value="filters.q"
           name="q"
-          placeholder="Search make or model"
+          placeholder="Search make, model or parameter"
           :prepend-inner-icon="mdiMagnify"
           spellcheck="false"
           type="search"
           @update:model-value="setFilters({ q: ($event ?? '').trim() })"
         />
 
+        <v-btn
+          v-if="canWrite && !loadError"
+          block
+          color="primary"
+          :prepend-icon="mdiPlus"
+          @click="addModel"
+        >Add a model</v-btn>
+
         <div aria-label="Filter by kind of part" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="group">
           <button
             v-for="k in kindFilters"
             :key="k.value"
             :aria-pressed="filters.kind === k.value"
-            class="inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-sm font-medium"
+            class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium"
             :class="filters.kind === k.value ? 'border-transparent bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-100' : 'border-surface-300 text-surface-900'"
             type="button"
             @click="setFilters({ kind: k.value })"
-          >{{ k.label }}</button>
+          >
+            {{ k.label }}
+            <span class="text-xs tabular-nums opacity-80">{{ counts[k.value] }}</span>
+          </button>
         </div>
-
-        <v-btn
-          v-if="canWrite && !loadError"
-          class="ml-1 self-start"
-          color="primary"
-          :prepend-icon="mdiPlus"
-          variant="tonal"
-          @click="addModel"
-        >Add a model</v-btn>
 
         <p v-if="!loading && !loadError && shown.length === 0" class="m-0 px-2 text-sm text-surface-600">No models match.</p>
 
-        <ul v-else aria-label="Sensor models" class="m-0 flex list-none flex-col gap-0.5 p-0">
-          <li
+        <ul v-else aria-label="Sensor models" class="m-0 flex list-none flex-col gap-1 p-0 max-sm:gap-2">
+          <ModelRow
             v-for="m in shown"
             :key="m.id"
-            class="relative flex flex-col rounded-card px-3 py-2.5 transition-colors duration-150"
-            :class="m.id === modelId ? 'bg-primary-50' : 'hover:bg-surface-100 active:bg-surface-200'"
-          >
-            <router-link
-              :aria-current="m.id === modelId ? 'page' : undefined"
-              class="truncate font-medium text-surface-900 no-underline after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-primary"
-              :to="{ name: 'sensors', params: { id: m.id }, query: listQuery }"
-            >{{ m.manufacturer }} {{ m.model }}</router-link>
-
-            <span class="truncate text-sm text-surface-600">{{ modelLine(m) }}</span>
-          </li>
+            :active="m.id === modelId"
+            :model="m"
+            :to="{ name: 'sensors', params: { id: m.id }, query: listQuery }"
+          />
         </ul>
       </div>
     </PaneContent>
@@ -89,78 +84,20 @@
 
     <!-- The view: one model -->
     <div v-else-if="selected" class="flex flex-col gap-8">
+      <ModelGallery :can-write="canWrite" :model="selected" :refresh="photosVersion" @changed="loadModels" />
+
+      <ModelSpecs :can-write="canWrite" :model="selected" @edit="editModel" />
+
       <ModelDocuments :can-write="canWrite" :model="selected" />
 
-      <section aria-labelledby="units-h">
-        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 id="units-h" class="m-0 text-h3 text-surface-900">
-            Units of this model<span v-if="units" class="font-normal text-surface-600"> · {{ units.length }}</span>
-          </h2>
-
-          <v-btn
-            v-if="canWrite"
-            color="primary"
-            :prepend-icon="mdiPlus"
-            variant="tonal"
-            @click="addUnit"
-          >Add a unit</v-btn>
-        </div>
-
-        <FeedbackBanner v-if="unitsError" type="error">{{ unitsError }}</FeedbackBanner>
-
-        <div v-else-if="units === null" aria-label="Loading units…" role="status">
-          <v-skeleton-loader type="list-item-two-line" />
-        </div>
-
-        <p v-else-if="units.length === 0" class="m-0 py-4 text-sm text-surface-600">No units of this model are registered yet.</p>
-
-        <div v-else class="overflow-x-auto">
-          <table class="w-full border-collapse text-sm">
-            <caption class="sr-only">Units of {{ selected.manufacturer }} {{ selected.model }}</caption>
-
-            <thead>
-              <tr class="bg-surface-100 text-left">
-                <th v-for="h in ['Serial', 'Status', 'Where', 'Calibration']" :key="h" class="whitespace-nowrap px-4 py-3 text-xs font-medium text-surface-700" scope="col">{{ h }}</th>
-                <th v-if="canWrite" class="w-14 px-2 py-3" scope="col"><span class="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr v-for="u in units" :key="u.id" class="h-13 border-t border-surface-200">
-                <td class="whitespace-nowrap px-4 font-mono text-surface-900" translate="no">{{ u.serial }}</td>
-                <td class="whitespace-nowrap px-4 text-surface-900">{{ unitStatusLabel[u.status] ?? u.status }}</td>
-
-                <td class="px-4 text-surface-900">
-                  <router-link v-if="u.station" class="text-primary no-underline hover:underline" :to="{ name: 'stations', params: { id: u.station.id }, query: { tab: 'sensors' } }">{{ whereLabel(u) }}</router-link>
-                  <template v-else>{{ whereLabel(u) }}</template>
-                </td>
-
-                <td class="px-4"><CalibrationDueChip :due="u.calibration_due_at" :state="asDue(u.due_state)" /></td>
-
-                <td v-if="canWrite" class="px-2 text-right">
-                  <v-menu location="bottom end">
-                    <template #activator="{ props: activator }">
-                      <v-btn
-                        v-bind="activator"
-                        :aria-label="`More for ${u.serial}`"
-                        icon
-                        size="40"
-                        variant="text"
-                      >
-                        <v-icon class="text-surface-700" :icon="mdiDotsVertical" size="20" />
-                      </v-btn>
-                    </template>
-
-                    <v-list :aria-label="`Actions for ${u.serial}`" density="compact" role="menu">
-                      <v-list-item :prepend-icon="mdiPencilOutline" role="menuitem" title="Edit unit" @click="editUnit(u)" />
-                    </v-list>
-                  </v-menu>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <ModelUnits
+        :can-write="canWrite"
+        :error="unitsError"
+        :model="selected"
+        :units="units"
+        @add="addUnit"
+        @edit="editUnit"
+      />
     </div>
 
     <!-- The view: nothing chosen yet (phones show the list alone) -->
@@ -171,7 +108,7 @@
     <div v-else class="flex flex-col items-center gap-2 py-14 text-center">
       <v-icon class="text-surface-500" :icon="icons.sensor" size="40" />
       <h2 class="m-0 text-h3 text-surface-900">Choose a sensor model</h2>
-      <p class="m-0 max-w-sm text-sm text-surface-600">Its datasheets and manuals, and every unit of it, are here.</p>
+      <p class="m-0 max-w-sm text-sm text-surface-600">Its photos, specifications, datasheets and manuals, and every unit of it, are here.</p>
     </div>
 
     <ModelFormDialog
@@ -179,6 +116,7 @@
       v-model="modelDialog"
       :model="editingModel"
       :suggestions="parameterSuggestions"
+      @photos="onPhotosAdded"
       @reload="loadModels"
       @saved="onModelSaved"
     />
@@ -188,8 +126,8 @@
       v-model="unitDialog"
       :model="selected"
       :unit="editingUnit"
-      @reload="reloadUnits"
-      @saved="reloadUnits"
+      @reload="onUnitsChanged"
+      @saved="onUnitsChanged"
     />
   </PageBody>
 </template>
@@ -197,15 +135,13 @@
 <script lang="ts" setup>
   import type { SensorFilters } from './sensors'
   import type { SensorModelOut, SensorUnitOut } from '@/api/models'
-  import type { DueState } from '@/features/stations/stations'
-  import { mdiDotsVertical, mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
-  import { computed, onMounted, ref, watch } from 'vue'
+  import { mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
+  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { sensorModelsApi, sensorUnitsApi } from '@/api/operations'
   import { NetworkError } from '@/api/problem'
   import { usePaneSelection } from '@/app/shells/pane'
   import { icons } from '@/app/theme/icons'
-  import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
@@ -214,12 +150,17 @@
   import { useSessionStore } from '@/stores/session'
   import ModelDocuments from './ModelDocuments.vue'
   import ModelFormDialog from './ModelFormDialog.vue'
-  import { kindFilters, matchesModel, modelLine, sensorFiltersFrom, sensorQueryFrom, unitStatusLabel, whereLabel } from './sensors'
+  import ModelGallery from './ModelGallery.vue'
+  import ModelRow from './ModelRow.vue'
+  import ModelSpecs from './ModelSpecs.vue'
+  import ModelUnits from './ModelUnits.vue'
+  import { forgetPhotoLinks } from './photoLinks'
+  import { kindCounts, kindFilters, matchesModel, sensorFiltersFrom, sensorQueryFrom } from './sensors'
   import UnitFormDialog from './UnitFormDialog.vue'
 
-  // /sensors and /sensors/:id (AFD §3; PRD CAL-1, DOC-1): the catalogue of models with their
-  // datasheets and manuals and the units of each. Staff only. A few dozen models at most, so the
-  // page loads them all once and filters here.
+  // /sensors and /sensors/:id (AFD §3; PRD CAL-1, DOC-1): the catalogue of models with their photos,
+  // specifications, datasheets and manuals, and the units of each. Staff only. A few dozen models at
+  // most, so the page loads them all once and filters here.
   const session = useSessionStore()
   const route = useRoute()
   const router = useRouter()
@@ -229,6 +170,8 @@
   const loadError = ref<string | null>(null)
   const units = ref<SensorUnitOut[] | null>(null)
   const unitsError = ref<string | null>(null)
+  /** Bumped when photos were added from the model form, so the gallery looks again. */
+  const photosVersion = ref(0)
 
   const modelId = computed(() => typeof route.params.id === 'string' && route.params.id ? route.params.id : null)
   const open = computed(() => modelId.value !== null)
@@ -238,6 +181,7 @@
   const filters = computed(() => sensorFiltersFrom(route.query))
   const listQuery = computed(() => sensorQueryFrom(filters.value))
   const shown = computed(() => models.value.filter(m => matchesModel(m, filters.value)))
+  const counts = computed(() => kindCounts(models.value))
   const selected = computed(() => models.value.find(m => m.id === modelId.value) ?? null)
   const summary = computed(() => loading.value || loadError.value ? undefined : `${models.value.length} ${models.value.length === 1 ? 'model' : 'models'} in the catalogue`)
 
@@ -245,18 +189,17 @@
     void router.replace({ query: { ...route.query, ...sensorQueryFrom({ ...filters.value, ...patch }) } })
   }
 
-  function asDue (value: string | null): DueState | null {
-    return (['overdue', 'due_soon', 'ok'] as const).find(state => state === value) ?? null
-  }
-
   async function loadModels (): Promise<void> {
     loadError.value = null
     try {
       models.value = (await sensorModelsApi.list()).items
     } catch (error) {
-      loadError.value = error instanceof NetworkError
-        ? 'This needs a connection. It will load when you have signal.'
-        : 'We couldn’t load the catalogue. Reload the page to try again.'
+      // Keep what is on screen if we already had a catalogue: a missed refresh is not an error page
+      if (models.value.length === 0) {
+        loadError.value = error instanceof NetworkError
+          ? 'This needs a connection. It will load when you have signal.'
+          : 'We couldn’t load the catalogue. Reload the page to try again.'
+      }
     } finally {
       loading.value = false
     }
@@ -307,6 +250,12 @@
     }
   }
 
+  /** Photos went up from the form: the gallery and the list's cover picture have changed. */
+  async function onPhotosAdded (): Promise<void> {
+    photosVersion.value++
+    await loadModels()
+  }
+
   function addUnit (): void {
     editingUnit.value = null
     unitDialog.value = true
@@ -317,13 +266,18 @@
     unitDialog.value = true
   }
 
-  async function reloadUnits (): Promise<void> {
+  /** Units changed: look at them again, and at the catalogue, whose rows count them. */
+  async function onUnitsChanged (): Promise<void> {
     if (modelId.value) {
       await loadUnits(modelId.value)
     }
+    await loadModels()
   }
 
   onMounted(loadModels)
+  // A ten-minute photo link must not outlive the page: the next person to sign in on this device
+  // starts with none
+  onBeforeUnmount(forgetPhotoLinks)
   watch(modelId, id => {
     if (id) {
       void loadUnits(id)

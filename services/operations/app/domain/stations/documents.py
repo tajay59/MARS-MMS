@@ -35,7 +35,8 @@ class DocStatus(StrEnum):
 
 
 DOC_TYPES: dict[Scope, tuple[str, ...]] = {
-    Scope.MODEL: ("datasheet", "operations_manual", "maintenance_manual", "other"),
+    # `photo` is a picture of the model, shown in its gallery (W6-12); the first is its cover.
+    Scope.MODEL: ("datasheet", "operations_manual", "maintenance_manual", "photo", "other"),
     Scope.STATION: ("installation", "site_drawing", "other"),
 }
 

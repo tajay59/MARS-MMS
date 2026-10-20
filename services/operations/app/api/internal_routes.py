@@ -9,7 +9,7 @@ from mms_common.auth import ServicePrincipal, require_service
 from mms_common.errors import Forbidden, NotFound
 from mms_common.ids import UUID7_PATTERN
 from mms_common.snapshot import SnapshotPage, page
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.context import CtxDep
 from app.events.publish import calibration_data, station_data, unit_data
@@ -20,11 +20,43 @@ router = APIRouter(tags=["internal"])
 
 SnapshotReader = Annotated[ServicePrincipal, Depends(require_service("report", "platform"))]
 MediaService = Annotated[ServicePrincipal, Depends(require_service("media"))]
+ReportService = Annotated[ServicePrincipal, Depends(require_service("report"))]
 WRITE_ROLES = frozenset({"technician", "admin"})
 
 
 class AttachableOut(BaseModel):
     org_id: str | None  # the organization a file for this owner belongs to; None for models
+
+
+class LabelsIn(BaseModel):
+    station_ids: list[Annotated[str, Field(pattern=UUID7_PATTERN)]] = Field(
+        min_length=1, max_length=200
+    )
+
+
+class LabelOut(BaseModel):
+    station_id: str
+    code: str
+    name: str
+    qr_token: str
+    org_name: str
+    country: str
+
+
+@router.post("/internal/labels")
+async def labels(body: LabelsIn, svc: ReportService, ctx: CtxDep) -> list[LabelOut]:
+    """What a label sheet prints (QR-6): the code, name and QR token of each station, in the
+    order asked. Stations that do not exist are left out. Tokens never travel in events or
+    snapshots, so this is the only place report can read them."""
+    found = await station_repo.by_ids(ctx.db, body.station_ids)
+    return [
+        LabelOut(
+            station_id=d["_id"], code=d["code"], name=d["name"], qr_token=d["qr_token"],
+            org_name=d["owner_org_name"], country=d["country"],
+        )
+        for sid in dict.fromkeys(body.station_ids)
+        if (d := found.get(sid)) is not None
+    ]
 
 
 @router.get("/internal/attachable")

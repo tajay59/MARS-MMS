@@ -53,6 +53,13 @@ services:
   media-worker:
     mem_limit: 256m
 
+  # Label sheets: WeasyPrint needs about 150 MB while it draws, and the API alone far less.
+  report:
+    mem_limit: 256m
+
+  report-worker:
+    mem_limit: 384m
+
   platform:
     mem_limit: 512m
 

@@ -48,6 +48,15 @@ async def search(
     return [d async for d in cursor]
 
 
+async def counts_by_model(db: Db) -> dict[str, dict[str, int]]:
+    """Units of each model by status, for the catalogue (staff only: no scoping)."""
+    found: dict[str, dict[str, int]] = {}
+    pipeline = [{"$group": {"_id": {"m": "$model_id", "s": "$status"}, "n": {"$sum": 1}}}]
+    async for row in await col(db).aggregate(pipeline):
+        found.setdefault(row["_id"]["m"], {})[row["_id"]["s"]] = row["n"]
+    return found
+
+
 async def get(
     db: Db, unit_id: str, viewer: User | None = None, session: Session = None
 ) -> dict[str, Any] | None:

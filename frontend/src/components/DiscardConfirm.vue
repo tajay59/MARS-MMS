@@ -1,6 +1,12 @@
 <template>
-  <v-dialog v-model="open" max-width="420">
-    <div aria-labelledby="dc-h" class="flex flex-col gap-4 rounded-card bg-surface p-6" role="alertdialog">
+  <!-- Vuetify puts role="dialog" on the overlay itself; an alert dialog says so there, not on a nested element -->
+  <v-dialog
+    v-model="open"
+    aria-labelledby="dc-h"
+    max-width="420"
+    role="alertdialog"
+  >
+    <div class="flex flex-col gap-4 rounded-card bg-surface p-6">
       <h2 id="dc-h" class="m-0 text-h2 text-surface-900">Leave without saving?</h2>
       <p class="m-0 text-surface-700">{{ message }}</p>
 

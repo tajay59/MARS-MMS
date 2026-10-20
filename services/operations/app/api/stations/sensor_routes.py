@@ -33,7 +33,7 @@ from app.api.stations.schemas import (
 from app.domain.stations import sensors as rules
 from app.domain.stations import stations as station_rules
 from app.events.publish import ev
-from app.repo.stations import history, models, stations, units
+from app.repo.stations import documents, history, models, stations, units
 from app.repo.stations.common import stamp
 
 model_router = APIRouter(prefix="/api/v1/sensor-models", tags=["sensor-models"])
@@ -55,6 +55,17 @@ class SerialTaken(Conflict):
 # --- Sensor models (SEN-1) -------------------------------------------------------------------
 
 
+async def model_out(ctx: Any, docs: list[dict[str, Any]]) -> list[SensorModelOut]:
+    """Models with their unit counts and photos. The catalogue stays small (tens to hundreds),
+    so one grouped read of each serves a whole list."""
+    counts = await units.counts_by_model(ctx.db)
+    photos = await documents.photos_by_model(ctx.db)
+    return [
+        SensorModelOut.of(d, unit_counts=counts.get(d["_id"]), photos=photos.get(d["_id"]))
+        for d in docs
+    ]
+
+
 @model_router.get("")
 async def list_models(
     staff: Staff,
@@ -66,7 +77,7 @@ async def list_models(
     found = await models.search(
         ctx.db, kind=kind, parameter=parameter.upper() if parameter else None, q=q
     )
-    return SensorModelList(items=[SensorModelOut.of(d) for d in found])
+    return SensorModelList(items=await model_out(ctx, found))
 
 
 @model_router.post("", status_code=status.HTTP_201_CREATED)
@@ -76,6 +87,7 @@ async def create_model(body: SensorModelIn, user: Writer, ctx: CtxDep) -> Sensor
         "kind": body.kind, "manufacturer": body.manufacturer, "model": body.model,
         "parameters": station_rules.check_parameters(body.parameters),
         "default_calibration_interval_days": body.default_calibration_interval_days,
+        "specs": [s.model_dump() for s in body.specs],
     }, ctx.clock.now(), user.id)
     emitter = ctx.emitter(user)
 
@@ -87,12 +99,12 @@ async def create_model(body: SensorModelIn, user: Writer, ctx: CtxDep) -> Sensor
         await ctx.tx(save)
     except DuplicateKeyError as exc:
         raise ModelTaken() from exc
-    return SensorModelOut.of(doc)
+    return (await model_out(ctx, [doc]))[0]
 
 
 @model_router.get("/{id}")
 async def get_model(id: IdPath, staff: Staff, ctx: CtxDep) -> SensorModelOut:
-    return SensorModelOut.of(await models.require(ctx.db, id))
+    return (await model_out(ctx, [await models.require(ctx.db, id)]))[0]
 
 
 @model_router.patch("/{id}")
@@ -106,6 +118,8 @@ async def patch_model(
     }
     if "parameters" in wanted:
         wanted["parameters"] = station_rules.check_parameters(wanted["parameters"] or [])
+    if "specs" in wanted:
+        wanted["specs"] = [s.model_dump() for s in body.specs or []]
     for field in ("kind", "manufacturer", "model"):
         if field in wanted and wanted[field] is None:
             del wanted[field]
@@ -118,7 +132,7 @@ async def patch_model(
     if not changes:
         if body.version != current["version"]:
             raise VersionConflict()
-        return SensorModelOut.of(current)
+        return (await model_out(ctx, [current]))[0]
     now = ctx.clock.now()
     emitter = ctx.emitter(user)
 
@@ -146,7 +160,7 @@ async def patch_model(
         updated = await ctx.tx(save)
     except DuplicateKeyError as exc:
         raise ModelTaken() from exc
-    return SensorModelOut.of(updated)
+    return (await model_out(ctx, [updated]))[0]
 
 
 # --- Sensor units (SEN-2, SEN-3) -------------------------------------------------------------

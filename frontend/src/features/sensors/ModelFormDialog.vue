@@ -16,6 +16,11 @@
 
       <FeedbackBanner v-else-if="message" type="error">{{ message }}</FeedbackBanner>
 
+      <FeedbackBanner v-if="!online" :icon="mdiWifiOff" type="warning">
+        <div class="font-semibold">You’re offline</div>
+        <div>Saving needs a connection. What you’ve typed stays here until you’re back online.</div>
+      </FeedbackBanner>
+
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField id="mf-kind" label="Kind">
           <v-select
@@ -67,6 +72,11 @@
         </FormField>
       </div>
 
+      <FeedbackBanner v-if="duplicate" type="error">
+        <span class="font-semibold">Already in the catalogue:</span>
+        {{ values.manufacturer.trim() }} {{ values.model.trim() }}. Change the make or model, or find it in the list.
+      </FeedbackBanner>
+
       <ParameterField
         id="mf-parameters"
         v-model="values.parameters"
@@ -74,18 +84,27 @@
         :suggestions="suggestions"
       />
 
+      <SpecsField v-model="values.specs" :error="errors.specs" />
+
+      <PhotoStager
+        id="mf-photos"
+        v-model="photos"
+        :disabled="busy"
+        :states="photoStates"
+      />
+
       <div class="mt-1 flex justify-end gap-2">
-        <v-btn class="text-primary" variant="text" @click="requestClose">Cancel</v-btn>
+        <v-btn class="text-primary" variant="text" @click="requestClose">{{ modelSaved ? 'Close' : 'Cancel' }}</v-btn>
 
         <v-btn v-if="stale" color="primary" variant="outlined" @click="reload">Reload</v-btn>
 
         <v-btn
           v-else
           color="primary"
-          :disabled="model !== null && !dirty"
+          :disabled="!online || (model !== null && !dirty)"
           :loading="busy"
           type="submit"
-        >{{ model ? 'Save' : 'Add model' }}</v-btn>
+        >{{ submitLabel }}</v-btn>
       </div>
     </form>
   </ModalSheet>
@@ -96,17 +115,24 @@
 <script lang="ts" setup>
   import type { ModelField, ModelValues } from './sensorForms'
   import type { SensorModelOut } from '@/api/models'
+  import { mdiWifiOff } from '@mdi/js'
   import { computed, reactive, ref, watch } from 'vue'
-  import { sensorModelsApi } from '@/api/operations'
+  import { documentsApi, sensorModelsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
   import { useFormDialog } from '@/app/composables/useFormDialog'
+  import { useOnline } from '@/app/composables/useOnline'
+  import { useUploads } from '@/app/composables/useUpload'
+  import { newId } from '@/app/ids'
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
+  import { PHOTO_TYPE, titleFromFilename } from '@/features/stations/documents'
   import ParameterField from './ParameterField.vue'
+  import PhotoStager from './PhotoStager.vue'
   import { emptyModel, kindOptions, modelCreateBody, modelPatchBody, modelProblem, modelValues, validateModel } from './sensorForms'
+  import SpecsField from './SpecsField.vue'
 
   // Add or edit a sensor model (PRD SEN-1; approved mock-up "W6 forms"). Online only: nothing here
   // is queued for sync (OFF-10).
@@ -119,6 +145,8 @@
 
   const emit = defineEmits<{
     saved: [model: SensorModelOut]
+    /** Photos were added to a model, so its gallery has changed. */
+    photos: [modelId: string]
     reload: []
   }>()
 
@@ -130,8 +158,25 @@
   const stale = ref(false)
   const busy = ref(false)
   const initial = ref(JSON.stringify(values))
+  const online = useOnline()
+  const uploads = useUploads()
 
-  const dirty = computed(() => JSON.stringify(values) !== initial.value)
+  // The model is made first, then each photo is sent and filed against it. If a photo fails the
+  // model stays saved: this remembers it, so "Try again" only repeats the photos.
+  const duplicate = ref(false)
+  const photos = ref<File[]>([])
+  const photoStates = ref<Record<string, string>>({})
+  const modelSaved = ref<SensorModelOut | null>(null)
+  // One document ID per photo: a retry after a lost answer finds the document, never makes two
+  const photoIds = new Map<File, string>()
+
+  const dirty = computed(() => JSON.stringify(values) !== initial.value || photos.value.length > 0)
+  const submitLabel = computed(() => {
+    if (modelSaved.value) {
+      return 'Try the photos again'
+    }
+    return props.model ? 'Save' : 'Add model'
+  })
   const { askLeave, requestClose, leave } = useFormDialog(open, () => dirty.value)
 
   watch(open, isOpen => {
@@ -143,7 +188,16 @@
     errors.value = {}
     message.value = null
     stale.value = false
+    duplicate.value = false
+    photos.value = []
+    photoStates.value = {}
+    modelSaved.value = null
+    photoIds.clear()
   }, { immediate: true })
+
+  watch(() => [values.manufacturer, values.model], () => {
+    duplicate.value = false
+  })
 
   function onToggle (isOpen: boolean): void {
     if (!isOpen) {
@@ -156,6 +210,49 @@
     open.value = false
   }
 
+  /** Send each photo and file it against the model; true when every one is in. */
+  async function addPhotos (modelId: string): Promise<boolean> {
+    let allIn = true
+    for (const file of photos.value) {
+      photoStates.value = { ...photoStates.value, [file.name]: 'Sending…' }
+      const upload = uploads.add(file, { ownerRef: `document:model:${modelId}`, kind: 'document' })
+      try {
+        if (!(await upload.start())) {
+          throw new Error(upload.error ?? 'The upload did not finish.')
+        }
+        let id = photoIds.get(file)
+        if (!id) {
+          id = newId()
+          photoIds.set(file, id)
+        }
+        await documentsApi.create({
+          id,
+          scope: 'model',
+          scope_id: modelId,
+          doc_type: PHOTO_TYPE,
+          title: titleFromFilename(file.name),
+          language: 'en',
+          client_visible: false,
+          media_id: upload.mediaId!,
+        })
+        photos.value = photos.value.filter(f => f !== file)
+        photoStates.value = { ...photoStates.value, [file.name]: 'Added' }
+      } catch (error) {
+        allIn = false
+        photoStates.value = {
+          ...photoStates.value,
+          [file.name]: error instanceof NetworkError
+            ? 'Not sent: no connection'
+            : (error instanceof ApiError ? error.detail : (error as Error).message),
+        }
+      } finally {
+        uploads.drop(upload)
+      }
+    }
+    emit('photos', modelId)
+    return allIn
+  }
+
   async function save (): Promise<void> {
     message.value = null
     errors.value = validateModel(values)
@@ -163,28 +260,38 @@
       await focusFirstError()
       return
     }
-    const patch = props.model ? modelPatchBody(values, props.model) : null
-    if (props.model && !patch) {
+    const patch = props.model && !modelSaved.value ? modelPatchBody(values, props.model) : null
+    if (props.model && !patch && photos.value.length === 0) {
       open.value = false
       return
     }
     busy.value = true
     try {
-      const saved = props.model && patch
-        ? await sensorModelsApi.update(props.model.id, patch)
-        : await sensorModelsApi.create(modelCreateBody(values))
-      emit('saved', saved)
+      if (!modelSaved.value) {
+        const saved = props.model
+          ? (patch ? await sensorModelsApi.update(props.model.id, patch) : props.model)
+          : await sensorModelsApi.create(modelCreateBody(values))
+        modelSaved.value = saved
+        initial.value = JSON.stringify(values)
+        emit('saved', saved)
+      }
+      if (photos.value.length > 0 && !(await addPhotos(modelSaved.value.id))) {
+        const left = photos.value.length
+        message.value = `The model is saved. ${left === 1 ? '1 photo was' : `${left} photos were`} not added: see below, then try again. You can also add photos from the model’s page.`
+        return
+      }
       open.value = false
     } catch (error) {
       if (error instanceof NetworkError) {
-        message.value = 'This needs a connection. It will save when you have signal.'
+        message.value = 'We couldn’t reach the server. What you typed is still here: try again when you have signal.'
       } else if (error instanceof ApiError) {
         const problem = modelProblem(error, values)
         if (problem.kind === 'stale') {
           stale.value = true
         } else if (problem.kind === 'fields') {
           errors.value = problem.errors
-          message.value = problem.message
+          duplicate.value = error.code === 'model_taken'
+          message.value = duplicate.value ? null : problem.message
           await focusFirstError()
         } else {
           message.value = problem.message

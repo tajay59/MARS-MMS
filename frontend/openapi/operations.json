@@ -1474,6 +1474,63 @@
         "title": "InstalledUnit",
         "type": "object"
       },
+      "LabelOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "org_name": {
+            "title": "Org Name",
+            "type": "string"
+          },
+          "qr_token": {
+            "title": "Qr Token",
+            "type": "string"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "code",
+          "name",
+          "qr_token",
+          "org_name",
+          "country"
+        ],
+        "title": "LabelOut",
+        "type": "object"
+      },
+      "LabelsIn": {
+        "properties": {
+          "station_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Station Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "station_ids"
+        ],
+        "title": "LabelsIn",
+        "type": "object"
+      },
       "Logger": {
         "additionalProperties": false,
         "properties": {
@@ -1657,6 +1714,39 @@
           }
         },
         "title": "Power",
+        "type": "object"
+      },
+      "QrResolved": {
+        "description": "What a scanned label points at (QR-2, QR-3). `view` picks the page the app opens.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          },
+          "view": {
+            "enum": [
+              "staff",
+              "client"
+            ],
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "code",
+          "name",
+          "view"
+        ],
+        "title": "QrResolved",
         "type": "object"
       },
       "Reading": {
@@ -1855,6 +1945,15 @@
             "maxItems": 20,
             "title": "Parameters",
             "type": "array"
+          },
+          "specs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Spec"
+            },
+            "maxItems": 8,
+            "title": "Specs",
+            "type": "array"
           }
         },
         "required": [
@@ -1883,6 +1982,17 @@
       },
       "SensorModelOut": {
         "properties": {
+          "cover_document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Document Id"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1922,6 +2032,24 @@
             "title": "Parameters",
             "type": "array"
           },
+          "photo_count": {
+            "title": "Photo Count",
+            "type": "integer"
+          },
+          "specs": {
+            "items": {
+              "$ref": "#/components/schemas/Spec"
+            },
+            "title": "Specs",
+            "type": "array"
+          },
+          "unit_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Unit Counts",
+            "type": "object"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -1939,6 +2067,10 @@
           "model",
           "parameters",
           "default_calibration_interval_days",
+          "specs",
+          "unit_counts",
+          "photo_count",
+          "cover_document_id",
           "version",
           "created_at",
           "updated_at"
@@ -2023,6 +2155,21 @@
               }
             ],
             "title": "Parameters"
+          },
+          "specs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Spec"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specs"
           },
           "version": {
             "title": "Version",
@@ -2590,6 +2737,42 @@
           "next_after"
         ],
         "title": "SnapshotPage",
+        "type": "object"
+      },
+      "Spec": {
+        "additionalProperties": false,
+        "description": "One line of a model's technical specifications: `Operating range: -80 to +60 \u00b0C`, with an\noptional second line (`0 to 100 % RH`). Free text: loggers and sensors have different ones.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "title": "Spec",
         "type": "object"
       },
       "StationDetail": {
@@ -4205,6 +4388,56 @@
         ]
       }
     },
+    "/api/v1/qr/{token}": {
+      "get": {
+        "description": "QR-2, QR-3. A revoked code answers 410 to anyone who may see its station, and 404 to\neveryone else, so a client learns nothing about another organization's stations.",
+        "operationId": "resolve_api_v1_qr__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrResolved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve",
+        "tags": [
+          "qr"
+        ]
+      }
+    },
     "/api/v1/sensor-models": {
       "get": {
         "operationId": "list_models_api_v1_sensor_models_get",
@@ -5661,6 +5894,55 @@
         ]
       }
     },
+    "/api/v1/stations/{id}/qr/regenerate": {
+      "post": {
+        "description": "QR-7. Gives the station a new token and revokes the old one, in one transaction.",
+        "operationId": "regenerate_api_v1_stations__id__qr_regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Regenerate",
+        "tags": [
+          "qr"
+        ]
+      }
+    },
     "/internal/attachable": {
       "get": {
         "description": "The owner check on upload (TRD \u00a73.3): may this user attach a file to this owner, and\nwhich organization does the file then belong to? Not found for an owner that does not\nexist or that a client cannot see (rule 4); forbidden for a role that may not write.",
@@ -5738,6 +6020,57 @@
           }
         ],
         "summary": "Attachable",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/internal/labels": {
+      "post": {
+        "description": "What a label sheet prints (QR-6): the code, name and QR token of each station, in the\norder asked. Stations that do not exist are left out. Tokens never travel in events or\nsnapshots, so this is the only place report can read them.",
+        "operationId": "labels_internal_labels_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabelsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LabelOut"
+                  },
+                  "title": "Response Labels Internal Labels Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Labels",
         "tags": [
           "internal"
         ]

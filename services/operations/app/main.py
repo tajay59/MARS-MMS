@@ -33,6 +33,7 @@ from app.api.stations import (
     calibration_routes,
     config_routes,
     document_routes,
+    qr_routes,
     sensor_routes,
     station_routes,
 )
@@ -142,6 +143,8 @@ def create_app(
     # Literal paths before /{id} (TRD §3.0): each router declares its own in that order.
     # Every route goes in tests/api/test_authorization_matrix.py.
     app.include_router(station_routes.router)
+    app.include_router(qr_routes.station_router)
+    app.include_router(qr_routes.router)
     app.include_router(sensor_routes.model_router)
     app.include_router(sensor_routes.unit_router)
     app.include_router(calibration_routes.router)

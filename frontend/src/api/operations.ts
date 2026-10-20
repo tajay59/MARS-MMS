@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
+import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -25,6 +25,15 @@ export const stationsApi = {
 }
 
 // Staff only: clients get 403 from these
+// Station labels (QR-1 to QR-4, QR-7). The label holds a random token; the lookup is an ordinary
+// scoped read, so a station outside the person's organization answers 404, and a replaced code 410.
+export const qrApi = {
+  resolve: (token: string, signal?: AbortSignal) =>
+    api.get<QrResolved>(`/qr/${encodeURIComponent(token)}`, { signal }),
+  /** Admin only: gives the station a new token and revokes the old one. */
+  regenerate: (stationId: string) => api.post<StationDetail>(`/stations/${stationId}/qr/regenerate`),
+}
+
 export const calibrationsApi = {
   due: (withinDays: number, signal?: AbortSignal, filters: { org_id?: string, country?: string } = {}) =>
     api.get<DueList>('/calibrations/due', { query: { within_days: withinDays, ...filters }, signal }),
