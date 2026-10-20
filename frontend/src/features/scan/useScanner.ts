@@ -69,12 +69,12 @@ export async function hasTorch (track: MediaStreamTrack): Promise<boolean> {
 }
 
 /** How the browser answered the camera question before asking, when it can say (not Safari). */
-export async function cameraPermission (): Promise<'granted' | 'denied' | 'prompt'> {
+export async function cameraPermission (): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> {
   try {
     const status = await navigator.permissions.query({ name: 'camera' as PermissionName })
     return status.state
   } catch {
-    return 'prompt'
+    return 'unknown'
   }
 }
 
