@@ -69,12 +69,18 @@ def _container(docker: str, prefix: str, args: list[str]) -> Iterator[str]:
         subprocess.run([docker, "rm", "-f", name], capture_output=True)
 
 
-def _wait(check, what: str, seconds: int = 90) -> None:
+def _wait(check, what: str, seconds: int = 90, container: tuple[str, str] | None = None) -> None:
     for _ in range(seconds):
         if check():
             return
         time.sleep(1)
-    raise TimeoutError(f"{what} did not start in {seconds} s")
+    detail = ""
+    if container:
+        docker, name = container
+        logs = subprocess.run([docker, "logs", "--tail", "30", name], capture_output=True,
+                              text=True)
+        detail = f"\n{logs.stdout}{logs.stderr}"
+    raise TimeoutError(f"{what} did not start in {seconds} s{detail}")
 
 
 @pytest.fixture(scope="session")
@@ -96,8 +102,8 @@ def mongo_uri(docker):
             )
             return "true" in r.stdout
 
-        _wait(initiated, "mongo")
-        _wait(primary, "mongo primary")
+        _wait(initiated, "mongo", container=(docker, name))
+        _wait(primary, "mongo primary", container=(docker, name))
         # directConnection: the set advertises "localhost:27017", unreachable from the host.
         yield f"mongodb://127.0.0.1:{port}/?directConnection=true"
 
