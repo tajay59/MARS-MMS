@@ -6,7 +6,7 @@
       class="-mx-4 -mt-4 border-b border-surface-200 md:-mx-8 md:-mt-7"
       color="primary"
       density="comfortable"
-      show-arrows
+      :show-arrows="mdAndUp"
     >
       <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
         {{ t.label }}
@@ -18,16 +18,30 @@
       <!-- Overview: the station's facts, its place and what needs calibrating -->
       <v-tabs-window-item value="overview">
         <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <dl class="m-0 grid grid-cols-[120px_minmax(0,1fr)] text-sm sm:grid-cols-[150px_minmax(0,1fr)]">
-            <template v-for="(row, i) in facts" :key="row.label">
-              <dt class="py-2.5 text-surface-600" :class="i > 0 ? 'border-t border-surface-200' : ''">{{ row.label }}</dt>
+          <div class="min-w-0">
+            <dl class="m-0 grid grid-cols-[120px_minmax(0,1fr)] text-sm sm:grid-cols-[150px_minmax(0,1fr)]">
+              <template v-for="(row, i) in shownFacts" :key="row.label">
+                <dt class="py-2.5 text-surface-600" :class="i > 0 ? 'border-t border-surface-200' : ''">{{ row.label }}</dt>
 
-              <dd class="m-0 min-w-0 py-2.5 text-surface-900" :class="i > 0 ? 'border-t border-surface-200' : ''">
-                <ParameterTags v-if="row.label === 'Measures' && station.parameters.length > 0" :parameters="station.parameters" />
-                <span v-else class="wrap-break-word" :class="row.mono ? 'font-mono' : ''">{{ row.value }}</span>
-              </dd>
-            </template>
-          </dl>
+                <dd class="m-0 min-w-0 py-2.5 text-surface-900" :class="i > 0 ? 'border-t border-surface-200' : ''">
+                  <ParameterTags v-if="row.label === 'Measures' && station.parameters.length > 0" :parameters="station.parameters" />
+                  <span v-else class="wrap-break-word" :class="row.mono ? 'font-mono' : ''">{{ row.value }}</span>
+                </dd>
+              </template>
+            </dl>
+
+            <!-- Phones: the five facts that matter, the rest one tap away -->
+            <button
+              v-if="!mdAndUp && facts.length > FIRST_FACTS"
+              :aria-expanded="moreFacts"
+              class="flex min-h-11 w-full items-center justify-between border-y border-surface-200 text-left text-sm font-medium text-primary"
+              type="button"
+              @click="moreFacts = !moreFacts"
+            >
+              {{ moreFacts ? 'Fewer details' : 'More details' }}
+              <v-icon :icon="moreFacts ? mdiChevronUp : mdiChevronDown" size="20" />
+            </button>
+          </div>
 
           <div class="flex flex-col gap-6">
             <!-- Where it is; the Map page draws it on a real map -->
@@ -139,6 +153,12 @@
 
       <!-- Calibration: the records made at this station, newest first (staff) -->
       <v-tabs-window-item v-if="isStaff" value="calibration">
+        <!-- What is due next, from the units installed now -->
+        <div v-if="nextDue" class="flex flex-col gap-0.5 pb-4">
+          <span class="text-h3 text-surface-900">Next due {{ formatDate(nextDue, station.time_zone) }}</span>
+          <span v-if="overdueCount > 0" class="text-sm text-surface-600">{{ overdueCount === 1 ? '1 sensor overdue' : `${overdueCount} sensors overdue` }}</span>
+        </div>
+
         <FeedbackBanner v-if="calError" type="error">{{ calError }}</FeedbackBanner>
 
         <div v-else-if="calibrations === null" aria-label="Loading calibrations…" role="status">
@@ -148,7 +168,27 @@
         <p v-else-if="calibrations.length === 0" class="m-0 py-8 text-center text-surface-600">No calibrations recorded at this station yet.</p>
 
         <div v-else class="flex flex-col gap-3">
-          <div class="overflow-x-auto">
+          <!-- Phones: one row per record -->
+          <ul v-if="!mdAndUp" :aria-label="`Calibrations at ${station.name}, newest first`" class="m-0 flex list-none flex-col p-0">
+            <li v-for="c in calibrations" :key="c.id" class="flex flex-col gap-1 border-t border-surface-200 py-3 first:border-t-0">
+              <span class="flex items-start justify-between gap-2">
+                <span class="font-medium text-surface-900">
+                  <template v-if="unitNames.get(c.sensor_unit_id)">{{ unitNames.get(c.sensor_unit_id)!.model }}</template>
+                  <template v-else>A unit since moved</template>
+                </span>
+
+                <span class="inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-medium" :class="(resultLook[c.result] ?? resultLook.pass!).chip">
+                  {{ resultLook[c.result]?.label ?? c.result }}
+                </span>
+              </span>
+
+              <span class="text-sm text-surface-600">
+                <span v-if="unitNames.get(c.sensor_unit_id)" class="font-mono" translate="no">{{ unitNames.get(c.sensor_unit_id)!.serial }} · </span>{{ formatDate(c.at, station.time_zone) }}<template v-if="c.performed_by"> · {{ c.performed_by }}</template>
+              </span>
+            </li>
+          </ul>
+
+          <div v-else class="overflow-x-auto">
             <table class="w-full border-collapse text-sm">
               <caption class="sr-only">Calibrations at {{ station.name }}, newest first</caption>
 
@@ -219,7 +259,7 @@
 <script lang="ts" setup>
   import type { DueState } from './stations'
   import type { CalibrationOut, StationDetail } from '@/api/models'
-  import { mdiChevronRight, mdiFlagOutline, mdiMapMarker, mdiProgressClock } from '@mdi/js'
+  import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiFlagOutline, mdiMapMarker, mdiProgressClock } from '@mdi/js'
   import { computed, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
@@ -297,6 +337,10 @@
     return text ? text.charAt(0).toUpperCase() + text.slice(1) : null
   }
 
+  /** Phones show this many facts before "More details". */
+  const FIRST_FACTS = 5
+  const moreFacts = ref(false)
+
   const facts = computed(() => {
     const s = props.station
     const join = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ') || '—'
@@ -329,6 +373,12 @@
     ]
     return rows
   })
+
+  /** The earliest due date among installed units, and how many are past it. */
+  const nextDue = computed(() => units.value.flatMap(u => u.calibration_due_at ?? []).toSorted()[0] ?? null)
+  const overdueCount = computed(() => units.value.filter(u => u.due_state === 'overdue').length)
+
+  const shownFacts = computed(() => mdAndUp.value || moreFacts.value ? facts.value : facts.value.slice(0, FIRST_FACTS))
 
   // --- Calibration records (staff), loaded when the tab first opens ----------------------------
 
