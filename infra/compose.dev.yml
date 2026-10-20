@@ -45,6 +45,10 @@ services:
   mongo:
     # 27018 on the host: 27017 is often taken by a locally installed MongoDB.
     ports: ["127.0.0.1:${MONGO_DEV_PORT:-27018}:27017"]
+    environment:
+      # mongod 8 refuses to start on Linux kernels 6.19 to 7.0.13 (SERVER-121912), which some CI
+      # runners have; turning off glibc's rseq registration is the reported workaround.
+      GLIBC_TUNABLES: glibc.pthread.rseq=0
 
   redis:
     ports: ["127.0.0.1:6379:6379"]
