@@ -1,54 +1,48 @@
 <template>
   <PageBody :subtitle="summary" title="Calibration due" wide>
-    <!-- The pane: how far ahead, and whose -->
-    <PaneContent>
+    <!-- Phones: the filters open in a sheet, from a button in the header -->
+    <template v-if="!mdAndUp" #actions>
+      <v-btn :prepend-icon="mdiFilterVariant" variant="tonal" @click="sheet = true">
+        Filters<span v-if="activeCount" class="ml-1 tabular-nums"><span class="sr-only">, </span>{{ activeCount }}<span class="sr-only"> active</span></span>
+      </v-btn>
+    </template>
+
+    <!-- The pane: how far ahead, and whose. Phones pin it with the header, and the counts are in the header's summary there. -->
+    <PaneContent pin>
       <div class="flex flex-col gap-4 px-4">
-        <h2 class="m-0 text-sm font-semibold text-surface-900">Show</h2>
+        <!-- An accordion: open on wide screens, closed on phones, where its summary says what is set -->
+        <h2 v-if="mdAndUp" class="m-0 text-sm font-semibold text-surface-900">
+          <button
+            :aria-controls="panelId"
+            :aria-expanded="showOpen"
+            class="-mx-2 flex w-[calc(100%+16px)] items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-surface-100"
+            type="button"
+            @click="showOpen = !showOpen"
+          >
+            <span class="grow">Show<span v-if="!showOpen" class="ml-2 font-normal text-surface-600">{{ showSummary }}</span></span>
+            <v-icon class="text-surface-600 transition-transform duration-200" :class="showOpen ? 'rotate-180' : ''" :icon="mdiChevronDown" size="20" />
+          </button>
+        </h2>
 
-        <FormField id="due-within" label="Due within">
-          <v-select
-            id="due-within"
-            item-title="title"
-            item-value="value"
-            :items="windows"
-            :model-value="filters.within"
-            @update:model-value="setFilters({ within: $event })"
+        <v-expand-transition v-if="mdAndUp">
+          <DueFilterFields
+            v-show="showOpen"
+            :id="panelId"
+            :countries="countryItems"
+            :filters="filters"
+            :orgs="orgs"
+            :windows="windows"
+            @change="setFilters"
           />
-        </FormField>
+        </v-expand-transition>
 
-        <FormField id="due-org" label="Organization">
-          <v-select
-            id="due-org"
-            clearable
-            item-title="title"
-            item-value="value"
-            :items="orgs"
-            :model-value="filters.org"
-            placeholder="All organizations"
-            @update:model-value="setFilters({ org: $event ?? null })"
-          />
-        </FormField>
-
-        <FormField id="due-country" label="Country">
-          <v-select
-            id="due-country"
-            clearable
-            item-title="title"
-            item-value="value"
-            :items="countryItems"
-            :model-value="filters.country"
-            placeholder="All countries"
-            @update:model-value="setFilters({ country: $event ?? null })"
-          />
-        </FormField>
-
-        <dl class="m-0 flex flex-col gap-1 border-t border-surface-200 pt-3 text-sm">
-          <div class="flex items-center justify-between">
+        <dl class="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-surface-200 pt-3 text-sm max-md:hidden">
+          <div class="flex items-center gap-2">
             <dt class="inline-flex items-center gap-2 text-surface-700"><span class="size-2.5 rounded-full bg-error" />Overdue</dt>
             <dd class="m-0 font-semibold tabular-nums text-surface-900">{{ counts.overdue }}</dd>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
             <dt class="inline-flex items-center gap-2 text-surface-700"><span class="size-2.5 rounded-full bg-warning" />Due in {{ filters.within }} days</dt>
             <dd class="m-0 font-semibold tabular-nums text-surface-900">{{ counts.soon }}</dd>
           </div>
@@ -106,30 +100,54 @@
         </table>
       </div>
 
-      <ul v-else aria-label="Sensors overdue or due for calibration" class="m-0 flex list-none flex-col p-0">
-        <li v-for="u in shown" :key="u.unit_id" class="relative flex flex-col gap-1 border-t border-surface-200 py-3 first:border-t-0">
-          <span class="flex items-start justify-between gap-2">
-            <span class="font-medium text-surface-900">
+      <ul v-else aria-label="Sensors overdue or due for calibration" class="m-0 flex list-none flex-col gap-1 p-0">
+        <li v-for="u in shown" :key="u.unit_id" class="relative flex items-center gap-4 rounded-3xl px-3 py-3 active:bg-surface-100">
+          <span class="grid size-14 shrink-0 place-items-center rounded-full" :class="dueLook[stateOf(u)]">
+            <v-icon :icon="stateOf(u) === 'overdue' ? mdiCalendarAlertOutline : mdiCalendarClockOutline" size="28" />
+          </span>
+
+          <span class="flex min-w-0 grow flex-col gap-0.5">
+            <span class="truncate text-base font-medium text-surface-900">
               <span v-if="u.parameter" class="font-mono" translate="no">{{ u.parameter }}</span><span v-else>{{ kindLabel(u.model.kind) }}</span> · {{ u.model.manufacturer }} {{ u.model.model }}
             </span>
 
-            <span class="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-xs font-medium" :class="dueLook[stateOf(u)]">{{ dueText(u.calibration_due_at, now) }}</span>
-          </span>
+            <span class="truncate text-sm text-surface-600">
+              <router-link
+                v-if="u.station"
+                class="text-surface-900 no-underline after:absolute after:inset-0 after:rounded-3xl"
+                :to="{ name: 'stations', params: { id: u.station.id }, query: { tab: 'sensors' } }"
+              >{{ u.station.name }}</router-link>
 
-          <span class="text-sm text-surface-600">
-            <router-link
-              v-if="u.station"
-              class="text-surface-900 no-underline after:absolute after:inset-0"
-              :to="{ name: 'stations', params: { id: u.station.id }, query: { tab: 'sensors' } }"
-            >{{ u.station.name }}</router-link>
+              · <span class="font-mono" translate="no">{{ u.serial }}</span>
+            </span>
 
-            · <span class="font-mono" translate="no">{{ u.serial }}</span>
+            <span class="mt-1 inline-flex h-6 w-fit items-center whitespace-nowrap rounded-full px-2.5 text-xs font-medium" :class="dueLook[stateOf(u)]">{{ dueText(u.calibration_due_at, now) }}</span>
           </span>
         </li>
       </ul>
 
       <p class="m-0 mt-4 text-sm text-surface-600">Select a station to open its Sensors tab. Recording a calibration, with its certificate, is on the station’s Calibration tab.</p>
     </template>
+
+    <!-- Phones: the filters -->
+    <v-bottom-sheet v-model="sheet" aria-labelledby="due-filters-h">
+      <div class="flex flex-col gap-5 rounded-t-card bg-surface px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5">
+        <div class="flex items-center justify-between">
+          <h2 id="due-filters-h" class="m-0 text-h2 text-surface-900">Filters</h2>
+          <v-btn class="text-primary" variant="text" @click="reset">Reset</v-btn>
+        </div>
+
+        <DueFilterFields
+          :countries="countryItems"
+          :filters="filters"
+          :orgs="orgs"
+          :windows="windows"
+          @change="setFilters"
+        />
+
+        <v-btn block color="primary" @click="sheet = false">Show {{ shown.length }} {{ shown.length === 1 ? 'sensor' : 'sensors' }}</v-btn>
+      </div>
+    </v-bottom-sheet>
   </PageBody>
 </template>
 
@@ -137,8 +155,8 @@
   import type { DueFilters } from './calibration'
   import type { DueUnit } from '@/api/models'
   import type { DueState } from '@/features/stations/stations'
-  import { mdiCalendarAlertOutline } from '@mdi/js'
-  import { computed, ref, watch } from 'vue'
+  import { mdiCalendarAlertOutline, mdiCalendarClockOutline, mdiChevronDown, mdiFilterVariant } from '@mdi/js'
+  import { computed, ref, useId, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { calibrationsApi } from '@/api/operations'
@@ -146,11 +164,11 @@
   import { countryName } from '@/app/countries'
   import { formatDate } from '@/app/format'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
-  import FormField from '@/components/FormField.vue'
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import { dueLook, kindLabel } from '@/features/stations/stations'
   import { countDue, dueFiltersFrom, dueQueryFrom, dueText, matchesDue, sortDue, WINDOWS } from './calibration'
+  import DueFilterFields from './DueFilterFields.vue'
 
   // /calibration (AFD §3; PRD CAL-4): every installed sensor overdue or due within the window,
   // overdue first. Staff only. The window is the server's; the organization and country filters
@@ -167,6 +185,15 @@
   const windows = WINDOWS.map(days => ({ value: days, title: `${days} days` }))
   const shown = computed(() => sortDue((all.value ?? []).filter(u => matchesDue(u, filters.value))))
   const counts = computed(() => countDue(shown.value, now))
+  // The filters' accordion
+  const panelId = useId()
+  const showOpen = ref(mdAndUp.value)
+  const showSummary = computed(() => {
+    const set = (filters.value.org === null ? 0 : 1) + (filters.value.country === null ? 0 : 1)
+    return `${filters.value.within} days${set > 0 ? ` · ${set} ${set === 1 ? 'filter' : 'filters'}` : ''}`
+  })
+  const sheet = ref(false)
+  const activeCount = computed(() => (filters.value.org === null ? 0 : 1) + (filters.value.country === null ? 0 : 1) + (filters.value.within === 30 ? 0 : 1))
   const filtered = computed(() => filters.value.org !== null || filters.value.country !== null)
 
   const orgs = computed(() => {
@@ -199,6 +226,10 @@
 
   function setFilters (patch: Partial<DueFilters>): void {
     void router.replace({ query: dueQueryFrom({ ...filters.value, ...patch }) })
+  }
+
+  function reset (): void {
+    void router.replace({ query: {} })
   }
 
   async function load (): Promise<void> {

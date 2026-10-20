@@ -11,6 +11,8 @@ export interface PaneContext {
   target: Ref<HTMLElement | null>
   /** How many <PaneContent> blocks the current page has. */
   blocks: Ref<number>
+  /** The page asked for its pane to stay at the top of the screen on phones (see PaneContent `pin`). */
+  pinned: Ref<boolean>
   /** A record is open in the view: phones show the view alone, with a Back button. */
   selected: Ref<boolean>
   /** The person hid the pane (from 1024 px). */

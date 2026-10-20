@@ -6,11 +6,16 @@
 
   <template v-else>
     <!-- The view tile's header: the page or record, and its actions (DBD "The app shell") -->
-    <header class="flex min-h-18 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-surface-200 py-3 pl-4 pr-4 md:pl-6">
+    <header
+      class="flex min-h-18 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-surface-200 py-3 pl-4 pr-4 md:pl-6"
+      :class="[rows ? 'max-md:sticky max-md:top-[env(safe-area-inset-top)] max-md:z-10 max-md:gap-y-3 max-md:border-b-0 max-md:bg-surface-50 max-md:pb-2' : '', stuck ? 'max-md:sticky max-md:top-[calc(env(safe-area-inset-top)+var(--pane-h,0px))] max-md:z-10 max-md:border-b-0 max-md:bg-surface-50' : '']"
+    >
       <v-btn
         v-if="back && !mdAndUp"
+        :active="false"
         :aria-label="backLabel"
         class="-ml-2"
+        :class="rows ? 'order-1 mr-[100%]' : ''"
         icon
         size="40"
         :to="back"
@@ -31,18 +36,31 @@
         <v-icon class="text-surface-600" :icon="mdiDockLeft" size="20" />
       </v-btn>
 
-      <div ref="titleEl" class="min-w-0 grow basis-48">
-        <h1 :id="headingId" class="m-0 wrap-break-word text-h2 text-surface-900">{{ heading }}</h1>
+      <div ref="titleEl" class="min-w-0 grow basis-48" :class="rows ? 'contents' : ''">
+        <h1 :id="headingId" class="m-0 wrap-break-word text-h2 text-surface-900" :class="rows ? 'order-2 min-w-0 flex-1' : ''">{{ heading }}</h1>
         <!-- A record's facts under its name (code, status chip, place) -->
-        <div v-if="$slots.subtitle" class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-surface-600">
+        <div v-if="$slots.subtitle" class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-surface-600" :class="rows ? 'order-4 mt-0 basis-full' : ''">
           <slot name="subtitle" />
         </div>
 
         <p v-else-if="subtitle" class="m-0 text-sm text-surface-600">{{ subtitle }}</p>
       </div>
 
-      <div v-if="$slots.actions" class="flex shrink-0 flex-wrap items-center gap-2">
+      <div v-if="$slots.actions" class="flex shrink-0 flex-wrap items-center gap-2" :class="rows ? 'order-3 ml-auto' : ''">
         <slot name="actions" />
+      </div>
+
+      <!-- Phones, a record: the page's tab bar goes here, inside the pinned header -->
+      <div v-if="rows" ref="pageBar" class="order-5 -mx-4 min-w-0 max-w-[calc(100%+2rem)] basis-[calc(100%+2rem)] [&_.v-slide-group__container]:[scrollbar-width:none] [&_.v-slide-group__container::-webkit-scrollbar]:hidden" />
+
+      <!--
+        Phones, header pinned under a pinned pane: the list below is a sheet with a curved top. Two
+        corner pieces in the band's colour, cut by a quarter circle, hang under the band and cover the
+        sheet's corners, so the cards slide up into the curve as they scroll.
+      -->
+      <div v-if="stuck || rows" aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-full h-7 md:hidden">
+        <span class="absolute left-0 top-0 size-7 bg-surface-50 [mask-image:radial-gradient(circle_at_100%_100%,transparent_27.5px,#000_28px)]" />
+        <span class="absolute right-0 top-0 size-7 bg-surface-50 [mask-image:radial-gradient(circle_at_0%_100%,transparent_27.5px,#000_28px)]" />
       </div>
     </header>
 
@@ -55,7 +73,7 @@
       role="region"
       tabindex="0"
     >
-      <div ref="contentEl" class="w-full" :class="bleed ? 'h-full' : ['p-4 md:px-8 md:py-7', wide ? '' : 'max-w-270']">
+      <div ref="contentEl" class="w-full" :class="bleed ? 'h-full' : ['p-4 md:px-8 md:py-7', rows ? 'max-md:pt-8' : '', wide ? '' : 'max-w-270']">
         <slot />
       </div>
     </div>
@@ -65,11 +83,12 @@
 <script lang="ts" setup>
   import type { RouteLocationRaw } from 'vue-router'
   import { mdiArrowLeft, mdiDockLeft } from '@mdi/js'
-  import { computed, inject, ref, useId, watch } from 'vue'
+  import { computed, inject, provide, ref, useId, watch } from 'vue'
   import { useRoute } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { dur, DURATION, EASE, gsap } from '@/app/motion'
   import { shellKey, usePane } from '@/app/shells/pane'
+  import { pageBarKey } from './pageBar'
 
   const props = defineProps<{
     /** The h1; the route's title when absent. */
@@ -82,6 +101,8 @@
     wide?: boolean
     /** The page fills the view edge to edge with no padding and no scrolling of its own (the map). */
     bleed?: boolean
+    /** Phones: Back and the actions share a first row; the title and its facts sit under them. */
+    stacked?: boolean
     /** The record open in the view (its id): when it changes, the new one rises in. */
     record?: string | null
   }>()
@@ -90,6 +111,11 @@
   const { mdAndUp } = useDisplay()
   const pane = usePane()
   const inField = inject(shellKey, 'app') === 'field'
+  // The page pinned its pane (phones): this header stays under it, and the list curves up into both
+  const stuck = computed(() => Boolean(pane?.pinned.value) && !pane?.selected.value)
+  const rows = computed(() => Boolean(props.stacked && props.back) && !mdAndUp.value)
+  const pageBar = ref<HTMLElement | null>(null)
+  provide(pageBarKey, pageBar)
   const headingId = useId()
   const heading = computed(() => props.title ?? String(route.meta.title ?? ''))
   const backLabel = computed(() => props.backLabel ?? 'Back to the list')

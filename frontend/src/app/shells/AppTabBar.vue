@@ -1,8 +1,10 @@
 <template>
   <!--
     Phones and tablets below 1024 px: the rail becomes a bar docked to the bottom edge, translucent
-    over the content, with the home indicator's inset below it (F13). The section open is a filled
-    pill; the others are bare icons with a hover tint. Labels stay visible (DBD: nothing by hover only).
+    over the content, with the home indicator's inset below it (F13). The section open has no
+    background: its icon and label are coloured and a dot sits below it; the others are bare icons
+    with a hover tint. Labels stay visible (DBD: nothing by hover only). The field shell's bar
+    shares these classes (tabBar.ts).
   -->
   <nav
     aria-label="Main"
@@ -18,15 +20,21 @@
       >
         <a
           :aria-current="section.key === current?.key ? 'true' : undefined"
-          class="group flex w-full min-w-0 flex-col items-center justify-center py-1"
+          :class="tabItem"
           :href="href"
-          @click="navigate"
+          @click="onLink($event, navigate)"
+          @pointercancel="tabUp"
+          @pointerdown="tabDown"
+          @pointerleave="tabUp"
+          @pointerup="tabUp"
         >
-          <span :class="pill(section.key === current?.key)">
-            <v-icon :icon="section.icon" :size="section.key === current?.key ? 20 : 22" />
+          <span :class="tabIcon(section.key === current?.key)" data-tab-icon>
+            <v-icon :icon="section.icon" :size="22" />
           </span>
 
-          <span :class="label(section.key === current?.key)">{{ section.label }}</span>
+          <span :class="tabLabel(section.key === current?.key)">{{ section.label }}</span>
+
+          <span aria-hidden="true" :class="tabDot(section.key === current?.key)" />
         </a>
       </router-link>
 
@@ -34,21 +42,27 @@
         <template #activator="{ props: activator }">
           <button
             v-bind="activator"
-            class="group flex w-full min-w-0 flex-col items-center justify-center py-1"
+            :class="tabItem"
             type="button"
+            @click="tabKey"
+            @pointercancel="tabUp"
+            @pointerdown="tabDown"
+            @pointerleave="tabUp"
+            @pointerup="tabUp"
           >
-            <span :class="pill(inMe)">
-              <v-icon :icon="mdiAccountCircleOutline" :size="inMe ? 20 : 22" />
-              <!-- On the filled pill the dot sits on its corner, where it can still be seen -->
+            <span :class="tabIcon(inMe)" data-tab-icon>
+              <v-icon :icon="mdiAccountCircleOutline" :size="22" />
+
               <span
                 v-if="meBadge"
                 aria-hidden="true"
-                class="absolute size-2.5 rounded-full bg-primary ring-2 ring-surface"
-                :class="inMe ? '-right-0.5 -top-0.5' : 'right-1 top-1'"
+                class="absolute right-1 top-1 size-2.5 rounded-full bg-primary ring-2 ring-surface"
               />
             </span>
 
-            <span :class="label(inMe)">Me<span v-if="meBadge" class="sr-only">, {{ meBadge }}</span></span>
+            <span :class="tabLabel(inMe)">Me<span v-if="meBadge" class="sr-only">, {{ meBadge }}</span></span>
+
+            <span aria-hidden="true" :class="tabDot(inMe)" />
           </button>
         </template>
 
@@ -86,6 +100,7 @@
   import { useRouter } from 'vue-router'
   import { icons } from '@/app/theme/icons'
   import { useSessionStore } from '@/stores/session'
+  import { tabDot, tabDown, tabIcon, tabItem, tabKey, tabLabel, tabUp } from './tabBar'
 
   const props = defineProps<{
     sections: Section[]
@@ -110,17 +125,9 @@
   ])
   const inMe = computed(() => !shown.value.some(s => s.key === props.current?.key))
 
-  // Written out in full so Tailwind finds each class
-  function pill (active: boolean): string {
-    return active
-      ? 'relative flex items-center justify-center rounded-full bg-primary px-4 py-1.5 text-on-primary shadow-md shadow-primary/35 transition-transform duration-200 group-active:scale-95'
-      : 'relative flex items-center justify-center rounded-xl p-1.5 text-surface-600 transition duration-200 group-hover:bg-surface-100 group-hover:text-surface-900 group-active:scale-95'
-  }
-
-  function label (active: boolean): string {
-    return active
-      ? 'mt-1 max-w-full truncate text-xs font-bold tracking-tight text-primary-700 dark:text-primary-200'
-      : 'mt-0.5 max-w-full truncate text-xs font-medium tracking-tight text-surface-600 group-hover:text-surface-900'
+  function onLink (event: MouseEvent, navigate: (event: MouseEvent) => void): void {
+    tabKey(event)
+    navigate(event)
   }
 
   async function logOut (): Promise<void> {

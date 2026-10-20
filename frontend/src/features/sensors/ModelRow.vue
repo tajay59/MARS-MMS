@@ -1,10 +1,10 @@
 <template>
   <li
-    class="relative flex gap-3 rounded-card px-3 py-2.5 transition-colors duration-150 max-sm:bg-surface-50"
+    class="relative flex gap-3 rounded-card px-3 py-2.5 transition-colors duration-150 max-sm:gap-4 max-sm:rounded-3xl"
     :class="active ? 'bg-primary-50' : 'hover:bg-surface-100 active:bg-surface-200'"
   >
     <ModelPhoto
-      class="size-12 shrink-0 rounded-lg"
+      class="size-14 shrink-0 rounded-lg max-sm:rounded-full"
       :document-id="model.cover_document_id"
       :icon="kindIcon(model.kind)"
     />
@@ -13,7 +13,7 @@
       <div class="flex items-center justify-between gap-2">
         <router-link
           :aria-current="active ? 'page' : undefined"
-          class="truncate font-medium text-surface-900 no-underline after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-primary"
+          class="truncate font-medium text-surface-900 no-underline after:absolute after:inset-0 after:rounded-card max-sm:after:rounded-3xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-primary"
           :to="to"
         >{{ model.manufacturer }} {{ model.model }}</router-link>
 

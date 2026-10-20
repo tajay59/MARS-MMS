@@ -1,18 +1,21 @@
 <template>
   <div class="flex flex-col">
     <!-- The tabs from DBD "Station page"; clients see fewer. The tab is in the URL (?tab=sensors). -->
-    <v-tabs
-      v-model="tab"
-      class="-mx-4 -mt-4 border-b border-surface-200 md:-mx-8 md:-mt-7"
-      color="primary"
-      density="comfortable"
-      :show-arrows="mdAndUp"
-    >
-      <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
-        {{ t.label }}
-        <span v-if="t.count !== undefined" class="ml-1.5 rounded-full bg-surface-100 px-1.5 text-xs leading-5 text-surface-600 tabular-nums">{{ t.count }}</span>
-      </v-tab>
-    </v-tabs>
+    <!-- Phones: the tabs live in the page's pinned header (PageBody), so the page scrolls under them -->
+    <Teleport :disabled="!pageBar" :to="pageBar ?? 'body'">
+      <v-tabs
+        v-model="tab"
+        :class="pageBar ? 'bg-transparent' : '-mx-4 -mt-4 border-b border-surface-200 md:-mx-8 md:-mt-7'"
+        color="primary"
+        density="comfortable"
+        :show-arrows="mdAndUp"
+      >
+        <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
+          {{ t.label }}
+          <span v-if="t.count !== undefined" class="ml-1.5 rounded-full bg-surface-100 px-1.5 text-xs leading-5 text-surface-600 tabular-nums">{{ t.count }}</span>
+        </v-tab>
+      </v-tabs>
+    </Teleport>
 
     <v-tabs-window v-model="tab" class="pt-6">
       <!-- Overview: the station's facts, its place and what needs calibrating -->
@@ -260,7 +263,7 @@
   import type { DueState } from './stations'
   import type { CalibrationOut, StationDetail } from '@/api/models'
   import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiFlagOutline, mdiMapMarker, mdiProgressClock } from '@mdi/js'
-  import { computed, ref, watch } from 'vue'
+  import { computed, inject, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { calibrationsApi, sensorUnitsApi } from '@/api/operations'
@@ -268,6 +271,7 @@
   import { formatCoordinates, formatDate, formatPlainDate } from '@/app/format'
   import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
+  import { pageBarKey } from '@/components/pageBar'
   import ParameterTags from './ParameterTags.vue'
   import StationConfigurations from './StationConfigurations.vue'
   import StationDocuments from './StationDocuments.vue'
@@ -282,6 +286,7 @@
   const route = useRoute()
   const router = useRouter()
   const { mdAndUp } = useDisplay()
+  const pageBar = inject(pageBarKey, ref<HTMLElement | null>(null))
 
   interface Tab { key: string, label: string, staff?: boolean, later?: string, count?: number }
 
