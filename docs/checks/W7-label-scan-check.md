@@ -38,7 +38,8 @@ Record: sheet job time, printer, paper, any label that looks wrong.
 | 3.2 | Tap "Turn on the camera" | The browser's permission prompt appears once | | |
 | 3.3 | Allow | Live video, four white corners, the hint "Point the camera at the code on the station", the torch button if the phone has a torch | | |
 | 3.4 | Hold a label in the square | Short buzz, green corners and "Label found", then the station page. The scanner does not reopen on its own | | |
-| 3.5 | As a client, scan the label of a station owned by another organization | "We can't find that station", the same page as for an unknown code | | |
+| 3.5 | Signed in as a **client**, look for Scan | There is none, anywhere: the in-app scanner is staff only (AFD §5.3). A client scans with the phone's camera app (step 2) | | |
+| 3.5b | As a client, scan the label of a station owned by another organization with the stock camera app | "We can't find that station", the same page as for an unknown code | | |
 | 3.6 | Print a label, replace its QR on the station page (**Regenerate**), then scan the old one | "This code is no longer valid", with a way to the stations list | | |
 | 3.7 | Scan something that is not a label (a shop QR code) | The hint "That isn't a MARS-MMS label. Try another.", then the camera starts again after about 2 seconds | | |
 | 3.8 | Hold nothing in view for a minute | No crash, no heat, the page stays responsive | | |
