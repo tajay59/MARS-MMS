@@ -87,8 +87,8 @@ def _wait(check, what: str, seconds: int = 90, container: tuple[str, str] | None
 def mongo_uri(docker):
     port = _free_port()
     # GLIBC_TUNABLES: mongod 8 refuses to start on Linux kernels 6.19 to 7.0.13 (SERVER-121912),
-    # which some CI runners have; turning off glibc's rseq registration is the reported workaround.
-    args = ["-p", f"127.0.0.1:{port}:27017", "-e", "GLIBC_TUNABLES=glibc.pthread.rseq=0",
+    # which some CI runners have; the reported workaround is rseq=1 (rseq=0 does not work).
+    args = ["-p", f"127.0.0.1:{port}:27017", "-e", "GLIBC_TUNABLES=glibc.pthread.rseq=1",
             MONGO_IMAGE, "--replSet", "rs0", "--bind_ip_all"]
     with _container(docker, "mongo", args) as name:
 
