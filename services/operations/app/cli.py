@@ -8,6 +8,14 @@
         Demo stations and sensors for organizations A and B (local and staging only). Run
         auth's seed first. Idempotent: existing codes are skipped.
 
+    python -m app.cli seed-requests [--count 50]
+        Example requests ("[Example] ...") for the stations and organizations already here, in
+        every status, to look at the requests screens (local and staging only). They go straight
+        to the database with no events, so nothing fake enters the audit chain.
+
+    python -m app.cli remove-example-requests
+        Deletes the example requests, and only those.
+
     python -m app.cli backfill-orgs
         Copy every organization from auth's snapshot (TRD §8.6). Also runs at startup.
 
@@ -32,7 +40,7 @@ from app import migrations as app_migrations
 from app.config import Settings
 from app.domain.stations import importing
 from app.events.publish import Emitter
-from app.jobs import org_backfill, seed_data, station_import
+from app.jobs import org_backfill, seed_data, seed_requests, station_import
 
 CLI = Actor(name="operations cli", roles=["service"])
 
@@ -88,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
     imp.add_argument("--sensors", type=Path, help="sensors CSV (with a stations CSV)")
     imp.add_argument("--commit", action="store_true", help="write the valid rows")
     commands.add_parser("seed")
+    sr = commands.add_parser("seed-requests")
+    sr.add_argument("--count", type=int, default=50)
+    commands.add_parser("remove-example-requests")
     commands.add_parser("backfill-orgs")
     args = parser.parse_args(argv)
 
@@ -106,7 +117,50 @@ def main(argv: list[str] | None = None) -> int:
             print("Refusing to seed production", file=sys.stderr)
             return 1
         return asyncio.run(run_import(seed_data.tables(), commit=True))
+    if args.command == "seed-requests":
+        if Settings().environment == "production":
+            print("Refusing to seed production", file=sys.stderr)
+            return 1
+        return asyncio.run(_seed_requests(args.count))
+    if args.command == "remove-example-requests":
+        return asyncio.run(_remove_example_requests())
     return asyncio.run(_backfill_only())
+
+
+async def _seed_requests(count: int) -> int:
+    if not 1 <= count <= 500:
+        print("--count is from 1 to 500", file=sys.stderr)
+        return 1
+    settings = Settings()
+    clock = SystemClock()
+    client = mongo.connect(settings.mongo_uri)
+    db = client[settings.mongo_db]
+    try:
+        await migrations.run(db, app_migrations, clock)
+        if (have := await seed_requests.count_examples(db)) > 0:
+            print(f"{have} example requests are already here. Remove them first with "
+                  "remove-example-requests.", file=sys.stderr)
+            return 1
+        made = await seed_requests.run(client, db, clock, count=count)
+    finally:
+        await client.close()
+    if made == 0:
+        print("There are no stations to raise requests for. Import or seed stations first.",
+              file=sys.stderr)
+        return 1
+    print(f"{made} example requests made")
+    return 0
+
+
+async def _remove_example_requests() -> int:
+    settings = Settings()
+    client = mongo.connect(settings.mongo_uri)
+    try:
+        removed = await seed_requests.remove(client[settings.mongo_db])
+    finally:
+        await client.close()
+    print(f"{removed} example requests removed")
+    return 0
 
 
 async def _backfill_only() -> int:
