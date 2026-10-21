@@ -62,6 +62,7 @@ class Action(StrEnum):
     APPROVE = "approve"
     DENY = "deny"
     ASSIGN = "assign"  # an admin assigns, or a technician claims
+    RELEASE = "release"  # the last assigned person lets go, or an admin unassigns: to the queue
     CANCEL = "cancel"
     ACCEPT = "accept"  # the client signs the work off (Phase 6)
     REJECT = "reject"  # the client sends it back (Phase 6)
@@ -88,11 +89,15 @@ class Rule:
 
 _ADMIN = frozenset({Who.ADMIN})
 _CLIENT_OR_ADMIN = frozenset({Who.CLIENT, Who.ADMIN})
+_STAFF = frozenset({Who.ADMIN, Who.TECHNICIAN})
 
 RULES: dict[tuple[Status, Action], Rule] = {
     (Status.SUBMITTED, Action.APPROVE): Rule(Status.APPROVED, _ADMIN),
     (Status.SUBMITTED, Action.DENY): Rule(Status.DENIED, _ADMIN, reason=True),
-    (Status.APPROVED, Action.ASSIGN): Rule(Status.ASSIGNED, frozenset({Who.ADMIN, Who.TECHNICIAN})),
+    (Status.APPROVED, Action.ASSIGN): Rule(Status.ASSIGNED, _STAFF),
+    # Letting go is open to the people who can take a request; a technician may release only a
+    # request they are on (the route checks, as it knows the staff).
+    (Status.ASSIGNED, Action.RELEASE): Rule(Status.APPROVED, _STAFF),
     # Cancelling: the client (own) or an admin up to Assigned; an admin only, with a reason,
     # once work is planned or under way, or waiting for the client (REQ-11).
     (Status.SUBMITTED, Action.CANCEL): Rule(Status.CANCELLED, _CLIENT_OR_ADMIN, own=True),
@@ -151,6 +156,7 @@ def allowed(status: Status, who: Who, *, own: bool = True) -> list[Action]:
 def _past(action: Action) -> str:
     return {
         Action.APPROVE: "approved", Action.DENY: "denied", Action.ASSIGN: "assigned",
+        Action.RELEASE: "released",
         Action.CANCEL: "cancelled", Action.ACCEPT: "accepted", Action.REJECT: "rejected",
         Action.AUTO_CLOSE: "closed automatically", Action.RETURN: "returned",
     }[action]

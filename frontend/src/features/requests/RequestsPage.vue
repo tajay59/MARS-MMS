@@ -23,11 +23,14 @@
     <!-- A request: what the server says this person may do, and nothing else (hidden, not disabled) -->
     <template v-else-if="detail && !editing && mdAndUp && hasActions" #actions>
       <RequestActions
-        :busy="approving"
+        :busy="busy"
         :detail="detail"
         @approve="approve"
+        @assign="assignOpen = true"
         @cancel="decision = 'cancel'"
+        @claim="claim"
         @deny="decision = 'deny'"
+        @release="letGo"
       />
     </template>
 
@@ -173,12 +176,15 @@
         <!-- Phones: the actions sit under the header, one to a row, as wide as the screen -->
         <div v-if="!mdAndUp && hasActions" class="mb-4 flex flex-col gap-2">
           <RequestActions
-            :busy="approving"
+            :busy="busy"
             :detail="detail"
             full
             @approve="approve"
+            @assign="assignOpen = true"
             @cancel="decision = 'cancel'"
+            @claim="claim"
             @deny="decision = 'deny'"
+            @release="letGo"
           />
         </div>
 
@@ -289,12 +295,21 @@
       @done="decided"
     />
 
+    <AssignDialog
+      v-if="detail"
+      v-model="assignOpen"
+      :request="{ ...detail, stationCode: stationsLabel(detail) }"
+      @changed="reloadDetail"
+      @done="assigned"
+    />
+
     <v-snackbar v-model="toast.show" location="bottom" :timeout="6000">{{ toast.text }}</v-snackbar>
   </PageBody>
 </template>
 
 <script lang="ts" setup>
   import type { RequestFilters } from './requests'
+  import type { StaffingResult } from './staffingActions'
   import type { RequestDetail, RequestSummary } from '@/api/models'
   import { mdiFilterVariant, mdiMagnify, mdiPlus } from '@mdi/js'
   import { storeToRefs } from 'pinia'
@@ -314,6 +329,7 @@
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
   import { useSessionStore } from '@/stores/session'
   import { useStationDirectory } from '@/stores/stationDirectory'
+  import AssignDialog from './AssignDialog.vue'
   import PriorityChip from './PriorityChip.vue'
   import RequestActions from './RequestActions.vue'
   import RequestCard from './RequestCard.vue'
@@ -326,6 +342,7 @@
     extraFilterCount,
     facetsOf,
     filtersFrom,
+    joinNames,
     lookOf,
     matches,
     matchesOthers,
@@ -334,6 +351,7 @@
     stationsLabel,
     STATUSES,
   } from './requests'
+  import { claimRequest, releaseRequest } from './staffingActions'
 
   // /requests, /requests/new and /requests/:id (AFD §3; PRD REQ-1 to REQ-16). A client sees their
   // organization's requests only: the server scopes every query (rule 3), this page only hides
@@ -352,7 +370,8 @@
   const loadError = ref<string | null>(null)
   const capped = ref(false)
   const sheet = ref(false)
-  const approving = ref(false)
+  const busy = ref<'approve' | 'claim' | 'release' | null>(null)
+  const assignOpen = ref(false)
   const toast = reactive({ show: false, text: '' })
   const now = new Date()
 
@@ -569,10 +588,10 @@
     || (decision.value === 'cancel' && ['scheduled', 'in_progress', 'client_review'].includes(detail.value?.status ?? '')))
 
   async function approve (): Promise<void> {
-    if (!detail.value || approving.value) {
+    if (!detail.value || busy.value) {
       return
     }
-    approving.value = true
+    busy.value = 'approve'
     try {
       remember(await requestsApi.approve(detail.value.id))
       say('Request approved. It is now in the queue.')
@@ -586,8 +605,45 @@
         say('We couldn’t approve it. Try again in a moment.')
       }
     } finally {
-      approving.value = false
+      busy.value = null
     }
+  }
+
+  // --- Claim, assign, release (REQ-7) -------------------------------------------------------------
+
+  async function claim (): Promise<void> {
+    await staffing('claim', claimRequest, request => `You claimed ${request.ref}. Admins have been told.`)
+  }
+
+  async function letGo (): Promise<void> {
+    await staffing('release', releaseRequest, request => (
+      request.status === 'approved' ? `${request.ref} is back in the queue.` : 'You are off this request.'
+    ))
+  }
+
+  async function staffing (
+    kind: 'claim' | 'release', run: (id: string) => Promise<StaffingResult>, said: (request: RequestDetail) => string,
+  ): Promise<void> {
+    if (!detail.value || busy.value) {
+      return
+    }
+    busy.value = kind
+    const result = await run(detail.value.id)
+    busy.value = null
+    if (result.ok) {
+      remember(result.detail)
+      say(said(result.detail))
+    } else {
+      say(result.message)
+      if (result.reload) {
+        await reloadDetail()
+      }
+    }
+  }
+
+  function assigned (request: RequestDetail): void {
+    remember(request)
+    say(`${request.ref} is assigned to ${joinNames(request.assigned_staff.map(p => p.name))}.`)
   }
 
   function decided (request: RequestDetail): void {

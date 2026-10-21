@@ -53,6 +53,7 @@ TABLE: dict[Route, Expect] = {
     # Internal.
     ("POST", "/internal/service-token"): service(),  # HTTP Basic with a service secret
     ("POST", "/internal/account-links"): service("platform"),
+    ("POST", "/internal/users/lookup"): service("operations"),
     ("GET", "/internal/snapshot/{entity}"): service("platform", "operations", "report"),
 }
 

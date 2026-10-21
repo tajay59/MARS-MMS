@@ -140,6 +140,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Queue
+         * @description Everything waiting, with the filters the list has (a queue is short: no paging).
+         */
+        get: operations["get_queue_api_v1_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests": {
         parameters: {
             query?: never;
@@ -161,6 +181,26 @@ export interface paths {
          *     was made (200), so a retry on a poor connection can't make a second one.
          */
         post: operations["create_request_api_v1_requests_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/workload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Workload
+         * @description How many open requests each person has, for the Assign dialog (W9).
+         */
+        get: operations["get_workload_api_v1_requests_workload_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -212,6 +252,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requests/{id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign Request
+         * @description REQ-7: an admin puts one or more staff on an approved request (it becomes Assigned) or
+         *     changes the staff of one that is Assigned. Visits decide from Scheduled on.
+         */
+        post: operations["assign_request_api_v1_requests__id__assign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{id}/cancel": {
         parameters: {
             query?: never;
@@ -234,6 +295,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requests/{id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Request
+         * @description REQ-7: a technician (or an admin) takes an approved request from the queue. Two people
+         *     claiming at once: one wins, the other is told who.
+         */
+        post: operations["claim_request_api_v1_requests__id__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{id}/deny": {
         parameters: {
             query?: never;
@@ -248,6 +330,27 @@ export interface paths {
          * @description REQ-6: Submitted to Denied. The reason is required and the client sees it.
          */
         post: operations["deny_request_api_v1_requests__id__deny_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Request
+         * @description A technician lets go of their claim, or an admin unassigns everyone. With nobody left
+         *     the request returns to the queue (Assigned to Approved).
+         */
+        post: operations["release_request_api_v1_requests__id__release_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -677,6 +780,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AssignIn
+         * @description REQ-7. The people the request is put with; `version` guards a change of staff on a request
+         *     that is already Assigned against a second admin doing the same.
+         */
+        AssignIn: {
+            /** Staff Ids */
+            staff_ids: string[];
+            /** Version */
+            version?: number | null;
+        };
         /** AttachableOut */
         AttachableOut: {
             /** Org Id */
@@ -1262,6 +1376,52 @@ export interface components {
              */
             view: "staff" | "client";
         };
+        /**
+         * QueueItem
+         * @description A row of the queue: a request and how long it has waited.
+         */
+        QueueItem: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Assigned Staff */
+            assigned_staff: components["schemas"]["PersonRef"][];
+            /** Category */
+            category: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Org Id */
+            org_id: string;
+            /** Org Name */
+            org_name: string | null;
+            /** Priority */
+            priority: string;
+            /** Ref */
+            ref: string;
+            requested_by: components["schemas"]["PersonRef"] | null;
+            /** Stations */
+            stations: components["schemas"]["RequestStation"][];
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** QueuePage */
+        QueuePage: {
+            /** Items */
+            items: components["schemas"]["QueueItem"][];
+            /** Total */
+            total: number;
+        };
         /** Reading */
         Reading: {
             /** After */
@@ -1300,7 +1460,7 @@ export interface components {
         /** RequestDetail */
         RequestDetail: {
             /** Actions */
-            actions: ("approve" | "deny" | "assign" | "cancel" | "edit")[];
+            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit")[];
             /** Assigned Staff */
             assigned_staff: components["schemas"]["PersonRef"][];
             /** Cancel Reason */
@@ -1934,6 +2094,16 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * Workload
+         * @description Open requests per person (staff IDs not listed have none).
+         */
+        Workload: {
+            /** Open Requests */
+            open_requests: {
+                [key: string]: number;
+            };
+        };
     };
     responses: never;
     parameters: never;
@@ -2246,6 +2416,41 @@ export interface operations {
             };
         };
     };
+    get_queue_api_v1_queue_get: {
+        parameters: {
+            query?: {
+                country?: string | null;
+                category?: string | null;
+                priority?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_requests_api_v1_requests_get: {
         parameters: {
             query?: {
@@ -2317,6 +2522,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_workload_api_v1_requests_workload_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workload"];
                 };
             };
         };
@@ -2418,6 +2643,41 @@ export interface operations {
             };
         };
     };
+    assign_request_api_v1_requests__id__assign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cancel_request_api_v1_requests__id__cancel_post: {
         parameters: {
             query?: never;
@@ -2453,6 +2713,37 @@ export interface operations {
             };
         };
     };
+    claim_request_api_v1_requests__id__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     deny_request_api_v1_requests__id__deny_post: {
         parameters: {
             query?: never;
@@ -2467,6 +2758,37 @@ export interface operations {
                 "application/json": components["schemas"]["DenyIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_request_api_v1_requests__id__release_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

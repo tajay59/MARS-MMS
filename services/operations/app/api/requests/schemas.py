@@ -29,7 +29,7 @@ RequestStatus = Literal[
     "submitted", "approved", "denied", "assigned", "scheduled", "in_progress", "client_review",
     "reopened", "closed", "cancelled",
 ]
-Action = Literal["approve", "deny", "assign", "cancel", "edit"]
+Action = Literal["approve", "deny", "assign", "claim", "release", "cancel", "edit"]
 
 
 class In(BaseModel):
@@ -67,6 +67,14 @@ class DenyIn(In):
 
 class CancelIn(In):
     reason: Reason | None = None  # required from Scheduled on (REQ-11)
+
+
+class AssignIn(In):
+    """REQ-7. The people the request is put with; `version` guards a change of staff on a request
+    that is already Assigned against a second admin doing the same."""
+
+    staff_ids: list[Id] = Field(min_length=1, max_length=10)
+    version: int | None = Field(default=None, ge=1)
 
 
 class RequestStation(BaseModel):
@@ -162,6 +170,32 @@ class RequestDetail(RequestSummary):
             milestones=Milestones(**doc.get("milestones", {})), version=doc["version"],
             actions=actions,
         )
+
+
+class QueueItem(RequestSummary):
+    """A row of the queue: a request and how long it has waited."""
+
+    approved_at: datetime | None
+
+    @classmethod
+    def waiting(
+        cls, doc: dict[str, Any], stations: dict[str, dict[str, Any]], orgs: dict[str, str],
+    ) -> QueueItem:
+        return cls(
+            **RequestSummary.of(doc, stations, orgs).model_dump(),
+            approved_at=doc.get("milestones", {}).get("approved_at"),
+        )
+
+
+class QueuePage(BaseModel):
+    items: list[QueueItem]
+    total: int
+
+
+class Workload(BaseModel):
+    """Open requests per person (staff IDs not listed have none)."""
+
+    open_requests: dict[str, int]
 
 
 class RequestPage(BaseModel):

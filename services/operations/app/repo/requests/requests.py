@@ -31,6 +31,7 @@ class Filters:
     created_from: datetime | None = None
     created_to: datetime | None = None
     q: str | None = None
+    unassigned: bool = False
 
 
 def _query(viewer: User, f: Filters) -> dict[str, Any]:
@@ -47,6 +48,8 @@ def _query(viewer: User, f: Filters) -> dict[str, Any]:
         query["priority"] = f.priority
     if f.assigned_to:
         query["assigned_staff_ids"] = f.assigned_to
+    elif f.unassigned:
+        query["assigned_staff_ids"] = []
     if f.created_from or f.created_to:
         window: dict[str, datetime] = {}
         if f.created_from:
@@ -70,6 +73,31 @@ async def search(
         query = {"$and": [query, {"_id": {"$lt": after}}]}
     cursor = col(db).find(query).sort("_id", -1).limit(limit)
     return [d async for d in cursor], total
+
+
+async def queue(
+    db: Db, viewer: User, f: Filters, *, limit: int
+) -> tuple[list[dict[str, Any]], int]:
+    """The approved requests nobody has taken, oldest approval first (REQ-7, AFD `/queue`),
+    and how many there are."""
+    query = _query(viewer, f)
+    total = int(await col(db).count_documents(query))
+    cursor = col(db).find(query).sort([("milestones.approved_at", 1), ("_id", 1)]).limit(limit)
+    return [d async for d in cursor], total
+
+
+# From assignment to closure a request counts as someone's work (REOPENED returns at once).
+OPEN_STATUSES = ("assigned", "scheduled", "in_progress", "client_review", "reopened")
+
+
+async def workload(db: Db) -> dict[str, int]:
+    """Open requests per assigned person, for the Assign dialog."""
+    rows = await col(db).aggregate([
+        {"$match": {"status": {"$in": list(OPEN_STATUSES)}}},
+        {"$unwind": "$assigned_staff_ids"},
+        {"$group": {"_id": "$assigned_staff_ids", "n": {"$sum": 1}}},
+    ])
+    return {row["_id"]: int(row["n"]) async for row in rows}
 
 
 async def get(

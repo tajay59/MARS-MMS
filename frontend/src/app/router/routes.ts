@@ -121,7 +121,12 @@ export const routes: RouteRecordRaw[] = [
   later('/notifications', 'notifications', 'Notifications', 3),
 
   // Staff
-  later('/queue', 'queue', 'Queue', 3, ['technician', 'admin']),
+  {
+    path: '/queue',
+    name: 'queue',
+    component: () => import('@/features/requests/QueuePage.vue'),
+    meta: { title: 'Queue', layout: 'app', roles: ['technician', 'admin'] },
+  },
   {
     // The catalogue of sensor models, with their documents and units (CAL-1, DOC-1)
     path: '/sensors/:id?',

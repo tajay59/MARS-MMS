@@ -61,6 +61,27 @@ class FakeMedia:
                     expires_at=datetime(2026, 10, 18, 12, 10, tzinfo=UTC))
 
 
+class FakeStaff:
+    """Auth's `/internal/users/lookup` answers, from the seed users."""
+
+    def __init__(self) -> None:
+        self.down = False
+        self.asked: list[list[str]] = []
+
+    async def lookup(
+        self, ids: list[str], request_id: str | None = None
+    ) -> dict[str, dict[str, Any]]:
+        if self.down:
+            from app.repo.requests.staff_client import StaffUnavailable
+
+            raise StaffUnavailable()
+        self.asked.append(list(ids))
+        return {
+            u.id: {"id": u.id, "name": u.name, "roles": list(u.roles), "status": u.status}
+            for u in SEED_USERS.values() if u.id in ids
+        }
+
+
 @dataclass
 class Ops:
     app: Any
@@ -69,6 +90,7 @@ class Ops:
     clock: ManualClock
     issuer: TestIssuer
     media: FakeMedia
+    staff: FakeStaff
 
     def bearer(self, who: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.issuer.token(who)}"}
@@ -157,13 +179,15 @@ async def ops(mongo_uri, redis_url):
     mongo: AsyncMongoClient = AsyncMongoClient(mongo_uri)
     await seed_orgs(mongo[db_name])
     media = FakeMedia()
-    app = create_app(settings, ready_checks={}, clock=clock, keys=issuer.keys, media=media)
+    staff = FakeStaff()
+    app = create_app(settings, ready_checks={}, clock=clock, keys=issuer.keys, media=media,
+                     staff=staff)
     async with app.router.lifespan_context(app):
         from mms_common.auth.revocation import revoke_user
 
         await revoke_user(app.state.redis, SEED_USERS["disabled"].id, clock.now())
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url=BASE) as http:
-            yield Ops(app, http, mongo[db_name], clock, issuer, media)
+            yield Ops(app, http, mongo[db_name], clock, issuer, media, staff)
     await mongo.drop_database(db_name)
     await mongo.close()

@@ -62,6 +62,12 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/requests"): roles("client", "admin"),
     ("GET", "/api/v1/requests/{id}"): Expect(ANY),
     ("PATCH", "/api/v1/requests/{id}"): roles("client", "admin"),
+    # Queue and staffing (REQ-7, W9): technicians and admins take or release work, admins assign.
+    ("GET", "/api/v1/queue"): Expect(ANY),  # staff read it; a client gets 404, not 403
+    ("GET", "/api/v1/requests/workload"): roles("admin"),
+    ("POST", "/api/v1/requests/{id}/assign"): roles("admin"),
+    ("POST", "/api/v1/requests/{id}/claim"): WRITE,
+    ("POST", "/api/v1/requests/{id}/release"): WRITE,
     ("POST", "/api/v1/requests/{id}/approve"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/deny"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/cancel"): roles("client", "admin"),

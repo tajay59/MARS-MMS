@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus } from './models'
+import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -60,6 +60,18 @@ export const requestsApi = {
   approve: (id: string) => api.post<RequestDetail>(`/requests/${id}/approve`, {}),
   deny: (id: string, reason: string) => api.post<RequestDetail>(`/requests/${id}/deny`, { reason }),
   cancel: (id: string, reason?: string) => api.post<RequestDetail>(`/requests/${id}/cancel`, { reason: reason || null }),
+  // Staffing (REQ-7): an admin assigns, a technician claims; release puts it back in the queue.
+  // `version` guards a change of staff on a request that is already Assigned.
+  assign: (id: string, staffIds: string[], version?: number) =>
+    api.post<RequestDetail>(`/requests/${id}/assign`, { staff_ids: staffIds, version }),
+  claim: (id: string) => api.post<RequestDetail>(`/requests/${id}/claim`, {}),
+  release: (id: string) => api.post<RequestDetail>(`/requests/${id}/release`, {}),
+  workload: (signal?: AbortSignal) => api.get<Workload>('/requests/workload', { signal }),
+}
+
+// Approved requests nobody has taken, oldest first (staff only; a client has no queue)
+export const queueApi = {
+  list: (signal?: AbortSignal) => api.get<QueuePage>('/queue', { query: { limit: 200 }, signal }),
 }
 
 export const calibrationsApi = {

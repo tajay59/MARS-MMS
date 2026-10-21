@@ -26,6 +26,7 @@ ALLOWED = {
     (Status.SUBMITTED, Action.APPROVE): (Status.APPROVED, {Who.ADMIN}, False),
     (Status.SUBMITTED, Action.DENY): (Status.DENIED, {Who.ADMIN}, True),
     (Status.APPROVED, Action.ASSIGN): (Status.ASSIGNED, {Who.ADMIN, Who.TECHNICIAN}, False),
+    (Status.ASSIGNED, Action.RELEASE): (Status.APPROVED, {Who.ADMIN, Who.TECHNICIAN}, False),
     (Status.SUBMITTED, Action.CANCEL): (Status.CANCELLED, {Who.CLIENT, Who.ADMIN}, False),
     (Status.APPROVED, Action.CANCEL): (Status.CANCELLED, {Who.CLIENT, Who.ADMIN}, False),
     (Status.ASSIGNED, Action.CANCEL): (Status.CANCELLED, {Who.CLIENT, Who.ADMIN}, False),
@@ -71,7 +72,7 @@ def test_every_allowed_move_is_refused_to_everyone_else(key, expected):
     [pair for pair in itertools.product(Status, Action) if pair not in ALLOWED],
 )
 def test_every_other_move_is_blocked_for_everyone(status, action):
-    """The other 67 of the 80 status and action pairs are impossible: Conflict, whoever asks."""
+    """The other 76 of the 90 status and action pairs are impossible: Conflict, whoever asks."""
     for who in Who:
         with pytest.raises(Conflict) as caught:
             transition(status, action, who, reason="because", staff_count=1)

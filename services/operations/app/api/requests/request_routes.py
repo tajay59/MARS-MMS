@@ -1,10 +1,10 @@
 """Maintenance requests (TRD §3.2 requests module; PRD REQ-1, REQ-2, REQ-4 to REQ-6, REQ-8,
 REQ-11, REQ-15, REQ-16; AFD J3, J4).
 
-Phase 3 W8: create, list, read, edit, approve, deny and cancel. Assigning, claiming, the queue
-and comments follow in W9; the statuses from Scheduled on come from visits (Phase 4). Every
-status change goes through `domain/requests/state.py` and writes its events in the same
-transaction as the change (rule 2).
+Phase 3 W8: create, list, read, edit, approve, deny and cancel. W9: assign, claim and release
+(the queue is `queue_routes.py`, comments follow); the statuses from Scheduled on come from
+visits (Phase 4). Every status change goes through `domain/requests/state.py` and writes its
+events in the same transaction as the change (rule 2).
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from app.api.requests.schemas import (
     Action as ActionName,
 )
 from app.api.requests.schemas import (
+    AssignIn,
     CancelIn,
     DenyIn,
     RequestDetail,
@@ -31,8 +32,9 @@ from app.api.requests.schemas import (
     RequestPage,
     RequestPatch,
     RequestSummary,
+    Workload,
 )
-from app.domain.requests import rules
+from app.domain.requests import rules, staffing
 from app.domain.requests.state import MILESTONES, Action, Status, Who, allowed, transition
 from app.events.publish import ev
 from app.repo.requests import requests as repo
@@ -45,9 +47,11 @@ router = APIRouter(prefix="/api/v1/requests", tags=["requests"])
 Reader = Annotated[User, Depends(require_roles())]  # staff read all; a client their own org
 Creator = Annotated[User, Depends(require_roles("client", "admin"))]
 Admin = Annotated[User, Depends(require_roles("admin"))]
+Worker = Annotated[User, Depends(require_roles("technician", "admin"))]
 IdPath = Annotated[str, Path(pattern=UUID7_PATTERN)]
-# The actions this release has routes for. The state machine already knows assigning (and the
-# client's accept and reject); the page is offered only what can be done today (W9, Phase 6).
+# The table actions with a button of their own. Assign, claim and release are worked out by
+# `staffing.actions_for` (who is on the request matters); the client's accept and reject wait
+# for Phase 6.
 OFFERED = frozenset({Action.APPROVE, Action.DENY, Action.CANCEL})
 
 
@@ -89,6 +93,9 @@ async def _detail(ctx: Ctx, doc: dict[str, Any], user: User) -> RequestDetail:
     actions: list[str] = []
     if who is not None:
         actions = [a.value for a in allowed(Status(doc["status"]), who) if a in OFFERED]
+        actions += staffing.actions_for(
+            Status(doc["status"]), who, user.id, doc.get("assigned_staff_ids", [])
+        )
         try:  # editing follows its own rule (REQ-11)
             rules.check_can_edit(Status(doc["status"]), who)
             actions.append("edit")
@@ -230,6 +237,12 @@ async def create_request(
     return await _detail(ctx, holder["doc"], user)
 
 
+@router.get("/workload")
+async def get_workload(_: Admin, ctx: CtxDep) -> Workload:
+    """How many open requests each person has, for the Assign dialog (W9)."""
+    return Workload(open_requests=await repo.workload(ctx.db))
+
+
 @router.get("/{id}")
 async def get_request(id: IdPath, viewer: Reader, ctx: CtxDep) -> RequestDetail:
     """REQ-8: the request with its status history. A client sees their organization's only."""
@@ -347,3 +360,115 @@ async def cancel_request(
         event=(ev.RequestCancelled, "request.cancelled",
                {"reason": reason, "cancelled_by": "admin" if user.is_admin else "client"}),
     )
+
+
+def _people(doc: dict[str, Any]) -> list[staffing.Person]:
+    return [staffing.Person(i, n) for i, n in doc.get("assigned_staff", [])]
+
+
+async def _apply_staff(
+    ctx: Ctx, user: User, current: dict[str, Any], change: staffing.StaffChange, *,
+    claimed: bool = False, expected_version: int | None = None,
+) -> RequestDetail:
+    """Write who is on the request. A move between statuses also writes its history entry and
+    `request.status_changed`; a change among staff alone writes `request.staff_changed`."""
+    now = ctx.clock.now()
+    before = Status(current["status"])
+    emitter = ctx.emitter(user)
+    names = [p.name for p in change.staff]
+    set_: dict[str, Any] = {
+        "assigned_staff_ids": [p.id for p in change.staff],
+        "assigned_staff": [[p.id, p.name] for p in change.staff],
+    }
+    history: dict[str, Any] | None = None
+    event_id = new_id()
+    if change.to is not None:
+        milestones = dict(current.get("milestones", {}))
+        if change.to is Status.ASSIGNED:
+            milestones["assigned_at"] = now
+        else:  # released: the clock for assignment starts again
+            milestones.pop("assigned_at", None)
+        set_.update(status=change.to.value, milestones=milestones)
+        gone = [p.name for p in _people(current) if p.id in change.removed]
+        note = (
+            f"Claimed by {user.name}" if claimed
+            else f"Assigned to {', '.join(names)}" if change.action is Action.ASSIGN
+            else f"Released by {user.name}" if gone == [user.name]
+            else f"Unassigned by {user.name}"
+        )
+        history = _entry(from_status=before.value, to=change.to, user=user, now=now,
+                         event_id=event_id, note=note)
+
+    async def save(s: AsyncClientSession) -> dict[str, Any]:
+        updated = await repo.update(
+            ctx.db, current["_id"], set_, now=now, by=user.id, session=s,
+            expected_status=before.value, expected_version=expected_version, history=history,
+        )
+        if change.action is Action.ASSIGN:
+            await emitter.request(
+                ev.RequestAssigned, "request.assigned", updated, s, before=current,
+                staff_ids=[p.id for p in change.staff], staff_names=names, claimed=claimed,
+                by_id=user.id,
+            )
+        elif change.action is Action.RELEASE:
+            released = [p for p in _people(current) if p.id in change.removed]
+            await emitter.request(
+                ev.RequestReleased, "request.released", updated, s, before=current,
+                released_ids=[p.id for p in released], released_names=[p.name for p in released],
+                by_id=user.id,
+            )
+        else:
+            await emitter.request(
+                ev.RequestStaffChanged, "request.staff_changed", updated, s, before=current,
+                staff_ids=[p.id for p in change.staff], staff_names=names,
+                added=list(change.added), removed=list(change.removed),
+            )
+        if change.to is not None:
+            await emitter.request_status(updated, s, from_status=before.value,
+                                         event_id=event_id)
+        return updated
+
+    return await _detail(ctx, await ctx.tx(save), user)
+
+
+@router.post("/{id}/assign")
+async def assign_request(
+    id: IdPath, body: AssignIn, user: Admin, ctx: CtxDep
+) -> RequestDetail:
+    """REQ-7: an admin puts one or more staff on an approved request (it becomes Assigned) or
+    changes the staff of one that is Assigned. Visits decide from Scheduled on."""
+    current = await repo.require(ctx.db, id)
+    ids = staffing.clean_staff_ids(body.staff_ids)
+    wanted = staffing.check_assignable(ids, await ctx.staff.lookup(ids, ctx.request_id))
+    change = staffing.assign(Status(current["status"]), require_who(user), _people(current),
+                             wanted)
+    return await _apply_staff(ctx, user, current, change, expected_version=body.version)
+
+
+@router.post("/{id}/claim")
+async def claim_request(id: IdPath, user: Worker, ctx: CtxDep) -> RequestDetail:
+    """REQ-7: a technician (or an admin) takes an approved request from the queue. Two people
+    claiming at once: one wins, the other is told who."""
+    current = await repo.require(ctx.db, id)
+    me = staffing.Person(user.id, user.name)
+    change = staffing.claim(Status(current["status"]), require_who(user), me, _people(current))
+    try:
+        return await _apply_staff(ctx, user, current, change, claimed=True)
+    except Conflict as lost:
+        fresh = await repo.get(ctx.db, id)
+        if lost.extra.get("code") == "request_changed" and fresh and fresh.get("assigned_staff"):
+            raise Conflict(
+                "Someone else has claimed this request", code="already_assigned",
+                claimed_by=[n for _, n in fresh["assigned_staff"]],
+            ) from lost
+        raise
+
+
+@router.post("/{id}/release")
+async def release_request(id: IdPath, user: Worker, ctx: CtxDep) -> RequestDetail:
+    """A technician lets go of their claim, or an admin unassigns everyone. With nobody left
+    the request returns to the queue (Assigned to Approved)."""
+    current = await repo.require(ctx.db, id)
+    me = staffing.Person(user.id, user.name)
+    change = staffing.release(Status(current["status"]), require_who(user), me, _people(current))
+    return await _apply_staff(ctx, user, current, change)

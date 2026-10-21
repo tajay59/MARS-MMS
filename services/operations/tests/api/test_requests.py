@@ -187,7 +187,8 @@ async def test_creating_writes_both_events_in_the_same_transaction(ops):
     assert submitted[0].data == {
         "request_id": created["id"], "ref": created["ref"], "org_id": ORG_A,
         "station_ids": [a["id"]], "category": "fault", "priority": "high",
-        "status": "submitted", "by_admin": False,
+        "status": "submitted", "by_admin": False, "title": "Wind sensor stuck",
+        "created_by": SEED_USERS["client_a1"].id,
     }
     assert changed[0].data["from_status"] is None and changed[0].data["to_status"] == "submitted"
     # the status history points at the event that made it
@@ -294,7 +295,7 @@ async def test_an_admin_approves(ops):
         == [(None, "submitted"), ("submitted", "approved")]
     assert data["status_history"][1]["by"]["name"] == SEED_USERS["admin"].name
     assert data["milestones"]["approved_at"] is not None  # REQ-16
-    assert set(data["actions"]) == {"cancel", "edit"}  # assigning comes in W9
+    assert set(data["actions"]) == {"cancel", "edit", "claim", "assign"}  # W9
     approved = await ops.outbox("request.approved")
     changed = [e for e in await ops.outbox("request.status_changed") if e.aggregate_version == 2]
     assert len(approved) == 1 and len(changed) == 1
@@ -524,6 +525,7 @@ async def test_the_snapshot_serves_requests_like_the_events(ops):
     assert response.json()["items"] == [{
         "request_id": created["id"], "ref": created["ref"], "org_id": ORG_A,
         "station_ids": [a["id"]], "category": "fault", "priority": "high", "status": "approved",
+        "title": "Wind sensor stuck", "created_by": SEED_USERS["client_a1"].id,
         "aggregate_version": 2,
     }]
     assert (await ops.http.get("/internal/snapshot/requests",

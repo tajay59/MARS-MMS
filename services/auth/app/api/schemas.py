@@ -126,6 +126,10 @@ class AccountLinkIn(In):
     id: Id
 
 
+class UserLookupIn(In):
+    ids: list[Id] = Field(min_length=1, max_length=50)
+
+
 Hex = Annotated[str, StringConstraints(pattern=r"^#[0-9A-Fa-f]{6}$")]
 
 
@@ -252,6 +256,19 @@ class AccountLinkOut(BaseModel):
     email: str
     name: str
     expires_at: datetime
+
+
+class UserRefOut(BaseModel):
+    """What another service may know about a person: never an email, phone or organization."""
+
+    id: str
+    name: str
+    roles: list[str]
+    status: str
+
+
+class UserLookupOut(BaseModel):
+    users: list[UserRefOut]
 
 
 class BrandingOut(BaseModel):

@@ -3,9 +3,10 @@
 
 | | |
 |---|---|
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Date** | 2026-10-17 |
 | **Status** | Final draft for approval |
+| **Changes in 1.4** | REQ-7: a technician can release a claim, and an admin can unassign; the request returns to the queue when nobody is left (decision W9-4, 2026-10-21). Section 5.1 shows the Assigned to Approved move |
 | **Changes in 1.3** | AUD-1 also audits brand colour changes: admins can change the organization-wide colours on Settings (decision W4-12, 2026-10-17) |
 | **Companion document** | [TRD.md](TRD.md) v2.1 (Technical Requirements Document) |
 | **Supersedes** | PRD 1.0 and all drafts in [drafts/](drafts/) |
@@ -233,7 +234,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | REQ-4 | Each request gets a human-readable reference, for example `MR-2026-0042`. | M |
 | REQ-5 | A request follows the workflow in §5. Invalid status changes are not possible. | M |
 | REQ-6 | Admins can approve or deny a submitted request. A denial requires a reason, which the client sees. | M |
-| REQ-7 | Approved requests appear in a **queue**. Admins can assign one or more staff. Technicians can claim a request from the queue themselves. | M |
+| REQ-7 | Approved requests appear in a **queue**. Admins can assign one or more staff. Technicians can claim a request from the queue themselves, and release a claim they made (the request returns to the queue when nobody is left). | M |
 | REQ-8 | Clients can view the status and full status history of their requests, and the list of visits under each request. | M |
 | REQ-9 | Clients and staff can comment on a request. Comments are a flat, chronological thread and can have attachments. An author can edit a comment within 15 minutes; after that it is fixed. | M |
 | REQ-10 | Staff can mark a comment as **internal**. Internal comments are never shown to clients. | S |
@@ -376,6 +377,7 @@ stateDiagram-v2
     Submitted --> Denied : admin denies (reason)
     Submitted --> Approved : admin approves
     Approved --> Assigned : admin assigns / technician claims
+    Assigned --> Approved : last assigned person releases, or admin unassigns
     Assigned --> Scheduled : a visit is planned
     Scheduled --> Assigned : all planned visits cancelled
     Scheduled --> InProgress : a visit starts (may be offline)
@@ -414,6 +416,7 @@ stateDiagram-v2
 | Submitted | Approved | Admin | — |
 | Submitted | Denied | Admin | Reason required |
 | Approved | Assigned | Admin, or technician claiming | At least one staff member |
+| Assigned | Approved | Technician releasing their claim (the last one), or admin | Nobody is left on the request |
 | Assigned / In progress | Scheduled | System | A visit is planned and none is under way |
 | Scheduled | Assigned | System | Every planned visit was cancelled |
 | Scheduled | In progress | System | A visit started (can happen offline) |
