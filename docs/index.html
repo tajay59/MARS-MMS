@@ -163,7 +163,7 @@
           <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page, station form) · W6 built (media service, documents, configurations, sensor catalogue, calibration due; waiting for staging and an iPhone) · W7 built (QR resolve and regenerate, the report service with label sheets, the scanner, the scanned-label page, the map, the label tool and the station QR card; waiting for staging and the label check on real phones)</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3 · W8 built (the requests module: create, list, read, edit, approve, deny, cancel; the screens); W9 to do</div></div><span class="badge progress">In progress</span></div>
+          <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3 · W8 built (the requests module: create, list, read, edit, approve, deny, cancel; the screens); W9 built and merged in four slices (assign, claim, release and the queue; comments and PDF attachments; notifications and the WebSocket; email, preferences and the weekly digest), with its six charts; still to do: the staging checks (email through the Gmail interim, live updates between two browsers, the phone check)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
@@ -1020,6 +1020,74 @@ flowchart LR
           <figcaption>Every <code>user.*</code> event carries the directory fields (<code>user_id</code>, <code>email</code>, <code>name</code>, <code>roles</code>, <code>status</code>, <code>org_id</code>), so a read model can upsert from any of them. No event carries a password, a hash or a token.</figcaption>
         </figure>
 
+        <figure class="diagram" id="events-storming-requests" data-title="requests and comments: commands, events and who reacts" data-kind="Event storming flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    subgraph CMD["Commands (operations)"]
+        C1["Submit (client) or create (admin)"]
+        C2["Edit"]
+        C3["Approve or deny (admin)"]
+        C4["Assign (admin)"]
+        C5["Claim (technician)"]
+        C6["Release"]
+        C7["Cancel"]
+        C8["Post or edit a comment"]
+        C9["Visit changes (Phase 4)"]
+    end
+    subgraph EV["Events on mms.operations.events"]
+        E1["request.submitted"]
+        E2["request.updated"]
+        E3["request.approved, request.denied"]
+        E4["request.assigned, request.staff_changed"]
+        E5["request.released"]
+        E6["request.cancelled"]
+        E7["comment.added, comment.updated"]
+        E8["request.status_changed"]
+        E9["media.visibility_requested"]
+    end
+    subgraph RM["Consumers and read models"]
+        R1["platform notification: notifications, email_queue, ws push"]
+        R2["platform audit: hash chain"]
+        R3["media: file visibility"]
+    end
+    C1 --> E1
+    C2 --> E2
+    C3 --> E3
+    C3 --> E8
+    C4 --> E4
+    C4 --> E8
+    C5 --> E4
+    C5 --> E8
+    C6 --> E5
+    C6 --> E8
+    C7 --> E6
+    C7 --> E8
+    C8 --> E7
+    C8 --> E9
+    C9 --> E8
+    E1 --> R1
+    E2 --> R1
+    E3 --> R1
+    E4 --> R1
+    E5 --> R1
+    E6 --> R1
+    E7 --> R1
+    E8 --> R1
+    E1 --> R2
+    E2 --> R2
+    E3 --> R2
+    E4 --> R2
+    E5 --> R2
+    E6 --> R2
+    E7 --> R2
+    E8 --> R2
+    E9 --> R3
+</pre>
+          </div>
+          <figcaption>As built through W9. Every request event carries the same facts (<code>request_id</code>, <code>ref</code>, <code>org_id</code>, <code>station_ids</code>, <code>category</code>, <code>priority</code>, <code>status</code>, optional <code>title</code> and <code>created_by</code>) and the message key is the <code>request_id</code>, so one request&rsquo;s events stay in order. A move between statuses writes <code>request.status_changed</code> in the same transaction as the event that caused it. Comment events never carry the text. <code>media.visibility_requested</code> goes to media only, and a comment with no files sends none (<code>attachments_visibility</code> runs only when there are attachments). Visit-driven moves (the Phase 4 command) join the same <code>request.status_changed</code> through <code>derive_status</code>. Operations keeps no read model of its own for requests: the list and the queue read the <code>requests</code> collection directly.</figcaption>
+        </figure>
+
         <div class="split">
           <div class="sub" id="events-topology">
             <h3>Topology</h3>
@@ -1602,7 +1670,7 @@ flowchart TD
      ===================================================================== -->
       <section class="doc" id="requests">
         <div class="doc-head">
-          <div class="row"><h2 id="requests-h">Requests</h2><span class="badge progress">In progress · Phase 3 W8 built</span></div>
+          <div class="row"><h2 id="requests-h">Requests</h2><span class="badge progress">In progress · Phase 3 W8 and W9 built</span></div>
           <p>A maintenance request moves through explicit actions (submit, approve, deny, assign, cancel, verify) until it is assigned. From then until closure its status is derived from its visits and visit reports by one pure function, recomputed in the same transaction as every change (ADR-17).</p>
           <span class="src">Sources: <a href="PRD.md">PRD §5.1</a> · <a href="TRD.md">TRD §3.2, §4.1</a> · <a href="AFD.md">AFD §4</a> · REQ-1 to REQ-16</span>
         </div>
@@ -1740,6 +1808,65 @@ flowchart TD
 </pre>
           </div>
           <figcaption>From <a href="AFD.md">AFD §4</a>. Lanes are approximated with Mermaid subgraphs; a true swimlane version belongs in draw.io.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="requests-staffing-code" data-title="Claim, assign and release, branch by branch" data-kind="Code flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    subgraph CL["POST /requests/id/claim (technician or admin)"]
+        C1{"Status Assigned,&lt;br/&gt;or someone on it?"} -->|yes| C409["409 already_assigned&lt;br/&gt;names who has it"]
+        C1 -->|no| C2{"Approved and the role&lt;br/&gt;may take it?"}
+        C2 -->|no| C3["409 bad_transition&lt;br/&gt;or 403"]
+        C2 -->|yes| C4{"Still in the status&lt;br/&gt;it was read in?"}
+        C4 -->|"no (lost the race)"| C5["Read again: someone on it?&lt;br/&gt;409 already_assigned with the winner"]
+        C4 -->|yes| C6(["Assigned, history entry, assigned_at&lt;br/&gt;request.assigned claimed, request.status_changed"])
+    end
+    subgraph AS["POST /requests/id/assign (admin)"]
+        A1["1 to 10 people, no repeats"] --> A2{"Each one active and&lt;br/&gt;technician or admin?&lt;br/&gt;auth lookup"}
+        A2 -->|no| A422["422 not_assignable"]
+        A2 -->|yes| A3{"Status Assigned?"}
+        A3 -->|yes| A4{"Same people as now?"}
+        A4 -->|yes| A409["409 no_change"]
+        A4 -->|no| A5(["Staff change only&lt;br/&gt;request.staff_changed, no status move"])
+        A3 -->|no| A6(["Approved becomes Assigned&lt;br/&gt;request.assigned + request.status_changed"])
+    end
+    subgraph RE["POST /requests/id/release (technician or admin)"]
+        R1{"Status Assigned?"} -->|no| R409["409 bad_transition"]
+        R1 -->|yes| R2{"Admin, or a technician&lt;br/&gt;who is on it?"}
+        R2 -->|no| R403["403"]
+        R2 -->|yes| R3{"Anyone left?"}
+        R3 -->|yes| R4(["Staff change only&lt;br/&gt;request.staff_changed"])
+        R3 -->|no| R5(["Back to Approved, assigned_at cleared&lt;br/&gt;request.released + request.status_changed"])
+    end
+</pre>
+          </div>
+          <figcaption>From <code>domain/requests/staffing.py</code> and <code>api/requests/request_routes.py</code> (decisions W9-1 to W9-4). A viewer is refused before any of this (rule 5) and a client gets 404 (<code>/queue</code> and the routes use <code>Worker</code> or <code>Admin</code>). The race is the &ldquo;status it was read in&rdquo; check in <code>repo.update</code>: one of two simultaneous claims writes, and the other is turned into <code>already_assigned</code> with the winner&rsquo;s name. Every row here has a test.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="requests-file-access" data-title="Can a client open this comment's file?" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    Q["A client asks for a file&lt;br/&gt;GET .../comments/cid/attachments/mid/download"] --> R{"Request in the&lt;br/&gt;client's organization?"}
+    R -->|no| N1(["404"])
+    R -->|yes| C{"Comment on that request&lt;br/&gt;and not internal?"}
+    C -->|"no (also when it is internal)"| N2(["404, same as if it did not exist"])
+    C -->|yes| F{"File listed on the comment?"}
+    F -->|no| N3(["404"])
+    F -->|yes| M{"Media says the file is ready?"}
+    M -->|no| N4(["409 not_ready, try again"])
+    M -->|yes| OK(["10-minute link from media"])
+    subgraph HOLD["Why the file is not reachable another way"]
+        direction TB
+        H1["Posted: media.visibility_requested&lt;br/&gt;in the same transaction as comment.added"] --> H2{"Internal?"}
+        H2 -->|yes| H3["visibility staff"]
+        H2 -->|no| H4["visibility org"]
+        H5["Edited to internal later:&lt;br/&gt;staff, with a higher visibility_version"] --> H3
+    end
+</pre>
+          </div>
+          <figcaption>Exit check 1 of the W9 plan (decision W9-8). Three locks, so one mistake is not enough: the comment is hidden by the repository, the download route answers 404 for it, and media keeps the file <code>staff</code> until operations asks for <code>org</code> (ADR-19, files fail closed). The upload side is closed too: <code>/internal/attachable</code> refuses a <code>comment:&lt;request&gt;:&lt;comment&gt;</code> owner reference (404) when the request is not the client&rsquo;s own, and a client cannot mark a comment internal in the first place. Tests: <code>test_comments.py</code> and the client journey in <code>comments.spec.ts</code>.</figcaption>
         </figure>
 
         <figure class="diagram" data-title="Request to closure across services" data-kind="Sequence diagram">
@@ -2081,7 +2208,7 @@ sequenceDiagram
      ===================================================================== -->
       <section class="doc" id="platform">
         <div class="doc-head">
-          <div class="row"><h2 id="platform-h">Notifications and audit</h2><span class="badge progress">Audit chain (W3) and account emails (W4) built · Phases 3, 7</span></div>
+          <div class="row"><h2 id="platform-h">Notifications and audit</h2><span class="badge progress">Audit chain (W3), account emails (W4), notifications, the WebSocket, email and the weekly digest (W9) built · Phase 7</span></div>
           <p><code>platform</code> consumes events and never produces them. Its notification module turns user-facing events into in-app, WebSocket and email messages. Its audit module writes every event into an insert-only, hash-chained log.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3.5, §12, §13.4</a> · NOT-1 to NOT-5 · AUD-1 to AUD-6 · ADR-13</span>
         </div>
@@ -2100,6 +2227,88 @@ flowchart LR
 </pre>
           </div>
           <figcaption>As designed for Phase 3. Entity changes are also pushed as <code>entity.updated</code> for live pages. The WebSocket client authenticates with its first message within 5 s, reconnects with backoff (1 s → 30 s) and catches up with <code>/notifications?after=</code>. Account emails, below, are built.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="platform-comment-sequence" data-title="A comment reaches a client's open page" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant T as Technician
+    participant O as operations
+    participant K as Kafka mms.operations.events
+    participant P as platform consumer
+    participant R as Redis ws:user:id
+    participant S as platform /ws
+    participant C as Client browser
+    T->>O: POST /requests/id/comments
+    O->>O: one transaction: comment, outbox row, visibility for its files
+    O-->>T: 201 CommentOut
+    O->>K: relay produces comment.added (no text)
+    K->>P: comment.added
+    P->>P: one transaction: plan() writes notification rows, processed_events
+    Note over P: internal comment: staff only
+    P->>R: publish after the commit
+    R->>S: message for each connected user
+    S->>C: notification and entity.updated kind comment
+    C->>O: GET /requests/id/comments (quiet refetch)
+    O-->>C: the thread, internal comments left out
+</pre>
+          </div>
+          <figcaption>Decisions W9-9 to W9-12. Nothing travels with the text: the event and the socket message say <em>that</em> something changed, and the page asks operations, which filters by role in the repository layer (rule 6). Redis is pushed to only after the Mongo transaction has committed, so a rolled-back write never tells anyone. A browser that was offline or asleep misses the push and finds the same facts through <code>GET /notifications?after=</code> and the refetch when its socket opens again.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="platform-recipients" data-title="Who is told, and who is not" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    E["Event reaches plan()"] --> K{"Which event?"}
+    K -->|request.submitted| S1["Admins, unless an admin made it"]
+    K -->|"request.approved or denied"| S2["The client who made it"]
+    K -->|request.assigned| S3["The people assigned,&lt;br/&gt;the client (a technician is on it),&lt;br/&gt;admins when it was a claim"]
+    K -->|request.staff_changed| S4["People added and people removed"]
+    K -->|request.released| S5["Admins"]
+    K -->|request.cancelled| S6["The client and the people on it,&lt;br/&gt;other admins in-app only"]
+    K -->|comment.added| I{"Internal?"}
+    I -->|yes| S7["Staff on the request,&lt;br/&gt;or the admins when nobody is on it"]
+    I -->|no| S8["The same staff and the client who made the request"]
+    S1 --> X
+    S2 --> X
+    S3 --> X
+    S4 --> X
+    S5 --> X
+    S6 --> X
+    S7 --> X
+    S8 --> X
+    X["Take out the person who did it,&lt;br/&gt;list each person once"] --> W["Notification row per person&lt;br/&gt;holding who and where, never the text"]
+    W --> M{"Appendix B says&lt;br/&gt;in-app + email?"}
+    M -->|yes| Q["Queue an email row, id = notification id&lt;br/&gt;the person's switch is read when it is sent"]
+    M -->|no| D(["In-app only"])
+</pre>
+          </div>
+          <figcaption>From <code>domain/notifications.plan</code>, a pure function walked row by row by its tests (decisions W9-10, W9-11, W9-13). The live <code>entity.updated</code> message follows a separate, wider list: all staff and the organization&rsquo;s client users, except that an internal comment is never announced to a client, and editing a comment that was internal all along is also kept quiet. Turning a comment <em>to</em> internal is announced, so the client&rsquo;s page looks again and the comment disappears.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="platform-socket-state" data-title="The browser's socket to /ws" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> off
+    off --> connecting : start() and the page is visible and online
+    off --> waiting : start() but hidden or offline
+    connecting --> open : server sends ready (auth message accepted)
+    connecting --> waiting : closed before ready
+    open --> waiting : closed by the server or the network
+    open --> waiting : page hidden for 60 s (closed 1000)
+    waiting --> connecting : backoff timer, page visible again, or network back
+    waiting --> connecting : close 4401 and the token was refreshed
+    waiting --> off : close 4401 and the session has ended
+    open --> off : stop() on logout
+    waiting --> off : stop() on logout
+    connecting --> off : stop() on logout
+</pre>
+          </div>
+          <figcaption><code>app/realtime/socket.ts</code>, states <code>off | connecting | open | waiting</code> (decision W9-9). Backoff is 1 s doubling to 30 s with jitter and starts over on <code>ready</code>. The token goes in the first message, never in the address. The server re-checks it every 25 s: when it expires or is revoked the socket closes with 4401, the browser refreshes under the <code>mms-auth-refresh</code> lock and reconnects, and a second refusal within 5 s backs off instead of looping. On every open after the first the owner refetches what it missed. An iPhone drops the socket in the background, so this is where the postponed phone check applies.</figcaption>
         </figure>
 
         <figure class="diagram" id="platform-email-state" data-title="An account email's row in email_queue" data-kind="State diagram">
@@ -3240,17 +3449,17 @@ flowchart TD
                 <tr><td>Workflow diagram</td><td>Illustrating and refining team workflows</td><td>Staff routines outside the app's own flow: hypercare triage, calibration-due follow-up, release routine</td><td>Mermaid or draw.io</td><td>Suggested · Phase 7–8</td></tr>
                 <tr><td>Data flow diagram</td><td>How data moves through a process or system</td><td>Event wiring between services, where secrets and tokens live, theme tokens, notification fan-out, backups</td><td>Mermaid flowchart</td><td>In these docs (events, theme, notifications) · Suggested · Phase 1 (credentials)</td></tr>
                 <tr><td>Swimlane flowchart</td><td>Cross-functional processes between teams</td><td>Hand-offs between roles and services: J1 registration and approval, J4 approve and assign, J8 client review</td><td>draw.io (true lanes); Mermaid subgraphs as a stand-in</td><td>In these docs: <a href="#auth-j1">J1 registration</a> (draw.io, true lanes) and request roles (approximated in Mermaid)</td></tr>
-                <tr><td>Decision tree diagram</td><td>Branching decisions (Figma: process improvement)</td><td>Rules with many branches: <code>derive_status</code>, sync conflict handling, document access for clients</td><td>Mermaid flowchart</td><td>Suggested · Phase 3, 5</td></tr>
+                <tr><td>Decision tree diagram</td><td>Branching decisions (Figma: process improvement)</td><td>Rules with many branches: <code>derive_status</code>, sync conflict handling, document access for clients</td><td>Mermaid flowchart</td><td>In these docs: <a href="#requests-file-access">file access for clients</a>, <a href="#platform-recipients">who is notified</a>, <code>derive_status</code> · Suggested · Phase 5 (sync conflicts)</td></tr>
                 <tr><td>System flowchart</td><td>How external inputs get processed in a system</td><td>Requests through the gateway, the media processing pipeline, report rendering</td><td>Mermaid flowchart</td><td>In these docs (gateway) · Suggested · Phase 4 (media)</td></tr>
                 <tr><td>Document flowchart</td><td>Forms needing multiple approvals</td><td>Documents that collect signatures: visit report (staff signatures → final → client sign-off), client report form → PDF</td><td>Mermaid or draw.io</td><td>Suggested · Phase 6</td></tr>
                 <tr><td>Product flowchart</td><td>Manufacturing or supply chain</td><td>Sensor inventory: stock → installed at a station → repair or lab calibration → stock or retired</td><td>Mermaid flowchart</td><td>Chosen · Phase 2</td></tr>
                 <tr><td>PERT chart</td><td>Keeping projects on schedule</td><td>The Implementation Plan's phases, dependencies and decision deadlines</td><td>Mermaid gantt or draw.io</td><td>Suggested · any phase, if the plan changes</td></tr>
                 <tr><td>Use case flowchart</td><td>User experiences within a product or system</td><td>Roles × actions for each service; mirrors the authorization matrix</td><td>Mermaid flowchart</td><td>Suggested · Phase 1 (auth), then each phase</td></tr>
-                <tr><td>Event storming flowchart</td><td>Requirements a program or process needs</td><td>Commands → domain events → consumers and read models for each module; checks the AUD-1 mapping</td><td>draw.io (sticky-note layout) or Mermaid</td><td>Suggested · Phases 1, 3, 4</td></tr>
+                <tr><td>Event storming flowchart</td><td>Requirements a program or process needs</td><td>Commands → domain events → consumers and read models for each module; checks the AUD-1 mapping</td><td>draw.io (sticky-note layout) or Mermaid</td><td>In these docs: <a href="#events-storming-auth">auth</a>, <a href="#events-storming-requests">requests and comments</a> · Suggested · Phase 4</td></tr>
                 <tr><td>Customer journey flowchart</td><td>Customer interactions leading to a conversion</td><td>The client's own path: invited → first request → follow progress → review and sign off</td><td>draw.io</td><td>Suggested · Phase 6, Phase 8 (client guide)</td></tr>
                 <tr><td>Production flowchart</td><td>Steps between customer orders and delivery</td><td>Covered by the request swimlane and lifecycle; draw only if a step-by-step operations view is asked for</td><td>—</td><td>Not used</td></tr>
                 <tr><td>Logical model flowchart</td><td>Inputs, processes and outputs leading to outcomes</td><td>Summary reports: read-model inputs → aggregation → PDF / CSV outputs; dashboards</td><td>Mermaid flowchart</td><td>Suggested · Phase 7</td></tr>
-                <tr><td>Code flowchart</td><td>How a program or block of code functions</td><td>Branch-by-branch logic worth one test each: <code>/login</code>, <code>/refresh</code> rotation, sensor action apply and reverse, sync op apply, finalize retry</td><td>Mermaid flowchart</td><td>Suggested · Phases 1, 4, 5, 6</td></tr>
+                <tr><td>Code flowchart</td><td>How a program or block of code functions</td><td>Branch-by-branch logic worth one test each: <code>/login</code>, <code>/refresh</code> rotation, sensor action apply and reverse, sync op apply, finalize retry</td><td>Mermaid flowchart</td><td>In these docs: <a href="#auth-login-code">/login</a>, <a href="#auth-refresh-code">/refresh</a>, <a href="#requests-staffing-code">claim, assign and release</a> · Suggested · Phases 4, 5, 6</td></tr>
                 <tr><td>E-commerce flowchart</td><td>An e-commerce sales pipeline</td><td>No sales flow in this app</td><td>—</td><td>Not used</td></tr>
                 <tr><td>Website flowchart</td><td>Website architecture</td><td>Pages, shells and who can reach them; route guards and redirects</td><td>Mermaid flowchart</td><td>In these docs (pages) · Suggested · Phase 1 (shells, guards)</td></tr>
               </tbody>
@@ -3264,8 +3473,8 @@ flowchart TD
             <table>
               <thead><tr><th>Type</th><th>Use it for</th><th>In these docs</th></tr></thead>
               <tbody>
-                <tr><td>Sequence diagram</td><td>Calls and events between components over time</td><td>Login, refresh, outbox, request to closure, sync, upload, finalize saga</td></tr>
-                <tr><td>State diagram</td><td>Every status field: request, account, visit, report, media, sensor unit, sync op</td><td>Request, account, visit report</td></tr>
+                <tr><td>Sequence diagram</td><td>Calls and events between components over time</td><td>Login, refresh, outbox, request to closure, <a href="#platform-comment-sequence">a comment to a client's open page</a>, sync, upload, finalize saga</td></tr>
+                <tr><td>State diagram</td><td>Every status field: request, account, visit, report, media, sensor unit, sync op</td><td>Request, account, visit report, <a href="#platform-socket-state">the browser's socket</a></td></tr>
                 <tr><td>Entity relationship diagram</td><td>Collections and references</td><td>Entity model</td></tr>
                 <tr><td>Architecture / C4</td><td>Containers and what calls what; per-service components when a service grows</td><td>System context and containers</td></tr>
                 <tr><td>Gantt</td><td>Schedules (the PERT alternative Mermaid supports)</td><td>—</td></tr>
@@ -3309,6 +3518,7 @@ flowchart TD
             <tbody>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Pinned headers on phones.</b> On the Stations list, Sensors and Calibration due the pane (search and filters) stays at the top and the list slides up under a curved edge (<code>PaneContent pin</code>, <code>PageBody</code> corner pieces, band colour <code>surface-50</code>). An open station has a two-row header: Back, then the name with Edit on its row, then the code, status chip and place; its tab bar sits in the pinned header (<code>PageBody stacked</code>, <code>components/pageBar.ts</code>) and scrolls sideways on its own. The back arrow no longer shows the router's active highlight. Phones only: the tablet and desktop shells are unchanged. No change to the API, events or the offline code</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Station page on phones</b>, from a light Stitch mock-up checked against the DBD: the tab bar has no arrow buttons below 768 px and keeps the open tab in view; Overview shows five facts and a "More details" row; the Calibration tab opens with the next due date and the number of sensors overdue, and lists records as rows instead of a table. Reviewed against the Web Interface Guidelines; no change to the API, events or the offline code</td></tr>
+              <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>W9 charts.</b> Six diagrams for Phase 3, each drawn from the code as merged: <a href="#requests-staffing-code">claim, assign and release, branch by branch</a> (code flowchart), <a href="#requests-file-access">can a client open this comment's file</a> (decision tree), <a href="#platform-comment-sequence">a comment reaches a client's open page</a> (sequence), <a href="#platform-recipients">who is told, and who is not</a> (decision tree), <a href="#platform-socket-state">the browser's socket to /ws</a> (state) and <a href="#events-storming-requests">requests and comments: commands, events and who reacts</a> (event storming). The socket chart shows the states as built (<code>off</code>, <code>connecting</code>, <code>open</code>, <code>waiting</code>), not the five the plan sketched.</td></tr>
               <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>Email, preferences and the weekly digest</b> (slice 4; decisions W9-13 and W9-14), which closes W9. Platform: the email that follows a notification, <code>domain/preferences</code> (what each role can choose, the defaults), <code>GET/PUT /notifications/preferences</code>, the digest job and its templates, the hourly tick. Operations: <code>GET /internal/calibrations/due</code>. Front end: the Email preferences section of My profile (a switch per type, saved as it is turned), a link to it from the notifications pane, and the calibration digest in the list. Not built: Web Push (decided "not yet").</td></tr>
               <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>Notifications and live pages</b> (slice 3; decisions W9-9 to W9-12). Platform: the user directory, <code>domain/notifications.plan</code>, the <code>notifications</code> collection, the list and read routes, <code>/ws</code> with Redis fan-out and the token re-check, <code>entity.updated</code>. Front end: the socket class (no Vue), the notifications store, the unread count on the rail and the Me tab, <code>/notifications</code> (by day, All or Unread, by type), the toast for a notification that arrives while the app is open, and quiet refresh of the request list, the open request, its comments and the queue. The platform OpenAPI joins the frontend's generated types. Email and preferences are slice 4.</td></tr>
               <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>Comments and PDF attachments</b> (slice 2; decisions W9-5 to W9-8). Back end: the comments collection and routes, files on a new request, the download routes, <code>comment.added</code> and <code>.updated</code>, visibility requests to media, and the owner check for <code>request:</code> and <code>comment:</code>. Front end: the Comments tab (thread, 15-minute edit, Internal switch for staff, amber internal comments), the composer with PDFs that go up and are checked before Post, the Attachments section of the new-request form, and the Files row on the request page. Exit check: an internal comment's file is staff-only.</td></tr>
