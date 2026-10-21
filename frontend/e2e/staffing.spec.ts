@@ -122,6 +122,37 @@ test('An admin assigns from the queue and can search the staff list @REQ-7 @J4',
   await expect(row).toHaveCount(0)
 })
 
+test('Search and filters open from a button in a bottom sheet @REQ-7', async ({ watched: page, browser }) => {
+  const title = unique('Mast lamp')
+  await approvedRequest(browser, title)
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/queue')
+  const table = page.getByRole('table', { name: /waiting for someone/ })
+  await expect(table.getByRole('row', { name: new RegExp(title) })).toBeVisible()
+  // Nothing of the filters sits on the page until the sheet is opened
+  await expect(page.getByRole('searchbox', { name: /Search the queue/ })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Search and filter the queue' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Search and filter' })
+  await expect(sheet).toBeVisible()
+  await checkA11y(page, '/queue (filter sheet)')
+  await sheet.getByRole('searchbox', { name: /Search the queue/ }).fill(title)
+  await expect(sheet.getByRole('button', { name: 'Show 1 request' })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Show 1 request' }).click()
+  await expect(sheet).toBeHidden()
+
+  // The filter is on: the button says so, the list follows, and the URL keeps it
+  await expect(page.getByRole('button', { name: 'Search and filter the queue, 1 on' })).toBeVisible()
+  await expect(table.getByRole('row')).toHaveCount(2) // header and the one match
+  await expect(page).toHaveURL(/q=/)
+
+  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
+  await sheet.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(sheet.getByRole('button', { name: /^Show \d+ requests?$/ })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('button', { name: 'Search and filter the queue', exact: true })).toBeVisible()
+})
+
 test('A lost race says who got there first @REQ-7', async ({ watched: page, browser }) => {
   const title = unique('Solar panel')
   await approvedRequest(browser, title)

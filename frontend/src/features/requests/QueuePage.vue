@@ -1,61 +1,19 @@
 <template>
   <PageBody :subtitle="subtitle" title="Queue" wide>
-    <!-- The pane: search, then country, priority and category with how many each leaves -->
-    <PaneContent pin>
-      <div class="flex flex-col gap-4 px-3">
-        <v-text-field
-          aria-label="Search the queue by reference, title or station"
-          autocomplete="off"
-          class="px-1"
-          clearable
-          hide-details
-          :model-value="filters.q"
-          name="q"
-          placeholder="Search reference, title or station"
-          :prepend-inner-icon="mdiMagnify"
-          spellcheck="false"
-          type="search"
-          @update:model-value="setFilters({ q: $event ?? '' })"
-        />
-
-        <div
-          v-for="group in groups"
-          :key="group.field"
-          :aria-labelledby="`q-${group.field}`"
-          class="flex flex-col gap-2 px-1"
-          role="group"
+    <!-- Search and the filters live in a sheet, opened from here; the badge counts what is on -->
+    <template #actions>
+      <v-badge color="primary" :content="activeCount" floating :model-value="activeCount > 0">
+        <v-btn
+          :aria-label="activeCount > 0 ? `Search and filter the queue, ${activeCount} on` : 'Search and filter the queue'"
+          icon
+          size="40"
+          variant="text"
+          @click="filterOpen = true"
         >
-          <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
-
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              :aria-pressed="filters[group.field] === null"
-              class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
-              :class="chip(filters[group.field] === null)"
-              type="button"
-              @click="setFilters({ [group.field]: null })"
-            >Any</button>
-
-            <button
-              v-for="option in group.options"
-              :key="option.value"
-              :aria-pressed="filters[group.field] === option.value"
-              class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
-              :class="chip(filters[group.field] === option.value)"
-              type="button"
-              @click="setFilters({ [group.field]: filters[group.field] === option.value ? null : option.value })"
-            >{{ option.label }}<span class="tabular-nums font-semibold">{{ option.count }}</span></button>
-          </div>
-        </div>
-
-        <button
-          v-if="filtered"
-          class="self-start rounded-md px-2 py-1.5 text-sm font-medium text-primary hover:bg-surface-100"
-          type="button"
-          @click="clearFilters"
-        >Clear filters</button>
-      </div>
-    </PaneContent>
+          <v-icon :icon="mdiMagnify" />
+        </v-btn>
+      </v-badge>
+    </template>
 
     <FeedbackBanner v-if="loadError" type="error">{{ loadError }}</FeedbackBanner>
 
@@ -156,6 +114,74 @@
       </ul>
     </template>
 
+    <!-- Search, then country, priority and category with how many each leaves; the list behind follows at once -->
+    <ModalSheet v-model="filterOpen" labelledby="qf-h" max-width="560" sheet>
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3">
+          <h2 id="qf-h" class="m-0 text-h2 text-surface-900">Search and filter</h2>
+
+          <v-btn
+            aria-label="Close"
+            icon
+            size="36"
+            variant="text"
+            @click="filterOpen = false"
+          >
+            <v-icon :icon="mdiClose" />
+          </v-btn>
+        </div>
+
+        <v-text-field
+          aria-label="Search the queue by reference, title or station"
+          autocomplete="off"
+          clearable
+          hide-details
+          :model-value="filters.q"
+          name="q"
+          placeholder="Search reference, title or station"
+          :prepend-inner-icon="mdiMagnify"
+          spellcheck="false"
+          type="search"
+          @update:model-value="setFilters({ q: $event ?? '' })"
+        />
+
+        <div
+          v-for="group in groups"
+          :key="group.field"
+          :aria-labelledby="`q-${group.field}`"
+          class="flex flex-col gap-2"
+          role="group"
+        >
+          <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
+
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              :aria-pressed="filters[group.field] === null"
+              class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
+              :class="chip(filters[group.field] === null)"
+              type="button"
+              @click="setFilters({ [group.field]: null })"
+            >Any</button>
+
+            <button
+              v-for="option in group.options"
+              :key="option.value"
+              :aria-pressed="filters[group.field] === option.value"
+              class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
+              :class="chip(filters[group.field] === option.value)"
+              type="button"
+              @click="setFilters({ [group.field]: filters[group.field] === option.value ? null : option.value })"
+            >{{ option.label }}<span class="tabular-nums font-semibold">{{ option.count }}</span></button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <v-btn v-if="filtered" class="text-primary" variant="text" @click="clearFilters">Clear filters</v-btn>
+          <v-btn class="ml-auto" color="primary" @click="filterOpen = false">Show {{ shown.length }} {{ shown.length === 1 ? 'request' : 'requests' }}</v-btn>
+        </div>
+      </div>
+    </ModalSheet>
+
     <!-- Phones: claiming is one tap more, so a thumb can't take work by accident (mock-up W9) -->
     <ModalSheet v-model="confirmOpen" labelledby="cl-h" max-width="420">
       <div v-if="confirming" class="flex flex-col gap-3">
@@ -208,7 +234,7 @@
   import type { QueueFilters } from './queue'
   import type { QueueItem, RequestDetail } from '@/api/models'
   import type { RouteLocationRaw } from 'vue-router'
-  import { mdiInboxOutline, mdiMagnify } from '@mdi/js'
+  import { mdiClose, mdiInboxOutline, mdiMagnify } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
@@ -220,7 +246,6 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
   import PageBody from '@/components/PageBody.vue'
-  import PaneContent from '@/components/PaneContent.vue'
   import { useSessionStore } from '@/stores/session'
   import AssignDialog from './AssignDialog.vue'
   import PriorityChip from './PriorityChip.vue'
@@ -243,6 +268,7 @@
   const claiming = ref<string | null>(null)
   const confirming = ref<QueueItem | null>(null)
   const assigning = ref<QueueItem | null>(null)
+  const filterOpen = ref(false)
   const toast = reactive<{ show: boolean, text: string, to: RouteLocationRaw | null }>({ show: false, text: '', to: null })
 
   // Viewers read the queue and cannot take work (rule 5): no buttons for them, not disabled ones
@@ -270,7 +296,8 @@
 
   const filters = computed(() => queueFiltersFrom(route.query))
   const shown = computed(() => filterQueue(items.value, filters.value))
-  const filtered = computed(() => Object.values(queueQueryFrom(filters.value)).some(Boolean))
+  const activeCount = computed(() => Object.values(queueQueryFrom(filters.value)).filter(Boolean).length)
+  const filtered = computed(() => activeCount.value > 0)
 
   function setFilters (patch: Partial<QueueFilters>): void {
     void router.replace({ query: { ...route.query, ...queueQueryFrom({ ...filters.value, ...patch }) } })
