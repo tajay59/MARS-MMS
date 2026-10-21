@@ -2,8 +2,8 @@
 
 One pass over the stored object computes its SHA-256, reads its first bytes for the magic
 check and feeds the virus scanner. A file is released (`ready`) only when all of them pass.
-Documents, PDFs and configuration files are kept unchanged; images and video get their own
-processing in Phase 4.
+Documents, PDFs and configuration files are kept unchanged; photos and video are also turned
+into the copy people look at, with a thumbnail (`jobs/derive.py`), before they are `ready`.
 
 Transient trouble (the scanner or store unreachable) puts the file back to `uploaded` and
 raises, so arq tries again later and `reconcile` is the safety net. A file never becomes
@@ -24,7 +24,9 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 from app.domain import media as rules
 from app.domain.media import Kind, ScanStatus, Status
 from app.events.publish import Emitter
+from app.jobs import derive
 from app.repo import media as repo
+from app.repo import render
 from app.repo.scanner import ScannerUnavailable
 from app.repo.storage import StorageError
 from app.services import Services
@@ -66,6 +68,10 @@ async def process_media(svc: Services, media_id: str) -> str:
                               svc.clock.now())
         raise
 
+    derived: derive.Derived | None = None
+    if verdict.failure is None and doc["kind"] in (Kind.IMAGE.value, Kind.VIDEO.value):
+        derived, verdict = await _derive(svc, doc, media_id, verdict)
+
     emitter = Emitter(svc.db, svc.clock, SYSTEM)
     done_at = svc.clock.now()
 
@@ -78,23 +84,51 @@ async def process_media(svc: Services, media_id: str) -> str:
             if moved is not None:
                 await emitter.failed(moved, verdict.failure, session, doc)
             return Status.FAILED.value
+        changes = {"scan_status": verdict.scan_status.value if verdict.scan_status else None,
+                   "processed_key": doc["original_key"], "checksum_sha256": digest,
+                   "ready_at": done_at, **(derived.fields if derived else {})}
         moved = await repo.transition(
-            svc.db, media_id, Status.PROCESSING, Status.READY, done_at,
-            changes={"scan_status": verdict.scan_status.value if verdict.scan_status else None,
-                     "processed_key": doc["original_key"], "checksum_sha256": digest},
+            svc.db, media_id, Status.PROCESSING, Status.READY, done_at, changes=changes,
             session=session,
         )
         if moved is not None:
             await emitter.processed(moved, session, doc)
         return Status.READY.value
 
-    outcome = await in_transaction(svc.client, body)
+    try:
+        outcome = await in_transaction(svc.client, body)
+    except BaseException:
+        if derived is not None:
+            await derive.remove(svc, derived.keys)
+        raise
+    if derived is not None and outcome != Status.READY.value:
+        await derive.remove(svc, derived.keys)
     if verdict.delete_object:
         try:
             await svc.storage.delete(svc.bucket(doc["kind"]), doc["original_key"])
         except StorageError:
             log.exception("quarantine_delete_failed", extra={"media_id": media_id})
     return outcome
+
+
+async def _derive(
+    svc: Services, doc: dict[str, Any], media_id: str, verdict: Verdict
+) -> tuple[derive.Derived | None, Verdict]:
+    """The copy people look at. A file the tools cannot open fails with their code and keeps its
+    original; a missing tool or an unreachable store puts it back for another try."""
+    try:
+        return await derive.make(svc, doc), verdict
+    except render.Unreadable as e:
+        return None, Verdict(e.code)
+    except (render.ToolMissing, StorageError) as e:
+        await repo.transition(svc.db, media_id, Status.PROCESSING, Status.UPLOADED,
+                              svc.clock.now())
+        log.warning("derive_retry", extra={"media_id": media_id, "error": str(e)})
+        raise Retry(str(e)) from e
+    except BaseException:
+        await repo.transition(svc.db, media_id, Status.PROCESSING, Status.UPLOADED,
+                              svc.clock.now())
+        raise
 
 
 async def _inspect(svc: Services, doc: dict[str, Any]) -> tuple[Verdict, str]:

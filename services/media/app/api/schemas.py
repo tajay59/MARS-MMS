@@ -44,6 +44,11 @@ class MediaOut(BaseModel):
     scan_status: str | None = None
     checksum_sha256: str | None = None
     error: str | None = None
+    # Photos and video, once processed (MED-1, MED-2, MED-5)
+    width: int | None = None
+    height: int | None = None
+    duration_s: float | None = None
+    captured_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -54,6 +59,8 @@ class MediaOut(BaseModel):
             size_bytes=doc["size_bytes"], status=doc["status"], visibility=doc["visibility"],
             caption=doc.get("caption"), scan_status=doc.get("scan_status"),
             checksum_sha256=doc.get("checksum_sha256"), error=doc.get("error"),
+            width=doc.get("width"), height=doc.get("height"), duration_s=doc.get("duration_s"),
+            captured_at=doc.get("captured_at"),
             created_at=doc["created_at"], updated_at=doc["updated_at"],
         )
 

@@ -47,6 +47,7 @@ from app.services import (
 )
 
 ABORT_STALE_EVERY_S = 24 * 3600
+PURGE_EVERY_S = 24 * 3600
 RECONCILE_EVERY_S = 5 * 60
 
 
@@ -122,6 +123,9 @@ def create_app(
             async def reconcile() -> None:
                 await cron.reconcile(svc)
 
+            async def purge() -> None:
+                await cron.purge_originals(svc)
+
             tasks += [
                 asyncio.create_task(relay),
                 asyncio.create_task(
@@ -136,6 +140,9 @@ def create_app(
                 )),
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "reconcile", RECONCILE_EVERY_S, reconcile, stop,
+                )),
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "purge_originals", PURGE_EVERY_S, purge, stop,
                 )),
             ]
         try:

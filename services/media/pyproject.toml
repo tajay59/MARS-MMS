@@ -16,6 +16,8 @@ dependencies = [
   "redis>=6",
   "httpx",
   "boto3",
+  "pillow>=11",
+  "pillow-heif>=0.21",
 ]
 
 [project.optional-dependencies]

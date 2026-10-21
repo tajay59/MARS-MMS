@@ -1,7 +1,9 @@
 """Scheduled jobs (TRD §3.3): `abort_stale_uploads` and `reconcile`. Each runs once per
 interval across all instances, under a Redis lock (`mms_common.cron`).
 
-`purge_originals` joins them in Phase 4, when images and video have originals to purge.
+`purge_originals` (Phase 4, W11) removes the original of a photo or video 30 days after its copy
+became ready (TRD §10.1): the original keeps the EXIF and GPS that the copy has not, so it does
+not stay longer than it is useful.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from datetime import timedelta
 
 from mms_common.events import Actor
 
+from app.domain import derive
 from app.domain.media import Status
 from app.jobs.uploads import enqueue_processing, fail_upload
 from app.repo import media as repo
@@ -38,6 +41,21 @@ async def abort_stale_uploads(svc: Services) -> int:
                 log.exception("abort_failed", extra={"media_id": doc["_id"]})
                 continue
         if await fail_upload(svc, doc, "stale", SYSTEM) is not None:
+            count += 1
+    return count
+
+
+async def purge_originals(svc: Services) -> int:
+    """Delete originals older than 30 days from `mms-originals`. A purge that fails is tried
+    again tomorrow; the record is marked only after the object is gone."""
+    count = 0
+    for doc in await repo.purgeable(svc.db, derive.purge_cutoff(svc.clock.now())):
+        try:
+            await svc.storage.delete(svc.settings.bucket_originals, doc["original_key"])
+        except StorageError:
+            log.exception("purge_failed", extra={"media_id": doc["_id"]})
+            continue
+        if await repo.mark_purged(svc.db, doc["_id"], svc.clock.now()) is not None:
             count += 1
     return count
 

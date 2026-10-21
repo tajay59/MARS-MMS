@@ -46,6 +46,18 @@
             ],
             "title": "Caption"
           },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
           "checksum_sha256": {
             "anyOf": [
               {
@@ -62,6 +74,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
           "error": {
             "anyOf": [
               {
@@ -76,6 +99,17 @@
           "filename": {
             "title": "Filename",
             "type": "string"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
           },
           "id": {
             "title": "Id",
@@ -124,6 +158,17 @@
           "visibility": {
             "title": "Visibility",
             "type": "string"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
           }
         },
         "required": [
@@ -225,6 +270,18 @@
             ],
             "title": "Caption"
           },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
           "checksum_sha256": {
             "anyOf": [
               {
@@ -241,6 +298,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
           "error": {
             "anyOf": [
               {
@@ -255,6 +323,17 @@
           "filename": {
             "title": "Filename",
             "type": "string"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
           },
           "id": {
             "title": "Id",
@@ -295,6 +374,17 @@
           "visibility": {
             "title": "Visibility",
             "type": "string"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
           }
         },
         "required": [
