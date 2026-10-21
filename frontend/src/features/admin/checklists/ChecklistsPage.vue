@@ -294,7 +294,12 @@
     }
   }
 
+  // A slow answer for a template the person has already left must not overwrite the one they
+  // are on (or what they have typed since): only the newest load is applied
+  let loadSeq = 0
+
   async function load (): Promise<void> {
+    const seq = ++loadSeq
     saveError.value = null
     reloadable.value = false
     loadError.value = null
@@ -314,15 +319,22 @@
       const newest = await checklistsApi.get(id)
       const asked = versionQuery.value
       const older = asked !== null && asked !== newest.version ? await checklistsApi.get(id, asked) : newest
+      if (seq !== loadSeq) {
+        return
+      }
       current.value = newest
       shown.value = older
       draft.value = draftOf(older)
     } catch (error) {
-      current.value = null
-      shown.value = null
-      loadError.value = failureText(error).text
+      if (seq === loadSeq) {
+        current.value = null
+        shown.value = null
+        loadError.value = failureText(error).text
+      }
     } finally {
-      loading.value = false
+      if (seq === loadSeq) {
+        loading.value = false
+      }
     }
   }
 
