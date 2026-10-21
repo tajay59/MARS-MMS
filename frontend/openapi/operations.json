@@ -1,6 +1,39 @@
 {
   "components": {
     "schemas": {
+      "AssignIn": {
+        "additionalProperties": false,
+        "description": "REQ-7. The people the request is put with; `version` guards a change of staff on a request\nthat is already Assigned against a second admin doing the same.",
+        "properties": {
+          "staff_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Staff Ids",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "staff_ids"
+        ],
+        "title": "AssignIn",
+        "type": "object"
+      },
       "AttachableOut": {
         "properties": {
           "org_id": {
@@ -1935,6 +1968,135 @@
         "title": "QrResolved",
         "type": "object"
       },
+      "QueueItem": {
+        "description": "A row of the queue: a request and how long it has waited.",
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "assigned_staff": {
+            "items": {
+              "$ref": "#/components/schemas/PersonRef"
+            },
+            "title": "Assigned Staff",
+            "type": "array"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "org_id": {
+            "title": "Org Id",
+            "type": "string"
+          },
+          "org_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Name"
+          },
+          "priority": {
+            "title": "Priority",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/RequestStation"
+            },
+            "title": "Stations",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ref",
+          "title",
+          "category",
+          "priority",
+          "status",
+          "org_id",
+          "org_name",
+          "stations",
+          "requested_by",
+          "assigned_staff",
+          "created_at",
+          "updated_at",
+          "approved_at"
+        ],
+        "title": "QueueItem",
+        "type": "object"
+      },
+      "QueuePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QueueItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "QueuePage",
+        "type": "object"
+      },
       "Reading": {
         "additionalProperties": false,
         "properties": {
@@ -2081,6 +2243,8 @@
                 "approve",
                 "deny",
                 "assign",
+                "claim",
+                "release",
                 "cancel",
                 "edit"
               ],
@@ -4447,6 +4611,23 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "Workload": {
+        "description": "Open requests per person (staff IDs not listed have none).",
+        "properties": {
+          "open_requests": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Open Requests",
+            "type": "object"
+          }
+        },
+        "required": [
+          "open_requests"
+        ],
+        "title": "Workload",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -5115,6 +5296,125 @@
         ]
       }
     },
+    "/api/v1/queue": {
+      "get": {
+        "description": "Everything waiting, with the filters the list has (a queue is short: no paging).",
+        "operationId": "get_queue_api_v1_queue_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "country",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[A-Z]{2}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Country"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Queue",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests": {
       "get": {
         "description": "REQ-8, REQ-15: newest first. A client sees their organization's requests only; the\ndate range is inclusive of both days.",
@@ -5400,6 +5700,33 @@
         ]
       }
     },
+    "/api/v1/requests/workload": {
+      "get": {
+        "description": "How many open requests each person has, for the Assign dialog (W9).",
+        "operationId": "get_workload_api_v1_requests_workload_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Workload",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}": {
       "get": {
         "description": "REQ-8: the request with its status history. A client sees their organization's only.",
@@ -5555,6 +5882,65 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/assign": {
+      "post": {
+        "description": "REQ-7: an admin puts one or more staff on an approved request (it becomes Assigned) or\nchanges the staff of one that is Assigned. Visits decide from Scheduled on.",
+        "operationId": "assign_request_api_v1_requests__id__assign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assign Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/cancel": {
       "post": {
         "description": "REQ-11: a client cancels their own request up to Assigned; an admin any time before it\nis done, with a reason from Scheduled on. Planned visits are cancelled in the same\ntransaction once visits exist (Phase 4).",
@@ -5614,6 +6000,55 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/claim": {
+      "post": {
+        "description": "REQ-7: a technician (or an admin) takes an approved request from the queue. Two people\nclaiming at once: one wins, the other is told who.",
+        "operationId": "claim_request_api_v1_requests__id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Claim Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/deny": {
       "post": {
         "description": "REQ-6: Submitted to Denied. The reason is required and the client sees it.",
@@ -5668,6 +6103,55 @@
           }
         ],
         "summary": "Deny Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/release": {
+      "post": {
+        "description": "A technician lets go of their claim, or an admin unassigns everyone. With nobody left\nthe request returns to the queue (Assigned to Approved).",
+        "operationId": "release_request_api_v1_requests__id__release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Release Request",
         "tags": [
           "requests"
         ]

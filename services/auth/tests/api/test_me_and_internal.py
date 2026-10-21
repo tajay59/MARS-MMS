@@ -4,6 +4,7 @@ import base64
 
 import pytest
 from mms_common.auth.tokens import SERVICE_AUDIENCE, verify
+from mms_common.ids import new_id
 from mms_common.testing.seed import SEED_USERS
 
 from tests.conftest import PASSWORD
@@ -102,3 +103,20 @@ async def test_snapshot_pages_users_without_secrets(auth):
                                headers={"Authorization": f"Bearer {token}"})
     assert len(first["items"]) + len(rest.json()["items"]) == len(SEED_USERS)
     assert rest.json()["next_after"] is None
+
+
+async def test_lookup_gives_operations_names_and_roles_only(auth):
+    ids = [SEED_USERS["tech1"].id, SEED_USERS["admin"].id, new_id()]
+    headers = {"Authorization": f"Bearer {auth.issuer.service_token('operations')}"}
+    r = await auth.http.post("/internal/users/lookup", json={"ids": ids}, headers=headers)
+    assert r.status_code == 200
+    users = {u["id"]: u for u in r.json()["users"]}
+    assert set(users) == {SEED_USERS["tech1"].id, SEED_USERS["admin"].id}  # unknown IDs left out
+    assert set(users[SEED_USERS["tech1"].id]) == {"id", "name", "roles", "status"}
+    assert users[SEED_USERS["tech1"].id]["roles"] == ["technician"]
+
+
+async def test_lookup_is_for_operations_only(auth):
+    other = {"Authorization": f"Bearer {auth.issuer.service_token('platform')}"}
+    r = await auth.http.post("/internal/users/lookup", json={"ids": [new_id()]}, headers=other)
+    assert r.status_code == 403

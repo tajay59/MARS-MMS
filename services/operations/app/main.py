@@ -30,7 +30,7 @@ from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.api import internal_routes
-from app.api.requests import request_routes
+from app.api.requests import queue_routes, request_routes
 from app.api.stations import (
     calibration_routes,
     config_routes,
@@ -42,6 +42,7 @@ from app.api.stations import (
 from app.config import Settings
 from app.events import consumer
 from app.jobs import org_backfill
+from app.repo.requests.staff_client import StaffApi, StaffClient
 from app.repo.stations.media_client import MediaApi, MediaClient
 
 
@@ -52,6 +53,7 @@ def create_app(
     clock: Clock | None = None,
     keys: KeySource | None = None,
     media: MediaApi | None = None,
+    staff: StaffApi | None = None,
 ) -> FastAPI:
     """App factory. Tests pass their own settings, readiness checks, clock and token keys."""
     settings = settings or Settings()
@@ -87,6 +89,7 @@ def create_app(
             clock, http,
         )
         app.state.media = media or MediaClient(settings.media_url, tokens, http)
+        app.state.staff = staff or StaffClient(settings.auth_url, tokens, http)
         if settings.run_background:
             # The outbox relay runs in every worker; only the lease holder publishes (§8.2).
             lease = LeaderLease(redis, settings.service_name, new_id())
@@ -154,6 +157,7 @@ def create_app(
     app.include_router(document_routes.station_router)
     app.include_router(config_routes.router)
     app.include_router(request_routes.router)
+    app.include_router(queue_routes.router)
     app.include_router(internal_routes.router)
     return app
 

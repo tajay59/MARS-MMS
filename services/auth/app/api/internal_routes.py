@@ -15,7 +15,14 @@ from mms_common.ids import UUID7_PATTERN
 from mms_common.snapshot import SnapshotPage, page
 
 from app.api.context import CtxDep
-from app.api.schemas import AccountLinkIn, AccountLinkOut, ServiceTokenOut
+from app.api.schemas import (
+    AccountLinkIn,
+    AccountLinkOut,
+    ServiceTokenOut,
+    UserLookupIn,
+    UserLookupOut,
+    UserRefOut,
+)
 from app.api.session_routes import LinkExpired
 from app.domain import users as rules
 from app.events.publish import org_data, user_data
@@ -26,6 +33,7 @@ from app.repo.links import Kind
 router = APIRouter(tags=["internal"])
 
 Platform = Annotated[ServicePrincipal, Depends(require_service("platform"))]
+Operations = Annotated[ServicePrincipal, Depends(require_service("operations"))]
 SnapshotReader = Annotated[
     ServicePrincipal, Depends(require_service("platform", "operations", "report"))
 ]
@@ -82,6 +90,17 @@ async def account_link(body: AccountLinkIn, svc: Platform, ctx: CtxDep) -> Accou
         name=user["name"],
         expires_at=row["expires_at"],
     )
+
+
+@router.post("/internal/users/lookup")
+async def lookup_users(body: UserLookupIn, svc: Operations, ctx: CtxDep) -> UserLookupOut:
+    """Name, roles and status for up to 50 people, for operations to check who may be assigned
+    to a request (W9-2). People who do not exist are left out."""
+    found = await users_repo.get_many(ctx.db, list(dict.fromkeys(body.ids)))
+    return UserLookupOut(users=[
+        UserRefOut(id=d["_id"], name=d["name"], roles=sorted(d["roles"]), status=d["status"])
+        for d in found
+    ])
 
 
 @router.get("/internal/snapshot/{entity}")

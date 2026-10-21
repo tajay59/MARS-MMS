@@ -283,7 +283,15 @@ export function bannerFor (detail: RequestDetail, isClient: boolean): Banner | n
         : { tone: 'info', title: 'Waiting for approval', body: `Submitted by ${detail.requested_by?.name ?? 'a client'}${detail.org_name ? `, ${detail.org_name}` : ''}.` }
     }
     case 'approved': {
-      return { tone: 'info', title: 'Approved', body: 'It is waiting for a technician to take it on.' }
+      return isClient
+        ? { tone: 'info', title: 'Approved', body: 'It is waiting for a technician to take it on.' }
+        : { tone: 'info', title: 'In the queue', body: 'Nobody has claimed this request. Assign someone, or leave it for a technician to claim.' }
+    }
+    case 'assigned': {
+      const staff = detail.assigned_staff.map(p => p.name)
+      return staff.length > 0
+        ? { tone: 'info', title: isClient ? 'A technician is on it' : 'Assigned', body: `${isClient ? 'Assigned to' : 'On it:'} ${joinNames(staff)}.` }
+        : null
     }
     case 'denied': {
       return { tone: 'error', title: `Denied${by('denied')?.by ? ` by ${by('denied')?.by?.name}` : ''}`, body: detail.denial_reason ? `Reason: ${detail.denial_reason}` : undefined }
@@ -295,6 +303,14 @@ export function bannerFor (detail: RequestDetail, isClient: boolean): Banner | n
       return null
     }
   }
+}
+
+/** "A", "A and B", "A, B and C". */
+export function joinNames (names: readonly string[]): string {
+  if (names.length <= 1) {
+    return names.join('')
+  }
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
 
 export function can (detail: Pick<RequestDetail, 'actions'>, action: RequestAction): boolean {

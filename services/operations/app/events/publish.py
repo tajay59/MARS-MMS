@@ -88,7 +88,8 @@ def request_data(doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "request_id": doc["_id"], "ref": doc["ref"], "org_id": doc["org_id"],
         "station_ids": list(doc["station_ids"]), "category": doc["category"],
-        "priority": doc["priority"], "status": doc["status"],
+        "priority": doc["priority"], "status": doc["status"], "title": doc["title"],
+        "created_by": doc.get("created_by"),
     }
 
 

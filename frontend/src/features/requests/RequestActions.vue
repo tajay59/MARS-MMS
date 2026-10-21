@@ -4,10 +4,36 @@
     v-if="can(detail, 'approve')"
     :block="full"
     color="primary"
-    :loading="busy"
+    :loading="busy === 'approve'"
     :prepend-icon="mdiCheck"
     @click="emit('approve')"
   >Approve</v-btn>
+
+  <v-btn
+    v-if="can(detail, 'assign')"
+    :block="full"
+    color="primary"
+    :prepend-icon="mdiAccountPlusOutline"
+    @click="emit('assign')"
+  >{{ detail.status === 'assigned' ? 'Change staff' : 'Assign staff' }}</v-btn>
+
+  <v-btn
+    v-if="can(detail, 'claim')"
+    :block="full"
+    color="primary"
+    :loading="busy === 'claim'"
+    :variant="can(detail, 'assign') ? 'outlined' : 'flat'"
+    @click="emit('claim')"
+  >Claim</v-btn>
+
+  <v-btn
+    v-if="can(detail, 'release')"
+    :block="full"
+    color="primary"
+    :loading="busy === 'release'"
+    variant="outlined"
+    @click="emit('release')"
+  >{{ isAdmin ? 'Unassign' : 'Release to queue' }}</v-btn>
 
   <v-btn
     v-if="can(detail, 'deny')"
@@ -37,18 +63,21 @@
 
 <script lang="ts" setup>
   import type { RequestDetail } from '@/api/models'
-  import { mdiCheck, mdiPencilOutline } from '@mdi/js'
+  import { mdiAccountPlusOutline, mdiCheck, mdiPencilOutline } from '@mdi/js'
+  import { storeToRefs } from 'pinia'
   import { useRoute } from 'vue-router'
+  import { useSessionStore } from '@/stores/session'
   import { can } from './requests'
 
   // The buttons the server says this person may use on this request (`detail.actions`): the others
   // are not shown at all. A viewer's list is empty. `full` makes them as wide as the screen (phones).
   defineProps<{
     detail: RequestDetail
-    busy?: boolean
+    busy?: 'approve' | 'claim' | 'release' | null
     full?: boolean
   }>()
 
-  const emit = defineEmits<{ approve: [], deny: [], cancel: [] }>()
+  const emit = defineEmits<{ approve: [], deny: [], cancel: [], assign: [], claim: [], release: [] }>()
   const route = useRoute()
+  const { isAdmin } = storeToRefs(useSessionStore())
 </script>

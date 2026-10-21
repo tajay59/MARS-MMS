@@ -221,6 +221,10 @@ class RequestData(_Data):
     category: str
     priority: str
     status: str
+    # Added in W9 for the notification module (optional, so version 1 stands): the words a
+    # notification needs and who asked, without a read from operations (rule 1).
+    title: str | None = None
+    created_by: str | None = None
 
 
 @register("request.submitted")
@@ -258,3 +262,34 @@ class RequestStatusChanged(RequestData):
     from_status: str | None = None
     to_status: str
     reason: str | None = None
+
+
+@register("request.assigned")
+class RequestAssigned(RequestData):
+    """Approved to Assigned: an admin chose the staff, or a technician `claimed` the request."""
+
+    staff_ids: list[str]
+    staff_names: list[str]
+    claimed: bool
+    by_id: str
+
+
+@register("request.staff_changed")
+class RequestStaffChanged(RequestData):
+    """The people on an Assigned request changed and the status did not (an admin changed them,
+    or one of several let go)."""
+
+    staff_ids: list[str]
+    staff_names: list[str]
+    added: list[str]
+    removed: list[str]
+
+
+@register("request.released")
+class RequestReleased(RequestData):
+    """Assigned back to Approved: the last person let go, or an admin unassigned. The request
+    is in the queue again."""
+
+    released_ids: list[str]
+    released_names: list[str]
+    by_id: str

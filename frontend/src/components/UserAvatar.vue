@@ -7,7 +7,7 @@
   <span
     aria-hidden="true"
     class="inline-flex shrink-0 select-none items-center justify-center rounded-full bg-linear-135 font-semibold tracking-wide text-white"
-    :class="[GRADIENTS[pick], size === 'lg' ? 'size-16 text-xl' : 'size-14 text-lg']"
+    :class="[GRADIENTS[pick], SIZES[size ?? 'md']]"
   >{{ initials }}</span>
 </template>
 
@@ -19,7 +19,7 @@
     name: string
     /** Picks the gradient, so one person keeps theirs everywhere: their id. */
     seed: string
-    size?: 'md' | 'lg'
+    size?: 'sm' | 'md' | 'lg'
   }>()
 
   // Written out in full so Tailwind finds each class
@@ -31,6 +31,8 @@
     'from-tertiary-600 to-secondary-700',
     'from-secondary-700 to-tertiary-600',
   ] as const
+
+  const SIZES = { sm: 'size-10 text-sm', md: 'size-14 text-lg', lg: 'size-16 text-xl' } as const
 
   const initials = computed(() => initialsOf(props.name))
   const pick = computed(() => pickOf(props.seed, GRADIENTS.length))

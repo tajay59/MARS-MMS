@@ -25,6 +25,11 @@ async def get(db: Db, user_id: str, session: Session = None) -> dict[str, Any] |
     return doc
 
 
+async def get_many(db: Db, user_ids: list[str]) -> list[dict[str, Any]]:
+    """The users with these IDs that exist, in no particular order."""
+    return [d async for d in col(db).find({"_id": {"$in": user_ids}})]
+
+
 async def require(db: Db, user_id: str, session: Session = None) -> dict[str, Any]:
     doc = await get(db, user_id, session)
     if doc is None:

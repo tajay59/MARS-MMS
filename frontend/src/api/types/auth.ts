@@ -358,6 +358,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/users/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lookup Users
+         * @description Name, roles and status for up to 50 people, for operations to check who may be assigned
+         *     to a request (W9-2). People who do not exist are left out.
+         */
+        post: operations["lookup_users_internal_users_lookup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -660,6 +681,16 @@ export interface components {
             token_type: "Bearer";
             user: components["schemas"]["Me"];
         };
+        /** UserLookupIn */
+        UserLookupIn: {
+            /** Ids */
+            ids: string[];
+        };
+        /** UserLookupOut */
+        UserLookupOut: {
+            /** Users */
+            users: components["schemas"]["UserRefOut"][];
+        };
         /** UserOut */
         UserOut: {
             /**
@@ -715,6 +746,20 @@ export interface components {
             status?: ("active" | "disabled") | null;
             /** Version */
             version: number;
+        };
+        /**
+         * UserRefOut
+         * @description What another service may know about a person: never an email, phone or organization.
+         */
+        UserRefOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Roles */
+            roles: string[];
+            /** Status */
+            status: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1456,6 +1501,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SnapshotPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_users_internal_users_lookup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserLookupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserLookupOut"];
                 };
             };
             /** @description Validation Error */
