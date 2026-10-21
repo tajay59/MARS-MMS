@@ -176,7 +176,8 @@ class Sender:
         else:
             rendered = notification_emails.render_notification(
                 title=note["title"], body=note["body"], name=user["name"], url=url,
-                button="Open the request" if note["entity"]["type"] == "request" else "Open",
+                button={"request": "Open the request", "visit": "View the visit"}.get(
+                    note["entity"]["type"], "Open"),
             )
         return self._compose(rendered, user["email"], user["name"], email_id)
 

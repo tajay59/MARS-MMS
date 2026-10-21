@@ -30,6 +30,19 @@ def entity_message(entity_id: str, status: str, kind: str) -> dict[str, Any]:
             "kind": kind}
 
 
+def visit_message(visit_id: str, request_id: str, status: str) -> dict[str, Any]:
+    """A visit changed: the page asks the API again, it learns nothing from this (W10)."""
+    return {"type": "entity.updated", "entity": "visit", "id": visit_id,
+            "request_id": request_id, "status": status, "kind": "visit"}
+
+
+def live_message(item: Any) -> dict[str, Any]:
+    """The message for a `Live` item of the notification plan."""
+    if item.entity == "visit":
+        return visit_message(item.entity_id, item.request_id, item.status)
+    return entity_message(item.entity_id, item.status, item.kind)
+
+
 def out(doc: dict[str, Any]) -> dict[str, Any]:
     """A notification as the browser sees it (also the REST shape)."""
     created: datetime = doc["created_at"]

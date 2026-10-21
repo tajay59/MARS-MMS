@@ -22,10 +22,11 @@ ADMIN, TECH, CLIENT, VIEWER = (
 @pytest.mark.req("NOT-4")
 def test_each_person_can_choose_only_what_they_can_be_emailed_about():
     keys = lambda roles: {t.key for t in preferences.types_for(roles)}  # noqa: E731
+    visits = {"visit.scheduled", "visit.cancelled"}
     assert keys(ADMIN) == {"request.submitted", "request.assigned", "request.cancelled",
-                           "calibration.digest"}
-    assert keys(TECH) == {"request.assigned", "request.cancelled"}
-    assert keys(CLIENT) == {"request.decided", "request.cancelled"}
+                           "calibration.digest"} | visits
+    assert keys(TECH) == {"request.assigned", "request.cancelled"} | visits
+    assert keys(CLIENT) == {"request.decided", "request.cancelled"} | visits
     assert keys(VIEWER) == set()
     assert keys(ADMIN | TECH) == keys(ADMIN)
 
@@ -42,6 +43,14 @@ def test_the_defaults_follow_appendix_b_and_the_choice_wins():
     assert on({}, "request.cancelled", TECH) is False
     assert on({"request.cancelled": True}, "request.cancelled", TECH) is True
     assert on({"request.assigned": False}, "request.assigned", TECH) is False
+    # A visit that is planned or cancelled is emailed to everyone it concerns, until they say no
+    for roles in (ADMIN, TECH, CLIENT):
+        assert on({}, "visit.scheduled", roles) is True
+        assert on({}, "visit.cancelled", roles) is True
+    assert on({"visit.scheduled": False}, "visit.scheduled", CLIENT) is False
+    # Ended and owner changes are in-app only: not something to choose
+    assert on({}, "visit.ended", TECH) is False
+    assert on({}, "visit.owner_changed", TECH) is False
 
 
 @pytest.mark.req("NOT-4")

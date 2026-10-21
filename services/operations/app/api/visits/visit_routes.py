@@ -288,9 +288,12 @@ async def change_visit(id: IdPath, body: VisitPatch, user: Worker, ctx: CtxDep) 
     plan_changed = [c for c in changes.changed if c in ("dates", "staff", "lead", "stations")]
     if plan_changed:
         emit.append((ev.VisitRescheduled, "visit.rescheduled", {"changed_fields": changes.changed}))
+    named = {s["station_id"]: s for s in visit["stations"]}
     emit += [
         (ev.VisitStationOwnerChanged, "visit.station_owner_changed",
-         {"station_id": sid, "from_staff_id": old, "to_staff_id": new})
+         {"station_id": sid, "from_staff_id": old, "to_staff_id": new,
+          "station_code": named.get(sid, {}).get("station_code"),
+          "station_name": named.get(sid, {}).get("station_name")})
         for sid, old, new in changes.owner_changes
     ]
     return await _write(ctx, user, visit, changes.fields, emit=emit, settle_note=None,

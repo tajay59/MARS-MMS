@@ -97,6 +97,12 @@ test('A technician plans a visit with a colleague as lead, and the lead runs it 
     await expect(client.getByRole('button', { name })).toHaveCount(0)
   }
   await checkA11y(client, '/visits/:id (client)')
+
+  // ... and was told, in the app, with a link to the visit
+  await client.goto('/notifications')
+  const told = client.getByRole('link', { name: /Visit planned/ }).first()
+  await expect(told).toBeVisible({ timeout: 30_000 })
+  await expect(told).toHaveAttribute('href', visitPath)
   await client.context().close()
 
   // Only the lead's people may start: Tech 2 starts it, and the request is In progress
