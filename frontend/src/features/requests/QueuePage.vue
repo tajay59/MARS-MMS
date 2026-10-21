@@ -142,38 +142,79 @@
           :prepend-inner-icon="mdiMagnify"
           spellcheck="false"
           type="search"
+          variant="solo-inverted"
           @update:model-value="setFilters({ q: $event ?? '' })"
         />
 
-        <div
-          v-for="group in groups"
-          :key="group.field"
-          :aria-labelledby="`q-${group.field}`"
-          class="flex flex-col gap-2"
-          role="group"
-        >
-          <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
+        <!-- Priority first. Then, from 768 px, country and category are tables (a row to pick, 400 px at most, then they scroll); phones keep chips -->
+        <template v-for="group in groups" :key="group.field">
+          <div
+            v-if="isTable(group.field)"
+            class="flex flex-col gap-2"
+          >
+            <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
 
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              :aria-pressed="filters[group.field] === null"
-              class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
-              :class="chip(filters[group.field] === null)"
-              type="button"
-              @click="setFilters({ [group.field]: null })"
-            >Any</button>
+            <div class="max-h-[400px] overflow-y-auto rounded-lg border border-surface-300">
+              <table class="w-full border-collapse text-sm">
+                <caption class="sr-only">{{ group.label }}: pick a row to filter the queue by it</caption>
 
-            <button
-              v-for="option in group.options"
-              :key="option.value"
-              :aria-pressed="filters[group.field] === option.value"
-              class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
-              :class="chip(filters[group.field] === option.value)"
-              type="button"
-              @click="setFilters({ [group.field]: filters[group.field] === option.value ? null : option.value })"
-            >{{ option.label }}<span class="tabular-nums font-semibold">{{ option.count }}</span></button>
+                <thead>
+                  <tr class="text-left">
+                    <th class="sticky top-0 bg-surface-100 px-3 py-2 text-xs font-medium text-surface-700" scope="col">{{ group.label }}</th>
+                    <th class="sticky top-0 bg-surface-100 px-3 py-2 text-right text-xs font-medium text-surface-700" scope="col">Requests</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr
+                    v-for="row in tableRows(group)"
+                    :key="row.value ?? 'any'"
+                    class="cursor-pointer border-t border-surface-200 hover:bg-surface-100"
+                    :class="filters[group.field] === row.value ? 'bg-primary-100 font-medium text-primary-800 hover:bg-primary-100 dark:bg-primary-800 dark:text-primary-100 dark:hover:bg-primary-800' : 'text-surface-900'"
+                    @click="pick(group.field, row.value)"
+                  >
+                    <td class="p-0">
+                      <!-- The row's click handler takes the button's click too, so a key press works -->
+                      <button :aria-pressed="filters[group.field] === row.value" class="block w-full px-3 py-2.5 text-left" type="button">{{ row.label }}</button>
+                    </td>
+
+                    <td class="px-3 py-2.5 text-right font-semibold tabular-nums">{{ row.count }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          <div
+            v-else
+            :key="group.field"
+            :aria-labelledby="`q-${group.field}`"
+            class="flex flex-col gap-2"
+            role="group"
+          >
+            <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
+
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                :aria-pressed="filters[group.field] === null"
+                class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
+                :class="chip(filters[group.field] === null)"
+                type="button"
+                @click="setFilters({ [group.field]: null })"
+              >Any</button>
+
+              <button
+                v-for="option in group.options"
+                :key="option.value"
+                :aria-pressed="filters[group.field] === option.value"
+                class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
+                :class="chip(filters[group.field] === option.value)"
+                type="button"
+                @click="setFilters({ [group.field]: filters[group.field] === option.value ? null : option.value })"
+              >{{ option.label }}<span class="tabular-nums font-semibold">{{ option.count }}</span></button>
+            </div>
+          </div>
+        </template>
 
         <div class="flex flex-wrap items-center justify-between gap-2">
           <v-btn v-if="filtered" class="text-primary" variant="text" @click="clearFilters">Clear filters</v-btn>
@@ -313,18 +354,15 @@
       : 'border-surface-300 text-surface-900'
   }
 
+  function pick (field: 'country' | 'priority' | 'category', value: string | null): void {
+    setFilters({ [field]: value === null || filters.value[field] === value ? null : value })
+  }
+
   const groups = computed(() => {
     const countries = countBy(items.value, filters.value, 'country')
     const priorities = countBy(items.value, filters.value, 'priority')
     const categories = countBy(items.value, filters.value, 'category')
     return [
-      {
-        field: 'country' as const,
-        label: 'Country',
-        // Fresh array: sorting it in place is safe, and toSorted needs iOS 16
-        // eslint-disable-next-line unicorn/no-array-sort
-        options: [...countries].sort(([a], [b]) => countryName(a).localeCompare(countryName(b))).map(([value, count]) => ({ value, label: countryName(value), count })),
-      },
       {
         field: 'priority' as const,
         label: 'Priority',
@@ -333,12 +371,30 @@
         options: [...PRIORITIES].reverse().filter(p => priorities.has(p.value)).map(p => ({ value: p.value, label: p.label, count: priorities.get(p.value) ?? 0 })),
       },
       {
+        field: 'country' as const,
+        label: 'Country',
+        // Fresh array: sorting it in place is safe, and toSorted needs iOS 16
+        // eslint-disable-next-line unicorn/no-array-sort
+        options: [...countries].sort(([a], [b]) => countryName(a).localeCompare(countryName(b))).map(([value, count]) => ({ value, label: countryName(value), count })),
+      },
+      {
         field: 'category' as const,
         label: 'Category',
         options: CATEGORIES.filter(c => categories.has(c.value)).map(c => ({ value: c.value, label: c.label, count: categories.get(c.value) ?? 0 })),
       },
     ].filter(group => group.options.length > 0)
   })
+
+  // Priority is always chips. Country and category are chips on phones and tables from 768 px,
+  // each with an "Any" row first that counts what the other filters leave.
+  function isTable (field: string): boolean {
+    return mdAndUp.value && field !== 'priority'
+  }
+
+  function tableRows (group: { field: 'country' | 'priority' | 'category', options: { value: string, label: string, count: number }[] }): { value: string | null, label: string, count: number }[] {
+    const all = filterQueue(items.value, { ...filters.value, [group.field]: null }).length
+    return [{ value: null, label: 'Any', count: all }, ...group.options]
+  }
 
   const subtitle = computed(() => {
     if (loading.value || loadError.value) {

@@ -153,6 +153,42 @@ test('Search and filters open from a button in a bottom sheet @REQ-7', async ({ 
   await expect(page.getByRole('button', { name: 'Search and filter the queue', exact: true })).toBeVisible()
 })
 
+test('On desktop the filter sheet has country and category tables you pick rows from @REQ-7', async ({ watched: page, browser }) => {
+  await approvedRequest(browser, unique('Station gate'))
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/queue')
+  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Search and filter' })
+
+  // Search, then priority, then the two tables
+  const order = await sheet.locator('h3').allInnerTexts()
+  expect(order.map(t => t.toLowerCase())).toEqual(['priority', 'country', 'category'])
+  const country = sheet.getByRole('table', { name: /^Country/ })
+  const category = sheet.getByRole('table', { name: /^Category/ })
+  await expect(country).toBeVisible()
+  await expect(category).toBeVisible()
+  const box = await country.locator('xpath=..').boundingBox()
+  expect(box?.height ?? 0).toBeLessThanOrEqual(400)
+  await checkA11y(page, '/queue (filter sheet, tables)')
+
+  // A click anywhere in the row picks it, and the same row again lets go
+  const first = country.getByRole('row').nth(2) // after the header and "Any"
+  await first.getByText(/\d+/).click()
+  await expect(page.getByRole('button', { name: 'Search and filter the queue, 1 on' })).toBeVisible()
+  await expect(first.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
+  await first.getByRole('button').click()
+  await expect(first.getByRole('button')).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('On a phone the filter sheet keeps chips @phone @REQ-7', async ({ watched: page }) => {
+  await logIn(page, 'tech1@example.org')
+  await page.goto('/queue')
+  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
+  const sheet = page.getByRole('dialog', { name: 'Search and filter' })
+  await expect(sheet.getByRole('group', { name: 'Country' })).toBeVisible()
+  await expect(sheet.getByRole('table')).toHaveCount(0)
+})
+
 test('A lost race says who got there first @REQ-7', async ({ watched: page, browser }) => {
   const title = unique('Solar panel')
   await approvedRequest(browser, title)
