@@ -91,6 +91,7 @@ def request_data(doc: dict[str, Any]) -> dict[str, Any]:
         "station_ids": list(doc["station_ids"]), "category": doc["category"],
         "priority": doc["priority"], "status": doc["status"], "title": doc["title"],
         "created_by": doc.get("created_by"),
+        "assigned_staff_ids": list(doc.get("assigned_staff_ids", [])),
     }
 
 

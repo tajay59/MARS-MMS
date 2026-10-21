@@ -318,6 +318,7 @@
   import { useDisplay } from 'vuetify'
   import { requestsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
+  import { isRequestUpdate, settled, useLive } from '@/app/composables/useLive'
   import { countryName } from '@/app/countries'
   import { formatListTime } from '@/app/format'
   import { pressDown, pressPulse, pressUp } from '@/app/motion'
@@ -482,9 +483,11 @@
       : `We couldn’t load ${what}. Reload the page to try again.`
   }
 
-  async function load (): Promise<void> {
-    loading.value = true
-    loadError.value = null
+  async function load (quiet = false): Promise<void> {
+    if (!quiet) {
+      loading.value = true
+      loadError.value = null
+    }
     try {
       const all: RequestSummary[] = []
       let after: string | undefined
@@ -496,7 +499,10 @@
       capped.value = Boolean(after)
       requests.value = all
     } catch (error) {
-      loadError.value = failure(error, 'the requests')
+      // A quiet refresh that fails leaves the list as it is
+      if (!quiet) {
+        loadError.value = failure(error, 'the requests')
+      }
     } finally {
       loading.value = false
     }
@@ -718,5 +724,28 @@
     }
   }
 
-  onMounted(load)
+  // --- Live (PRD NOT-5): the list and the open request follow changes made elsewhere ---------------
+
+  const refreshList = settled(() => {
+    void load(true)
+  })
+  const refreshOpen = settled(() => {
+    if (requestId.value && !editing.value) {
+      void fetchDetail(requestId.value)
+    }
+  })
+
+  useLive(event => {
+    if (event.entity === 'reconnected') {
+      refreshList()
+      refreshOpen()
+    } else if (isRequestUpdate(event)) {
+      refreshList()
+      if (event.id === requestId.value) {
+        refreshOpen()
+      }
+    }
+  })
+
+  onMounted(() => load())
 </script>

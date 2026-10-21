@@ -3,6 +3,7 @@
 import type { components } from './types/auth'
 import type { components as MediaComponents } from './types/media'
 import type { components as OpsComponents } from './types/operations'
+import type { components as PlatformComponents } from './types/platform'
 import type { components as ReportComponents } from './types/report'
 
 type Auth = components['schemas']
@@ -93,6 +94,12 @@ export type MediaDetail = Media['MediaDetail']
 export type MediaPage = Media['MediaPage']
 
 // The report service (openapi/report.json)
+type Platform = PlatformComponents['schemas']
+
+export type NotificationOut = Platform['NotificationOut']
+export type NotificationPage = Platform['NotificationPage']
+export type NotificationRead = Platform['ReadAll']
+
 type Report = ReportComponents['schemas']
 
 export type JobOut = Report['JobOut']

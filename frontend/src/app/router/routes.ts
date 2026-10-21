@@ -118,7 +118,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Requests', layout: 'app' },
   },
   later('/reports', 'reports', 'Reports', 7),
-  later('/notifications', 'notifications', 'Notifications', 3),
+  {
+    // The person's own notifications (PRD NOT-1, NOT-2)
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('@/features/notifications/NotificationsPage.vue'),
+    meta: { title: 'Notifications', layout: 'app' },
+  },
 
   // Staff
   {

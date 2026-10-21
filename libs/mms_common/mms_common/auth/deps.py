@@ -36,6 +36,11 @@ class Authenticator:
         self.revocations = revocations
 
     async def user(self, token: str) -> User:
+        return (await self.user_with_expiry(token))[0]
+
+    async def user_with_expiry(self, token: str) -> tuple[User, int]:
+        """The caller and when the token ends (Unix seconds). A WebSocket needs the second: it
+        stays open past the request that checked the token (TRD §13.4)."""
         claims = await verify(token, self.keys, clock=self.clock, audience=ACCESS_AUDIENCE)
         roles = claims.get("roles")
         if not isinstance(roles, list) or not roles or not set(roles) <= USER_ROLES:
@@ -45,13 +50,14 @@ class Authenticator:
             self.revocations, user_id=claims["sub"], org_id=org_id, issued_at=claims["iat"]
         ):
             raise Unauthenticated("Session ended", reason="session_revoked")
-        return User(
+        user = User(
             id=str(claims["sub"]),
             roles=frozenset(roles),
             org_id=org_id if isinstance(org_id, str) else None,
             name=str(claims.get("name") or ""),
             token_id=str(claims["jti"]),
         )
+        return user, int(claims["exp"])
 
     async def service(self, token: str) -> ServicePrincipal:
         claims = await verify(token, self.keys, clock=self.clock, audience=SERVICE_AUDIENCE)
