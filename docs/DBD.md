@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.6 |
+| **Version** | 1.7 |
 | **Date** | 2026-10-18 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
@@ -12,6 +12,7 @@
 | **Changes in 1.4** | **The app shell** (decision W4-9, 2026-10-17) replaces the client and staff shells: three square tiles on a ground colour, 5 px apart: a slim **rail** of section icons with tooltips, an **interactive pane** (section tabs, the list or the controls) and a **view** (the details). On phones the pane and view fill the screen and the rail becomes a floating tab tile. New `ground` colour token; tiles have no corner radius. The field shell and the split panel are unchanged |
 | **Changes in 1.5** | **Brand colours from a Material 3 theme** (decision W4-12, 2026-10-17; closes D1's colour part): the built-in theme is `frontend/src/app/theme/material-theme.json` (Material Theme Builder, seed `#026D88`), and admins can replace it for everyone on **Settings** (`/admin/settings`). Status colours stay fixed. **Motion with GSAP** (W4-10): the pane's width, page and list entrances, the rail's hover, sliding indicator and tooltips. **Person avatars** with initials on a brand gradient (W4-13), the one allowed gradient. **Settings** page for admins (W4-11) |
 | **Changes in 1.6** | Below 1024 px the rail becomes a docked, translucent **bottom bar** with the open section as a filled pill (decision W4-14, 2026-10-18); tablets keep the pane and view side by side above it. Pane lists of people are **message-style** rows: 48 px avatar, name with a short time on its right, one line below, the open row fully round (W4-15). **Motion curves** (W4-15): the pane's width on Material 3's emphasized curve, a record opened from the pane rises in, list rows shrink while pressed and spring back |
+| **Changes in 1.7** | **Inputs are filled, not outlined** (2026-10-21): `VTextField`, `VSelect`, `VAutocomplete` and `VDateInput` use `variant="solo-inverted"` with `flat`, set once in `app/theme/vuetify.ts`. Labels and placeholders are drawn at full strength (`base.css`) so they pass 4.5:1 on the light grey fill. |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
 
@@ -345,7 +346,7 @@ Public pages (login, register, password reset, invitation, QR landing when logge
 
 ## Core components
 
-Vuetify components are used as they come and styled only through the brand themes and global defaults in `app/theme/vuetify.ts`. The defaults set the look once (flat buttons, outlined inputs, flat bordered cards, no ripple), so pages don't repeat props. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px. The only custom components are the shared ones named in TRD §13.1 (`StatusChip`, `StationCard`, `MediaCapture` and `SignaturePad`) plus `SyncBadge` and `ConfirmDialog`, and all of them are built from Vuetify parts.
+Vuetify components are used as they come and styled only through the brand themes and global defaults in `app/theme/vuetify.ts`. The defaults set the look once (flat buttons, filled inputs, flat bordered cards, no ripple), so pages don't repeat props. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px. The only custom components are the shared ones named in TRD §13.1 (`StatusChip`, `StationCard`, `MediaCapture` and `SignaturePad`) plus `SyncBadge` and `ConfirmDialog`, and all of them are built from Vuetify parts.
 
 | Component | Vuetify base | Look | Rules |
 | --- | --- | --- | --- |
@@ -354,7 +355,7 @@ Vuetify components are used as they come and styled only through the brand theme
 | **Text button** | `VBtn variant="text"` | No border; primary-600 text, underline on hover | Low-weight actions (“Cancel”, “Clear signature”) |
 | **Danger button** | `VBtn color="error"` (Vuetify's `error` is the Danger red) | Solid `#B91C1C`, white text | Only on the final confirm of Deny, Cancel request, Reject work, Disable user, Revoke QR |
 | **Icon button** | `VBtn icon variant="text"` | 40 px square (48 in field), surface-600 icon | Always has an `aria-label` and a `VTooltip` |
-| **Text input, select, date** | `VTextField`, `VSelect` / `VAutocomplete`, `VDateInput` (`variant="outlined"`, `density="compact"`; `comfortable` in field) | 40 px tall (48 in field), white, 1 px surface-500 border, 6 px radius; focus = 2 px primary-600 ring | Label above in `text-label` as a plain `<label for>`, not Vuetify's floating label; helper text below in surface-600; mark optional fields “(optional)” rather than starring required ones |
+| **Text input, select, date** | `VTextField`, `VSelect` / `VAutocomplete`, `VDateInput` (`variant="solo-inverted"`, `flat`, `density="compact"`; `comfortable` in field) | 40 px tall (48 in field), flat light grey fill (a very light grey; the dark theme's matching surface), no border, 6 px radius; focus = the shared focus ring | Label above in `text-label` as a plain `<label for>`, not Vuetify's floating label; helper text below in surface-600; mark optional fields “(optional)” rather than starring required ones |
 | **Field error** | The input's `error-messages` | `#991B1B` text with `mdi-alert-circle-outline`; input border `#B91C1C` | Says what to do (“Use at least 10 characters”). A form with two or more errors also shows an error summary at the top, linked to each field. |
 | **Status chip** (`StatusChip`) | `VChip` | Pill, 24 px tall, 12 px/500 text, 14 px icon, colours from the status tables | Never clickable on its own. The same component is used everywhere, including the map popup. |
 | **Count badge** | `VBadge` | Red-700 dot with a white count on the bell; amber with a count on the sync badge | Shows “9+” over 9 (`max="9"`) |
