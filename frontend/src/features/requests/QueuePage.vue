@@ -80,6 +80,7 @@
                 <span v-if="canClaim" class="flex justify-end">
                   <ClaimSplitButton
                     :can-assign="isAdmin"
+                    compact
                     :loading="claiming === row.id"
                     :request-ref="row.ref"
                     @assign="assigning = row"

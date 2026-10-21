@@ -2,6 +2,7 @@
   <PageBody
     :back="isNew ? { name: 'requests', query: listQuery } : (editing && requestId ? { name: 'requests', params: { id: requestId }, query: listQuery } : (open ? { name: 'requests', query: listQuery } : undefined))"
     :back-label="editing ? 'Back to the request' : 'Back to requests'"
+    :bleed="mdAndUp && !open"
     :record="open ? (editing ? `${routeId}/edit` : routeId) : null"
     :stacked="Boolean(detail) && !editing"
     :subtitle="open ? undefined : summary"
@@ -195,43 +196,43 @@
     </template>
 
     <!-- The view: the list -->
-    <div v-else class="flex flex-col gap-5">
-      <FeedbackBanner v-if="loadError" type="error">{{ loadError }}</FeedbackBanner>
+    <div v-else class="flex flex-col gap-5 md:h-full md:gap-0">
+      <FeedbackBanner v-if="loadError" class="md:m-8" type="error">{{ loadError }}</FeedbackBanner>
 
-      <div v-else-if="loading" aria-label="Loading requests…" class="flex flex-col gap-2" role="status">
+      <div v-else-if="loading" aria-label="Loading requests…" class="flex flex-col gap-2 md:px-8 md:py-7" role="status">
         <v-skeleton-loader v-for="n in 4" :key="n" type="list-item-two-line" />
       </div>
 
       <template v-else>
-        <FeedbackBanner v-if="capped" type="info">Showing the newest {{ MAX_LOADED }} requests. Search or filter to find an older one.</FeedbackBanner>
+        <FeedbackBanner v-if="capped" class="md:mx-8 md:my-4" type="info">Showing the newest {{ MAX_LOADED }} requests. Search or filter to find an older one.</FeedbackBanner>
 
-        <div v-if="requests.length === 0" class="flex flex-col items-center gap-2 py-12 text-center text-surface-600">
+        <div v-if="requests.length === 0" class="flex flex-col items-center gap-2 py-12 text-center text-surface-600 md:px-8">
           <v-icon :icon="icons.request" size="48" />
           <p class="m-0 text-h3 text-surface-900">{{ isClient ? 'No requests yet' : 'No requests yet' }}</p>
           <p class="m-0">{{ isClient ? 'When a station has a problem, report it here and follow it until it is fixed.' : 'Requests from clients and ones you raise appear here.' }}</p>
           <v-btn v-if="canCreate" class="mt-2" color="primary" :to="{ name: 'request-new' }">{{ isClient ? 'Report a problem' : 'New request' }}</v-btn>
         </div>
 
-        <p v-else-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600">
+        <p v-else-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600 md:px-8">
           No requests match these filters.
           <button class="font-medium text-primary hover:underline" type="button" @click="clearFilters">Clear filters</button>
         </p>
 
         <!-- From 768 px: a table -->
-        <div v-else-if="mdAndUp" class="overflow-x-auto">
+        <div v-else-if="mdAndUp" class="min-h-0 grow overflow-auto">
           <table class="w-full border-collapse text-sm">
             <caption class="sr-only">Requests, newest first</caption>
 
             <thead>
-              <tr class="bg-surface-100 text-left">
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Reference</th>
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Title</th>
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Status</th>
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Priority</th>
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Stations</th>
-                <th v-if="isStaff" class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Organization</th>
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Assigned</th>
-                <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Updated</th>
+              <tr class="text-left">
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Reference</th>
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Title</th>
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Status</th>
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Priority</th>
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Stations</th>
+                <th v-if="isStaff" class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Organization</th>
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Assigned</th>
+                <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6 last:pr-6" scope="col">Updated</th>
               </tr>
             </thead>
 
@@ -242,7 +243,7 @@
                 class="h-14 cursor-pointer border-t border-surface-200 hover:bg-surface-50"
                 @click="openFromRow($event, row.id)"
               >
-                <td class="whitespace-nowrap px-3">
+                <td class="whitespace-nowrap px-3 first:pl-6">
                   <router-link
                     class="font-mono font-medium text-primary no-underline hover:underline"
                     :to="{ name: 'requests', params: { id: row.id }, query: listQuery }"
@@ -256,7 +257,7 @@
                 <td class="whitespace-nowrap px-3 font-mono text-xs font-medium text-surface-900" translate="no">{{ stationsLabel(row) }}</td>
                 <td v-if="isStaff" class="max-w-36 truncate px-3 text-surface-900" :title="row.org_name ?? undefined">{{ row.org_name ?? '—' }}</td>
                 <td class="whitespace-nowrap px-3" :class="row.assigned_staff.length > 0 ? 'text-surface-900' : 'text-surface-600'">{{ assignedText(row) }}</td>
-                <td class="whitespace-nowrap px-3 tabular-nums text-surface-600">{{ formatListTime(row.updated_at) }}</td>
+                <td class="whitespace-nowrap px-3 tabular-nums text-surface-600 last:pr-6">{{ formatListTime(row.updated_at) }}</td>
               </tr>
             </tbody>
           </table>
