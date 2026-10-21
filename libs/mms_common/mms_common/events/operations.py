@@ -322,3 +322,91 @@ class CommentAdded(CommentFacts):
 class CommentUpdated(CommentFacts):
     body_changed: bool
     internal_changed: bool
+
+
+# --- visit.* (Phase 4 W10) --------------------------------------------------------------------
+
+
+class StationOwner(_Data):
+    station_id: str
+    owner_staff_id: str
+
+
+class VisitFacts(_Data):
+    """What every visit event says about the visit and its request, so a consumer needs no read
+    (rule 1): the notification text, who it is for and where it goes. Keyed by `request_id`
+    (TRD §8.1) and versioned by the visit. Never holds the visit's notes."""
+
+    visit_id: str
+    ref: str  # VR-YYYY-NNNN-NN
+    request_id: str
+    request_ref: str  # MR-YYYY-NNNN
+    org_id: str
+    title: str | None = None  # the request's title
+    created_by: str | None = None  # who made the request (the client who is told)
+    status: str  # planned | started | ended | cancelled
+    planned_start: datetime
+    planned_end: datetime
+    staff_ids: list[str]
+    lead_staff_id: str
+    station_ids: list[str]
+    station_owners: list[StationOwner]
+
+
+@register("visit.scheduled")
+class VisitScheduled(VisitFacts):
+    pass
+
+
+@register("visit.rescheduled")
+class VisitRescheduled(VisitFacts):
+    """Dates, people, stations or owners of a planned visit changed."""
+
+    changed_fields: list[str]
+
+
+@register("visit.cancelled")
+class VisitCancelled(VisitFacts):
+    reason: str | None = None
+    by_request: bool = False  # the request itself was cancelled
+
+
+@register("visit.restored")
+class VisitRestored(VisitFacts):
+    pass
+
+
+@register("visit.started")
+class VisitStarted(VisitFacts):
+    started_at: datetime
+
+
+@register("visit.ended")
+class VisitEnded(VisitFacts):
+    """`sensor_actions` and `config_versions` stay empty until work records arrive (W11)."""
+
+    ended_at: datetime
+    additional_visit_required: bool
+    follow_up_notes: str | None = None
+    overrides: list[dict[str, str]] = Field(default_factory=list)
+    sensor_actions: list[dict[str, object]] = Field(default_factory=list)
+    config_versions: list[dict[str, object]] = Field(default_factory=list)
+
+
+@register("visit.station_owner_changed")
+class VisitStationOwnerChanged(VisitFacts):
+    station_id: str
+    from_staff_id: str  # `from` is a Python keyword
+    to_staff_id: str
+
+
+@register("visit.station_arrived")
+class VisitStationArrived(VisitFacts):
+    station_id: str
+    at: datetime
+
+
+@register("visit.station_departed")
+class VisitStationDeparted(VisitFacts):
+    station_id: str
+    at: datetime

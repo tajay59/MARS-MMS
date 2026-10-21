@@ -14,6 +14,7 @@ from mms_common.auth import User
 from mms_common.ids import UUID7_PATTERN
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.api.visits.schemas import VisitBrief
 from app.domain.requests import comments as comment_rules
 from app.domain.requests import rules
 
@@ -31,7 +32,9 @@ RequestStatus = Literal[
     "submitted", "approved", "denied", "assigned", "scheduled", "in_progress", "client_review",
     "reopened", "closed", "cancelled",
 ]
-Action = Literal["approve", "deny", "assign", "claim", "release", "cancel", "edit"]
+Action = Literal[
+    "approve", "deny", "assign", "claim", "release", "cancel", "edit", "schedule_visit",
+]
 
 
 class In(BaseModel):
@@ -213,11 +216,12 @@ class RequestDetail(RequestSummary):
     actions: list[Action]  # what the person asking may do now (viewers: none)
     attachments: list[AttachmentOut]
     comment_count: int  # as this reader may see them: a client's count leaves out internal ones
+    visits: list[VisitBrief]  # soonest first (PRD VIS-11: a client sees their own organization's)
 
     @classmethod
     def build(
         cls, doc: dict[str, Any], stations: dict[str, dict[str, Any]], orgs: dict[str, str],
-        actions: list[Action], comment_count: int = 0,
+        actions: list[Action], comment_count: int = 0, visits: list[VisitBrief] | None = None,
     ) -> RequestDetail:
         return cls(
             **RequestSummary.of(doc, stations, orgs).model_dump(),
@@ -233,7 +237,7 @@ class RequestDetail(RequestSummary):
             denial_reason=doc.get("denial_reason"), cancel_reason=doc.get("cancel_reason"),
             milestones=Milestones(**doc.get("milestones", {})), version=doc["version"],
             actions=actions, attachments=[AttachmentOut(**a) for a in doc.get("attachments", [])],
-            comment_count=comment_count,
+            comment_count=comment_count, visits=visits or [],
         )
 
 
