@@ -54,6 +54,29 @@
         "title": "AttachableOut",
         "type": "object"
       },
+      "AttachmentOut": {
+        "properties": {
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "media_id",
+          "name",
+          "size_bytes"
+        ],
+        "title": "AttachmentOut",
+        "type": "object"
+      },
       "Body_import_stations_api_v1_stations_import_post": {
         "properties": {
           "sensors": {
@@ -347,6 +370,187 @@
           }
         },
         "title": "CancelIn",
+        "type": "object"
+      },
+      "CommentIn": {
+        "additionalProperties": false,
+        "description": "REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already\nposted. Files are PDFs uploaded for `comment:<request id>:<id>` and already checked.",
+        "properties": {
+          "body": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "internal": {
+            "default": false,
+            "title": "Internal",
+            "type": "boolean"
+          },
+          "media_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Media Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "title": "CommentIn",
+        "type": "object"
+      },
+      "CommentOut": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentOut"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "author": {
+            "$ref": "#/components/schemas/PersonRef"
+          },
+          "author_role": {
+            "title": "Author Role",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "editable_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editable Until"
+          },
+          "edited_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edited At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "internal": {
+            "title": "Internal",
+            "type": "boolean"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "author",
+          "author_role",
+          "body",
+          "internal",
+          "attachments",
+          "created_at",
+          "edited_at",
+          "version",
+          "editable_until"
+        ],
+        "title": "CommentOut",
+        "type": "object"
+      },
+      "CommentPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommentOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CommentPage",
+        "type": "object"
+      },
+      "CommentPatch": {
+        "additionalProperties": false,
+        "description": "Change a comment within 15 minutes: its text, and for staff whether it is internal.",
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "internal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Internal"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "CommentPatch",
         "type": "object"
       },
       "Comms": {
@@ -2260,6 +2464,13 @@
             "title": "Assigned Staff",
             "type": "array"
           },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentOut"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
           "cancel_reason": {
             "anyOf": [
               {
@@ -2274,6 +2485,10 @@
           "category": {
             "title": "Category",
             "type": "string"
+          },
+          "comment_count": {
+            "title": "Comment Count",
+            "type": "integer"
           },
           "created_at": {
             "format": "date-time",
@@ -2387,7 +2602,9 @@
           "cancel_reason",
           "milestones",
           "version",
-          "actions"
+          "actions",
+          "attachments",
+          "comment_count"
         ],
         "title": "RequestDetail",
         "type": "object"
@@ -2426,6 +2643,15 @@
               }
             ],
             "title": "Id"
+          },
+          "media_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Media Ids",
+            "type": "array"
           },
           "org_id": {
             "anyOf": [
@@ -5941,6 +6167,64 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/attachments/{media_id}/download": {
+      "get": {
+        "operationId": "download_request_file_api_v1_requests__id__attachments__media_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Request File",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/cancel": {
       "post": {
         "description": "REQ-11: a client cancels their own request up to Assigned; an admin any time before it\nis done, with a reason from Scheduled on. Planned visits are cancelled in the same\ntransaction once visits exist (Phase 4).",
@@ -6044,6 +6328,250 @@
           }
         ],
         "summary": "Claim Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/comments": {
+      "get": {
+        "description": "REQ-9, REQ-10: oldest first. A client gets no internal comments, and so no trace of them.",
+        "operationId": "list_comments_api_v1_requests__id__comments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Comments",
+        "tags": [
+          "requests"
+        ]
+      },
+      "post": {
+        "description": "REQ-9. Idempotent by `id`: a retry after a lost answer returns the comment already\nposted (200). Files must already be clean (the page waits), and go to the organization\nwith the comment, or stay staff-only if the comment is internal.",
+        "operationId": "post_comment_api_v1_requests__id__comments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Post Comment",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/comments/{comment_id}": {
+      "patch": {
+        "description": "REQ-9, REQ-10: the author changes the text within 15 minutes; staff may also mark their\ncomment internal (or not). Making it internal hides its files from the client again.",
+        "operationId": "edit_comment_api_v1_requests__id__comments__comment_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit Comment",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/comments/{comment_id}/attachments/{media_id}/download": {
+      "get": {
+        "description": "A client asking for an internal comment's file gets 404, as if it did not exist.",
+        "operationId": "download_comment_file_api_v1_requests__id__comments__comment_id__attachments__media_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "comment_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Comment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Comment File",
         "tags": [
           "requests"
         ]

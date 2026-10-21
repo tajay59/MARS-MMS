@@ -33,3 +33,8 @@ export async function submitRequest (page: Page, title: string, options: { categ
   await expect(page).toHaveURL(/\/requests\/[\da-f-]{36}$/)
   return new URL(page.url()).pathname
 }
+
+/** A small, valid PDF: media checks the first bytes against the name. */
+export function pdf (text: string): Buffer {
+  return Buffer.from(`%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n% ${text}\ntrailer<</Root 1 0 R>>\n%%EOF\n`)
+}

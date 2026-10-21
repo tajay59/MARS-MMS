@@ -20,6 +20,7 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
 
 from app.api.context import Ctx, CtxDep
+from app.api.requests.attach import verified
 from app.api.requests.schemas import (
     Action as ActionName,
 )
@@ -34,9 +35,11 @@ from app.api.requests.schemas import (
     RequestSummary,
     Workload,
 )
+from app.domain.requests import comments as comment_rules
 from app.domain.requests import rules, staffing
 from app.domain.requests.state import MILESTONES, Action, Status, Who, allowed, transition
 from app.events.publish import ev
+from app.repo.requests import comments as comment_repo
 from app.repo.requests import requests as repo
 from app.repo.stations import orgs
 from app.repo.stations import stations as station_repo
@@ -101,7 +104,9 @@ async def _detail(ctx: Ctx, doc: dict[str, Any], user: User) -> RequestDetail:
             actions.append("edit")
         except (ValidationFailed, Forbidden):
             pass
-    return RequestDetail.build(doc, stations, org_names, cast(list[ActionName], actions))
+    seen = await comment_repo.counts(ctx.db, [doc["_id"]], user)
+    return RequestDetail.build(doc, stations, org_names, cast(list[ActionName], actions),
+                               comment_count=seen.get(doc["_id"], 0))
 
 
 def _entry(
@@ -196,10 +201,15 @@ async def create_request(
     found = [await station_repo.get(ctx.db, i, user) for i in station_ids]
     rules.check_stations_belong(org_id, found, station_ids)
 
+    media_ids = comment_rules.check_media_ids(body.media_ids)
+    if media_ids and not body.id:
+        raise ValidationFailed("Files need the request's ID", code="id_required", field="id")
+    request_id = body.id or new_id()
+    attachments = await verified(ctx, user, comment_rules.request_owner_ref(request_id),
+                                 media_ids)
     now = ctx.clock.now()
     to = Status.APPROVED if user.is_admin else Status.SUBMITTED
     event_id = new_id()
-    request_id = body.id or new_id()
     emitter = ctx.emitter(user)
     holder: dict[str, Any] = {}
 
@@ -217,12 +227,14 @@ async def create_request(
             "assigned_staff_ids": [], "assigned_staff": [], "denial_reason": None,
             "cancel_reason": None, "rework_since": None, "review_started_at": None,
             "reminders_sent": [], "client_verification": None, "reopen_count": 0,
-            "attachments": [], "milestones": milestones, "requester_name": user.name,
+            "attachments": attachments, "milestones": milestones, "requester_name": user.name,
         }, now, user.id)
         await repo.insert(ctx.db, doc, s)
         await emitter.request(ev.RequestSubmitted, "request.submitted", doc, s,
                               by_admin=user.is_admin)
         await emitter.request_status(doc, s, from_status=None, event_id=event_id)
+        if attachments:
+            await emitter.attachments_visibility("request", doc, doc, media_ids, "org", s)
         holder["doc"] = doc
 
     try:

@@ -273,6 +273,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requests/{id}/attachments/{media_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Request File */
+        get: operations["download_request_file_api_v1_requests__id__attachments__media_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{id}/cancel": {
         parameters: {
             query?: never;
@@ -310,6 +327,73 @@ export interface paths {
          *     claiming at once: one wins, the other is told who.
          */
         post: operations["claim_request_api_v1_requests__id__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Comments
+         * @description REQ-9, REQ-10: oldest first. A client gets no internal comments, and so no trace of them.
+         */
+        get: operations["list_comments_api_v1_requests__id__comments_get"];
+        put?: never;
+        /**
+         * Post Comment
+         * @description REQ-9. Idempotent by `id`: a retry after a lost answer returns the comment already
+         *     posted (200). Files must already be clean (the page waits), and go to the organization
+         *     with the comment, or stay staff-only if the comment is internal.
+         */
+        post: operations["post_comment_api_v1_requests__id__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/comments/{comment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Comment
+         * @description REQ-9, REQ-10: the author changes the text within 15 minutes; staff may also mark their
+         *     comment internal (or not). Making it internal hides its files from the client again.
+         */
+        patch: operations["edit_comment_api_v1_requests__id__comments__comment_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/comments/{comment_id}/attachments/{media_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Comment File
+         * @description A client asking for an internal comment's file gets 404, as if it did not exist.
+         */
+        get: operations["download_comment_file_api_v1_requests__id__comments__comment_id__attachments__media_id__download_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -796,6 +880,15 @@ export interface components {
             /** Org Id */
             org_id: string | null;
         };
+        /** AttachmentOut */
+        AttachmentOut: {
+            /** Media Id */
+            media_id: string;
+            /** Name */
+            name: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
         /** Body_import_stations_api_v1_stations_import_post */
         Body_import_stations_api_v1_stations_import_post: {
             /**
@@ -895,6 +988,68 @@ export interface components {
         CancelIn: {
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * CommentIn
+         * @description REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already
+         *     posted. Files are PDFs uploaded for `comment:<request id>:<id>` and already checked.
+         */
+        CommentIn: {
+            /** Body */
+            body: string;
+            /** Id */
+            id?: string | null;
+            /**
+             * Internal
+             * @default false
+             */
+            internal: boolean;
+            /** Media Ids */
+            media_ids?: string[];
+        };
+        /** CommentOut */
+        CommentOut: {
+            /** Attachments */
+            attachments: components["schemas"]["AttachmentOut"][];
+            author: components["schemas"]["PersonRef"];
+            /** Author Role */
+            author_role: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Editable Until */
+            editable_until: string | null;
+            /** Edited At */
+            edited_at: string | null;
+            /** Id */
+            id: string;
+            /** Internal */
+            internal: boolean;
+            /** Request Id */
+            request_id: string;
+            /** Version */
+            version: number;
+        };
+        /** CommentPage */
+        CommentPage: {
+            /** Items */
+            items: components["schemas"]["CommentOut"][];
+        };
+        /**
+         * CommentPatch
+         * @description Change a comment within 15 minutes: its text, and for staff whether it is internal.
+         */
+        CommentPatch: {
+            /** Body */
+            body?: string | null;
+            /** Internal */
+            internal?: boolean | null;
+            /** Version */
+            version: number;
         };
         /** Comms */
         Comms: {
@@ -1463,10 +1618,14 @@ export interface components {
             actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit")[];
             /** Assigned Staff */
             assigned_staff: components["schemas"]["PersonRef"][];
+            /** Attachments */
+            attachments: components["schemas"]["AttachmentOut"][];
             /** Cancel Reason */
             cancel_reason: string | null;
             /** Category */
             category: string;
+            /** Comment Count */
+            comment_count: number;
             /**
              * Created At
              * Format: date-time
@@ -1520,6 +1679,8 @@ export interface components {
             description: string;
             /** Id */
             id?: string | null;
+            /** Media Ids */
+            media_ids?: string[];
             /** Org Id */
             org_id?: string | null;
             /**
@@ -2678,6 +2839,38 @@ export interface operations {
             };
         };
     };
+    download_request_file_api_v1_requests__id__attachments__media_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     cancel_request_api_v1_requests__id__cancel_post: {
         parameters: {
             query?: never;
@@ -2731,6 +2924,141 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_comments_api_v1_requests__id__comments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_comment_api_v1_requests__id__comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_comment_api_v1_requests__id__comments__comment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_comment_file_api_v1_requests__id__comments__comment_id__attachments__media_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                comment_id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
                 };
             };
             /** @description Validation Error */

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.api.context import CtxDep
 from app.events.publish import calibration_data, request_data, station_data, unit_data
+from app.repo.requests import requests as request_repo
 from app.repo.stations import models, units
 from app.repo.stations import stations as station_repo
 
@@ -93,6 +94,27 @@ async def attachable(
         if unit is None or "client" in held:
             raise NotFound()
         owner_org = unit.get("current_org_id")
+    elif parts[0] == "request" and len(parts) == 2:
+        # The request may not exist yet: its files are uploaded while the form is still open
+        # (W9-8). Only people who can make a request attach to one that is not there.
+        found = await request_repo.get(ctx.db, parts[1])
+        if found is None:
+            if not held & {"client", "admin"}:
+                raise Forbidden()
+            return AttachableOut(org_id=org_id or None)
+        if "client" in held and found["org_id"] != (org_id or None):
+            raise NotFound()
+        if not held & {"client", "technician", "admin"}:
+            raise Forbidden()
+        return AttachableOut(org_id=found["org_id"])
+    elif parts[0] == "comment" and len(parts) == 3:
+        # A comment's files go with the comment, so the request must exist and be the caller's
+        found = await request_repo.get(ctx.db, parts[1])
+        if found is None or ("client" in held and found["org_id"] != (org_id or None)):
+            raise NotFound()
+        if not held & {"client", "technician", "admin"}:
+            raise Forbidden()
+        return AttachableOut(org_id=found["org_id"])
     else:
         raise NotFound()
     if "client" in held and owner_org != (org_id or None):

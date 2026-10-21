@@ -10,9 +10,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
+from mms_common.auth import User
 from mms_common.ids import UUID7_PATTERN
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from app.domain.requests import comments as comment_rules
 from app.domain.requests import rules
 
 Id = Annotated[str, StringConstraints(pattern=UUID7_PATTERN)]
@@ -48,6 +50,28 @@ class RequestIn(In):
     category: Category
     priority: Priority = "normal"
     station_ids: list[Id] = Field(min_length=1, max_length=rules.MAX_STATIONS)
+    # PDFs uploaded for `request:<id>` before the request exists, so `id` is needed with them
+    media_ids: list[Id] = Field(default_factory=list, max_length=comment_rules.MAX_ATTACHMENTS)
+
+
+class CommentIn(In):
+    """REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already
+    posted. Files are PDFs uploaded for `comment:<request id>:<id>` and already checked."""
+
+    id: Id | None = None
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1,
+                                           max_length=comment_rules.MAX_BODY)]
+    internal: bool = False
+    media_ids: list[Id] = Field(default_factory=list, max_length=comment_rules.MAX_ATTACHMENTS)
+
+
+class CommentPatch(In):
+    """Change a comment within 15 minutes: its text, and for staff whether it is internal."""
+
+    version: int = Field(ge=1)
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1,
+                                           max_length=comment_rules.MAX_BODY)] | None = None
+    internal: bool | None = None
 
 
 class RequestPatch(In):
@@ -87,6 +111,44 @@ class RequestStation(BaseModel):
 class PersonRef(BaseModel):
     id: str
     name: str
+
+
+class AttachmentOut(BaseModel):
+    media_id: str
+    name: str
+    size_bytes: int
+
+
+class CommentOut(BaseModel):
+    id: str
+    request_id: str
+    author: PersonRef
+    author_role: str
+    body: str
+    internal: bool
+    attachments: list[AttachmentOut]
+    created_at: datetime
+    edited_at: datetime | None
+    version: int
+    # When the author can no longer change it; null for everyone else (and once it has passed)
+    editable_until: datetime | None
+
+    @classmethod
+    def of(cls, doc: dict[str, Any], viewer: User, now: datetime) -> CommentOut:
+        until = doc["created_at"] + comment_rules.EDIT_WINDOW
+        mine = doc["author_id"] == viewer.id and now <= until
+        return cls(
+            id=doc["_id"], request_id=doc["request_id"],
+            author=PersonRef(id=doc["author_id"], name=doc["author_name"]),
+            author_role=doc["author_role"], body=doc["body"], internal=bool(doc["internal"]),
+            attachments=[AttachmentOut(**a) for a in doc["attachments"]],
+            created_at=doc["created_at"], edited_at=doc.get("edited_at"), version=doc["version"],
+            editable_until=until if mine else None,
+        )
+
+
+class CommentPage(BaseModel):
+    items: list[CommentOut]
 
 
 class HistoryEntry(BaseModel):
@@ -149,11 +211,13 @@ class RequestDetail(RequestSummary):
     milestones: Milestones
     version: int
     actions: list[Action]  # what the person asking may do now (viewers: none)
+    attachments: list[AttachmentOut]
+    comment_count: int  # as this reader may see them: a client's count leaves out internal ones
 
     @classmethod
     def build(
         cls, doc: dict[str, Any], stations: dict[str, dict[str, Any]], orgs: dict[str, str],
-        actions: list[Action],
+        actions: list[Action], comment_count: int = 0,
     ) -> RequestDetail:
         return cls(
             **RequestSummary.of(doc, stations, orgs).model_dump(),
@@ -168,7 +232,8 @@ class RequestDetail(RequestSummary):
             ],
             denial_reason=doc.get("denial_reason"), cancel_reason=doc.get("cancel_reason"),
             milestones=Milestones(**doc.get("milestones", {})), version=doc["version"],
-            actions=actions,
+            actions=actions, attachments=[AttachmentOut(**a) for a in doc.get("attachments", [])],
+            comment_count=comment_count,
         )
 
 

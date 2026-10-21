@@ -293,3 +293,30 @@ class RequestReleased(RequestData):
     released_ids: list[str]
     released_names: list[str]
     by_id: str
+
+
+# --- comment.* (W9 slice 2) -------------------------------------------------------------------
+
+
+class CommentFacts(RequestData):
+    """A comment's event carries the request's facts too, so a consumer needs no read. It never
+    carries the comment's text: an internal comment can't leak through a notification, and a
+    comment that is edited or made internal later leaves nothing stale behind (W9-10)."""
+
+    comment_id: str
+    author_id: str
+    author_name: str
+    author_role: str  # client | technician | admin
+    internal: bool
+    attachment_count: int
+
+
+@register("comment.added")
+class CommentAdded(CommentFacts):
+    pass
+
+
+@register("comment.updated")
+class CommentUpdated(CommentFacts):
+    body_changed: bool
+    internal_changed: bool

@@ -66,7 +66,9 @@ export function validate (values: FormValues, options: { admin: boolean, editing
 }
 
 /** The new request. `id` is made on the device, so sending it again can't make a second request. */
-export function createBody (values: FormValues, id: string, options: { admin: boolean }): RequestIn {
+export function createBody (
+  values: FormValues, id: string, options: { admin: boolean, mediaIds?: string[] },
+): RequestIn {
   return {
     id,
     org_id: options.admin ? values.orgId : null,
@@ -75,6 +77,7 @@ export function createBody (values: FormValues, id: string, options: { admin: bo
     category: values.category as RequestIn['category'],
     priority: values.priority as RequestIn['priority'],
     station_ids: values.stationIds,
+    media_ids: options.mediaIds ?? [],
   }
 }
 
