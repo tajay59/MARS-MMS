@@ -159,6 +159,7 @@
     }
   }
 
+  // Immediate: the queue creates this dialog already open, so a plain watch would never see it open
   watch(open, isOpen => {
     if (isOpen) {
       chosen.value = [...original.value]
@@ -166,7 +167,7 @@
       problem.value = null
       void load()
     }
-  })
+  }, { immediate: true })
 
   async function submit (): Promise<void> {
     if (!canSave.value || busy.value) {
