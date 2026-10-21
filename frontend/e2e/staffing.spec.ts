@@ -122,71 +122,67 @@ test('An admin assigns from the queue and can search the staff list @REQ-7 @J4',
   await expect(row).toHaveCount(0)
 })
 
-test('Search and filters open from a button in a bottom sheet @REQ-7', async ({ watched: page, browser }) => {
+test('On desktop the search and filters sit in the pane, country and category as tables @REQ-7', async ({ watched: page, browser }) => {
   const title = unique('Mast lamp')
   await approvedRequest(browser, title)
   await logIn(page, 'tech1@example.org')
   await page.goto('/queue')
   const table = page.getByRole('table', { name: /waiting for someone/ })
   await expect(table.getByRole('row', { name: new RegExp(title) })).toBeVisible()
-  // Nothing of the filters sits on the page until the sheet is opened
-  await expect(page.getByRole('searchbox', { name: /Search the queue/ })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Search and filter the queue' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Search and filter' })
-  await expect(sheet).toBeVisible()
-  await checkA11y(page, '/queue (filter sheet)')
-  await sheet.getByRole('searchbox', { name: /Search the queue/ }).fill(title)
-  await expect(sheet.getByRole('button', { name: 'Show 1 request' })).toBeVisible()
-  await sheet.getByRole('button', { name: 'Show 1 request' }).click()
-  await expect(sheet).toBeHidden()
-
-  // The filter is on: the button says so, the list follows, and the URL keeps it
-  await expect(page.getByRole('button', { name: 'Search and filter the queue, 1 on' })).toBeVisible()
-  await expect(table.getByRole('row')).toHaveCount(2) // header and the one match
-  await expect(page).toHaveURL(/q=/)
-
-  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
-  await sheet.getByRole('button', { name: 'Clear filters' }).click()
-  await expect(sheet.getByRole('button', { name: /^Show \d+ requests?$/ })).toBeVisible()
-  await sheet.getByRole('button', { name: 'Close' }).click()
-  await expect(page.getByRole('button', { name: 'Search and filter the queue', exact: true })).toBeVisible()
-})
-
-test('On desktop the filter sheet has country and category tables you pick rows from @REQ-7', async ({ watched: page, browser }) => {
-  await approvedRequest(browser, unique('Station gate'))
-  await logIn(page, 'tech1@example.org')
-  await page.goto('/queue')
-  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
-  const sheet = page.getByRole('dialog', { name: 'Search and filter' })
-
-  // Search, then priority, then the two tables
-  const order = await sheet.locator('h3').allInnerTexts()
-  expect(order.map(t => t.toLowerCase())).toEqual(['priority', 'country', 'category'])
-  const country = sheet.getByRole('table', { name: /^Country/ })
-  const category = sheet.getByRole('table', { name: /^Category/ })
+  // No button and no sheet: the controls are on the page already
+  await expect(page.getByRole('button', { name: /Search and filter the queue/ })).toHaveCount(0)
+  const search = page.getByRole('searchbox', { name: /Search the queue/ })
+  await expect(search).toBeVisible()
+  const order = await page.locator('h3').allInnerTexts()
+  expect(order.map(t => t.toLowerCase()).filter(t => ['priority', 'country', 'category'].includes(t))).toEqual(['priority', 'country', 'category'])
+  const country = page.getByRole('table', { name: /^Country/ })
+  const category = page.getByRole('table', { name: /^Category/ })
   await expect(country).toBeVisible()
   await expect(category).toBeVisible()
   const box = await country.locator('xpath=..').boundingBox()
   expect(box?.height ?? 0).toBeLessThanOrEqual(400)
-  await checkA11y(page, '/queue (filter sheet, tables)')
+  await checkA11y(page, '/queue (pane filters)')
 
-  // A click anywhere in the row picks it, and the same row again lets go
+  // Search narrows the list at once and the URL keeps it
+  await search.fill(title)
+  await expect(table.getByRole('row')).toHaveCount(2) // header and the one match
+  await expect(page).toHaveURL(/q=/)
+  await page.getByRole('button', { name: 'Clear filters' }).click()
+  await expect(page).not.toHaveURL(/q=/)
+
+  // A click anywhere in a row picks it, and the same row again lets go
   const first = country.getByRole('row').nth(2) // after the header and "Any"
   await first.getByText(/\d+/).click()
-  await expect(page.getByRole('button', { name: 'Search and filter the queue, 1 on' })).toBeVisible()
   await expect(first.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
   await first.getByRole('button').click()
   await expect(first.getByRole('button')).toHaveAttribute('aria-pressed', 'false')
 })
 
-test('On a phone the filter sheet keeps chips @phone @REQ-7', async ({ watched: page }) => {
+test('On a phone the search and filters open in a bottom sheet with chips @phone @REQ-7', async ({ watched: page, browser }) => {
+  const title = unique('Gate hinge')
+  await approvedRequest(browser, title)
   await logIn(page, 'tech1@example.org')
   await page.goto('/queue')
-  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
+  await expect(page.getByRole('searchbox', { name: /Search the queue/ })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Search and filter the queue' }).click()
   const sheet = page.getByRole('dialog', { name: 'Search and filter' })
+  await expect(sheet).toBeVisible()
   await expect(sheet.getByRole('group', { name: 'Country' })).toBeVisible()
   await expect(sheet.getByRole('table')).toHaveCount(0)
+  await checkA11y(page, '/queue (filter sheet, phone)')
+  await sheet.getByRole('searchbox', { name: /Search the queue/ }).fill(title)
+  await sheet.getByRole('button', { name: 'Show 1 request' }).click()
+  await expect(sheet).toBeHidden()
+
+  // The filter is on: the button says so
+  await expect(page.getByRole('button', { name: 'Search and filter the queue, 1 on' })).toBeVisible()
+  await expect(page.getByRole('link', { name: title })).toBeVisible()
+  await page.getByRole('button', { name: /Search and filter the queue/ }).click()
+  await sheet.getByRole('button', { name: 'Clear filters' }).click()
+  await sheet.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('button', { name: 'Search and filter the queue', exact: true })).toBeVisible()
 })
 
 test('A lost race says who got there first @REQ-7', async ({ watched: page, browser }) => {

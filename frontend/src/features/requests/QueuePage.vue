@@ -1,7 +1,19 @@
 <template>
   <PageBody :subtitle="subtitle" title="Queue" wide>
-    <!-- Search and the filters live in a sheet, opened from here; the badge counts what is on -->
-    <template #actions>
+    <!-- Desktop: search and filters are in the pane. Phones: a sheet opened from here, and the badge counts what is on -->
+    <PaneContent v-if="mdAndUp">
+      <QueueFilterPanel
+        class="px-3"
+        :filtered="filtered"
+        :filters="filters"
+        :groups="groups"
+        tables
+        @change="setFilters"
+        @clear="clearFilters"
+      />
+    </PaneContent>
+
+    <template v-if="!mdAndUp" #actions>
       <v-badge color="primary" :content="activeCount" floating :model-value="activeCount > 0">
         <v-btn
           :aria-label="activeCount > 0 ? `Search and filter the queue, ${activeCount} on` : 'Search and filter the queue'"
@@ -114,8 +126,14 @@
       </ul>
     </template>
 
-    <!-- Search, then country, priority and category with how many each leaves; the list behind follows at once -->
-    <ModalSheet v-model="filterOpen" labelledby="qf-h" max-width="560" sheet>
+    <!-- Phones: the same panel in a bottom sheet; the list behind follows at once -->
+    <ModalSheet
+      v-if="!mdAndUp"
+      v-model="filterOpen"
+      labelledby="qf-h"
+      max-width="560"
+      sheet
+    >
       <div class="flex flex-col gap-4">
         <div class="flex items-center justify-between gap-3">
           <h2 id="qf-h" class="m-0 text-h2 text-surface-900">Search and filter</h2>
@@ -131,95 +149,16 @@
           </v-btn>
         </div>
 
-        <v-text-field
-          aria-label="Search the queue by reference, title or station"
-          autocomplete="off"
-          clearable
-          hide-details
-          :model-value="filters.q"
-          name="q"
-          placeholder="Search reference, title or station"
-          :prepend-inner-icon="mdiMagnify"
-          spellcheck="false"
-          type="search"
-          variant="solo-inverted"
-          @update:model-value="setFilters({ q: $event ?? '' })"
+        <QueueFilterPanel
+          :filtered="filtered"
+          :filters="filters"
+          :groups="groups"
+          :tables="false"
+          @change="setFilters"
+          @clear="clearFilters"
         />
 
-        <!-- Priority first. Then, from 768 px, country and category are tables (a row to pick, 400 px at most, then they scroll); phones keep chips -->
-        <template v-for="group in groups" :key="group.field">
-          <div
-            v-if="isTable(group.field)"
-            class="flex flex-col gap-2"
-          >
-            <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
-
-            <div class="max-h-[400px] overflow-y-auto rounded-lg border border-surface-300">
-              <table class="w-full border-collapse text-sm">
-                <caption class="sr-only">{{ group.label }}: pick a row to filter the queue by it</caption>
-
-                <thead>
-                  <tr class="text-left">
-                    <th class="sticky top-0 bg-surface-100 px-3 py-2 text-xs font-medium text-surface-700" scope="col">{{ group.label }}</th>
-                    <th class="sticky top-0 bg-surface-100 px-3 py-2 text-right text-xs font-medium text-surface-700" scope="col">Requests</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  <tr
-                    v-for="row in tableRows(group)"
-                    :key="row.value ?? 'any'"
-                    class="cursor-pointer border-t border-surface-200 hover:bg-surface-100"
-                    :class="filters[group.field] === row.value ? 'bg-primary-100 font-medium text-primary-800 hover:bg-primary-100 dark:bg-primary-800 dark:text-primary-100 dark:hover:bg-primary-800' : 'text-surface-900'"
-                    @click="pick(group.field, row.value)"
-                  >
-                    <td class="p-0">
-                      <!-- The row's click handler takes the button's click too, so a key press works -->
-                      <button :aria-pressed="filters[group.field] === row.value" class="block w-full px-3 py-2.5 text-left" type="button">{{ row.label }}</button>
-                    </td>
-
-                    <td class="px-3 py-2.5 text-right font-semibold tabular-nums">{{ row.count }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div
-            v-else
-            :key="group.field"
-            :aria-labelledby="`q-${group.field}`"
-            class="flex flex-col gap-2"
-            role="group"
-          >
-            <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
-
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                :aria-pressed="filters[group.field] === null"
-                class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
-                :class="chip(filters[group.field] === null)"
-                type="button"
-                @click="setFilters({ [group.field]: null })"
-              >Any</button>
-
-              <button
-                v-for="option in group.options"
-                :key="option.value"
-                :aria-pressed="filters[group.field] === option.value"
-                class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
-                :class="chip(filters[group.field] === option.value)"
-                type="button"
-                @click="setFilters({ [group.field]: filters[group.field] === option.value ? null : option.value })"
-              >{{ option.label }}<span class="tabular-nums font-semibold">{{ option.count }}</span></button>
-            </div>
-          </div>
-        </template>
-
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <v-btn v-if="filtered" class="text-primary" variant="text" @click="clearFilters">Clear filters</v-btn>
-          <v-btn class="ml-auto" color="primary" @click="filterOpen = false">Show {{ shown.length }} {{ shown.length === 1 ? 'request' : 'requests' }}</v-btn>
-        </div>
+        <v-btn block color="primary" @click="filterOpen = false">Show {{ shown.length }} {{ shown.length === 1 ? 'request' : 'requests' }}</v-btn>
       </div>
     </ModalSheet>
 
@@ -272,7 +211,7 @@
 </template>
 
 <script lang="ts" setup>
-  import type { QueueFilters } from './queue'
+  import type { FilterGroup, QueueFilters } from './queue'
   import type { QueueItem, RequestDetail } from '@/api/models'
   import type { RouteLocationRaw } from 'vue-router'
   import { mdiClose, mdiInboxOutline, mdiMagnify } from '@mdi/js'
@@ -287,10 +226,12 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
   import PageBody from '@/components/PageBody.vue'
+  import PaneContent from '@/components/PaneContent.vue'
   import { useSessionStore } from '@/stores/session'
   import AssignDialog from './AssignDialog.vue'
   import PriorityChip from './PriorityChip.vue'
   import { countBy, filterQueue, queueFiltersFrom, queueQueryFrom, waitingLabel } from './queue'
+  import QueueFilterPanel from './QueueFilterPanel.vue'
   import { CATEGORIES, categoryLabel, PRIORITIES, priorityLabel, showsInList, stationsLabel } from './requests'
   import { claimRequest } from './staffingActions'
 
@@ -348,17 +289,9 @@
     void router.replace({ query: {} })
   }
 
-  function chip (on: boolean): string {
-    return on
-      ? 'border-transparent bg-primary-100 font-medium text-primary-800 dark:bg-primary-800 dark:text-primary-100'
-      : 'border-surface-300 text-surface-900'
-  }
-
-  function pick (field: 'country' | 'priority' | 'category', value: string | null): void {
-    setFilters({ [field]: value === null || filters.value[field] === value ? null : value })
-  }
-
-  const groups = computed(() => {
+  const groups = computed<FilterGroup[]>(() => {
+    // What each filter leaves when it alone is off, for its "Any"
+    const anyOf = (field: FilterGroup['field']): number => filterQueue(items.value, { ...filters.value, [field]: null }).length
     const countries = countBy(items.value, filters.value, 'country')
     const priorities = countBy(items.value, filters.value, 'priority')
     const categories = countBy(items.value, filters.value, 'category')
@@ -366,6 +299,7 @@
       {
         field: 'priority' as const,
         label: 'Priority',
+        any: anyOf('priority'),
         // Most urgent first; a fresh array, because toReversed needs iOS 16
         // eslint-disable-next-line unicorn/no-array-reverse
         options: [...PRIORITIES].reverse().filter(p => priorities.has(p.value)).map(p => ({ value: p.value, label: p.label, count: priorities.get(p.value) ?? 0 })),
@@ -373,6 +307,7 @@
       {
         field: 'country' as const,
         label: 'Country',
+        any: anyOf('country'),
         // Fresh array: sorting it in place is safe, and toSorted needs iOS 16
         // eslint-disable-next-line unicorn/no-array-sort
         options: [...countries].sort(([a], [b]) => countryName(a).localeCompare(countryName(b))).map(([value, count]) => ({ value, label: countryName(value), count })),
@@ -380,21 +315,11 @@
       {
         field: 'category' as const,
         label: 'Category',
+        any: anyOf('category'),
         options: CATEGORIES.filter(c => categories.has(c.value)).map(c => ({ value: c.value, label: c.label, count: categories.get(c.value) ?? 0 })),
       },
     ].filter(group => group.options.length > 0)
   })
-
-  // Priority is always chips. Country and category are chips on phones and tables from 768 px,
-  // each with an "Any" row first that counts what the other filters leave.
-  function isTable (field: string): boolean {
-    return mdAndUp.value && field !== 'priority'
-  }
-
-  function tableRows (group: { field: 'country' | 'priority' | 'category', options: { value: string, label: string, count: number }[] }): { value: string | null, label: string, count: number }[] {
-    const all = filterQueue(items.value, { ...filters.value, [group.field]: null }).length
-    return [{ value: null, label: 'Any', count: all }, ...group.options]
-  }
 
   const subtitle = computed(() => {
     if (loading.value || loadError.value) {
