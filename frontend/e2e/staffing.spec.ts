@@ -104,6 +104,24 @@ test('A technician claims from the queue, lets go, and another takes it @REQ-7 @
   await expect(page.getByRole('button', { name: 'Release to queue' })).toHaveCount(0)
 })
 
+test('An admin assigns from the queue and can search the staff list @REQ-7 @J4', async ({ watched: admin, browser }) => {
+  const title = unique('Rain gauge blocked')
+  await approvedRequest(browser, title)
+
+  await logIn(admin, 'admin@example.org')
+  await admin.goto('/queue')
+  const row = admin.getByRole('table', { name: /waiting for someone/ }).getByRole('row', { name: new RegExp(title) })
+  await row.getByRole('button', { name: 'Assign', exact: true }).click()
+  const dialog = admin.getByRole('dialog', { name: 'Assign staff' })
+  // The dialog is created already open here, so it must load the staff itself
+  await expect(dialog.getByRole('checkbox', { name: /Tech 1/ })).toBeVisible()
+  await dialog.getByRole('searchbox', { name: 'Search staff by name' }).fill('tech 2')
+  await expect(dialog.getByRole('checkbox', { name: /Tech 1/ })).toHaveCount(0)
+  await dialog.getByRole('checkbox', { name: /Tech 2/ }).check()
+  await dialog.getByRole('button', { name: 'Assign', exact: true }).click()
+  await expect(row).toHaveCount(0)
+})
+
 test('A lost race says who got there first @REQ-7', async ({ watched: page, browser }) => {
   const title = unique('Solar panel')
   await approvedRequest(browser, title)
