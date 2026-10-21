@@ -101,10 +101,7 @@ def processor(
                 )
         # Set, not extended: a retried event starts again from nothing
         pending[:] = [(row["user_id"], realtime.notification_message(row)) for row in rows]
-        pending.extend(
-            (item.user_id, realtime.entity_message(item.entity_id, item.status, item.kind))
-            for item in made.live
-        )
+        pending.extend((item.user_id, realtime.live_message(item)) for item in made.live)
 
     def chain(*steps: Handler) -> Handler:
         async def run(payload: BaseModel, envelope: Envelope, session: AsyncClientSession) -> None:

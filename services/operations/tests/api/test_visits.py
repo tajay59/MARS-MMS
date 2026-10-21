@@ -482,7 +482,10 @@ async def test_once_started_only_the_lead_or_an_admin_changes_an_owner(ops):
     r = await ops.http.patch(url, json=change, headers=ops.bearer("tech1"))
     assert r.status_code == 200, r.text
     assert r.json()["stations"][1]["owner"]["id"] == TECH2
-    assert len(await ops.outbox("visit.station_owner_changed")) == 1
+    [moved] = await ops.outbox("visit.station_owner_changed")
+    # What the notification needs to name the station and write the day (slice 4, rule 1)
+    assert moved.data["station_name"] == s2["name"] and moved.data["station_code"] == s2["code"]
+    assert moved.data["time_zone"] == "America/Jamaica"
     assert await ops.outbox("visit.rescheduled") == []
     dates = await ops.http.patch(url, json={"planned_start": when(ops, days=5)},
                                  headers=ops.bearer("tech1"))

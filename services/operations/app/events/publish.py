@@ -111,6 +111,7 @@ def visit_data(visit: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]
             {"station_id": s["station_id"], "owner_staff_id": s["owner_staff_id"]}
             for s in visit["stations"]
         ],
+        "time_zone": next((s["time_zone"] for s in visit["stations"] if s.get("time_zone")), None),
     }
 
 

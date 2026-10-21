@@ -8,24 +8,34 @@ every role. Rules it keeps:
 - A notification holds no comment text, only who and where (so an internal comment, or one
   edited later, can't leak through a list).
 - An internal comment reaches staff only, in the notification and in the live message.
+- A visit's notes never travel: the events do not carry them, so no notification can.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 # The events this module turns into notifications or live updates.
 NOTIFY_EVENTS = frozenset({
     "user.registered", "request.submitted", "request.approved", "request.denied",
     "request.assigned", "request.staff_changed", "request.released", "request.cancelled",
     "comment.added",
+    "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.ended",
+    "visit.station_owner_changed",
+})
+VISIT_LIVE_EVENTS = frozenset({
+    "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored", "visit.started",
+    "visit.ended", "visit.station_owner_changed", "visit.station_arrived",
+    "visit.station_departed",
 })
 LIVE_EVENTS = frozenset({
     "request.updated", "request.status_changed", "request.assigned", "request.staff_changed",
     "request.released", "comment.added", "comment.updated",
-})
+}) | VISIT_LIVE_EVENTS
 
 
 @dataclass(frozen=True)
@@ -52,12 +62,14 @@ class Draft:
 
 @dataclass(frozen=True)
 class Live:
-    """`entity.updated` for pages that have this request open (NOT-5)."""
+    """`entity.updated` for pages that have this request or visit open (NOT-5)."""
 
     user_id: str
     entity_id: str
     status: str
-    kind: str  # status | staff | comment
+    kind: str  # status | staff | comment | visit
+    entity: str = "request"  # request | visit
+    request_id: str = ""  # for a visit: the request it belongs to, so its page looks again
 
 
 @dataclass(frozen=True)
@@ -105,6 +117,8 @@ def plan(
 
     if event_type not in NOTIFY_EVENTS and event_type not in LIVE_EVENTS:
         return Plan()
+    if event_type.startswith("visit."):
+        return _plan_visit(event_type, data, actor_id, actor_name, audience)
 
     creator = [data["created_by"]] if data.get("created_by") else []
     assigned = list(data.get("assigned_staff_ids") or [])
@@ -174,3 +188,74 @@ def _live(event_type: str, data: Mapping[str, Any], audience: Audience) -> list[
         Live(user_id=i, entity_id=data["request_id"], status=data["status"], kind=kind)
         for i in dict.fromkeys(ids)
     ]
+
+
+# --- Visits (W10; PRD VIS-11, Appendix B) ------------------------------------------------------
+
+
+def when_text(data: Mapping[str, Any]) -> str:
+    """`Thu 22 Oct, 08:00 EST`: the visit's start in the zone its dates are written in (the first
+    station's), or UTC when the event names none."""
+    start = data["planned_start"]
+    if isinstance(start, str):
+        start = datetime.fromisoformat(start)
+    try:
+        zone = ZoneInfo(data.get("time_zone") or "UTC")
+    except (KeyError, ValueError):  # a zone the server doesn't know: say it in UTC
+        zone = ZoneInfo("UTC")
+    local = start.astimezone(zone) if start.tzinfo else start.replace(tzinfo=UTC).astimezone(zone)
+    return f"{local:%a} {local.day} {local:%b}, {local:%H:%M} {local.tzname()}"
+
+
+def _plan_visit(
+    event_type: str, data: Mapping[str, Any], actor_id: str | None, actor_name: str | None,
+    audience: Audience,
+) -> Plan:
+    """A visit event: who hears of it, and which open pages look again. The client who made the
+    request and everyone attending hear of a plan, a new date or a cancellation (and may choose
+    email for them); attending staff hear when it ends; the old and the new owner hear of a
+    change. The person who did it is never told."""
+    drafts: list[Draft] = []
+    visit_id = data["visit_id"]
+    line = f"{data['ref']} · {data.get('title') or 'Maintenance request'}"
+    creator = [data["created_by"]] if data.get("created_by") else []
+    attending = list(data.get("staff_ids") or [])
+
+    def tell(ids: Sequence[str], type_: str, title: str, body: str, *, email: bool = False) -> None:
+        for user_id in _once(ids, skip=actor_id):
+            drafts.append(Draft(
+                user_id=user_id, type=type_, title=title, body=body, link=f"/visits/{visit_id}",
+                entity_type="visit", entity_id=visit_id, email=email,
+            ))
+
+    match event_type:
+        case "visit.scheduled":
+            tell([*attending, *creator], "visit.scheduled", "Visit planned",
+                 f"{line} · {when_text(data)}", email=True)
+        case "visit.rescheduled":
+            tell([*attending, *creator], "visit.scheduled", "Visit rescheduled",
+                 f"{line} · now {when_text(data)}", email=True)
+        case "visit.cancelled":
+            # A cancelled request already tells the client and the people on it
+            if not data.get("by_request"):
+                tell([*attending, *creator], "visit.cancelled", "Visit cancelled", line,
+                     email=True)
+        case "visit.ended":
+            more = " · another visit needed" if data.get("additional_visit_required") else ""
+            tell(attending, "visit.ended", "Visit ended", f"{data['ref']}{more}")
+        case "visit.station_owner_changed":
+            where = data.get("station_name") or data.get("station_code") or "a station"
+            who = actor_name or "Someone"
+            tell([data["to_staff_id"]], "visit.owner_changed", f"You now own {where}",
+                 f"{data['ref']} · changed by {who}")
+            tell([data["from_staff_id"]], "visit.owner_changed", f"You no longer own {where}",
+                 f"{data['ref']} · changed by {who}")
+        case _:
+            pass
+
+    live = [
+        Live(user_id=i, entity_id=visit_id, status=data["status"], kind="visit", entity="visit",
+             request_id=data["request_id"])
+        for i in dict.fromkeys([*audience.staff, *audience.org_clients])
+    ]
+    return Plan(drafts=drafts, live=live)

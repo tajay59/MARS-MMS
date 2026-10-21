@@ -48,6 +48,16 @@ CATALOGUE: tuple[PrefType, ...] = (
         frozenset({"client", "technician", "admin"}), frozenset({"client"}),
     ),
     PrefType(
+        "visit.scheduled", "Visits", "A visit is planned or its dates change",
+        "For a request you made or a visit you attend.",
+        frozenset({"client", "technician", "admin"}), frozenset({"client", "technician", "admin"}),
+    ),
+    PrefType(
+        "visit.cancelled", "Visits", "A visit is cancelled",
+        "For a request you made or a visit you attend.",
+        frozenset({"client", "technician", "admin"}), frozenset({"client", "technician", "admin"}),
+    ),
+    PrefType(
         "calibration.digest", "Calibration", "Weekly digest of calibrations due",
         "Mondays at 07:00. Overdue and due within 30 days.",
         frozenset({"admin"}), frozenset({"admin"}),

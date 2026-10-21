@@ -351,6 +351,9 @@ class VisitFacts(_Data):
     lead_staff_id: str
     station_ids: list[str]
     station_owners: list[StationOwner]
+    # The zone of the first station: the one the visit's dates are written in (W10-1). Optional,
+    # so version 1 of every visit event still holds
+    time_zone: str | None = None
 
 
 @register("visit.scheduled")
@@ -398,6 +401,9 @@ class VisitStationOwnerChanged(VisitFacts):
     station_id: str
     from_staff_id: str  # `from` is a Python keyword
     to_staff_id: str
+    # So the notification can say which station (optional: version 1 still holds)
+    station_code: str | None = None
+    station_name: str | None = None
 
 
 @register("visit.station_arrived")
