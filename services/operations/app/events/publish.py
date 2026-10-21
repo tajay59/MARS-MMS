@@ -267,6 +267,35 @@ class Emitter:
                                            "certificate_media_id", "performed_by", "notes")},
         )
 
+    async def calibration_voided(
+        self, doc: dict[str, Any], unit: dict[str, Any] | None, session: AsyncClientSession, *,
+        reason: str,
+    ) -> Envelope:
+        """A field calibration undone with its sensor action (TRD §3.2.3)."""
+        return await self.emit(
+            ev.CalibrationVoided(
+                **calibration_data(doc, (unit or {}).get("calibration_due_at")), reason=reason
+            ),
+            type_="calibration.voided", key=str(doc.get("station_id") or doc["sensor_unit_id"]),
+            resource=("calibration", doc["_id"]), aggregate_version=doc["version"],
+            org_id=doc.get("org_id"), session=session,
+        )
+
+    async def application_reversed(
+        self, visit: dict[str, Any], station_id: str, action_id: str, unit_ids: list[str],
+        station: dict[str, Any], session: AsyncClientSession,
+    ) -> Envelope:
+        """A visit's sensor action was changed or removed and its effects undone."""
+        return await self.emit(
+            ev.SensorApplicationReversed(
+                action_id=action_id, visit_id=visit["_id"], station_id=station_id,
+                unit_ids=unit_ids,
+            ),
+            type_="sensor.application_reversed", key=station_id,
+            resource=("sensor_application", action_id), aggregate_version=visit["version"],
+            org_id=station["owner_org_id"], session=session,
+        )
+
     async def document(
         self, model: type[BaseModel], doc: dict[str, Any], session: AsyncClientSession, *,
         before: dict[str, Any] | None = None, **extra: Any,

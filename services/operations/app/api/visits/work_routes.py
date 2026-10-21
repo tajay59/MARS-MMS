@@ -18,6 +18,7 @@ from mms_common.ids import UUID7_PATTERN
 from pymongo.asynchronous.client_session import AsyncClientSession
 
 from app.api.context import CtxDep
+from app.api.visits import sensor_apply
 from app.api.visits.schemas import VisitOut
 from app.api.visits.work_schemas import WorkIn
 from app.domain.visits import work
@@ -58,6 +59,11 @@ async def save_work(
     request = await request_repo.require(ctx.db, visit["request_id"])
     if stored is None:  # already saved: same content
         return VisitOut.build(visit, request, user)
+    # After the end the record reaches the inventory with every save (TRD §3.2.3). Files are
+    # checked with media first: it is a network call.
+    ended = visit["status"] == "ended"
+    todo = (await sensor_apply.check_config(ctx, visit, station, stored["config_versions"])
+            if ended else [])
 
     emitter = ctx.emitter(user)
     holder: dict[str, Any] = {}
@@ -72,6 +78,10 @@ async def save_work(
             work.check_can_save(fresh, _station(fresh, station_id), user.id, user.is_admin)
             raise Conflict("This work record was changed since you opened it. Reload it",
                            code="work_changed")
+        if ended:
+            await sensor_apply.reconcile_station(
+                ctx, user, updated, station_id, stored["sensor_actions"], s, emitter)
+            await sensor_apply.create_config(ctx, user, updated, station, todo, s, emitter)
         await emitter.visit(
             ev.VisitWorkUpdated, "visit.work_updated", updated, request, s, before=visit,
             station_id=station_id, version=stored["version"],
