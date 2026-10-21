@@ -817,6 +817,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/calibrations/due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calibrations Due
+         * @description The weekly digest's list (CAL-5): the same units as the staff list, for every
+         *     organization, read by platform with its service token (rule 1).
+         */
+        get: operations["calibrations_due_internal_calibrations_due_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/labels": {
         parameters: {
             query?: never;
@@ -3934,6 +3955,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttachableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calibrations_due_internal_calibrations_due_get: {
+        parameters: {
+            query?: {
+                within_days?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DueList"];
                 };
             };
             /** @description Validation Error */

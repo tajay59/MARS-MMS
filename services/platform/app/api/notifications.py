@@ -11,17 +11,20 @@ from fastapi import APIRouter, Depends, Path, Query, Request
 from mms_common.auth import User, require_roles
 from mms_common.errors import NotFound
 from mms_common.ids import UUID7_PATTERN
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, StrictBool
 
 from app import realtime
+from app.domain import preferences
 from app.repo import notifications as repo
+from app.repo import preferences as preference_repo
 
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 Reader = Annotated[User, Depends(require_roles())]
 IdPath = Annotated[str, Path(pattern=UUID7_PATTERN)]
 # The groups the list's filter offers, each a fixed prefix of the notification types
-GROUPS = {"requests": "request.", "comments": "comment.", "accounts": "account."}
+GROUPS = {"requests": "request.", "comments": "comment.", "accounts": "account.",
+          "calibration": "calibration."}
 
 
 class Entity(BaseModel):
@@ -46,6 +49,31 @@ class NotificationPage(BaseModel):
     next_before: str | None
 
 
+class PreferenceItem(BaseModel):
+    key: str
+    label: str
+    hint: str
+    email: bool  # as it stands now: the person's choice, or the default
+
+
+class PreferenceGroup(BaseModel):
+    label: str
+    items: list[PreferenceItem]
+
+
+class Preferences(BaseModel):
+    """Email choices for the types this person can be emailed about (NOT-4). In-app
+    notifications are always on, and account emails are always sent (NOT-3)."""
+
+    groups: list[PreferenceGroup]
+
+
+class PreferencesIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: dict[str, StrictBool]
+
+
 class ReadAll(BaseModel):
     marked: int
     unread: int
@@ -67,7 +95,8 @@ async def list_notifications(
     after: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     before: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     unread: bool = False,
-    group: Annotated[Literal["requests", "comments", "accounts"] | None, Query()] = None,
+    group: Annotated[Literal["requests", "comments", "accounts", "calibration"] | None,
+                     Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> NotificationPage:
     """Newest first. `after=<id>` returns everything newer than that notification: what a
@@ -84,6 +113,33 @@ async def list_notifications(
         unread=await repo.unread_count(db, user.id),
         next_before=found[-1]["_id"] if more and not after else None,
     )
+
+
+def _view(roles: frozenset[str], stored: dict[str, bool]) -> Preferences:
+    groups: dict[str, list[PreferenceItem]] = {}
+    for kind in preferences.types_for(roles):
+        groups.setdefault(kind.group, []).append(PreferenceItem(
+            key=kind.key, label=kind.label, hint=kind.hint,
+            email=preferences.is_on(stored, kind.key, roles),
+        ))
+    return Preferences(groups=[PreferenceGroup(label=k, items=v) for k, v in groups.items()])
+
+
+@router.get("/preferences")
+async def get_preferences(request: Request, user: Reader) -> Preferences:
+    """NOT-4: what this person can choose, as it stands."""
+    stored = await preference_repo.email_choices(_db(request), user.id)
+    return _view(user.roles, stored)
+
+
+@router.put("/preferences")
+async def put_preferences(body: PreferencesIn, request: Request, user: Reader) -> Preferences:
+    """NOT-4: save choices. Only types this person can be emailed about may be named; anything
+    else is refused whole and nothing is saved."""
+    db = _db(request)
+    chosen = preferences.check_choices(body.email, user.roles)
+    stored = await preference_repo.save_email_choices(db, user.id, chosen, _now(request))
+    return _view(user.roles, stored)
 
 
 @router.post("/read-all")

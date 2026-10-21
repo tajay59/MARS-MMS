@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.domain.account_emails import (
+    ACCOUNT_KINDS,
     EVENT_TYPES,
     MAX_ATTEMPTS,
     EmailJob,
@@ -82,7 +83,7 @@ def test_approval_links_to_login():
 
 def test_copy_follows_the_voice_rules():
     """DBD Voice and microcopy: no exclamation marks, and the product is never called AWS alone."""
-    for kind in Kind:
+    for kind in ACCOUNT_KINDS:
         out = render(kind, name="Maria", url="https://x.org/l", reason="r")
         assert "!" not in out.text
         assert " AWS " not in out.text
@@ -98,7 +99,7 @@ def test_retries_back_off_then_give_up():
 
 def test_every_email_uses_the_product_name():
     """DBD D1: the product is MARS-MMS in emails, as in the app."""
-    for kind in Kind:
+    for kind in ACCOUNT_KINDS:
         out = render(kind, name="Maria", url="https://mms.example.org/x", reason="r")
         for part in (out.subject, out.text, out.html):
             assert "AWS-MMS" not in part

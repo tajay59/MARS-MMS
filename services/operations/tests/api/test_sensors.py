@@ -288,6 +288,30 @@ async def test_the_calibration_due_list(ops):
     assert due["A-1"] == iso(NOW - timedelta(days=400) + timedelta(days=365))
 
 
+@pytest.mark.req("CAL-5")
+async def test_the_weekly_digest_reads_the_due_list_for_every_organization(ops):
+    jamaica = await ops.station(code="A-1")
+    trinidad = await ops.station(code="B-1", owner_org_id=ORG_B, country="TT",
+                                 time_zone="America/Port_of_Spain")
+    model = await ops.model()
+    overdue = await ops.unit(model["id"], "OVER", last_calibrated_at=iso(NOW - timedelta(days=400)))
+    soon = await ops.unit(model["id"], "SOON", last_calibrated_at=iso(NOW - timedelta(days=350)))
+    await ops.install(overdue, jamaica, "AT")
+    await ops.install(soon, trinidad, "AT")
+    r = await ops.http.get("/internal/calibrations/due", headers=ops.service("platform"))
+    assert r.status_code == 200, r.text
+    assert [(u["serial"], u["due_state"], u["station"]["code"]) for u in r.json()["items"]] == [
+        ("OVER", "overdue", "A-1"), ("SOON", "due_soon", "B-1"),
+    ]
+    # Other services and people have no business here
+    for headers in (ops.service("report"), ops.bearer("admin")):
+        denied = await ops.http.get("/internal/calibrations/due", headers=headers)
+        assert denied.status_code in (401, 403)
+    narrow = await ops.http.get("/internal/calibrations/due?within_days=0",
+                                headers=ops.service("platform"))
+    assert [u["serial"] for u in narrow.json()["items"]] == ["OVER"]
+
+
 async def test_a_unit_found_in_the_field_is_corrected_in_review(ops):
     model = await ops.model()
     unit = await ops.unit(model["id"], "SN-0O1")

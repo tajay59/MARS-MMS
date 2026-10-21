@@ -46,6 +46,8 @@ class Draft:
     link: str
     entity_type: str = "request"
     entity_id: str = ""
+    # Also worth an email for this person (PRD Appendix B); their choice decides at send time
+    email: bool = False
 
 
 @dataclass(frozen=True)
@@ -84,11 +86,11 @@ def plan(
     drafts: list[Draft] = []
     who = actor_name or "Someone"
 
-    def tell(ids: Sequence[str], type_: str, title: str, body: str) -> None:
+    def tell(ids: Sequence[str], type_: str, title: str, body: str, *, email: bool = False) -> None:
         for user_id in _once(ids, skip=actor_id):
             drafts.append(Draft(
                 user_id=user_id, type=type_, title=title, body=body, link=_link(data),
-                entity_id=data["request_id"],
+                entity_id=data["request_id"], email=email,
             ))
 
     if event_type == "user.registered":
@@ -112,27 +114,30 @@ def plan(
         case "request.submitted":
             if not data.get("by_admin"):
                 tell(audience.admins, "request.submitted", f"New request {data['ref']}",
-                     data.get("title") or "")
+                     data.get("title") or "", email=True)
         case "request.approved":
-            tell(creator, "request.decided", "Request approved", line)
+            tell(creator, "request.decided", "Request approved", line, email=True)
         case "request.denied":
-            tell(creator, "request.decided", "Request denied", line)
+            tell(creator, "request.decided", "Request denied", line, email=True)
         case "request.assigned":
             names = ", ".join(data.get("staff_names") or [])
-            tell(data["staff_ids"], "request.assigned", "Assigned to you", line)
+            tell(data["staff_ids"], "request.assigned", "Assigned to you", line, email=True)
             tell(creator, "request.assigned", "A technician is on it", f"{names} · {line}")
             if data.get("claimed"):
                 tell(audience.admins, "request.assigned", f"{who} claimed {data['ref']}",
                      data.get("title") or "")
         case "request.staff_changed":
-            tell(data["added"], "request.assigned", "Assigned to you", line)
+            tell(data["added"], "request.assigned", "Assigned to you", line, email=True)
             tell(data["removed"], "request.staff_changed", "Removed from a request", line)
         case "request.released":
             tell(audience.admins, "request.released", f"{who} released {data['ref']}",
                  "It is back in the queue")
         case "request.cancelled":
-            tell([*creator, *assigned, *audience.admins], "request.cancelled",
-                 "Request cancelled", line)
+            # The client and the people on the request may choose email; the admins hear in-app
+            tell([*creator, *assigned], "request.cancelled", "Request cancelled", line,
+                 email=True)
+            others = [a for a in audience.admins if a not in {*creator, *assigned}]
+            tell(others, "request.cancelled", "Request cancelled", line)
         case "comment.added":
             # Staff on the request hear about every comment; with nobody on it yet the admins do.
             staff = assigned or list(audience.admins)

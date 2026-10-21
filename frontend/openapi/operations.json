@@ -8272,6 +8272,69 @@
         ]
       }
     },
+    "/internal/calibrations/due": {
+      "get": {
+        "description": "The weekly digest's list (CAL-5): the same units as the staff list, for every\norganization, read by platform with its service token (rule 1).",
+        "operationId": "calibrations_due_internal_calibrations_due_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "within_days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 0,
+              "title": "Within Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 2000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DueList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Calibrations Due",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
     "/internal/labels": {
       "post": {
         "description": "What a label sheet prints (QR-6): the code, name and QR token of each station, in the\norder asked. Stations that do not exist are left out. Tokens never travel in events or\nsnapshots, so this is the only place report can read them.",

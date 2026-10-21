@@ -83,6 +83,7 @@ TABLE: dict[Route, Expect] = {
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),
+    ("GET", "/internal/calibrations/due"): service("platform"),  # the weekly digest (CAL-5)
     ("POST", "/internal/labels"): service("report"),  # the QR tokens a label sheet prints
 }
 

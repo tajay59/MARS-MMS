@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     # Where the links in emails point: the app's public address.
     app_url: str = "https://mms.localhost"
     email_poll_s: float = 5.0
+    # The weekly calibration digest (CAL-5): Monday at this hour in this time zone, from the
+    # unit list on operations.
+    operations_url: str = "http://operations:8000"
+    digest_hour: int = 7
+    digest_tz: str = "America/Jamaica"
+    digest_within_days: int = 30
 
     @property
     def kafka(self) -> KafkaAuth | None:

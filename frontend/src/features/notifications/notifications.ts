@@ -1,6 +1,6 @@
 import type { NotificationOut } from '@/api/models'
 import type { EntityUpdate } from '@/app/realtime/bus'
-import { mdiAccountCheckOutline, mdiAccountOutline, mdiBellOutline, mdiCancel, mdiCommentTextOutline, mdiInboxOutline, mdiReplay } from '@mdi/js'
+import { mdiAccountCheckOutline, mdiAccountOutline, mdiBellOutline, mdiCancel, mdiCommentTextOutline, mdiInboxOutline, mdiReplay, mdiTuneVariant } from '@mdi/js'
 
 /*
   The notification list and the messages the socket carries (PRD NOT-1, NOT-2, NOT-5). No Vue
@@ -60,6 +60,9 @@ export function iconFor (type: string): string {
     }
     case 'comment.added': {
       return mdiCommentTextOutline
+    }
+    case 'calibration.digest': {
+      return mdiTuneVariant
     }
     default: {
       return mdiBellOutline

@@ -23,7 +23,14 @@ class Kind(StrEnum):
     REJECTED = "rejected"
     INVITATION = "invitation"
     RESET = "reset"
+    # Not account emails: the email that follows a notification, and the weekly digest.
+    # They are sent only if the person has not turned them off (NOT-4), and are
+    # rendered from the notification or digest at send time.
+    NOTIFICATION = "notification"
+    DIGEST = "digest"
 
+
+ACCOUNT_KINDS = (Kind.APPROVED, Kind.REJECTED, Kind.INVITATION, Kind.RESET)
 
 # The link kinds auth's `/internal/account-links` takes.
 LINK_KIND = {Kind.INVITATION: "invitation", Kind.RESET: "reset"}
@@ -43,6 +50,8 @@ class EmailJob:
     name: str | None = None
     link_id: str | None = None
     reason: str | None = None
+    notification_id: str | None = None
+    digest_id: str | None = None
 
 
 def job_for(event_type: str, data: Mapping[str, Any]) -> EmailJob | None:
@@ -135,6 +144,8 @@ def _copy(kind: Kind, reason: str | None) -> _Copy:
                 ),
                 "Set a new password",
             )
+        case _:
+            raise ValueError(f"{kind} is not an account email")
 
 
 # Brand primary-600 and slate neutrals (DBD Colour palette). Email uses the system font stack:

@@ -19,6 +19,7 @@ from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.service_client import ServiceTokens
 from mms_common.auth.tokens import KeySource
 from mms_common.consumer import EventProcessor, SendToDlq
+from mms_common.cron import run_periodic
 from mms_common.kafka import consume_forever
 from mms_common.time import Clock, SystemClock
 from mms_common.web import ReadyCheck, install
@@ -29,7 +30,7 @@ from app.api import notifications as notification_routes
 from app.api import ws
 from app.config import Settings
 from app.events import audit_consumer, notification_consumer
-from app.jobs import account_emails, user_backfill
+from app.jobs import account_emails, calibration_digest, user_backfill
 from app.migrations import audit as audit_migrations
 
 
@@ -114,6 +115,21 @@ def create_app(
                 asyncio.create_task(account_emails.run(sender, stop, settings.email_poll_s)),
                 asyncio.create_task(
                     user_backfill.run(db, http, tokens, settings.auth_url, stop)
+                ),
+                # Wakes hourly; sends for the week once its Monday time has come (CAL-5)
+                asyncio.create_task(
+                    run_periodic(
+                        redis, settings.service_name, "calibration_digest", 3600,
+                        calibration_digest.make_tick(
+                            client=client, db=db, redis=redis,
+                            operations=calibration_digest.OperationsClient(
+                                settings.operations_url, tokens, http
+                            ),
+                            clock=clock, tz=settings.digest_tz, hour=settings.digest_hour,
+                            within_days=settings.digest_within_days,
+                        ),
+                        stop,
+                    )
                 ),
             ]
         try:

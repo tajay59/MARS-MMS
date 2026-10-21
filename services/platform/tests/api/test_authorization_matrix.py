@@ -22,6 +22,8 @@ TABLE: dict[Route, Expect] = {
     # Notifications (NOT-1, NOT-2): everyone reads and marks their own, and only their own.
     # Marking as read changes nothing of anyone's work, so a viewer may (self service, rule 5).
     ("GET", "/api/v1/notifications"): Expect(ANY),
+    ("GET", "/api/v1/notifications/preferences"): Expect(ANY),
+    ("PUT", "/api/v1/notifications/preferences"): Expect(ANY, self_service=True),
     ("POST", "/api/v1/notifications/read-all"): Expect(ANY, self_service=True),
     ("POST", "/api/v1/notifications/{id}/read"): Expect(ANY, self_service=True),
 }
