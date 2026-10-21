@@ -21,6 +21,10 @@ class StaffApi(Protocol):
         """`{id: {id, name, roles, status}}` for the people that exist."""
         ...
 
+    async def staff(self, request_id: str | None = None) -> list[dict[str, Any]]:
+        """Active technicians and admins by name: `[{id, name, roles, status}]`."""
+        ...
+
 
 class StaffClient:
     def __init__(self, base_url: str, tokens: ServiceTokens, http: httpx.AsyncClient) -> None:
@@ -39,3 +43,16 @@ class StaffClient:
         if response.status_code != 200:
             raise StaffUnavailable()
         return {u["id"]: u for u in response.json()["users"]}
+
+    async def staff(self, request_id: str | None = None) -> list[dict[str, Any]]:
+        try:
+            response = await self._http.get(
+                f"{self._base}/internal/users/staff",
+                headers=await self._tokens.headers(request_id), timeout=5,
+            )
+        except (httpx.HTTPError, ConnectionError) as e:
+            raise StaffUnavailable() from e
+        if response.status_code != 200:
+            raise StaffUnavailable()
+        users: list[dict[str, Any]] = response.json()["users"]
+        return users

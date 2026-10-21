@@ -103,6 +103,17 @@ async def lookup_users(body: UserLookupIn, svc: Operations, ctx: CtxDep) -> User
     ])
 
 
+@router.get("/internal/users/staff")
+async def list_staff(svc: Operations, ctx: CtxDep) -> UserLookupOut:
+    """The active technicians and admins, for operations to offer as a visit's attending staff
+    (W10 slice 3): a technician may schedule a visit but may not list users here (admins only)."""
+    found = await users_repo.active_staff(ctx.db)
+    return UserLookupOut(users=[
+        UserRefOut(id=d["_id"], name=d["name"], roles=sorted(d["roles"]), status=d["status"])
+        for d in found
+    ])
+
+
 @router.get("/internal/snapshot/{entity}")
 async def snapshot(
     svc: SnapshotReader,

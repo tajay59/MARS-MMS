@@ -178,6 +178,18 @@ def _person(doc: dict[str, Any], staff_id: str) -> VisitPersonOut:
     return VisitPersonOut(id=staff_id, name="")
 
 
+class StaffOut(BaseModel):
+    """Someone who may attend a visit: a name and roles, never an email or phone."""
+
+    id: str
+    name: str
+    roles: list[str]
+
+
+class StaffList(BaseModel):
+    items: list[StaffOut]
+
+
 class VisitPage(BaseModel):
     items: list[VisitOut]
     total: int

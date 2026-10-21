@@ -4089,6 +4089,49 @@
         "title": "Spec",
         "type": "object"
       },
+      "StaffList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StaffOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "StaffList",
+        "type": "object"
+      },
+      "StaffOut": {
+        "description": "Someone who may attend a visit: a name and roles, never an email or phone.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "roles"
+        ],
+        "title": "StaffOut",
+        "type": "object"
+      },
       "StationDetail": {
         "properties": {
           "access_notes": {
@@ -9726,6 +9769,33 @@
           }
         ],
         "summary": "My Visits",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/staff": {
+      "get": {
+        "description": "The active technicians and admins to pick from when scheduling (VIS-1). Operations keeps\nno copy of users (rule 1): auth answers, and only names and roles come back. Admins can list\nusers in auth; a technician who is assigned to the request cannot, so the list is here.",
+        "operationId": "attending_staff_api_v1_visits_staff_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Attending Staff",
         "tags": [
           "visits"
         ]

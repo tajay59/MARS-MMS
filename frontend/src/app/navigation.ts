@@ -57,11 +57,12 @@ export const staffSections: Section[] = [
   {
     key: 'work',
     label: 'Work',
-    hint: 'Queue and requests',
+    hint: 'Queue, requests and visits',
     icon: mdiClipboardTextOutline,
     items: [
       { label: 'Queue', to: 'queue', icon: mdiInboxOutline, roles: ['technician', 'admin'] },
       { label: 'Requests', to: 'requests', icon: icons.request, also: ['request-new'] },
+      { label: 'Visits', to: 'visits', icon: icons.visit },
     ],
     also: ['request-new'],
   },
@@ -110,9 +111,12 @@ export const clientSections: Section[] = [
   {
     key: 'requests',
     label: 'Requests',
-    hint: 'Report problems and follow progress',
+    hint: 'Report problems, follow progress and see visits',
     icon: icons.request,
-    items: [{ label: 'Requests', to: 'requests', icon: icons.request }],
+    items: [
+      { label: 'Requests', to: 'requests', icon: icons.request, also: ['request-new'] },
+      { label: 'Visits', to: 'visits', icon: icons.visit },
+    ],
     also: ['request-new'],
   },
   {

@@ -117,6 +117,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/requests/RequestsPage.vue'),
     meta: { title: 'Requests', layout: 'app' },
   },
+  {
+    // Visits (PRD VIS-1 to VIS-4, VIS-11): the list, and one visit when :id is set. A client sees
+    // their organization's visits, read only.
+    path: '/visits/:id?',
+    name: 'visits',
+    component: () => import('@/features/visits/VisitsPage.vue'),
+    meta: { title: 'Visits', layout: 'app' },
+  },
   later('/reports', 'reports', 'Reports', 7),
   {
     // The person's own notifications (PRD NOT-1, NOT-2)

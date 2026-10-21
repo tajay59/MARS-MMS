@@ -32,6 +32,7 @@
         @claim="claim"
         @deny="decision = 'deny'"
         @release="letGo"
+        @schedule="scheduleOpen = true"
       />
     </template>
 
@@ -188,10 +189,11 @@
             @claim="claim"
             @deny="decision = 'deny'"
             @release="letGo"
+            @schedule="scheduleOpen = true"
           />
         </div>
 
-        <RequestDetailView :detail="detail" :is-client="isClient" />
+        <RequestDetailView :detail="detail" :is-client="isClient" :refresh-key="visitsKey" />
       </template>
     </template>
 
@@ -298,6 +300,14 @@
       @done="decided"
     />
 
+    <ScheduleVisitDialog
+      v-if="detail"
+      v-model="scheduleOpen"
+      :request="detail"
+      @changed="reloadDetail"
+      @done="scheduled"
+    />
+
     <AssignDialog
       v-if="detail"
       v-model="assignOpen"
@@ -313,7 +323,7 @@
 <script lang="ts" setup>
   import type { RequestFilters } from './requests'
   import type { StaffingResult } from './staffingActions'
-  import type { RequestDetail, RequestSummary } from '@/api/models'
+  import type { RequestDetail, RequestSummary, VisitOut } from '@/api/models'
   import { mdiFilterVariant, mdiMagnify, mdiPlus } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -331,6 +341,7 @@
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
+  import ScheduleVisitDialog from '@/features/visits/ScheduleVisitDialog.vue'
   import { useSessionStore } from '@/stores/session'
   import { useStationDirectory } from '@/stores/stationDirectory'
   import AssignDialog from './AssignDialog.vue'
@@ -376,6 +387,9 @@
   const sheet = ref(false)
   const busy = ref<'approve' | 'claim' | 'release' | null>(null)
   const assignOpen = ref(false)
+  const scheduleOpen = ref(false)
+  /** Bumped when a visit is made here, so the Visits tab loads again. */
+  const visitsKey = ref(0)
   const toast = reactive({ show: false, text: '' })
   const now = new Date()
 
@@ -653,6 +667,14 @@
   function assigned (request: RequestDetail): void {
     remember(request)
     say(`${request.ref} is assigned to ${joinNames(request.assigned_staff.map(p => p.name))}.`)
+  }
+
+  /** A visit was planned: the request is Scheduled now, and its Visits tab shows the new one. */
+  function scheduled (visit: VisitOut): void {
+    visitsKey.value++
+    void reloadDetail()
+    void router.replace({ query: { ...route.query, tab: 'visits' } })
+    say(`${visit.ref} is planned. Everyone attending and the client are told.`)
   }
 
   function decided (request: RequestDetail): void {

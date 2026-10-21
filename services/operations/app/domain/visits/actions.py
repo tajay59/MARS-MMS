@@ -17,7 +17,8 @@ def visit_actions(
     out: list[str] = []
     if status is VStatus.PLANNED:
         if can_manage(user_id, is_admin, visit, assigned_ids):
-            out += ["reschedule", "cancel"]
+            # Owners change with the plan while it is planned (PATCH, W10-3)
+            out += ["reschedule", "cancel", "change_owner"]
         if can_attend(user_id, is_admin, visit):
             out.append("start")
     elif status is VStatus.STARTED:

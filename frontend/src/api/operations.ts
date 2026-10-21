@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ChecklistTemplate, ChecklistTemplateIn, ChecklistTemplateList, ChecklistTemplatePatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
+import type { CalibrationPage, ChecklistTemplate, ChecklistTemplateIn, ChecklistTemplateList, ChecklistTemplatePatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -154,4 +154,35 @@ export const checklistsApi = {
     api.get<ChecklistTemplate>(`/checklist-templates/${id}`, { query: { version }, signal }),
   create: (body: ChecklistTemplateIn) => api.post<ChecklistTemplate>('/checklist-templates', body),
   update: (id: string, body: ChecklistTemplatePatch) => api.patch<ChecklistTemplate>(`/checklist-templates/${id}`, body),
+}
+
+export interface VisitQuery {
+  request_id?: string
+  staff_id?: string
+  status?: string
+  from?: string
+  to?: string
+  after?: string
+  limit?: number
+}
+
+// Visits (VIS-1 to VIS-4, VIS-9, VIS-11). A client sees their organization's only. The server
+// decides what a person may do (`actions` on a visit and on each station) and the page shows only
+// those. `body.id` of a new visit is made on the device: sending it again returns the visit made.
+// Each move is idempotent: the same move by the same person again returns the visit as it is.
+export const visitsApi = {
+  list: (query: VisitQuery = {}, signal?: AbortSignal) =>
+    api.get<VisitPage>('/visits', { query: { ...query }, signal }),
+  mine: (signal?: AbortSignal) => api.get<VisitPage>('/visits/mine', { signal }),
+  get: (id: string, signal?: AbortSignal) => api.get<VisitOut>(`/visits/${id}`, { signal }),
+  /** Active technicians and admins to pick from when scheduling (technicians and admins only) */
+  staff: (signal?: AbortSignal) => api.get<{ items: StaffOut[] }>('/visits/staff', { signal }),
+  schedule: (body: VisitIn) => api.post<VisitOut>('/visits', body),
+  update: (id: string, body: VisitPatch) => api.patch<VisitOut>(`/visits/${id}`, body),
+  cancel: (id: string, reason?: string) => api.post<VisitOut>(`/visits/${id}/cancel`, { reason: reason || null }),
+  restore: (id: string) => api.post<VisitOut>(`/visits/${id}/restore`, {}),
+  start: (id: string) => api.post<VisitOut>(`/visits/${id}/start`, {}),
+  arrive: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/arrive`, {}),
+  depart: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/depart`, {}),
+  end: (id: string, body: EndVisitIn) => api.post<VisitOut>(`/visits/${id}/end`, body),
 }

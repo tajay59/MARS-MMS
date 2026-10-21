@@ -81,6 +81,18 @@ class FakeStaff:
             for u in SEED_USERS.values() if u.id in ids
         }
 
+    async def staff(self, request_id: str | None = None) -> list[dict[str, Any]]:
+        if self.down:
+            from app.repo.requests.staff_client import StaffUnavailable
+
+            raise StaffUnavailable()
+        people = [u for u in SEED_USERS.values()
+                  if u.status == "active" and {"technician", "admin"} & set(u.roles)]
+        return [
+            {"id": u.id, "name": u.name, "roles": sorted(u.roles), "status": u.status}
+            for u in sorted(people, key=lambda u: u.name)
+        ]
+
 
 @dataclass
 class Ops:
