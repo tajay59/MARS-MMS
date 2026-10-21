@@ -40,8 +40,9 @@
         <v-text-field
           aria-label="Search requests by reference, title or station"
           autocomplete="off"
-          class="px-1"
+          class="px-1 [&_.v-field]:bg-surface-50"
           clearable
+          flat
           hide-details
           :model-value="filters.q"
           name="q"
@@ -49,6 +50,7 @@
           :prepend-inner-icon="mdiMagnify"
           spellcheck="false"
           type="search"
+          variant="solo-inverted"
           @update:model-value="setFilters({ q: $event ?? '' })"
         />
 

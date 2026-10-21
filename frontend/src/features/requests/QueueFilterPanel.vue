@@ -3,7 +3,7 @@
     <v-text-field
       aria-label="Search the queue by reference, title or station"
       autocomplete="off"
-      class="[&_.v-field]:bg-surface-100"
+      class="[&_.v-field]:bg-surface-50"
       clearable
       flat
       hide-details
