@@ -50,7 +50,7 @@
         <a href="#auth">Authentication <span class="dot progress" title="In progress"></span></a>
         <a href="#stations">Stations and sensors <span class="dot progress" title="In progress"></span></a>
         <a href="#requests">Requests <span class="dot progress" title="In progress"></span></a>
-        <a href="#visits">Visits and offline sync <span class="dot" title="Planned"></span></a>
+        <a href="#visits">Visits and offline sync <span class="dot progress" title="In progress"></span></a>
         <a href="#media">Files and media <span class="dot progress" title="In progress"></span></a>
         <a href="#reports">Reports and signatures <span class="dot" title="Planned"></span></a>
         <a href="#platform">Notifications and audit <span class="dot progress" title="In progress"></span></a>
@@ -164,7 +164,7 @@
           <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page, station form) · W6 built (media service, documents, configurations, sensor catalogue, calibration due; waiting for staging and an iPhone) · W7 built (QR resolve and regenerate, the report service with label sheets, the scanner, the scanned-label page, the map, the label tool and the station QR card; waiting for staging and the label check on real phones)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3 · W8 built (the requests module: create, list, read, edit, approve, deny, cancel; the screens); W9 built and merged in four slices (assign, claim, release and the queue; comments and PDF attachments; notifications and the WebSocket; email, preferences and the weekly digest), with its six charts; still to do: the staging checks (email through the Gmail interim, live updates between two browsers, the phone check)</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4 · W10 slice 1 built (the visits module and the request status from visits); checklists and the screens follow</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P7</span><div><div class="phase-name">Summaries and hardening</div><div class="phase-meta">W19–W20 · summary reports, dashboards, audit viewer, production stack, backups, security review · release 0.7</div></div><span class="badge planned">Planned</span></div>
@@ -1180,12 +1180,13 @@ flowchart LR
                 <tr><td><code>request.cancelled</code></td><td>operations</td><td>platform, report</td><td>Built (W8): the same facts, reason?, cancelled_by (client or admin)</td></tr>
                 <tr><td><code>comment.added</code> / <code>comment.edited</code></td><td>operations</td><td>platform</td><td>request_id, comment_id, internal</td></tr>
                 <tr><td><code>client_report.submitted</code></td><td>operations</td><td>report, platform</td><td>client_report_id, request_id, kind, form?</td></tr>
-                <tr><td><code>visit.scheduled</code> / <code>visit.rescheduled</code></td><td>operations</td><td>platform, report</td><td>visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners</td></tr>
-                <tr><td><code>visit.cancelled</code> / <code>visit.restored</code></td><td>operations</td><td>platform, report</td><td>visit_id, request_id</td></tr>
-                <tr><td><code>visit.started</code></td><td>operations</td><td>report, platform (audit)</td><td>visit_id, request_id, started_at</td></tr>
-                <tr><td><code>visit.ended</code></td><td>operations</td><td>report, platform</td><td>visit_id, request_id, station_ids, sensor_actions[], config_versions[], additional_visit_required, overrides[]</td></tr>
+                <tr><td><code>visit.scheduled</code> / <code>visit.rescheduled</code></td><td>operations</td><td>platform, report</td><td>Built (W10): the visit facts (visit_id, ref, request_id, request_ref, org_id, title, created_by, status, planned_start, planned_end, staff_ids, lead_staff_id, station_ids, station_owners); rescheduled adds changed_fields</td></tr>
+                <tr><td><code>visit.cancelled</code> / <code>visit.restored</code></td><td>operations</td><td>platform, report</td><td>Built (W10): the visit facts; cancelled adds reason? and by_request</td></tr>
+                <tr><td><code>visit.started</code></td><td>operations</td><td>report, platform (audit)</td><td>Built (W10): the visit facts, started_at</td></tr>
+                <tr><td><code>visit.ended</code></td><td>operations</td><td>report, platform</td><td>Built (W10): the visit facts, ended_at, additional_visit_required, follow_up_notes?, overrides[]; sensor_actions[] and config_versions[] stay empty until W11</td></tr>
                 <tr><td><code>visit.work_updated</code></td><td>operations</td><td>report, platform (audit)</td><td>visit_id, station_id, sensor_actions[], config_versions[]</td></tr>
-                <tr><td><code>visit.station_owner_changed</code></td><td>operations</td><td>platform</td><td>visit_id, station_id, from, to</td></tr>
+                <tr><td><code>visit.station_owner_changed</code></td><td>operations</td><td>platform</td><td>Built (W10): the visit facts, station_id, from_staff_id, to_staff_id (<code>from</code> is a Python keyword)</td></tr>
+                <tr><td><code>visit.station_arrived</code> / <code>visit.station_departed</code></td><td>operations</td><td>platform (audit)</td><td>Built (W10, new): the visit facts, station_id, at</td></tr>
                 <tr><td><code>visit.sync_conflict</code></td><td>operations</td><td>platform (notification)</td><td>visit_id, user_id, reason</td></tr>
                 <tr><td><code>visit.locked</code> / <code>visit.unlocked</code></td><td>operations</td><td>platform (audit)</td><td>visit_id, report_id</td></tr>
                 <tr><td><code>media.uploaded</code> / <code>media.processed</code> / <code>media.failed</code> / <code>media.deleted</code></td><td>media</td><td>report, platform</td><td>media_id, owner_ref, kind, error?</td></tr>
@@ -1918,10 +1919,76 @@ sequenceDiagram
      ===================================================================== -->
       <section class="doc" id="visits">
         <div class="doc-head">
-          <div class="row"><h2 id="visits-h">Visits and offline sync</h2><span class="badge planned">Planned · Phases 4–5</span></div>
+          <div class="row"><h2 id="visits-h">Visits and offline sync</h2><span class="badge progress">In progress · Phase 4 W10 slice 1 built · Phase 5</span></div>
           <p>A visit covers one or more stations; each station has one owner who records its work (ADR-18), and any attending staff can add media. In the field the phone works with no signal: operations queue in IndexedDB and sync later through <code>/sync</code>, idempotently. There is no merge; conflicts come back with a reason code and the device keeps its copy.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3.2.1, §3.2.3, §7</a> · <a href="AFD.md">AFD J5, J6</a> · VIS-*, OFF-*</span>
         </div>
+
+        <div class="sub" id="visits-built">
+          <h3>Visits as built (Phase 4 W10, slice 1)</h3>
+          <p>The visits module of <code>operations</code>: <code>app/{domain,repo,api}/visits/</code>, the <code>site_visits</code> collection (TRD §5.4), and <code>domain/requests/recompute.py</code>, which turns a request's visits into its status. Every change to a visit takes the request's lock, writes the visit and its events, and derives the request's status, all in one Mongo transaction (rule 2). The lifecycle moves are written for sync: the same move by the same person twice answers 200 and changes nothing, and a conflict carries the code <code>/sync</code> will report in Phase 5 (<code>not_owner</code>, <code>visit_cancelled</code>, <code>already_ended</code>).</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Method and path</th><th>Who</th><th>Does</th></tr></thead>
+              <tbody>
+                <tr><td><code>POST /api/v1/visits</code></td><td>the request's assigned staff, admin</td><td>Schedule (VIS-1): dates, attending staff with a lead, stations, an owner each. Idempotent by <code>id</code>. 409 <code>request_not_schedulable</code>, <code>station_in_other_visit</code></td></tr>
+                <tr><td><code>GET /api/v1/visits/mine</code></td><td>staff</td><td>Planned and started visits I attend, soonest first</td></tr>
+                <tr><td><code>GET /api/v1/visits</code></td><td>any in scope</td><td><code>request_id</code>, <code>staff_id</code>, <code>status</code>, <code>from</code>, <code>to</code>, <code>after</code>; a client sees their organization's, without <code>notes</code></td></tr>
+                <tr><td><code>GET /api/v1/visits/{id}</code></td><td>any in scope</td><td>The visit with stations, owners, staff names and the caller's <code>actions</code></td></tr>
+                <tr><td><code>PATCH /api/v1/visits/{id}</code></td><td>manage (see below)</td><td>Planned: dates, people, lead, stations, owners, notes (<code>version</code> optional). Started: only who owns a station, by the lead or an admin</td></tr>
+                <tr><td><code>POST /api/v1/visits/{id}/cancel</code>, <code>/restore</code></td><td>manage, admin</td><td>Planned to cancelled, and back (restore is for work recorded offline on a cancelled visit)</td></tr>
+                <tr><td><code>POST /api/v1/visits/{id}/start</code></td><td>attending, admin</td><td>Planned to started; the request is In progress</td></tr>
+                <tr><td><code>POST /api/v1/visits/{id}/stations/{sid}/arrive</code>, <code>/depart</code></td><td>the station's owner, admin</td><td>One station's times (new in W10: the TRD had none). Depart needs arrive first</td></tr>
+                <tr><td><code>POST /api/v1/visits/{id}/end</code></td><td>attending, admin</td><td><code>additional_visit_required</code> (notes required when true) and <code>overrides</code> (VIS-6, accepted now and used in W12)</td></tr>
+                <tr><td><code>GET /internal/snapshot/visits</code></td><td>report, platform</td><td>Backfill, shaped like the events, no notes</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><b>Who may manage</b> (reschedule or cancel) a planned visit: an admin, the request's assigned staff, whoever scheduled it, or anyone attending. <b>Who may start or end</b>: attending staff and admins. <b>Who may arrive or depart</b>: the station's owner and admins. <b>Who may change an owner</b> once started: the lead and admins. Viewers and clients never write (rule 5).</p>
+        </div>
+
+        <figure class="diagram" id="visits-state" data-title="A visit's status and what changes it" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> Planned : schedule, the request becomes Scheduled
+    Planned --> Planned : reschedule, or change staff, stations or owners
+    Planned --> Started : start, the request is In progress
+    Planned --> Cancelled : cancel, or the request is cancelled
+    Started --> Started : arrive, depart, change an owner
+    Started --> Ended : end, another visit needed or not
+    Cancelled --> Planned : restore by an admin
+</pre>
+          </div>
+          <figcaption>The table in <code>domain/visits/state.py</code>: a move not listed is a 409 for everyone. Ending with "another visit needed" puts the request back to Assigned; ending without it leaves the request In progress until the visit report is final (Phase 6, <code>report_status</code> is <code>none</code> until then).</figcaption>
+        </figure>
+
+        <figure class="diagram" id="visits-schedule" data-title="Scheduling a visit: one transaction" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    autonumber
+    participant T as Technician
+    participant O as operations
+    participant A as auth
+    participant K as Kafka
+    T->>O: POST /visits with id, request, dates, staff and stations
+    O->>A: /internal/users/lookup for the people attending
+    A-->>O: names, roles and status
+    Note over O: one transaction begins
+    O->>O: lock the request by moving visit_seq
+    O->>O: check the stations are free and take the next VR number
+    O->>O: insert the visit and its outbox row visit.scheduled
+    O->>O: derive_status over all the visits gives Scheduled
+    O->>O: update the request and add request.status_changed
+    Note over O: one transaction commits
+    O-->>T: 201 with the visit
+    O->>K: the relay produces both events
+</pre>
+          </div>
+          <figcaption>Two visit changes on one request queue up on the lock, so the second derives the status from visits that include the first (a plain version bump would have tripped a request editor's stale-write check, so the lock moves <code>visit_seq</code>). A retry with the same <code>id</code> returns the visit made the first time (200).</figcaption>
+        </figure>
+
 
         <figure class="diagram" data-title="Carry out a visit with no signal (J6)" data-kind="Process flow diagram">
           <div class="view" data-label="Mermaid">
@@ -3347,6 +3414,16 @@ flowchart TD
                 <tr><td>W8-6</td><td><b><code>derive_status</code> breaks ties toward "another visit needed".</b> Visits that ended at the same moment are all the latest; if any asks for another visit, one is needed. Found by a property test; before, the answer depended on the order the visits were listed</td><td>2026-10-21</td></tr>
                 <tr><td>W8-7</td><td><b>The page shows what the server says this person may do</b> (<code>actions</code> on the detail), computed from the same table, so a button never appears for a move the server would refuse and a viewer sees none. Nothing is disabled or greyed out</td><td>2026-10-21</td></tr>
                 <tr><td>W8-8</td><td><b>The list loads the newest 1,000 requests once and filters in the page</b> (as stations do) so the counts beside each status are exact. Past 1,000 a note says so; server-side search is the way out if that is ever reached. The date filter is a preset (7 days, 30 days, this year), not a range picker</td><td>2026-10-21</td></tr>
+                <tr><td>W10-1</td><td><b>A visit is a document in <code>site_visits</code>, numbered <code>VR-YYYY-NNNN-NN</code>.</b> The request's number and a two-digit visit number from a counter keyed by the request, taken in the same transaction as the visit. Made with a device-made <code>id</code>, so a retry returns the same visit (200). Dates are UTC (rule 8).</td><td>2026-10-21</td></tr>
+                <tr><td>W10-2</td><td><b>The visit state table is one table</b> (<code>domain/visits/state.py</code>), like the request table (W8-1). Planned to started or cancelled, started to ended, cancelled to planned by an admin's restore. A move not listed is a 409 with the code sync will report: <code>visit_cancelled</code>, <code>already_ended</code> or <code>bad_transition</code>.</td><td>2026-10-21</td></tr>
+                <tr><td>W10-3</td><td><b>Who can do what.</b> The request's assigned staff or an admin schedule. Attending staff are active technicians or admins (checked through auth's lookup), one the lead; each station has an owner from them (the lead by default, ADR-18). Planned: the scheduler, attending staff, the request's assigned staff and admins change anything. Started: only the lead or an admin changes owners.</td><td>2026-10-21</td></tr>
+                <tr><td>W10-4</td><td><b>Assigned staff and attending staff are separate lists.</b> <code>assigned_staff</code> on the request stays what Assign and Claim set; attending staff belong to a visit. Clients see both by name (A7, D4).</td><td>2026-10-21</td></tr>
+                <tr><td>W10-5</td><td><b>A station is in one live visit of a request at a time.</b> A second planned or started visit on the same station answers 409 <code>station_in_other_visit</code>. Parallel visits are for different stations. This keeps two owners off one station (ADR-18).</td><td>2026-10-21</td></tr>
+                <tr><td>W10-6</td><td><b>The request's status is derived in the same transaction as every visit change.</b> <code>recompute</code> calls <code>derive_status</code> over all the visits and writes the status, the history entry, the <code>first_visit_at</code> milestone and <code>request.status_changed</code> through the outbox. The request is locked first by moving <code>visit_seq</code> (not <code>version</code>), so two visit changes on one request queue up.</td><td>2026-10-21</td></tr>
+                <tr><td>W10-7</td><td><b>Cancel and release.</b> Cancelling a request cancels its planned visits in the same transaction and leaves a started one. Release is refused (409 <code>has_visits</code>) while the request has a planned or started visit: this closes a gap in W9.</td><td>2026-10-21</td></tr>
+                <tr><td>W10-8</td><td><b>The lifecycle functions are written for sync.</b> Start, arrive, depart and end are pure functions of the person, the visit and an <code>at</code> time; the routes call them now and <code>/sync</code> will in W14. The same move by the same person is a 200 that changes nothing. <code>at</code> is accepted up to 5 minutes ahead and 30 days back, else 422 <code>bad_time</code>.</td><td>2026-10-21</td></tr>
+                <tr><td>W10-9</td><td><b>Arrival and departure have routes, and end is the lifecycle only.</b> <code>POST .../stations/{sid}/arrive</code> and <code>/depart</code> (the TRD had none). <code>end</code> takes <code>additional_visit_required</code> (notes required when true) and accepts <code>overrides[]</code>; the VIS-6 check of a Before and an After image per station comes with media on visits in W12.</td><td>2026-10-21</td></tr>
+                <tr><td>W10-10</td><td><b>Clients see their organization's visits</b> with dates, status, stations, lead and staff by name, and each station's times. Never the scheduling <code>notes</code>, <code>prepared_on</code>, work records or media. Filtered when the response is built, and another organization's visit is 404 (rules 4 and 6).</td><td>2026-10-21</td></tr>
                 <tr><td>W9-1</td><td><b>Claim, assign and release share the state table.</b> Claim and assign are the one <code>Approved &rarr; Assigned</code> row (<code>Action.ASSIGN</code>); a technician's claim takes no body and always means themselves, an admin's assign takes 1 to 10 <code>staff_ids</code>. The new row <code>Assigned &rarr; Approved</code> is <code>Action.RELEASE</code>. Which staffing buttons a person sees (<code>claim</code>, <code>assign</code>, <code>release</code> in <code>actions</code>) comes from <code>staffing.actions_for</code>, since it depends on who is on the request</td><td>2026-10-21</td></tr>
                 <tr><td>W9-2</td><td><b>Only active technicians and admins can be assigned</b>, checked with auth (<code>POST /internal/users/lookup</code>), not from a copy: operations keeps no user table. Viewers, clients, disabled and unknown people give 422 <code>not_assignable</code></td><td>2026-10-21</td></tr>
                 <tr><td>W9-3</td><td><b>A claim race has one winner.</b> The update names the status it decided from (W8-5), so of two claims at the same moment one gets 200 and the other 409 <code>already_assigned</code> with the winner's name, which the page shows ("Tech 2 claimed it first")</td><td>2026-10-21</td></tr>
@@ -3518,6 +3595,7 @@ flowchart TD
             <tbody>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Pinned headers on phones.</b> On the Stations list, Sensors and Calibration due the pane (search and filters) stays at the top and the list slides up under a curved edge (<code>PaneContent pin</code>, <code>PageBody</code> corner pieces, band colour <code>surface-50</code>). An open station has a two-row header: Back, then the name with Edit on its row, then the code, status chip and place; its tab bar sits in the pinned header (<code>PageBody stacked</code>, <code>components/pageBar.ts</code>) and scrolls sideways on its own. The back arrow no longer shows the router's active highlight. Phones only: the tablet and desktop shells are unchanged. No change to the API, events or the offline code</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Station page on phones</b>, from a light Stitch mock-up checked against the DBD: the tab bar has no arrow buttons below 768 px and keeps the open tab in view; Overview shows five facts and a "More details" row; the Calibration tab opens with the next due date and the number of sensors overdue, and lists records as rows instead of a table. Reviewed against the Web Interface Guidelines; no change to the API, events or the offline code</td></tr>
+              <tr><td>2026-10-21</td><td>P4 · W10</td><td><b>Visits module</b> (slice 1; decisions W10-1 to W10-10). Operations: <code>app/{domain,repo,api}/visits/</code>, the <code>site_visits</code> collection and its indexes, the routes in "Visits as built", <code>domain/requests/recompute.py</code> (the request status from its visits, in the same transaction as every visit change), cancel cascading to planned visits and release refused while a visit is live, <code>GET /internal/snapshot/visits</code>. Events: <code>visit.scheduled</code>, <code>.rescheduled</code>, <code>.cancelled</code>, <code>.restored</code>, <code>.started</code>, <code>.ended</code>, <code>.station_owner_changed</code> and the new <code>.station_arrived</code> and <code>.station_departed</code>; the request detail gains <code>visits</code> and the action <code>schedule_visit</code>. Two charts: a visit's status and the scheduling transaction. Checklists, the screens and the notifications follow.</td></tr>
               <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>Queue and requests polish.</b> <b>Filters:</b> the queue's search and filters are one component, <code>QueueFilterPanel</code>: in the pane from 768 px, in a bottom sheet (opened from a search button with a badge of what is on) on phones, with Priority as chips and Country and Category as tables with clickable rows (400 px at most, then they scroll). <code>FilterChip</code> and <code>FilterTable</code> animate with GSAP on the emphasized curves from <code>app/motion.ts</code> (<code>DURATION.chip</code> and <code>DURATION.height</code>): the count badge of the picked chip pulses in two tones (a still ring under reduced motion, the one loop in the app), and a table's height eases when rows come or go. <b>Fields:</b> the search field and selects of the requests pane and the queue are flat <code>solo-inverted</code> on a very light grey (<code>surface-50</code>). <b>Tables:</b> on desktop the queue and <code>/requests</code> fill the view edge to edge (<code>PageBody</code> <code>bleed</code>) and are their own scroll area, so the header sticks under the top line at full width. <b>Claim:</b> <code>ClaimSplitButton</code> replaces the Assign and Claim pair: Claim, and for admins a chevron that opens the staff picker, 40 px high. <b>Fix:</b> the Assign staff dialog now loads its staff when it is created already open (it showed nobody from the queue). No API or event changes.</td></tr>
               <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>W9 charts.</b> Six diagrams for Phase 3, each drawn from the code as merged: <a href="#requests-staffing-code">claim, assign and release, branch by branch</a> (code flowchart), <a href="#requests-file-access">can a client open this comment's file</a> (decision tree), <a href="#platform-comment-sequence">a comment reaches a client's open page</a> (sequence), <a href="#platform-recipients">who is told, and who is not</a> (decision tree), <a href="#platform-socket-state">the browser's socket to /ws</a> (state) and <a href="#events-storming-requests">requests and comments: commands, events and who reacts</a> (event storming). The socket chart shows the states as built (<code>off</code>, <code>connecting</code>, <code>open</code>, <code>waiting</code>), not the five the plan sketched.</td></tr>
               <tr><td>2026-10-21</td><td>P3 · W9</td><td><b>Email, preferences and the weekly digest</b> (slice 4; decisions W9-13 and W9-14), which closes W9. Platform: the email that follows a notification, <code>domain/preferences</code> (what each role can choose, the defaults), <code>GET/PUT /notifications/preferences</code>, the digest job and its templates, the hourly tick. Operations: <code>GET /internal/calibrations/due</code>. Front end: the Email preferences section of My profile (a switch per type, saved as it is turned), a link to it from the notifications pane, and the calibration digest in the list. Not built: Web Push (decided "not yet").</td></tr>
