@@ -28,6 +28,10 @@ DOCUMENT_FIELDS = (
 MODEL_FIELDS = (
     "kind", "manufacturer", "model", "parameters", "default_calibration_interval_days", "specs",
 )
+REQUEST_FIELDS = (
+    "ref", "org_id", "title", "description", "category", "priority", "station_ids", "status",
+    "assigned_staff_ids", "denial_reason", "cancel_reason",
+)
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
     "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "needs_review",
@@ -80,6 +84,14 @@ def document_data(doc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def request_data(doc: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "request_id": doc["_id"], "ref": doc["ref"], "org_id": doc["org_id"],
+        "station_ids": list(doc["station_ids"]), "category": doc["category"],
+        "priority": doc["priority"], "status": doc["status"],
+    }
+
+
 def unit_key(unit: dict[str, Any]) -> str:
     """A unit at a station is keyed by the station (TRD §8.1); one in stock by itself."""
     return str(unit.get("current_station_id") or unit["_id"])
@@ -112,9 +124,10 @@ class Emitter:
         session: AsyncClientSession,
         before: dict[str, Any] | None = None,
         after: dict[str, Any] | None = None,
+        event_id: str | None = None,
     ) -> Envelope:
         envelope = Envelope(
-            event_id=new_id(),
+            event_id=event_id or new_id(),
             type=type_,
             occurred_at=self._clock.now(),
             source=SOURCE,
@@ -246,6 +259,29 @@ class Emitter:
             org_id=doc.get("org_id"), session=session,
         )
 
+    async def request(
+        self, model: type[BaseModel], type_: str, doc: dict[str, Any],
+        session: AsyncClientSession, *, before: dict[str, Any] | None = None,
+        event_id: str | None = None, **extra: Any,
+    ) -> Envelope:
+        """A request event, keyed by the request (TRD §8.1) and versioned by it."""
+        return await self.emit(
+            model(**request_data(doc), **extra), type_=type_, key=doc["_id"],
+            resource=("request", doc["_id"]), aggregate_version=doc["version"],
+            org_id=doc["org_id"], session=session, event_id=event_id,
+            before=view(before, REQUEST_FIELDS), after=view(doc, REQUEST_FIELDS),
+        )
+
+    async def request_status(
+        self, doc: dict[str, Any], session: AsyncClientSession, *, from_status: str | None,
+        event_id: str, reason: str | None = None,
+    ) -> Envelope:
+        """`request.status_changed`, sent next to the specific event for the same change."""
+        return await self.request(
+            ev.RequestStatusChanged, "request.status_changed", doc, session,
+            event_id=event_id, from_status=from_status, to_status=doc["status"], reason=reason,
+        )
+
     async def config_version(
         self, version: dict[str, Any], station: dict[str, Any], session: AsyncClientSession
     ) -> Envelope:
@@ -263,6 +299,6 @@ class Emitter:
 
 
 __all__ = [
-    "Emitter", "calibration_data", "document_data", "ev", "model_data", "station_data",
-    "unit_data", "view",
+    "Emitter", "calibration_data", "document_data", "ev", "model_data", "request_data",
+    "station_data", "unit_data", "view",
 ]

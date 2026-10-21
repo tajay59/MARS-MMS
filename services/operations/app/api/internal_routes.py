@@ -12,7 +12,7 @@ from mms_common.snapshot import SnapshotPage, page
 from pydantic import BaseModel, Field
 
 from app.api.context import CtxDep
-from app.events.publish import calibration_data, station_data, unit_data
+from app.events.publish import calibration_data, request_data, station_data, unit_data
 from app.repo.stations import models, units
 from app.repo.stations import stations as station_repo
 
@@ -106,17 +106,19 @@ async def attachable(
 async def snapshot(
     svc: SnapshotReader,
     ctx: CtxDep,
-    entity: Annotated[str, Path(pattern="^(stations|sensor_units|calibrations)$")],
+    entity: Annotated[str, Path(pattern="^(stations|sensor_units|calibrations|requests)$")],
     after: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 500,
 ) -> SnapshotPage:
     """Current state for read-model backfill (TRD §8.6), shaped like the events' data.
-    Requests and visits join in Phases 3 and 4."""
+    Visits join in Phase 4."""
     result = await page(ctx.db[entity], after=after, limit=limit)
     if entity == "stations":
         items = [{**station_data(d), "aggregate_version": d["version"]} for d in result.items]
     elif entity == "sensor_units":
         items = [{**unit_data(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "requests":
+        items = [{**request_data(d), "aggregate_version": d["version"]} for d in result.items]
     else:
         items = [
             {**calibration_data(d, None), "aggregate_version": d["version"]}

@@ -49,7 +49,7 @@
         <span class="toc-label">Features</span>
         <a href="#auth">Authentication <span class="dot progress" title="In progress"></span></a>
         <a href="#stations">Stations and sensors <span class="dot progress" title="In progress"></span></a>
-        <a href="#requests">Requests <span class="dot" title="Planned"></span></a>
+        <a href="#requests">Requests <span class="dot progress" title="In progress"></span></a>
         <a href="#visits">Visits and offline sync <span class="dot" title="Planned"></span></a>
         <a href="#media">Files and media <span class="dot progress" title="In progress"></span></a>
         <a href="#reports">Reports and signatures <span class="dot" title="Planned"></span></a>
@@ -163,7 +163,7 @@
           <div class="phase"><span class="phase-no">P0</span><div><div class="phase-name">Readiness and decisions</div><div class="phase-meta">W1 · hosts, DNS, repository, SeaweedFS spike, sign-off</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P1</span><div><div class="phase-name">Foundations</div><div class="phase-meta">W2–W4 · mms_common, Compose stack, auth, platform audit + account email, shells, CI · release 0.1 · W2, W3 and W4 built · staging checks and real phones open</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page, station form) · W6 built (media service, documents, configurations, sensor catalogue, calibration due; waiting for staging and an iPhone) · W7 built (QR resolve and regenerate, the report service with label sheets, the scanner, the scanned-label page, the map, the label tool and the station QR card; waiting for staging and the label check on real phones)</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3 · W8 built (the requests module: create, list, read, edit, approve, deny, cancel; the screens); W9 to do</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
@@ -430,15 +430,15 @@ flowchart TB
                 <tr><td>operations</td><td>GET / PATCH</td><td><code>/api/v1/documents/{id}</code></td><td>scoped / technician, admin</td><td>Built (W6). PATCH with <code>version</code>: details and <code>client_visible</code>; a change asks media to show or hide the file (ADR-19)</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/stations/{id}/documents</code></td><td>scoped</td><td>Built (W6). The station's own documents and the manuals of the models installed there</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/documents/{id}/download</code></td><td>scoped</td><td>Built (W6). Access check, then a ten-minute link from media. 409 <code>not_ready</code> while the file is being checked. <code>Cache-Control: no-store</code></td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests</code></td><td>any (scoped)</td><td>List and filter (REQ-15)</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests</code></td><td>client, admin</td><td>Create; admin-created → Approved</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests/{id}</code></td><td>any (scoped)</td><td>Detail with status history and visits</td></tr>
-                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/requests/{id}</code></td><td>client (own, until Scheduled), admin</td><td>Edit fields and stations</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/approve</code></td><td>admin</td><td>Submitted → Approved</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/deny</code></td><td>admin</td><td>Submitted → Denied (reason)</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests</code></td><td>any (scoped)</td><td>Built (W8). List and filter (REQ-15), newest first, paged with <code>after</code></td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests</code></td><td>client, admin</td><td>Built (W8). Create; admin-created → Approved. Idempotent by <code>id</code></td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/requests/{id}</code></td><td>any (scoped)</td><td>Built (W8). Detail with status history and <code>actions</code> (visits: Phase 4)</td></tr>
+                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/requests/{id}</code></td><td>client (own, until Assigned), admin</td><td>Built (W8). Edit title, description, category, priority, stations; <code>version</code> guards a stale edit</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/approve</code></td><td>admin</td><td>Built (W8). Submitted → Approved</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/deny</code></td><td>admin</td><td>Built (W8). Submitted → Denied (reason)</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/assign</code></td><td>admin</td><td>Set staff → Assigned</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/claim</code></td><td>technician, admin</td><td>Claim from the queue → Assigned</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/cancel</code></td><td>client (early states), admin</td><td>→ Cancelled; planned visits cancelled too</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/cancel</code></td><td>client (own, up to Assigned), admin</td><td>Built (W8). → Cancelled; a reason from Scheduled on. Planned visits join in Phase 4</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/requests/{id}/verify</code></td><td>client</td><td>Accept (with signature) or reject</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/queue</code></td><td>staff</td><td>Approved, unassigned requests</td></tr>
                 <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/requests/{id}/comments</code></td><td>scoped</td><td>Flat thread; internal hidden from clients</td></tr>
@@ -1097,16 +1097,16 @@ flowchart LR
                 <tr><td><code>document.uploaded</code> / <code>document.updated</code></td><td>operations</td><td>platform (audit)</td><td>document_id, scope, scope_id, doc_type, client_visible</td></tr>
                 <tr><td><code>config.version_created</code></td><td>operations</td><td>report, platform (audit)</td><td>station_id, version, file_count, visit_id?</td></tr>
                 <tr><td><code>media.visibility_requested</code></td><td>operations</td><td>media</td><td>media_ids, visibility, visibility_version</td></tr>
-                <tr><td><code>request.submitted</code></td><td>operations</td><td>platform, report</td><td>request_id, ref, station_ids, priority</td></tr>
-                <tr><td><code>request.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>request_id, changed_fields</td></tr>
-                <tr><td><code>request.approved</code> / <code>request.denied</code></td><td>operations</td><td>platform, report</td><td>request_id, reason?</td></tr>
+                <tr><td><code>request.submitted</code></td><td>operations</td><td>platform, report</td><td>Built (W8): request_id, ref, org_id, station_ids, category, priority, status, by_admin</td></tr>
+                <tr><td><code>request.updated</code></td><td>operations</td><td>report, platform (audit)</td><td>Built (W8): the same facts, changed_fields</td></tr>
+                <tr><td><code>request.approved</code> / <code>request.denied</code></td><td>operations</td><td>platform, report</td><td>Built (W8): the same facts; denied adds reason</td></tr>
                 <tr><td><code>request.assigned</code></td><td>operations</td><td>platform, report</td><td>request_id, staff_ids, claimed</td></tr>
-                <tr><td><code>request.status_changed</code></td><td>operations</td><td>platform, report</td><td>request_id, from, to, reason?</td></tr>
+                <tr><td><code>request.status_changed</code></td><td>operations</td><td>platform, report</td><td>Built (W8): the same facts, from_status (null on creation), to_status, reason?</td></tr>
                 <tr><td><code>request.client_review_started</code></td><td>operations</td><td>platform, report</td><td>request_id</td></tr>
                 <tr><td><code>request.review_reminder</code></td><td>operations</td><td>platform (notification)</td><td>request_id, day</td></tr>
                 <tr><td><code>request.reopened</code></td><td>operations</td><td>platform, report</td><td>request_id, comment</td></tr>
                 <tr><td><code>request.closed</code></td><td>operations</td><td>platform, report</td><td>request_id, outcome, auto_closed, signature?</td></tr>
-                <tr><td><code>request.cancelled</code></td><td>operations</td><td>platform, report</td><td>request_id, reason?</td></tr>
+                <tr><td><code>request.cancelled</code></td><td>operations</td><td>platform, report</td><td>Built (W8): the same facts, reason?, cancelled_by (client or admin)</td></tr>
                 <tr><td><code>comment.added</code> / <code>comment.edited</code></td><td>operations</td><td>platform</td><td>request_id, comment_id, internal</td></tr>
                 <tr><td><code>client_report.submitted</code></td><td>operations</td><td>report, platform</td><td>client_report_id, request_id, kind, form?</td></tr>
                 <tr><td><code>visit.scheduled</code> / <code>visit.rescheduled</code></td><td>operations</td><td>platform, report</td><td>visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners</td></tr>
@@ -1599,7 +1599,7 @@ flowchart TD
      ===================================================================== -->
       <section class="doc" id="requests">
         <div class="doc-head">
-          <div class="row"><h2 id="requests-h">Requests</h2><span class="badge planned">Planned · Phase 3</span></div>
+          <div class="row"><h2 id="requests-h">Requests</h2><span class="badge progress">In progress · Phase 3 W8 built</span></div>
           <p>A maintenance request moves through explicit actions (submit, approve, deny, assign, cancel, verify) until it is assigned. From then until closure its status is derived from its visits and visit reports by one pure function, recomputed in the same transaction as every change (ADR-17).</p>
           <span class="src">Sources: <a href="PRD.md">PRD §5.1</a> · <a href="TRD.md">TRD §3.2, §4.1</a> · <a href="AFD.md">AFD §4</a> · REQ-1 to REQ-16</span>
         </div>
@@ -1636,7 +1636,7 @@ stateDiagram-v2
     Cancelled --> [*]
 </pre>
           </div>
-          <figcaption>Status chips use the reserved status colours from DBD. Every change appends <code>status_history</code> and emits <code>request.status_changed</code>.</figcaption>
+          <figcaption>As built in W8: the actions up to Assigned and Cancelled are routes (approve, deny, cancel); assign, accept, reject and the automatic close are in the table and tested but have no route yet (W9, Phase 6). Status chips use the reserved status colours from DBD. Every change appends <code>status_history</code> and emits <code>request.status_changed</code>.</figcaption>
         </figure>
 
         <div class="sub" id="requests-derive">
@@ -1648,9 +1648,12 @@ stateDiagram-v2
         return IN_PROGRESS
     if any(v.status == "planned" for v in live):
         return SCHEDULED
-    ended = sorted((v for v in live if v.status == "ended"), key=lambda v: v.ended_at)
-    if not ended or ended[-1].additional_visit_required:
+    ended = [v for v in live if v.status == "ended"]
+    if not ended:
         return ASSIGNED
+    latest = max(v.ended_at for v in ended)
+    if any(v.additional_visit_required for v in ended if v.ended_at == latest):
+        return ASSIGNED                         # the most recent visit asks for another
     if any(v.report_status != "final" for v in ended):
         return IN_PROGRESS                      # awaiting a visit report
     if req.rework_since and not activity_after(ended, req.rework_since):
@@ -1662,6 +1665,40 @@ stateDiagram-v2
             <li><b>Cancel</b> cancels planned visits in the same transaction; a started visit's work is still accepted.</li>
           </ul>
         </div>
+
+        <div class="sub" id="requests-built">
+          <h3>Built in W8 (<code>operations</code>, requests module)</h3>
+          <ul>
+            <li><b>Domain</b> (<code>app/domain/requests/</code>, no I/O): <code>state.py</code> holds the table of allowed moves (<code>RULES</code>: who, whether a reason is needed, own organization only) and <code>transition()</code>; <code>derive.py</code> is <code>derive_status</code>; <code>rules.py</code> has the create and edit rules. Every allowed and every blocked move has a test, and the derivation has property tests (the answer never depends on the order of the visits, cancelled visits never change it, a visit under way always wins).</li>
+            <li><b>Routes</b> (<code>app/api/requests/</code>): <code>GET</code> and <code>POST /api/v1/requests</code>, <code>GET</code> and <code>PATCH /{id}</code>, <code>POST /{id}/approve</code>, <code>/deny</code> and <code>/cancel</code>. The detail carries <code>actions</code>: what the person asking may do now, so the page shows only those buttons and a viewer sees none. A client reads only their organization's requests (404 otherwise); a finished request refuses everything (409).</li>
+            <li><b>One request, once.</b> The form makes the ID on the device. <code>POST</code> with an <code>id</code> already used by the same person returns that request (200), also when two arrive at once (the unique key decides); another person's ID is a 409. The reference <code>MR-2026-0042</code> comes from a counter that moves inside the same transaction, so a failed save uses no number.</li>
+            <li><b>Two admins at once.</b> A status change applies only if the request is still in the status the admin decided from (<code>expected_status</code> in the update): Approve and Deny at the same moment give one 200 and one 409 (<code>request_changed</code>).</li>
+            <li><b>Events</b>: <code>request.submitted</code>, <code>.updated</code>, <code>.approved</code>, <code>.denied</code>, <code>.cancelled</code>, each with <code>request.status_changed</code> beside it, written in the same transaction. The history entry points at the status event (<code>event_id</code>). <code>/internal/snapshot/requests</code> serves the same shape.</li>
+            <li><b>Screens</b> (<code>features/requests/</code>): <code>RequestsPage</code> (list, request and form in one route <code>/requests/:id?/:mode(edit)?</code>, plus <code>/requests/new</code>), <code>RequestDetailView</code> (banner, timeline, History), <code>RequestForm</code>, <code>RequestDecisionDialog</code> (deny, cancel), <code>RequestActions</code>, <code>RequestCard</code> (phones). The list loads the newest 1,000 once and filters in the page, as stations do.</li>
+          </ul>
+        </div>
+
+        <figure class="diagram" data-title="How a request's status is derived" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    S["Request is Assigned, Scheduled,&lt;br/&gt;In progress or Client Review"] --> A{"Any visit&lt;br/&gt;started?"}
+    A -->|yes| P["In progress"]
+    A -->|no| B{"Any visit&lt;br/&gt;planned?"}
+    B -->|yes| SC["Scheduled"]
+    B -->|no| C{"Any visit ended?"}
+    C -->|no| AS["Assigned"]
+    C -->|yes| D{"Latest visit asks&lt;br/&gt;for another?"}
+    D -->|yes| AS
+    D -->|no| E{"Every ended visit's&lt;br/&gt;report final?"}
+    E -->|no| P
+    E -->|yes| F{"Rejected, and nothing&lt;br/&gt;new since?"}
+    F -->|yes| AS
+    F -->|no| CR["Client Review"]
+</pre>
+          </div>
+          <figcaption>Cancelled visits are ignored first. Visits that ended at the same moment all count as the latest: if any of them asks for another visit, another is needed (found by the property tests).</figcaption>
+        </figure>
 
         <figure class="diagram" data-title="Who moves a request forward" data-kind="Swimlane flowchart">
           <div class="view" data-label="Mermaid">
@@ -3088,6 +3125,15 @@ flowchart TD
                 <tr><td>W7-6</td><td><b>The map</b> (its tiles are superseded by W7-9): Leaflet and <code>leaflet.markercluster</code> load when the map is first opened (about 190 KB that the other pages and the first install don't carry). Tiles come from OpenStreetMap with CORS, are kept by the worker as they are looked at (cache first, 2,000 entries, 30 days, 200 answers only), are never fetched ahead, and are deleted when the session ends. <b>F1 stays open</b>: OSM's policy says offline use is not permitted, and cache-first outlives the server's six-day <code>max-age</code>; the answer for production is a tile provider that allows it (T1), which is one constant (<code>TILE_URL</code>) and one CSP entry. Markers use the status shapes and colours (DBD); dark mode inverts the tiles</td><td>2026-10-20</td></tr>
                 <tr><td>W7-7</td><td><b>Pages that need every station at once share one in-memory list</b> (<code>stores/stationDirectory.ts</code>): the map, the code field and the label picker. It is not stored on the device and empties when the account changes</td><td>2026-10-20</td></tr>
                 <tr><td>W7-9</td><td><b>Production map tiles are a self-hosted Protomaps extract</b> (finding F1, T1 fallback). The OSM tile servers do not allow offline use; Stadia allows limited caching for mobile apps only and MapTiler's terms are silent. We cut the countries in scope from the Protomaps daily build with <code>pmtiles extract</code>, keep the file on our own host and draw it with <code>protomaps-leaflet</code> (no worker, no <code>blob:</code>, so the CSP is unchanged apart from dropping <code>tile.openstreetmap.org</code>). The service worker caches the byte ranges it reads. <b>Built 2026-10-20.</b> The area is the Caribbean (<code>-86,9.5,-58,28</code>, the UN geoscheme subregion and its sea; Belize, Guyana and Suriname are outside it) to zoom 14: 552 MB, drawn larger up to zoom 17. <code>infra/scripts/extract-tiles.sh</code> cuts it; the gateway serves it from <code>MMS_TILES_DIR</code> (staging: <code>/opt/mms/tiles</code>) with <code>Cache-Control: immutable</code> and Range, so a file name is never reused; the page's <code>TILES_URL</code> names the build date. The theme picks Protomaps' light or dark flavor. Staging needs the file copied to the host before the first deploy with it (the map is blank until then)</td><td>2026-10-20</td></tr>
+                <tr><td>W8-1</td><td><b>The state machine is one table</b> (<code>RULES</code> in <code>domain/requests/state.py</code>): a move that is not a row is a 409 for everyone, a move that exists for another kind of person is a 403. The tests walk all 80 status and action pairs. Accept, reject, auto-close and return are in the table now (Phase 6) so the table is whole; the routes for assign and claim wait for W9 and <code>actions</code> leaves them out until then</td><td>2026-10-21</td></tr>
+                <tr><td>W8-2</td><td><b>Approve and deny are in W8, not W9</b>, because the status timeline needs something to move and each is one transition. Assign, claim and the queue follow in W9</td><td>2026-10-21</td></tr>
+                <tr><td>W8-3</td><td><b>PDF attachments move to W9 with comments</b> (photos stay with Phase 4). A request attachment and a comment attachment need the same owner check (<code>request:&lt;id&gt;</code>, made before the request exists) and the same visibility rules, and the exit criterion (an internal comment's attachment is never visible to a client) depends on them. The new-request form has no attachments section yet</td><td>2026-10-21</td></tr>
+                <tr><td>W8-4</td><td><b>A request's ID is made on the device and a repeat returns the same request</b> (rule 9). The server decides from the ID and the person; two sends at once make one request because the unique key on the ID decides</td><td>2026-10-21</td></tr>
+                <tr><td>W8-5</td><td><b>A status change is atomic on the status it was decided from.</b> The update names the status it expects, so two admins pressing Approve and Deny at once cannot both win; the second is told the request changed. Edits use the <code>version</code> instead</td><td>2026-10-21</td></tr>
+                <tr><td>W8-6</td><td><b><code>derive_status</code> breaks ties toward "another visit needed".</b> Visits that ended at the same moment are all the latest; if any asks for another visit, one is needed. Found by a property test; before, the answer depended on the order the visits were listed</td><td>2026-10-21</td></tr>
+                <tr><td>W8-7</td><td><b>The page shows what the server says this person may do</b> (<code>actions</code> on the detail), computed from the same table, so a button never appears for a move the server would refuse and a viewer sees none. Nothing is disabled or greyed out</td><td>2026-10-21</td></tr>
+                <tr><td>W8-8</td><td><b>The list loads the newest 1,000 requests once and filters in the page</b> (as stations do) so the counts beside each status are exact. Past 1,000 a note says so; server-side search is the way out if that is ever reached. The date filter is a preset (7 days, 30 days, this year), not a range picker</td><td>2026-10-21</td></tr>
+                <tr><td>W8-9</td><td><b>Breakpoints are in px.</b> Tailwind's defaults are in rem and follow the browser's font size, so on a tablet with large text the CSS and Vuetify's script (px) disagreed about the layout. <code>tailwind.css</code> now declares the five breakpoints in px, as <code>vuetify.ts</code> does (PR #45)</td><td>2026-10-21</td></tr>
                 <tr><td>W7-10</td><td><b>Scan is a tab of the staff Stations section</b>, so a technician on a phone can reach <code>/scan</code> (it opens the field layout). Until now the only way in was Me › Sync, which opens the field bottom bar (found on the Android check). Clients still have no Scan: their camera app opens <code>/s/:token</code>, and <code>/scan</code> answers 404 for a client</td><td>2026-10-20</td></tr>
                 <tr><td>W7-8</td><td><b>Label tool and QR card</b>: admin only (the report service refuses everyone else); technicians and viewers see the code on the station page but not the buttons. The sheet is made by a job the page polls; the QR picture is drawn in the browser from the token as one SVG path. The mock-up's "Replaced: Never" row and the offline job list are not built: neither is backed by an API field yet</td><td>2026-10-20</td></tr>
                 <tr><td>W5-7</td><td><b>Countries and time zones come from the IANA tz database</b> (the <code>tzdata</code> package's <code>iso3166.tab</code> and <code>zone.tab</code>), not a hand-kept list: codes are checked against it, and a country with one zone suggests it</td><td>2026-10-18</td></tr>
@@ -3244,6 +3290,7 @@ flowchart TD
             <tbody>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Pinned headers on phones.</b> On the Stations list, Sensors and Calibration due the pane (search and filters) stays at the top and the list slides up under a curved edge (<code>PaneContent pin</code>, <code>PageBody</code> corner pieces, band colour <code>surface-50</code>). An open station has a two-row header: Back, then the name with Edit on its row, then the code, status chip and place; its tab bar sits in the pinned header (<code>PageBody stacked</code>, <code>components/pageBar.ts</code>) and scrolls sideways on its own. The back arrow no longer shows the router's active highlight. Phones only: the tablet and desktop shells are unchanged. No change to the API, events or the offline code</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Station page on phones</b>, from a light Stitch mock-up checked against the DBD: the tab bar has no arrow buttons below 768 px and keeps the open tab in view; Overview shows five facts and a "More details" row; the Calibration tab opens with the next due date and the number of sensors overdue, and lists records as rows instead of a table. Reviewed against the Web Interface Guidelines; no change to the API, events or the offline code</td></tr>
+              <tr><td>2026-10-21</td><td>P3 · W8</td><td><b>Requests: the module and its screens</b> (W8-1 to W8-8). Back end: the state machine as one table with a test for every allowed and blocked move, <code>derive_status</code> with property tests (which found a tie that depended on the order of visits), create (idempotent by a device-made ID), list with filters, read, edit, approve, deny and cancel, <code>MR-YYYY-NNNN</code> references from a counter in the same transaction, <code>request.*</code> events with <code>request.status_changed</code> beside each, and <code>/internal/snapshot/requests</code>. Front end, from the approved "W8 Requests screens" mock-up: the list (filters in the URL, counts per status, cards on phones), the new-request and edit form, the request page (banner, status timeline, History tab, Approve, Deny, Edit, Cancel request), and the deny and cancel dialogs; <code>RequestStatusChip</code>, <code>ChoiceGroup</code> and the request status colours in Tailwind. Operations 319 tests, Vitest 308, Playwright 9 journeys (client, admin, deny, edit and cancel, admin for an organization, technician and viewer, another organization, filters, phone; axe). Also: Tailwind breakpoints in px (W8-9). Not in W8: assign, claim, queue, comments and PDF attachments (W9), notifications (W9), visits (Phase 4).</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W7</td><td><b>Map tiles are our own file</b> (W7-9, finding F1). The OpenStreetMap tile servers are gone from the page, the CSP and the service worker. The map draws a Protomaps extract of the Caribbean (<code>protomaps-leaflet</code>, <code>pmtiles</code>; 552 MB to zoom 14) served by the gateway at <code>/tiles/</code>; <code>CachedRangeSource</code> keeps the byte ranges it reads in <code>mms-tiles</code> so a viewed map works with no signal. Light and dark use Protomaps' own flavors instead of an inverted filter. The worker lost its tile route, and three Workbox packages that only it used. <b>Scan</b> is now a tab of the staff Stations section (W7-10): a technician could reach <code>/scan</code> only through Me › Sync. Written: the W7 exit check sheet (<code>docs/checks/W7-label-scan-check.md</code>). Found on the Android check and fixed: a code that is not one of ours now shows "That isn't a MARS-MMS label" and the camera stays on (the scanner used to mark any read as found, which hid the message), and the torch is looked for again after the picture is live and in the photo capabilities, since some phones report it late (not yet proven on that phone). Vitest 273, ESLint, vue-tsc and the production build clean; Playwright map journeys pass against the real file (206 for a range); the CSP stack test passes.</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W7</td><td><b>QR labels, the scanner and the map</b> (W7-1 to W7-8). Back end: QR resolve with 410 for a replaced code, regenerate, <code>POST /internal/labels</code>, and the <code>report</code> service (skeleton plus label sheets: WeasyPrint, an A4 sheet of ten, a ten-minute link). Front end, from the approved W7 screens: <code>/scan</code>, <code>/s/:token</code>, <code>/map</code>, <code>/admin/stations-tools</code> and the QR card on the station page; the service worker keeps viewed map tiles. New finding F16 (the scanner library's blob worker against our CSP). Vitest 267, Playwright journeys for labels, scan, map and the label tool (axe light and dark, a phone viewport). Charts added: scanned-label process flow and label sheet sequence. Staging deploy needs <code>KAFKA_REPORT_PASSWORD</code> and <code>REPORT_SERVICE_SECRET</code> on the host first; the label check on an iPhone and an Android camera is the exit check.</td></tr>
               <tr><td>2026-10-19</td><td>P2 · W6</td><td><b>The leftover W6 forms</b> (W6-10, W6-11): add and edit sensor models and units on the Sensors page, and "Edit details" on every document, from the approved "W6 forms" mock-up. New shared pieces: <code>useFormDialog</code>, <code>DiscardConfirm</code>, focus returned to the opener in <code>ModalSheet</code>, and menu roles on the document menu. The Playwright journeys found two bugs before merge (a dirty check that did not recompute, and a stale document version after an upload). No back-end change.</td></tr>

@@ -52,9 +52,9 @@
             :to="{ name: tab.to }"
           >
             <a
-              :aria-current="tab.to === route.name ? 'page' : undefined"
+              :aria-current="tab.current ? 'page' : undefined"
               class="inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium"
-              :class="tab.to === route.name
+              :class="tab.current
                 ? 'bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-100'
                 : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'"
               :href="href"
@@ -119,6 +119,7 @@
   })
   const tabs = computed(() => (section.value?.items ?? []).map(item => ({
     ...item,
+    current: item.to === route.name || (typeof route.name === 'string' && item.also?.includes(route.name) === true),
     count: item.to === 'admin-registrations' ? registrations.label() : null,
   })))
 

@@ -104,8 +104,19 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/map/MapPage.vue'),
     meta: { title: 'Map', layout: 'app' },
   },
-  later('/requests', 'requests', 'Requests', 3),
-  later('/requests/new', 'request-new', 'Report a problem', 3, ['client', 'admin']),
+  {
+    // Maintenance requests (PRD REQ-1 to REQ-16): the list, a request, and its form (new or edit)
+    path: '/requests/new',
+    name: 'request-new',
+    component: () => import('@/features/requests/RequestsPage.vue'),
+    meta: { title: 'New request', layout: 'app', roles: ['client', 'admin'] },
+  },
+  {
+    path: '/requests/:id?/:mode(edit)?',
+    name: 'requests',
+    component: () => import('@/features/requests/RequestsPage.vue'),
+    meta: { title: 'Requests', layout: 'app' },
+  },
   later('/reports', 'reports', 'Reports', 7),
   later('/notifications', 'notifications', 'Notifications', 3),
 
