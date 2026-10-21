@@ -32,6 +32,7 @@ REQUEST_FIELDS = (
     "ref", "org_id", "title", "description", "category", "priority", "station_ids", "status",
     "assigned_staff_ids", "denial_reason", "cancel_reason",
 )
+COMMENT_FIELDS = ("request_id", "author_id", "author_role", "body", "internal", "attachments")
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
     "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "needs_review",
@@ -281,6 +282,41 @@ class Emitter:
         return await self.request(
             ev.RequestStatusChanged, "request.status_changed", doc, session,
             event_id=event_id, from_status=from_status, to_status=doc["status"], reason=reason,
+        )
+
+    async def comment(
+        self, model: type[BaseModel], type_: str, comment: dict[str, Any],
+        request: dict[str, Any], session: AsyncClientSession, *,
+        before: dict[str, Any] | None = None, **extra: Any,
+    ) -> Envelope:
+        """`comment.added` / `comment.updated`, keyed by the request (TRD §8.1) and versioned by
+        the comment. The data names the comment, never its text."""
+        return await self.emit(
+            model(
+                **request_data(request), comment_id=comment["_id"],
+                author_id=comment["author_id"], author_name=comment["author_name"],
+                author_role=comment["author_role"], internal=bool(comment["internal"]),
+                attachment_count=len(comment["attachments"]), **extra,
+            ),
+            type_=type_, key=request["_id"], resource=("comment", comment["_id"]),
+            aggregate_version=comment["version"], org_id=request["org_id"], session=session,
+            before=view(before, COMMENT_FIELDS), after=view(comment, COMMENT_FIELDS),
+        )
+
+    async def attachments_visibility(
+        self, owner_type: str, owner: dict[str, Any], request: dict[str, Any],
+        media_ids: list[str], visibility: str, session: AsyncClientSession,
+    ) -> Envelope:
+        """Ask media to show a request's or comment's files to the organization, or keep them
+        staff-only (ADR-19). Sent in the transaction that attaches them or changes who may see
+        them, versioned by the owner so media applies only the newest request."""
+        return await self.emit(
+            ev.MediaVisibilityRequested(
+                media_ids=media_ids, visibility=visibility, visibility_version=owner["version"],
+            ),
+            type_="media.visibility_requested", key=request["_id"],
+            resource=(owner_type, owner["_id"]), aggregate_version=owner["version"],
+            org_id=request["org_id"], session=session,
         )
 
     async def config_version(

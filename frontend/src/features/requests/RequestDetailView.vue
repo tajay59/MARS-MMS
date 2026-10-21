@@ -17,7 +17,9 @@
         density="comfortable"
         :show-arrows="mdAndUp"
       >
-        <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">{{ t.label }}</v-tab>
+        <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
+          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span>
+        </v-tab>
       </v-tabs>
     </Teleport>
 
@@ -70,11 +72,19 @@
                   </router-link>
                 </span>
 
+                <span v-else-if="row.label === 'Files'" class="flex flex-wrap gap-1.5">
+                  <SavedFile v-for="file in detail.attachments" :key="file.media_id" :file="file" :link="() => linkFor(file.media_id)" />
+                </span>
+
                 <span v-else class="wrap-break-word whitespace-pre-line" :class="row.muted ? 'text-surface-600' : ''">{{ row.value }}</span>
               </dd>
             </template>
           </dl>
         </div>
+      </v-tabs-window-item>
+
+      <v-tabs-window-item value="comments">
+        <RequestComments :request-id="detail.id" @count="seen = $event" />
       </v-tabs-window-item>
 
       <v-tabs-window-item value="history">
@@ -114,14 +124,17 @@
   import { computed, inject, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
+  import { requestsApi } from '@/api/operations'
   import { formatDateTime } from '@/app/format'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { pageBarKey } from '@/components/pageBar'
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
+  import RequestComments from './RequestComments.vue'
   import { bannerFor, categoryLabel, lookOf, timelineOf } from './requests'
+  import SavedFile from './SavedFile.vue'
 
-  // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, and the
-  // history of every change. Comments, Visits and Reports join the tabs when those features exist.
+  // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments
+  // and the history of every change. Visits and Reports join the tabs when those features exist.
   const props = defineProps<{ detail: RequestDetail, isClient: boolean }>()
 
   const route = useRoute()
@@ -131,6 +144,7 @@
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
+    { key: 'comments', label: 'Comments' },
     { key: 'history', label: 'History' },
   ]
 
@@ -144,6 +158,14 @@
       void router.replace({ query: { ...route.query, tab: value === 'overview' ? undefined : value } })
     },
   })
+
+  // The number on the tab: what the page was told, then what the thread says once it has loaded
+  const seen = ref<number | null>(null)
+  const commentCount = computed(() => seen.value ?? props.detail.comment_count)
+
+  function linkFor (mediaId: string): Promise<{ url: string }> {
+    return requestsApi.requestFile(props.detail.id, mediaId)
+  }
 
   const banner = computed(() => bannerFor(props.detail, props.isClient))
   const steps = computed(() => timelineOf(props.detail.status_history, props.detail.status))
@@ -160,6 +182,7 @@
       { label: 'Submitted', value: formatDateTime(d.milestones.submitted_at ?? d.created_at) },
       { label: 'Assigned to', value: assigned || 'Nobody yet', muted: !assigned },
       { label: 'Description', value: d.description },
+      ...(d.attachments.length > 0 ? [{ label: 'Files' }] : []),
     ]
   })
 </script>

@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
+import type { CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -67,6 +67,18 @@ export const requestsApi = {
   claim: (id: string) => api.post<RequestDetail>(`/requests/${id}/claim`, {}),
   release: (id: string) => api.post<RequestDetail>(`/requests/${id}/release`, {}),
   workload: (signal?: AbortSignal) => api.get<Workload>('/requests/workload', { signal }),
+  // Comments (REQ-9, REQ-10): oldest first. A client's list has no internal comment. `body.id` is
+  // made on the device: sending it again returns the comment already posted (200).
+  comments: (id: string, signal?: AbortSignal) =>
+    api.get<{ items: CommentOut[] }>(`/requests/${id}/comments`, { signal }),
+  postComment: (id: string, body: CommentIn) => api.post<CommentOut>(`/requests/${id}/comments`, body),
+  editComment: (id: string, commentId: string, body: CommentPatch) =>
+    api.patch<CommentOut>(`/requests/${id}/comments/${commentId}`, body),
+  // Ten-minute links, asked for on click and never kept (TRD §7.6)
+  requestFile: (id: string, mediaId: string) =>
+    api.get<DownloadOut>(`/requests/${id}/attachments/${mediaId}/download`),
+  commentFile: (id: string, commentId: string, mediaId: string) =>
+    api.get<DownloadOut>(`/requests/${id}/comments/${commentId}/attachments/${mediaId}/download`),
 }
 
 // Approved requests nobody has taken, oldest first (staff only; a client has no queue)

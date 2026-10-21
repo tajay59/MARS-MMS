@@ -136,12 +136,31 @@
       </div>
     </section>
 
+    <!-- PDFs go up while the form is open, under this request's own ID (W9-8) -->
+    <section v-if="!request" aria-labelledby="rf-files" class="flex flex-col gap-3 pb-6">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+        <h2 id="rf-files" class="m-0 text-h3 text-surface-900">Attachments</h2>
+        <span class="text-sm text-surface-600">Optional · PDF only · up to {{ MAX_FILES }} files, 25 MB each</span>
+      </div>
+
+      <AttachmentField :drafts="attachments" />
+    </section>
+
     <!-- The action bar stays in view while the form scrolls (see StationForm) -->
     <div class="sticky bottom-0 z-10 -mx-4 -mb-4 mt-2 flex flex-wrap items-center gap-3 border-t border-surface-200 bg-surface px-4 py-3 after:absolute after:inset-x-0 after:top-full after:h-12 after:bg-surface md:-mx-8 md:-mb-7 md:px-8 md:after:hidden">
       <div class="flex grow gap-2 md:grow-0">
-        <v-btn class="grow md:grow-0" color="primary" :loading="busy" type="submit">{{ submitLabel }}</v-btn>
+        <v-btn
+          class="grow md:grow-0"
+          color="primary"
+          :disabled="!attachments.ready.value"
+          :loading="busy"
+          type="submit"
+        >{{ submitLabel }}</v-btn>
+
         <v-btn class="grow md:grow-0" variant="text" @click="cancel">Cancel</v-btn>
       </div>
+
+      <p v-if="!attachments.ready.value" class="m-0 text-sm text-surface-600">Submit waits for the files.</p>
     </div>
 
     <DiscardConfirm v-model="askLeave" message="What you typed will be lost." @leave="leave" />
@@ -162,6 +181,8 @@
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
+  import AttachmentField from './AttachmentField.vue'
+  import { MAX_FILES } from './attachments'
   import {
     createBody,
     emptyValues,
@@ -174,6 +195,7 @@
     valuesOf,
   } from './requestFormModel'
   import { CATEGORIES, PRIORITIES } from './requests'
+  import { useAttachmentDrafts } from './useAttachmentDrafts'
 
   // New request and Edit request (PRD REQ-1, REQ-2, REQ-11): one form for both. It needs a
   // connection (OFF-10); what is typed stays on screen when a send fails. The request's ID is made
@@ -195,6 +217,8 @@
   }>()
 
   const requestId = newId()
+  // PDFs are uploaded for `request:<id>` before the request exists: the ID above is made first
+  const attachments = useAttachmentDrafts(() => `request:${requestId}`)
   const values = reactive(props.request
     ? valuesOf(props.request)
     : emptyValues((props.preselect ?? []).filter(id => props.stations.some(s => s.id === id))))
@@ -208,7 +232,7 @@
   const orgsLoading = ref(false)
 
   const editing = computed(() => Boolean(props.request))
-  const dirty = computed(() => !clean.value && JSON.stringify(values) !== initial)
+  const dirty = computed(() => !clean.value && (JSON.stringify(values) !== initial || attachments.drafts.length > 0))
   const submitLabel = computed(() => props.request ? 'Save changes' : (props.isAdmin ? 'Create request' : 'Submit request'))
 
   function fieldId (key: string): string {
@@ -317,7 +341,7 @@
     try {
       const saved = props.request
         ? await requestsApi.update(props.request.id, patchBody(values, props.request))
-        : await requestsApi.create(createBody(values, requestId, { admin: props.isAdmin }))
+        : await requestsApi.create(createBody(values, requestId, { admin: props.isAdmin, mediaIds: attachments.readyIds.value }))
       clean.value = true
       emit('saved', saved)
     } catch (error) {

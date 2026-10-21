@@ -68,6 +68,15 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/requests/{id}/assign"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/claim"): WRITE,
     ("POST", "/api/v1/requests/{id}/release"): WRITE,
+    # Comments and files (REQ-3, REQ-9, REQ-10, W9): everyone reads what their scope allows
+    # (a client no internal comment); clients and staff post; viewers never.
+    ("GET", "/api/v1/requests/{id}/comments"): Expect(ANY),
+    ("POST", "/api/v1/requests/{id}/comments"): roles("client", "technician", "admin"),
+    ("PATCH", "/api/v1/requests/{id}/comments/{comment_id}"):
+        roles("client", "technician", "admin"),
+    ("GET", "/api/v1/requests/{id}/attachments/{media_id}/download"): Expect(ANY),
+    ("GET", "/api/v1/requests/{id}/comments/{comment_id}/attachments/{media_id}/download"):
+        Expect(ANY),
     ("POST", "/api/v1/requests/{id}/approve"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/deny"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/cancel"): roles("client", "admin"),
