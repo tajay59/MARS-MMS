@@ -44,6 +44,7 @@
         <div class="flex flex-wrap gap-1.5">
           <FilterChip
             :active="filters[group.field] === null"
+            :count="group.any"
             label="Any"
             @click="pick(group.field, null)"
           />
