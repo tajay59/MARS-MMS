@@ -1,5 +1,5 @@
 <template>
-  <PageBody :subtitle="subtitle" title="Queue" wide>
+  <PageBody :bleed="mdAndUp" :subtitle="subtitle" title="Queue" wide>
     <!-- Desktop: search and filters are in the pane. Phones: a sheet opened from here, and the badge counts what is on -->
     <PaneContent v-if="mdAndUp">
       <QueueFilterPanel
@@ -27,44 +27,44 @@
       </v-badge>
     </template>
 
-    <FeedbackBanner v-if="loadError" type="error">{{ loadError }}</FeedbackBanner>
+    <FeedbackBanner v-if="loadError" class="md:m-8" type="error">{{ loadError }}</FeedbackBanner>
 
-    <div v-else-if="loading" aria-label="Loading the queue…" class="flex flex-col gap-2" role="status">
+    <div v-else-if="loading" aria-label="Loading the queue…" class="flex flex-col gap-2 md:px-8 md:py-7" role="status">
       <v-skeleton-loader v-for="n in 4" :key="n" type="list-item-two-line" />
     </div>
 
     <template v-else>
-      <div v-if="items.length === 0" class="flex flex-col items-center gap-2 py-12 text-center text-surface-600">
+      <div v-if="items.length === 0" class="flex flex-col items-center gap-2 py-12 text-center text-surface-600 md:px-8">
         <v-icon :icon="mdiInboxOutline" size="48" />
         <p class="m-0 text-h3 text-surface-900">The queue is empty</p>
         <p class="m-0">Approved requests that nobody has taken show up here.</p>
       </div>
 
-      <p v-else-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600">
+      <p v-else-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600 md:px-8">
         Nothing in the queue matches.
         <button class="font-medium text-primary hover:underline" type="button" @click="clearFilters">Clear filters</button>
       </p>
 
       <!-- From 768 px: a table, oldest approval first -->
-      <div v-else-if="mdAndUp" class="overflow-x-auto">
+      <div v-else-if="mdAndUp" class="h-full overflow-auto">
         <table class="w-full border-collapse text-sm">
           <caption class="sr-only">Approved requests waiting for someone, oldest first</caption>
 
           <thead>
-            <tr class="bg-surface-100 text-left">
-              <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Reference</th>
-              <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Request</th>
-              <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Organization</th>
-              <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Country</th>
-              <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Priority</th>
-              <th class="whitespace-nowrap px-3 py-3 text-xs font-medium text-surface-700" scope="col">Waiting</th>
-              <th class="px-3 py-3 text-right text-xs font-medium text-surface-700" scope="col"><span class="sr-only">Actions</span></th>
+            <tr class="text-left">
+              <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6" scope="col">Reference</th>
+              <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6" scope="col">Request</th>
+              <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6" scope="col">Organization</th>
+              <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6" scope="col">Country</th>
+              <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6" scope="col">Priority</th>
+              <th class="sticky top-0 z-10 whitespace-nowrap bg-surface-100 px-3 py-3 text-xs font-medium text-surface-700 first:pl-6" scope="col">Waiting</th>
+              <th class="sticky top-0 z-10 bg-surface-100 px-3 py-3 text-right text-xs font-medium text-surface-700 last:pr-6" scope="col"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-for="row in shown" :key="row.id" class="h-15 border-t border-surface-200">
-              <td class="whitespace-nowrap px-3 font-mono text-xs font-medium text-surface-600" translate="no">{{ row.ref }}</td>
+              <td class="whitespace-nowrap px-3 font-mono text-xs font-medium text-surface-600 first:pl-6" translate="no">{{ row.ref }}</td>
 
               <td class="max-w-80 px-3">
                 <router-link class="block truncate font-medium text-surface-900 no-underline hover:underline" :title="row.title" :to="{ name: 'requests', params: { id: row.id } }">{{ row.title }}</router-link>
@@ -76,23 +76,15 @@
               <td class="px-3"><PriorityChip v-if="showsInList(row.priority)" :priority="row.priority" /><span v-else class="text-surface-600">{{ priorityLabel(row.priority) }}</span></td>
               <td class="whitespace-nowrap px-3 tabular-nums text-surface-900">{{ waitingLabel(row.approved_at) }}</td>
 
-              <td class="px-3">
-                <span v-if="canClaim" class="flex justify-end gap-2">
-                  <v-btn
-                    v-if="isAdmin"
-                    color="primary"
-                    size="small"
-                    variant="outlined"
-                    @click="assigning = row"
-                  >Assign</v-btn>
-
-                  <v-btn
-                    :aria-label="`Claim ${row.ref}`"
-                    color="primary"
+              <td class="px-3 last:pr-6">
+                <span v-if="canClaim" class="flex justify-end">
+                  <ClaimSplitButton
+                    :can-assign="isAdmin"
                     :loading="claiming === row.id"
-                    size="small"
-                    @click="claim(row)"
-                  >Claim</v-btn>
+                    :request-ref="row.ref"
+                    @assign="assigning = row"
+                    @claim="claim(row)"
+                  />
                 </span>
               </td>
             </tr>
@@ -111,16 +103,13 @@
           <router-link class="text-base font-semibold leading-snug text-surface-900 no-underline" :to="{ name: 'requests', params: { id: row.id } }">{{ row.title }}</router-link>
           <span class="text-sm text-surface-600"><span class="font-mono text-xs font-medium" translate="no">{{ stationsLabel(row) }}</span> · {{ row.org_name }} · {{ waitingLabel(row.approved_at) }}</span>
 
-          <span v-if="canClaim" class="flex justify-end gap-2">
-            <v-btn
-              v-if="isAdmin"
-              color="primary"
-              size="small"
-              variant="outlined"
-              @click="assigning = row"
-            >Assign</v-btn>
-
-            <v-btn :aria-label="`Claim ${row.ref}`" color="primary" size="small" @click="confirming = row">Claim</v-btn>
+          <span v-if="canClaim" class="flex justify-end">
+            <ClaimSplitButton
+              :can-assign="isAdmin"
+              :request-ref="row.ref"
+              @assign="assigning = row"
+              @claim="confirming = row"
+            />
           </span>
         </li>
       </ul>
@@ -229,6 +218,7 @@
   import PaneContent from '@/components/PaneContent.vue'
   import { useSessionStore } from '@/stores/session'
   import AssignDialog from './AssignDialog.vue'
+  import ClaimSplitButton from './ClaimSplitButton.vue'
   import PriorityChip from './PriorityChip.vue'
   import { countBy, filterQueue, queueFiltersFrom, queueQueryFrom, waitingLabel } from './queue'
   import QueueFilterPanel from './QueueFilterPanel.vue'

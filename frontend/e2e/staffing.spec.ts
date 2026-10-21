@@ -77,7 +77,7 @@ test('A technician claims from the queue, lets go, and another takes it @REQ-7 @
   const table = page.getByRole('table', { name: /waiting for someone/ })
   const row = table.getByRole('row', { name: new RegExp(title) })
   await expect(row).toBeVisible()
-  await expect(row.getByRole('button', { name: 'Assign' })).toHaveCount(0) // admins assign; a technician claims
+  await expect(row.getByRole('button', { name: /^Assign / })).toHaveCount(0) // admins assign; a technician claims
   await checkA11y(page, '/queue')
 
   await row.getByRole('button', { name: 'Claim' }).click()
@@ -111,7 +111,7 @@ test('An admin assigns from the queue and can search the staff list @REQ-7 @J4',
   await logIn(admin, 'admin@example.org')
   await admin.goto('/queue')
   const row = admin.getByRole('table', { name: /waiting for someone/ }).getByRole('row', { name: new RegExp(title) })
-  await row.getByRole('button', { name: 'Assign', exact: true }).click()
+  await row.getByRole('button', { name: /^Assign MR-/ }).click() // the chevron beside Claim
   const dialog = admin.getByRole('dialog', { name: 'Assign staff' })
   // The dialog is created already open here, so it must load the staff itself
   await expect(dialog.getByRole('checkbox', { name: /Tech 1/ })).toBeVisible()
