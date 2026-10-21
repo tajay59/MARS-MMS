@@ -24,9 +24,9 @@ from app.api.checklists.schemas import (
 )
 from app.api.context import CtxDep
 from app.domain.checklists import templates
+from app.repo.checklists import resolve
 from app.repo.checklists import templates as repo
-from app.repo.stations import models, units
-from app.repo.stations import stations as station_repo
+from app.repo.stations import models
 from app.repo.stations.common import Db
 
 router = APIRouter(prefix="/api/v1/checklist-templates", tags=["checklists"])
@@ -105,30 +105,10 @@ async def resolve_for_station(
 ) -> Resolved:
     """What a visit to this station is given: its type's template, then an add-on for each
     sensor model installed there."""
-    station = await station_repo.get(ctx.db, station_id)
-    if station is None:
-        raise NotFound()
-    station_type = station.get("type")
-    installed = await units.installed_at(ctx.db, station_id)
-    model_ids = sorted({u["model_id"] for u in installed})
-    found = await models.by_ids(ctx.db, model_ids) if model_ids else {}
-    keys = [templates.scope_key(None, m) for m in model_ids]
-    if station_type:
-        keys.append(templates.scope_key(station_type, None))
-    active = await repo.active_for_scopes(ctx.db, keys)
-    station_template = (active.get(templates.scope_key(station_type, None))
-                        if station_type else None)
-    add_ons = [
-        templates.AddOn(
-            model_id=m,
-            label=f"{found[m]['manufacturer']} {found[m]['model']}" if m in found else m,
-            template=active.get(templates.scope_key(None, m)),
-        )
-        for m in model_ids
-    ]
+    station_type, items = await resolve.for_station(ctx.db, station_id)
     return Resolved(
         station_id=station_id, station_type=station_type,
-        items=[ResolvedItem(**i) for i in templates.resolve(station_template, add_ons)],
+        items=[ResolvedItem(**i) for i in items],
     )
 
 

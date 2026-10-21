@@ -125,6 +125,53 @@
         "title": "Body_import_stations_api_v1_stations_import_post",
         "type": "object"
       },
+      "CalibrationData": {
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "default": "field_check",
+            "enum": [
+              "field_check",
+              "field_adjust"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "readings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Reading"
+            },
+            "maxItems": 50,
+            "title": "Readings",
+            "type": "array"
+          },
+          "reference_instrument": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceInstrument"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "adjusted",
+              "fail"
+            ],
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "title": "CalibrationData",
+        "type": "object"
+      },
       "CalibrationIn": {
         "additionalProperties": false,
         "description": "A calibration recorded outside a visit (CAL-1); field checks come with visits.",
@@ -392,6 +439,133 @@
         "title": "CancelIn",
         "type": "object"
       },
+      "ChecklistRowIn": {
+        "additionalProperties": false,
+        "properties": {
+          "ad_hoc": {
+            "default": false,
+            "title": "Ad Hoc",
+            "type": "boolean"
+          },
+          "item_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "fixed",
+                  "issue",
+                  "na"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "required": [
+          "item_id"
+        ],
+        "title": "ChecklistRowIn",
+        "type": "object"
+      },
+      "ChecklistRowOut": {
+        "properties": {
+          "ad_hoc": {
+            "title": "Ad Hoc",
+            "type": "boolean"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "fixed",
+                  "issue",
+                  "na"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "required": [
+          "item_id",
+          "label",
+          "group",
+          "result",
+          "note",
+          "ad_hoc"
+        ],
+        "title": "ChecklistRowOut",
+        "type": "object"
+      },
       "CommentIn": {
         "additionalProperties": false,
         "description": "REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already\nposted. Files are PDFs uploaded for `comment:<request id>:<id>` and already checked.",
@@ -614,6 +788,78 @@
           }
         },
         "title": "Comms",
+        "type": "object"
+      },
+      "ConditionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "operational",
+                  "degraded",
+                  "offline"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "ConditionIn",
+        "type": "object"
+      },
+      "ConditionOut": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "operational",
+                  "degraded",
+                  "offline"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "required": [
+          "status",
+          "notes"
+        ],
+        "title": "ConditionOut",
         "type": "object"
       },
       "ConfigDiff": {
@@ -1250,6 +1496,79 @@
         "title": "DownloadOut",
         "type": "object"
       },
+      "DownloadedIn": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "title": "DownloadedIn",
+        "type": "object"
+      },
+      "DownloadedOut": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "done"
+        ],
+        "title": "DownloadedOut",
+        "type": "object"
+      },
       "DueList": {
         "properties": {
           "items": {
@@ -1867,6 +2186,37 @@
         "title": "InstalledUnit",
         "type": "object"
       },
+      "IssueIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 1000,
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "severity": {
+            "default": "medium",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "IssueIn",
+        "type": "object"
+      },
       "ItemIn": {
         "additionalProperties": false,
         "properties": {
@@ -2213,6 +2563,34 @@
           "reason"
         ],
         "title": "Override",
+        "type": "object"
+      },
+      "PartIn": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 200,
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "quantity": {
+            "default": 1,
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "description"
+        ],
+        "title": "PartIn",
         "type": "object"
       },
       "PersonRef": {
@@ -3208,6 +3586,121 @@
         ],
         "title": "Scope",
         "type": "string"
+      },
+      "SensorActionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "replace",
+              "calibrate",
+              "clean",
+              "repair",
+              "remove",
+              "install"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "calibration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CalibrationData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "new_serial": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Serial"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "old_serial": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Serial"
+          },
+          "parameter": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameter"
+          },
+          "removal_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "faulty",
+                  "calibration",
+                  "retired",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Removal Reason"
+          },
+          "sensor_model_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensor Model Id"
+          }
+        },
+        "required": [
+          "id",
+          "action"
+        ],
+        "title": "SensorActionIn",
+        "type": "object"
       },
       "SensorModelIn": {
         "additionalProperties": false,
@@ -5914,6 +6407,16 @@
               }
             ],
             "title": "Time Zone"
+          },
+          "work": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -5924,9 +6427,298 @@
           "owner",
           "arrived_at",
           "departed_at",
-          "actions"
+          "actions",
+          "work"
         ],
         "title": "VisitStationOut",
+        "type": "object"
+      },
+      "WorkConfigVersionIn": {
+        "additionalProperties": false,
+        "properties": {
+          "files": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Files",
+            "type": "array"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "id",
+          "files"
+        ],
+        "title": "WorkConfigVersionIn",
+        "type": "object"
+      },
+      "WorkIn": {
+        "additionalProperties": false,
+        "description": "The record whole, with the version the editor was looking at.",
+        "properties": {
+          "base_version": {
+            "minimum": 0.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "checklist": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ChecklistRowIn"
+            },
+            "maxItems": 200,
+            "title": "Checklist",
+            "type": "array"
+          },
+          "condition_on_arrival": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition_on_departure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "config_versions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/WorkConfigVersionIn"
+            },
+            "title": "Config Versions",
+            "type": "array"
+          },
+          "data_downloaded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DownloadedIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "issues_found": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/IssueIn"
+            },
+            "title": "Issues Found",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "parts_used": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PartIn"
+            },
+            "title": "Parts Used",
+            "type": "array"
+          },
+          "sensor_actions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SensorActionIn"
+            },
+            "title": "Sensor Actions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "base_version"
+        ],
+        "title": "WorkIn",
+        "type": "object"
+      },
+      "WorkOut": {
+        "description": "A station's work record as staff see it. Clients never get one (rule 6).",
+        "properties": {
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/ChecklistRowOut"
+            },
+            "title": "Checklist",
+            "type": "array"
+          },
+          "condition_on_arrival": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition_on_departure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "config_versions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Config Versions",
+            "type": "array"
+          },
+          "data_downloaded": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DownloadedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "issues_found": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Issues Found",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "parts_used": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Parts Used",
+            "type": "array"
+          },
+          "sensor_actions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sensor Actions",
+            "type": "array"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "updated_by",
+          "updated_at",
+          "device_id",
+          "condition_on_arrival",
+          "checklist",
+          "sensor_actions",
+          "config_versions",
+          "parts_used",
+          "issues_found",
+          "data_downloaded",
+          "condition_on_departure",
+          "notes"
+        ],
+        "title": "WorkOut",
         "type": "object"
       },
       "Workload": {
@@ -10266,6 +11058,75 @@
           }
         ],
         "summary": "Depart",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/work": {
+      "put": {
+        "description": "VIS-7: the owner saves what was found and done at the station.",
+        "operationId": "save_work_api_v1_visits__id__stations__station_id__work_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Work",
         "tags": [
           "visits"
         ]

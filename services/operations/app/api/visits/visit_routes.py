@@ -13,7 +13,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 from mms_common.auth import User, require_roles
-from mms_common.errors import Conflict, Forbidden, ValidationFailed
+from mms_common.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from mms_common.ids import UUID7_PATTERN, new_id
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
@@ -33,9 +33,10 @@ from app.api.visits.schemas import (
 )
 from app.domain.requests import staffing
 from app.domain.requests.state import Status
-from app.domain.visits import lifecycle, schedule
+from app.domain.visits import lifecycle, schedule, work
 from app.domain.visits.state import VStatus
 from app.events.publish import ev
+from app.repo.checklists import resolve
 from app.repo.requests import requests as request_repo
 from app.repo.stations import stations as station_repo
 from app.repo.stations.common import stamp
@@ -343,8 +344,18 @@ async def start_visit(id: IdPath, body: AtIn, user: Worker, ctx: CtxDep) -> Visi
     result = lifecycle.start(visit, user.id, user.is_admin, body.at, now)
     if result.noop:
         return await _out(ctx, visit, user)
+    # The checklist templates are copied now, so a template edited later changes nothing (VIS-8)
+    stations = []
+    for station in visit["stations"]:
+        if station.get("work") is None:
+            try:
+                _, items = await resolve.for_station(ctx.db, station["station_id"])
+            except NotFound:
+                items = []
+            station = {**station, "work": work.blank(items, now)}
+        stations.append(station)
     return await _write(
-        ctx, user, visit, result.fields,
+        ctx, user, visit, {**result.fields, "stations": stations},
         emit=[(ev.VisitStarted, "visit.started", {"started_at": result.fields["started_at"]})],
         settle_note=f"Visit {visit['ref']} started",
     )

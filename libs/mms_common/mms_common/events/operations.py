@@ -416,3 +416,14 @@ class VisitStationArrived(VisitFacts):
 class VisitStationDeparted(VisitFacts):
     station_id: str
     at: datetime
+
+
+@register("visit.work_updated")
+class VisitWorkUpdated(VisitFacts):
+    """A station's work record was saved (W11). Ids and kinds only: no notes, readings, serials
+    or file names travel (the audit chain records the actions that changed the inventory)."""
+
+    station_id: str
+    version: int  # the work record's, not the visit's
+    sensor_actions: list[dict[str, str]] = Field(default_factory=list)  # {id, action}
+    config_versions: list[str] = Field(default_factory=list)  # ids

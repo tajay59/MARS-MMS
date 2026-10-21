@@ -31,8 +31,8 @@ function visit (patch: Partial<VisitOut> = {}): VisitOut {
     lead: { id: 'u1', name: 'Andrea Clarke' },
     staff: [{ id: 'u1', name: 'Andrea Clarke' }, { id: 'u2', name: 'Devon Brown' }],
     stations: [
-      { station_id: 's1', station_code: 'JM-KIN-001', station_name: 'Kingston Harbour', time_zone: JAMAICA, owner: { id: 'u1', name: 'Andrea Clarke' }, arrived_at: null, departed_at: null, actions: [] },
-      { station_id: 's2', station_code: 'JM-MBJ-002', station_name: 'Montego Bay Airport', time_zone: JAMAICA, owner: { id: 'u2', name: 'Devon Brown' }, arrived_at: null, departed_at: null, actions: [] },
+      { station_id: 's1', station_code: 'JM-KIN-001', station_name: 'Kingston Harbour', time_zone: JAMAICA, owner: { id: 'u1', name: 'Andrea Clarke' }, arrived_at: null, departed_at: null, actions: [], work: null },
+      { station_id: 's2', station_code: 'JM-MBJ-002', station_name: 'Montego Bay Airport', time_zone: JAMAICA, owner: { id: 'u2', name: 'Devon Brown' }, arrived_at: null, departed_at: null, actions: [], work: null },
     ],
     actions: [], version: 1, ...patch,
   }

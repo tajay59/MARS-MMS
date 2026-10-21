@@ -161,6 +161,30 @@ async def update(
     raise VersionConflict()
 
 
+async def set_work(
+    db: Db, visit_id: str, station_id: str, work: dict[str, Any], *, base_version: int,
+    now: datetime, by: str, session: AsyncClientSession,
+) -> dict[str, Any] | None:
+    """Replace one station's work record if it is still at `base_version` (a visit started
+    before records existed has none, which counts as version 0). Another station's work and
+    arrival are not touched, so two owners saving at once do not collide. Returns the visit, or
+    None when the record moved on (the caller reads it and reports `work_changed`)."""
+    match: dict[str, Any] = {"station_id": station_id}
+    if base_version == 0:
+        match["$or"] = [{"work.version": 0}, {"work": None}]
+    else:
+        match["work.version"] = base_version
+    doc: dict[str, Any] | None = await col(db).find_one_and_update(
+        {"_id": visit_id, "status": {"$in": ["started", "ended"]}, "locked": {"$ne": True},
+         "stations": {"$elemMatch": match}},
+        {"$set": {"stations.$[s].work": work, "updated_at": now, "updated_by": by},
+         "$inc": {"version": 1}},
+        array_filters=[{"s.station_id": station_id}],
+        return_document=ReturnDocument.AFTER, session=session,
+    )
+    return doc
+
+
 async def set_station(
     db: Db, visit_id: str, station_id: str, fields: dict[str, Any], *, now: datetime, by: str,
     session: AsyncClientSession,
