@@ -94,7 +94,7 @@ jobs:
 
       # The frontend's API types come from frontend/openapi/<service>.json: it must match.
       - name: OpenAPI matches frontend/openapi
-        if: contains(fromJSON('["auth", "operations", "media", "report"]'), matrix.service)
+        if: contains(fromJSON('["auth", "operations", "media", "report", "platform"]'), matrix.service)
         working-directory: .
         run: |
           python infra/scripts/export_openapi.py ${{ matrix.service }}

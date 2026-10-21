@@ -215,6 +215,7 @@
   import { useDisplay } from 'vuetify'
   import { queueApi } from '@/api/operations'
   import { NetworkError } from '@/api/problem'
+  import { isRequestUpdate, settled, useLive } from '@/app/composables/useLive'
   import { countryName } from '@/app/countries'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
@@ -354,6 +355,16 @@
   })
 
   onBeforeUnmount(() => document.removeEventListener('visibilitychange', refreshWhenVisible))
+
+  // Someone claimed, assigned, approved or released a request: the queue follows (PRD NOT-5)
+  const refresh = settled(() => {
+    void load()
+  })
+  useLive(event => {
+    if (event.entity === 'reconnected' || (isRequestUpdate(event) && event.kind !== 'comment')) {
+      refresh()
+    }
+  })
 
   // --- Claim and assign ---------------------------------------------------------------------------
 

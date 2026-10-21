@@ -10,7 +10,7 @@ import httpx
 import pytest
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.revocation import revoke_user
-from mms_common.testing.matrix import Expect, Matrix, Route, check_table
+from mms_common.testing.matrix import ANY, Expect, Matrix, Route, check_table
 from mms_common.testing.memory import MemoryStore
 from mms_common.testing.seed import SEED_USERS, TestIssuer
 from mms_common.time import ManualClock
@@ -19,7 +19,11 @@ from app.config import Settings
 from app.main import create_app
 
 TABLE: dict[Route, Expect] = {
-    # ("GET", "/api/v1/things/{id}"): roles("technician", "admin", "viewer"),
+    # Notifications (NOT-1, NOT-2): everyone reads and marks their own, and only their own.
+    # Marking as read changes nothing of anyone's work, so a viewer may (self service, rule 5).
+    ("GET", "/api/v1/notifications"): Expect(ANY),
+    ("POST", "/api/v1/notifications/read-all"): Expect(ANY, self_service=True),
+    ("POST", "/api/v1/notifications/{id}/read"): Expect(ANY, self_service=True),
 }
 
 

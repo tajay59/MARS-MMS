@@ -40,6 +40,7 @@
 
     <RailButton
       :active="route.name === 'notifications'"
+      :count="badgeText(notifications.unread)"
       hint="Updates on requests, visits and reports"
       :icon="icons.notifications"
       label="Notifications"
@@ -63,6 +64,8 @@
   import { icons } from '@/app/theme/icons'
   import AppLogo from '@/components/AppLogo.vue'
   import UserMenu from '@/components/UserMenu.vue'
+  import { badgeText } from '@/features/notifications/notifications'
+  import { useNotificationsStore } from '@/stores/notifications'
   import { useSessionStore } from '@/stores/session'
   import RailButton from './RailButton.vue'
 
@@ -75,6 +78,7 @@
 
   const route = useRoute()
   const { isClient } = storeToRefs(useSessionStore())
+  const notifications = useNotificationsStore()
 
   const nav = ref<HTMLElement | null>(null)
   const indicator = ref<HTMLElement | null>(null)

@@ -8,7 +8,7 @@
       <a
         :aria-current="active ? 'true' : undefined"
         :aria-describedby="hintId"
-        :aria-label="badge ? `${label}, ${badge}` : label"
+        :aria-label="describe"
         class="relative flex size-11 shrink-0 items-center justify-center rounded-xl"
         :class="active ? 'text-primary-700 dark:text-primary-100' : 'text-surface-600 hover:text-surface-900'"
         :href="href"
@@ -26,7 +26,8 @@
           <v-icon :icon="icon" size="22" />
         </span>
 
-        <span v-if="badge" aria-hidden="true" class="absolute right-2 top-2 size-2 rounded-full bg-primary ring-2 ring-surface" />
+        <span v-if="count" aria-hidden="true" class="absolute right-0.5 top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[11px] font-semibold leading-none text-on-primary ring-2 ring-surface">{{ count }}</span>
+        <span v-else-if="badge" aria-hidden="true" class="absolute right-2 top-2 size-2 rounded-full bg-primary ring-2 ring-surface" />
       </a>
     </router-link>
 
@@ -37,7 +38,7 @@
 
 <script lang="ts" setup>
   import type { RouteLocationRaw } from 'vue-router'
-  import { onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+  import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
   import { dur, DURATION, EASE, gsap } from '@/app/motion'
   import RailTip from './RailTip.vue'
 
@@ -49,9 +50,15 @@
     active?: boolean
     /** Something waits in the section, for example "2 waiting": a dot on the icon. */
     badge?: string | null
+    /** A number on the icon ("3", "99+"), for what waits for this person: unread notifications. */
+    count?: string | null
   }>()
 
   const hintId = useId()
+  const describe = computed(() => {
+    const extra = props.count ? `${props.count} unread` : props.badge
+    return extra ? `${props.label}, ${extra}` : props.label
+  })
   const halo = ref<HTMLElement | null>(null)
   const glyph = ref<HTMLElement | null>(null)
   let hovered = false

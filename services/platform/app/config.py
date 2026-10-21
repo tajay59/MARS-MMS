@@ -34,8 +34,10 @@ class Settings(BaseSettings):
         "mms.report.events",
     ]
 
-    # The notification consumer's topics. Account emails come from auth; the rest in Phase 3.
-    notification_topics: list[str] = ["mms.auth.events"]
+    # The notification consumer's topics: auth for accounts, operations for requests and comments.
+    notification_topics: list[str] = ["mms.auth.events", "mms.operations.events"]
+    # A socket's token is checked again this often (TRD 13.4 says 25 s).
+    ws_heartbeat_s: float = 25.0
 
     redis_url: str = "redis://localhost:6379/0"
     kafka_bootstrap: str = "localhost:9092"

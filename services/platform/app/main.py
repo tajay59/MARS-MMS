@@ -25,9 +25,11 @@ from mms_common.web import ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
+from app.api import notifications as notification_routes
+from app.api import ws
 from app.config import Settings
 from app.events import audit_consumer, notification_consumer
-from app.jobs import account_emails
+from app.jobs import account_emails, user_backfill
 from app.migrations import audit as audit_migrations
 
 
@@ -78,7 +80,7 @@ def create_app(
                 return audit_consumer.processor(audit_client, audit_db, send_to_dlq, clock)
 
             def make_notification(send_to_dlq: SendToDlq) -> EventProcessor:
-                return notification_consumer.processor(client, db, send_to_dlq, clock)
+                return notification_consumer.processor(client, db, send_to_dlq, clock, redis)
 
             tokens = ServiceTokens(
                 settings.auth_url, "platform", settings.service_secret.get_secret_value(),
@@ -110,6 +112,9 @@ def create_app(
                     )
                 ),
                 asyncio.create_task(account_emails.run(sender, stop, settings.email_poll_s)),
+                asyncio.create_task(
+                    user_backfill.run(db, http, tokens, settings.auth_url, stop)
+                ),
             ]
         try:
             yield
@@ -131,8 +136,10 @@ def create_app(
     app.state.settings = settings
     app.state.clock = clock
     install(app, ready_checks)
+    app.include_router(notification_routes.router)
+    app.include_router(ws.router)
     # Routers come with their phases: audit search, export and verify (AUD-4 to AUD-6) and
-    # notifications. Every route goes in tests/api/test_authorization_matrix.py.
+    # the email preferences. Every route goes in tests/api/test_authorization_matrix.py.
     return app
 
 

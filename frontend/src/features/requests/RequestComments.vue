@@ -34,6 +34,7 @@
   import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { requestsApi } from '@/api/operations'
   import { NetworkError } from '@/api/problem'
+  import { isRequestUpdate, settled, useLive } from '@/app/composables/useLive'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { useSessionStore } from '@/stores/session'
   import CommentComposer from './CommentComposer.vue'
@@ -85,6 +86,16 @@
     loading.value = true
     void load()
   })
+  // Someone else commented, or a comment was made internal: look again, keeping the composer as is
+  const refresh = settled(() => {
+    void load()
+  }, 500)
+  useLive(event => {
+    if (event.entity === 'reconnected' || (isRequestUpdate(event) && event.id === props.requestId && event.kind === 'comment')) {
+      refresh()
+    }
+  })
+
   onMounted(load)
   onBeforeUnmount(() => clearInterval(tick))
 </script>

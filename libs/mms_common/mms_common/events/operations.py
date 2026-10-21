@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from mms_common.events.registry import register
 
@@ -225,6 +225,8 @@ class RequestData(_Data):
     # notification needs and who asked, without a read from operations (rule 1).
     title: str | None = None
     created_by: str | None = None
+    # Who is on the request now, so the notification module knows whom a comment is for
+    assigned_staff_ids: list[str] = Field(default_factory=list)
 
 
 @register("request.submitted")

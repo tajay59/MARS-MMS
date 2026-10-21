@@ -99,6 +99,8 @@
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { icons } from '@/app/theme/icons'
+  import { badgeText } from '@/features/notifications/notifications'
+  import { useNotificationsStore } from '@/stores/notifications'
   import { useSessionStore } from '@/stores/session'
   import { tabDot, tabDown, tabIcon, tabItem, tabKey, tabLabel, tabUp } from './tabBar'
 
@@ -115,13 +117,18 @@
   // Four sections fit beside Me; Admin moves into the Me menu on phones.
   const shown = computed(() => props.sections.filter(s => s.key !== 'admin').slice(0, 4))
   const admin = computed(() => props.sections.find(s => s.key === 'admin'))
-  const meBadge = computed(() => admin.value ? props.badges[admin.value.key] : null)
+  const notifications = useNotificationsStore()
+  const meBadge = computed(() => {
+    const waiting = admin.value ? props.badges[admin.value.key] : null
+    const unread = notifications.unread > 0 ? `${badgeText(notifications.unread)} unread` : null
+    return [waiting, unread].filter(Boolean).join(', ') || null
+  })
 
   const meItems = computed<MenuItem[]>(() => [
     { label: 'My profile', to: 'profile', icon: mdiAccountOutline },
-    { label: 'Notifications', to: 'notifications', icon: icons.notifications },
+    { label: notifications.unread > 0 ? `Notifications (${badgeText(notifications.unread)})` : 'Notifications', to: 'notifications', icon: icons.notifications },
     ...(isClient.value ? [] : [{ label: 'Sync', to: 'sync', icon: mdiCloudCheckOutline }]),
-    ...(admin.value ? [{ label: meBadge.value ? `Admin (${meBadge.value})` : 'Admin', to: admin.value.items[0]!.to, icon: admin.value.icon }] : []),
+    ...(admin.value ? [{ label: props.badges[admin.value.key] ? `Admin (${props.badges[admin.value.key]})` : 'Admin', to: admin.value.items[0]!.to, icon: admin.value.icon }] : []),
   ])
   const inMe = computed(() => !shown.value.some(s => s.key === props.current?.key))
 

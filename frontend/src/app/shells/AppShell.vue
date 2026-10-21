@@ -85,17 +85,20 @@
     </main>
 
     <AppTabBar v-if="!lgAndUp" :badges="badges" :current="section" :sections="sections" />
+    <NotificationToast />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { mdiDockLeft } from '@mdi/js'
   import { storeToRefs } from 'pinia'
-  import { computed, nextTick, onBeforeUnmount, provide, ref, watch } from 'vue'
+  import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { dur, DURATION, EASE, gsap } from '@/app/motion'
   import { clientSections, sectionOf, sectionsFor, staffSections } from '@/app/navigation'
+  import NotificationToast from '@/features/notifications/NotificationToast.vue'
+  import { useNotificationsStore } from '@/stores/notifications'
   import { useRegistrationsStore } from '@/stores/registrations'
   import { useSessionStore } from '@/stores/session'
   import AppRail from './AppRail.vue'
@@ -108,6 +111,10 @@
   const session = useSessionStore()
   const { isAdmin, isClient, roles } = storeToRefs(session)
   const registrations = useRegistrationsStore()
+  // The live channel and the unread count run while the app shell is open (PRD NOT-1)
+  const notifications = useNotificationsStore()
+  onMounted(() => notifications.start())
+  onBeforeUnmount(() => notifications.stop())
   const route = useRoute()
 
   const sections = computed(() => sectionsFor(isClient.value ? clientSections : staffSections, roles.value))
