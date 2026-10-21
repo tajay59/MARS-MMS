@@ -34,13 +34,16 @@ import httpx
 from mms_common import migrations, mongo
 from mms_common.auth.service_client import ServiceTokens
 from mms_common.events import Actor
+from mms_common.ids import new_id
 from mms_common.time import SystemClock
 
 from app import migrations as app_migrations
 from app.config import Settings
+from app.domain.checklists import starter, templates
 from app.domain.stations import importing
 from app.events.publish import Emitter
 from app.jobs import org_backfill, seed_data, seed_requests, station_import
+from app.repo.checklists import templates as checklist_repo
 
 CLI = Actor(name="operations cli", roles=["service"])
 
@@ -100,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
     sr.add_argument("--count", type=int, default=50)
     commands.add_parser("remove-example-requests")
     commands.add_parser("backfill-orgs")
+    sc = commands.add_parser("seed-checklists")
+    sc.add_argument("--station-type", default=starter.STARTER_TYPE,
+                    help="the station type the starter checklist is for")
     args = parser.parse_args(argv)
 
     if args.command == "import-stations":
@@ -124,7 +130,38 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_seed_requests(args.count))
     if args.command == "remove-example-requests":
         return asyncio.run(_remove_example_requests())
+    if args.command == "seed-checklists":
+        return asyncio.run(_seed_checklists(args.station_type))
     return asyncio.run(_backfill_only())
+
+
+async def _seed_checklists(station_type: str) -> int:
+    """The starter checklist (PRD Q5) for a station type, once: nothing happens when the type
+    already has an active template. Run it on purpose; no migration creates it."""
+    settings = Settings()
+    clock = SystemClock()
+    client = mongo.connect(settings.mongo_uri)
+    db = client[settings.mongo_db]
+    try:
+        await migrations.run(db, app_migrations, clock)
+        key = templates.scope_key(station_type, None)
+        if await checklist_repo.active_for_scope(db, key) is not None:
+            print(f"{station_type} already has an active checklist: nothing changed")
+            return 0
+        family = new_id()
+        items = templates.clean_items(
+            [{"label": label, "help": help_} for label, help_ in starter.STARTER_ITEMS], new_id
+        )
+        await checklist_repo.col(db).insert_one({
+            "_id": family, "family_id": family, "name": starter.STARTER_NAME,
+            "station_type": station_type, "sensor_model_id": None, "scope_key": key,
+            "version": 1, "items": items, "active": True, "is_current": True,
+            "created_by": None, "created_at": clock.now(),
+        })
+    finally:
+        await client.close()
+    print(f"Created the starter checklist for {station_type}: {len(items)} items")
+    return 0
 
 
 async def _seed_requests(count: int) -> int:

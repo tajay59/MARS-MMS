@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
+import type { CalibrationPage, ChecklistTemplate, ChecklistTemplateIn, ChecklistTemplateList, ChecklistTemplatePatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -143,4 +143,15 @@ export const configVersionsApi = {
     api.post<ConfigVersionOut>(`/stations/${stationId}/config-versions`, body),
   diff: (stationId: string, version: number, against?: number, signal?: AbortSignal) =>
     api.get<ConfigDiff>(`/stations/${stationId}/config-versions/${version}/diff`, { query: { against }, signal }),
+}
+
+// Checklist templates (VIS-8, W10): staff read, admins write. Saving writes the next version;
+// `version` is the one the editor was looking at, and a newer one answers 409 `version_conflict`.
+export const checklistsApi = {
+  list: (all = false, signal?: AbortSignal) =>
+    api.get<ChecklistTemplateList>('/checklist-templates', { query: { all: all || undefined }, signal }),
+  get: (id: string, version?: number, signal?: AbortSignal) =>
+    api.get<ChecklistTemplate>(`/checklist-templates/${id}`, { query: { version }, signal }),
+  create: (body: ChecklistTemplateIn) => api.post<ChecklistTemplate>('/checklist-templates', body),
+  update: (id: string, body: ChecklistTemplatePatch) => api.patch<ChecklistTemplate>(`/checklist-templates/${id}`, body),
 }

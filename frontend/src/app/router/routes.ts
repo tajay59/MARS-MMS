@@ -184,7 +184,13 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Users', layout: 'app', roles: ADMIN },
   },
   later('/admin/organizations', 'admin-organizations', 'Organizations', 2, ADMIN),
-  later('/admin/checklists', 'admin-checklists', 'Checklist templates', 4, ADMIN),
+  {
+    // Checklist templates (PRD VIS-8): the list in the pane, a template or `new` in the view
+    path: '/admin/checklists/:id?',
+    name: 'admin-checklists',
+    component: () => import('@/features/admin/checklists/ChecklistsPage.vue'),
+    meta: { title: 'Checklist templates', layout: 'app', roles: ADMIN },
+  },
   {
     // Label sheets (PRD QR-6); the station import joins this page later
     path: '/admin/stations-tools',
