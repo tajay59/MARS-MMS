@@ -50,6 +50,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checklist-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Templates
+         * @description The current version of each template. Inactive ones too, for an admin who asks (`all`).
+         */
+        get: operations["list_templates_api_v1_checklist_templates_get"];
+        put?: never;
+        /**
+         * Create Template
+         * @description A new template for a station type, or an add-on for a sensor model.
+         */
+        post: operations["create_template_api_v1_checklist_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resolve For Station
+         * @description What a visit to this station is given: its type's template, then an add-on for each
+         *     sensor model installed there.
+         */
+        get: operations["resolve_for_station_api_v1_checklist_templates_resolve_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Template
+         * @description The current version, or an older one by number (what a visit copied).
+         */
+        get: operations["get_template_api_v1_checklist_templates__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Template
+         * @description Save the next version (name, items, or active). Nothing changed writes nothing.
+         */
+        patch: operations["change_template_api_v1_checklist_templates__id__patch"];
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -1650,6 +1719,24 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /** ItemIn */
+        ItemIn: {
+            /** Help */
+            help?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Label */
+            label: string;
+        };
+        /** ItemOut */
+        ItemOut: {
+            /** Help */
+            help: string | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
         /** LabelOut */
         LabelOut: {
             /** Code */
@@ -2015,6 +2102,33 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /**
+         * Resolved
+         * @description What a visit to this station is given (W10-11).
+         */
+        Resolved: {
+            /** Items */
+            items: components["schemas"]["ResolvedItem"][];
+            /** Station Id */
+            station_id: string;
+            /** Station Type */
+            station_type: string | null;
+        };
+        /** ResolvedItem */
+        ResolvedItem: {
+            /** Group */
+            group: string;
+            /** Help */
+            help: string | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Template Id */
+            template_id: string;
+            /** Template Version */
+            template_version: number;
         };
         /**
          * Scope
@@ -2489,6 +2603,62 @@ export interface components {
             /** Type */
             type: string | null;
         };
+        /** TemplateIn */
+        TemplateIn: {
+            /** Items */
+            items: components["schemas"]["ItemIn"][];
+            /** Name */
+            name: string;
+            /** Sensor Model Id */
+            sensor_model_id?: string | null;
+            /** Station Type */
+            station_type?: string | null;
+        };
+        /** TemplateList */
+        TemplateList: {
+            /** Items */
+            items: components["schemas"]["TemplateOut"][];
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Is Current */
+            is_current: boolean;
+            /** Items */
+            items: components["schemas"]["ItemOut"][];
+            /** Name */
+            name: string;
+            /** Sensor Model Id */
+            sensor_model_id: string | null;
+            /** Sensor Model Name */
+            sensor_model_name: string | null;
+            /** Station Type */
+            station_type: string | null;
+            /** Version */
+            version: number;
+        };
+        /**
+         * TemplatePatch
+         * @description `version` is the version the editor was looking at: if someone saved a newer one, 409.
+         */
+        TemplatePatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Items */
+            items?: components["schemas"]["ItemIn"][] | null;
+            /** Name */
+            name?: string | null;
+            /** Version */
+            version: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -2781,6 +2951,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DueList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_api_v1_checklist_templates_get: {
+        parameters: {
+            query?: {
+                all?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_template_api_v1_checklist_templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_for_station_api_v1_checklist_templates_resolve_get: {
+        parameters: {
+            query: {
+                station_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Resolved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_template_api_v1_checklist_templates__id__get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_template_api_v1_checklist_templates__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplatePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
                 };
             };
             /** @description Validation Error */

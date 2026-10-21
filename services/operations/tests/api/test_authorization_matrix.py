@@ -94,6 +94,12 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/visits/{id}/stations/{station_id}/arrive"): WRITE,
     ("POST", "/api/v1/visits/{id}/stations/{station_id}/depart"): WRITE,
     ("POST", "/api/v1/visits/{id}/end"): WRITE,
+    # Checklist templates (VIS-8, W10): staff read, only admins write; clients never see them.
+    ("GET", "/api/v1/checklist-templates"): STAFF,
+    ("POST", "/api/v1/checklist-templates"): roles("admin"),
+    ("GET", "/api/v1/checklist-templates/resolve"): STAFF,
+    ("GET", "/api/v1/checklist-templates/{id}"): STAFF,
+    ("PATCH", "/api/v1/checklist-templates/{id}"): roles("admin"),
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),
