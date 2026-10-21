@@ -11,7 +11,7 @@ describe('sectionsFor', () => {
   it('hides Admin and the queue from viewers', () => {
     const sections = sectionsFor(staffSections, ['viewer'])
     expect(sections.map(s => s.key)).not.toContain('admin')
-    expect(sections.find(s => s.key === 'work')?.items.map(i => i.to)).toEqual(['requests'])
+    expect(sections.find(s => s.key === 'work')?.items.map(i => i.to)).toEqual(['requests', 'visits'])
   })
 
   it('opens a technician\'s Work section on the queue', () => {

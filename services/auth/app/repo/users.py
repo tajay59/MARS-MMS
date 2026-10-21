@@ -30,6 +30,14 @@ async def get_many(db: Db, user_ids: list[str]) -> list[dict[str, Any]]:
     return [d async for d in col(db).find({"_id": {"$in": user_ids}})]
 
 
+async def active_staff(db: Db, limit: int = 200) -> list[dict[str, Any]]:
+    """Active technicians and admins, by name: who may attend a visit."""
+    cursor = col(db).find(
+        {"status": "active", "roles": {"$in": ["technician", "admin"]}}
+    ).sort("name", 1).limit(limit)
+    return [d async for d in cursor]
+
+
 async def require(db: Db, user_id: str, session: Session = None) -> dict[str, Any]:
     doc = await get(db, user_id, session)
     if doc is None:

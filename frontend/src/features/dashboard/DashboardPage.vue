@@ -26,10 +26,14 @@
       </section>
     </PaneContent>
 
-    <section class="flex max-w-2xl flex-col gap-2">
-      <h2 class="m-0 text-h3 text-surface-900">{{ next.title }}</h2>
-      <p class="m-0 text-surface-600">{{ next.text }}</p>
-    </section>
+    <div class="flex flex-col gap-8">
+      <MyVisits v-if="canAttend" />
+
+      <section class="flex max-w-2xl flex-col gap-2">
+        <h2 class="m-0 text-h3 text-surface-900">{{ next.title }}</h2>
+        <p class="m-0 text-surface-600">{{ next.text }}</p>
+      </section>
+    </div>
   </PageBody>
 </template>
 
@@ -39,6 +43,7 @@
   import { computed, onMounted } from 'vue'
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
+  import MyVisits from '@/features/visits/MyVisits.vue'
   import { useRegistrationsStore } from '@/stores/registrations'
   import { useSessionStore } from '@/stores/session'
 
@@ -48,10 +53,12 @@
   const { user, isAdmin, isClient, canAct } = storeToRefs(session)
   const registrations = useRegistrationsStore()
 
+  // Technicians and admins attend visits; clients and viewers don't
+  const canAttend = computed(() => session.hasAnyRole(['technician', 'admin']))
   const greeting = computed(() => `Signed in as ${user.value?.name ?? ''}`)
   const next = computed(() => isClient.value
     ? { title: 'Your stations and requests', text: 'Station pages arrive in phase 2 and reporting a problem in phase 3.' }
-    : { title: 'Your work', text: 'The queue, your visits and the station map arrive in phases 2 and 3.' })
+    : { title: 'Your work', text: 'Claim requests from the queue, then plan and run their visits from Work.' })
 
   onMounted(() => {
     if (isAdmin.value) {

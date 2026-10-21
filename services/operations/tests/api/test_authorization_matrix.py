@@ -85,6 +85,7 @@ TABLE: dict[Route, Expect] = {
     # the people on the request or attending), only admins restore; viewers and clients never write.
     ("POST", "/api/v1/visits"): WRITE,
     ("GET", "/api/v1/visits/mine"): STAFF,
+    ("GET", "/api/v1/visits/staff"): WRITE,
     ("GET", "/api/v1/visits"): Expect(ANY),
     ("GET", "/api/v1/visits/{id}"): Expect(ANY),
     ("PATCH", "/api/v1/visits/{id}"): WRITE,

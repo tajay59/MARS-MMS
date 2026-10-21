@@ -13,8 +13,16 @@ export interface EntityUpdate {
   kind: 'status' | 'staff' | 'comment'
 }
 
+/** A visit changed (W10): which one, the request it belongs to, and its status now. */
+export interface VisitUpdate {
+  entity: 'visit'
+  id: string
+  request_id: string
+  status: string
+}
+
 /** `reconnected`: the socket was away, so anything may have changed. */
-export type LiveEvent = EntityUpdate | { entity: 'reconnected' }
+export type LiveEvent = EntityUpdate | VisitUpdate | { entity: 'reconnected' }
 
 type Listener = (event: LiveEvent) => void
 

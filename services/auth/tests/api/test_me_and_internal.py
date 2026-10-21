@@ -120,3 +120,22 @@ async def test_lookup_is_for_operations_only(auth):
     other = {"Authorization": f"Bearer {auth.issuer.service_token('platform')}"}
     r = await auth.http.post("/internal/users/lookup", json={"ids": [new_id()]}, headers=other)
     assert r.status_code == 403
+
+
+async def test_staff_list_is_active_technicians_and_admins_by_name(auth):
+    headers = {"Authorization": f"Bearer {auth.issuer.service_token('operations')}"}
+    r = await auth.http.get("/internal/users/staff", headers=headers)
+    assert r.status_code == 200
+    users = r.json()["users"]
+    ids = {u["id"] for u in users}
+    assert {SEED_USERS["tech1"].id, SEED_USERS["admin"].id} <= ids
+    assert SEED_USERS["client_a1"].id not in ids  # clients are not staff
+    assert SEED_USERS["viewer"].id not in ids  # viewers never attend
+    assert SEED_USERS["disabled"].id not in ids
+    assert [u["name"] for u in users] == sorted(u["name"] for u in users)
+    assert set(users[0]) == {"id", "name", "roles", "status"}
+
+
+async def test_staff_list_is_for_operations_only(auth):
+    other = {"Authorization": f"Bearer {auth.issuer.service_token('platform')}"}
+    assert (await auth.http.get("/internal/users/staff", headers=other)).status_code == 403

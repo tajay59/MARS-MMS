@@ -23,6 +23,8 @@ from app.api.visits import glue
 from app.api.visits.schemas import (
     AtIn,
     EndIn,
+    StaffList,
+    StaffOut,
     VisitCancelIn,
     VisitIn,
     VisitOut,
@@ -154,6 +156,17 @@ async def my_visits(user: StaffReader, ctx: CtxDep) -> VisitPage:
         items=[VisitOut.build(d, requests.get(d["request_id"]), user) for d in docs],
         total=len(docs), next_after=None,
     )
+
+
+@router.get("/staff")
+async def attending_staff(user: Worker, ctx: CtxDep) -> StaffList:
+    """The active technicians and admins to pick from when scheduling (VIS-1). Operations keeps
+    no copy of users (rule 1): auth answers, and only names and roles come back. Admins can list
+    users in auth; a technician who is assigned to the request cannot, so the list is here."""
+    people = await ctx.staff.staff(ctx.request_id)
+    return StaffList(items=[
+        StaffOut(id=p["id"], name=p["name"], roles=sorted(p["roles"])) for p in people
+    ])
 
 
 @router.get("")

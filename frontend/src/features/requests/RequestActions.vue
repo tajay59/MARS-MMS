@@ -10,6 +10,14 @@
   >Approve</v-btn>
 
   <v-btn
+    v-if="can(detail, 'schedule_visit')"
+    :block="full"
+    color="primary"
+    :prepend-icon="mdiPlus"
+    @click="emit('schedule')"
+  >Schedule visit</v-btn>
+
+  <v-btn
     v-if="can(detail, 'assign')"
     :block="full"
     color="primary"
@@ -63,7 +71,7 @@
 
 <script lang="ts" setup>
   import type { RequestDetail } from '@/api/models'
-  import { mdiAccountPlusOutline, mdiCheck, mdiPencilOutline } from '@mdi/js'
+  import { mdiAccountPlusOutline, mdiCheck, mdiPencilOutline, mdiPlus } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { useRoute } from 'vue-router'
   import { useSessionStore } from '@/stores/session'
@@ -77,7 +85,7 @@
     full?: boolean
   }>()
 
-  const emit = defineEmits<{ approve: [], deny: [], cancel: [], assign: [], claim: [], release: [] }>()
+  const emit = defineEmits<{ approve: [], deny: [], cancel: [], assign: [], claim: [], release: [], schedule: [] }>()
   const route = useRoute()
   const { isAdmin } = storeToRefs(useSessionStore())
 </script>

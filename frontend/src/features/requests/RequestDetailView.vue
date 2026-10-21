@@ -18,7 +18,7 @@
         :show-arrows="mdAndUp"
       >
         <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
-          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span>
+          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span><span v-else-if="t.key === 'visits' && visitCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ visitCount }}</span>
         </v-tab>
       </v-tabs>
     </Teleport>
@@ -87,6 +87,10 @@
         <RequestComments :request-id="detail.id" @count="seen = $event" />
       </v-tabs-window-item>
 
+      <v-tabs-window-item value="visits">
+        <RequestVisits :can-schedule="detail.actions.includes('schedule_visit')" :refresh-key="refreshKey" :request-id="detail.id" @count="seenVisits = $event" />
+      </v-tabs-window-item>
+
       <v-tabs-window-item value="history">
         <div class="overflow-x-auto">
           <table class="w-full border-collapse text-sm">
@@ -129,13 +133,14 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { pageBarKey } from '@/components/pageBar'
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
+  import RequestVisits from '@/features/visits/RequestVisits.vue'
   import RequestComments from './RequestComments.vue'
   import { bannerFor, categoryLabel, lookOf, timelineOf } from './requests'
   import SavedFile from './SavedFile.vue'
 
   // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments
-  // and the history of every change. Visits and Reports join the tabs when those features exist.
-  const props = defineProps<{ detail: RequestDetail, isClient: boolean }>()
+  // the visits and the history of every change. Reports join the tabs in Phase 6.
+  const props = defineProps<{ detail: RequestDetail, isClient: boolean, refreshKey?: number }>()
 
   const route = useRoute()
   const router = useRouter()
@@ -145,6 +150,7 @@
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'comments', label: 'Comments' },
+    { key: 'visits', label: 'Visits' },
     { key: 'history', label: 'History' },
   ]
 
@@ -162,6 +168,10 @@
   // The number on the tab: what the page was told, then what the thread says once it has loaded
   const seen = ref<number | null>(null)
   const commentCount = computed(() => seen.value ?? props.detail.comment_count)
+
+  // The same for the visits: what the page was told (those not cancelled), then what the tab says
+  const seenVisits = ref<number | null>(null)
+  const visitCount = computed(() => seenVisits.value ?? props.detail.visits.filter(v => v.status !== 'cancelled').length)
 
   function linkFor (mediaId: string): Promise<{ url: string }> {
     return requestsApi.requestFile(props.detail.id, mediaId)

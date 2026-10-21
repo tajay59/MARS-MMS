@@ -75,8 +75,16 @@ describe('the messages the socket carries', () => {
     expect(asEntityUpdate({ type: 'notification' })).toBeNull()
   })
 
+  it('reads a visit change with the request it belongs to', () => {
+    expect(asEntityUpdate({ type: 'entity.updated', entity: 'visit', id: 'v1', request_id: 'r1', status: 'started', kind: 'visit' }))
+      .toEqual({ entity: 'visit', id: 'v1', request_id: 'r1', status: 'started' })
+    // Without the request a page could not tell whether it is about this one
+    expect(asEntityUpdate({ type: 'entity.updated', entity: 'visit', id: 'v1', status: 'started', kind: 'visit' })).toBeNull()
+    expect(asEntityUpdate({ type: 'entity.updated', entity: 'visit', request_id: 'r1', kind: 'visit' })).toBeNull()
+  })
+
   it('has an icon for every type it names, and a bell for the rest', () => {
-    for (const type of ['account.registered', 'request.submitted', 'request.assigned', 'request.staff_changed', 'request.released', 'request.cancelled', 'comment.added']) {
+    for (const type of ['account.registered', 'request.submitted', 'request.assigned', 'request.staff_changed', 'request.released', 'request.cancelled', 'comment.added', 'visit.scheduled', 'visit.cancelled', 'visit.ended', 'visit.owner_changed']) {
       expect(iconFor(type)).not.toBe(iconFor('something.else'))
     }
   })

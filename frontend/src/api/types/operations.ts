@@ -911,6 +911,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visits/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Attending Staff
+         * @description The active technicians and admins to pick from when scheduling (VIS-1). Operations keeps
+         *     no copy of users (rule 1): auth answers, and only names and roles come back. Admins can list
+         *     users in auth; a technician who is assigned to the request cannot, so the list is here.
+         */
+        get: operations["attending_staff_api_v1_visits_staff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/visits/{id}": {
         parameters: {
             query?: never;
@@ -2370,6 +2392,23 @@ export interface components {
             label: string;
             /** Value */
             value: string;
+        };
+        /** StaffList */
+        StaffList: {
+            /** Items */
+            items: components["schemas"]["StaffOut"][];
+        };
+        /**
+         * StaffOut
+         * @description Someone who may attend a visit: a name and roles, never an email or phone.
+         */
+        StaffOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Roles */
+            roles: string[];
         };
         /** StationDetail */
         StationDetail: {
@@ -4750,6 +4789,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VisitPage"];
+                };
+            };
+        };
+    };
+    attending_staff_api_v1_visits_staff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffList"];
                 };
             };
         };

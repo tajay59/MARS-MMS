@@ -1,6 +1,6 @@
 import type { NotificationOut } from '@/api/models'
-import type { EntityUpdate } from '@/app/realtime/bus'
-import { mdiAccountCheckOutline, mdiAccountOutline, mdiBellOutline, mdiCancel, mdiCommentTextOutline, mdiInboxOutline, mdiReplay, mdiTuneVariant } from '@mdi/js'
+import type { EntityUpdate, VisitUpdate } from '@/app/realtime/bus'
+import { mdiAccountCheckOutline, mdiAccountOutline, mdiBellOutline, mdiCalendarOutline, mdiCancel, mdiCommentTextOutline, mdiFlagCheckered, mdiInboxOutline, mdiReplay, mdiSwapHorizontal, mdiTuneVariant } from '@mdi/js'
 
 /*
   The notification list and the messages the socket carries (PRD NOT-1, NOT-2, NOT-5). No Vue
@@ -64,6 +64,18 @@ export function iconFor (type: string): string {
     case 'calibration.digest': {
       return mdiTuneVariant
     }
+    case 'visit.scheduled': {
+      return mdiCalendarOutline
+    }
+    case 'visit.cancelled': {
+      return mdiCancel
+    }
+    case 'visit.ended': {
+      return mdiFlagCheckered
+    }
+    case 'visit.owner_changed': {
+      return mdiSwapHorizontal
+    }
     default: {
       return mdiBellOutline
     }
@@ -83,8 +95,13 @@ export function isNotification (message: Record<string, unknown>): message is { 
   return message.type === 'notification' && typeof data?.id === 'string' && typeof data.title === 'string'
 }
 
-/** The "a request changed" message, or null for anything else (or anything malformed). */
-export function asEntityUpdate (message: Record<string, unknown>): EntityUpdate | null {
+/** The "a request or a visit changed" message, or null for anything else (or anything malformed). */
+export function asEntityUpdate (message: Record<string, unknown>): EntityUpdate | VisitUpdate | null {
+  if (message.type === 'entity.updated' && message.entity === 'visit') {
+    return typeof message.id === 'string' && typeof message.request_id === 'string'
+      ? { entity: 'visit', id: message.id, request_id: message.request_id, status: String(message.status ?? '') }
+      : null
+  }
   if (message.type !== 'entity.updated' || message.entity !== 'request' || typeof message.id !== 'string') {
     return null
   }

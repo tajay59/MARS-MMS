@@ -86,7 +86,7 @@ async def test_the_assigned_technician_schedules_a_visit_and_the_request_becomes
     assert [p["id"] for p in visit["staff"]] == [TECH1]
     assert [s["owner"]["id"] for s in visit["stations"]] == [TECH1, TECH1]  # the lead by default
     assert visit["notes"] == "Bring the long ladder"
-    assert set(visit["actions"]) == {"reschedule", "cancel", "start"}
+    assert set(visit["actions"]) == {"reschedule", "cancel", "change_owner", "start"}
 
     got = await request_now(ops, request["id"])
     assert got["status"] == "scheduled"
@@ -605,3 +605,21 @@ async def test_the_snapshot_carries_visits_without_notes(ops):
     [item] = r.json()["items"]
     assert item["visit_id"] == visit["id"] and item["aggregate_version"] == 1
     assert "notes" not in item and item["status"] == "planned"
+
+
+# --- who can attend (slice 3: the schedule form's list) -------------------------------------------
+
+
+async def test_staff_list_for_a_technician_has_names_and_roles_only(ops):
+    r = await ops.http.get("/api/v1/visits/staff", headers=ops.bearer("tech1"))
+    assert r.status_code == 200
+    items = r.json()["items"]
+    assert {TECH1, TECH2, ADMIN} <= {p["id"] for p in items}
+    assert CLIENT_A1 not in {p["id"] for p in items}
+    assert all(set(p) == {"id", "name", "roles"} for p in items)
+
+
+async def test_staff_list_is_503_when_auth_is_down(ops):
+    ops.staff.down = True
+    r = await ops.http.get("/api/v1/visits/staff", headers=ops.bearer("tech1"))
+    assert r.status_code == 503
