@@ -25,35 +25,12 @@
       >
         <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
 
-        <div class="max-h-[400px] overflow-y-auto rounded-lg border border-surface-300">
-          <table class="w-full border-collapse text-sm">
-            <caption class="sr-only">{{ group.label }}: pick a row to filter the queue by it</caption>
-
-            <thead>
-              <tr class="text-left">
-                <th class="sticky top-0 bg-surface-100 px-3 py-2 text-xs font-medium text-surface-700" scope="col">{{ group.label }}</th>
-                <th class="sticky top-0 bg-surface-100 px-3 py-2 text-right text-xs font-medium text-surface-700" scope="col">Requests</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <tr
-                v-for="row in rowsOf(group)"
-                :key="row.value ?? 'any'"
-                class="cursor-pointer border-t border-surface-200 hover:bg-surface-100"
-                :class="filters[group.field] === row.value ? 'bg-primary-100 font-medium text-primary-800 hover:bg-primary-100 dark:bg-primary-800 dark:text-primary-100 dark:hover:bg-primary-800' : 'text-surface-900'"
-                @click="pick(group.field, row.value)"
-              >
-                <td class="p-0">
-                  <!-- The row's click handler takes the button's click too, so a key press works -->
-                  <button :aria-pressed="filters[group.field] === row.value" class="block w-full px-3 py-2.5 text-left" type="button">{{ row.label }}</button>
-                </td>
-
-                <td class="px-3 py-2.5 text-right font-semibold tabular-nums">{{ row.count }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <FilterTable
+          :label="group.label"
+          :rows="rowsOf(group)"
+          :selected="filters[group.field]"
+          @pick="pick(group.field, $event)"
+        />
       </div>
 
       <div
@@ -65,23 +42,20 @@
         <h3 :id="`q-${group.field}`" class="m-0 text-xs font-semibold uppercase tracking-wide text-surface-600">{{ group.label }}</h3>
 
         <div class="flex flex-wrap gap-1.5">
-          <button
-            :aria-pressed="filters[group.field] === null"
-            class="inline-flex h-8 items-center gap-2 rounded-lg border-b-[3px] px-3 text-sm"
-            :class="chip(filters[group.field] === null)"
-            type="button"
+          <FilterChip
+            :active="filters[group.field] === null"
+            label="Any"
             @click="pick(group.field, null)"
-          >Any</button>
+          />
 
-          <button
+          <FilterChip
             v-for="option in group.options"
             :key="option.value"
-            :aria-pressed="filters[group.field] === option.value"
-            class="inline-flex h-8 items-center gap-2 rounded-lg border-b-[3px] px-3 text-sm"
-            :class="chip(filters[group.field] === option.value)"
-            type="button"
+            :active="filters[group.field] === option.value"
+            :count="option.count"
+            :label="option.label"
             @click="pick(group.field, option.value)"
-          >{{ option.label }}<span class="inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums" :class="badge(filters[group.field] === option.value)">{{ option.count }}</span></button>
+          />
         </div>
       </div>
     </template>
@@ -98,6 +72,8 @@
 <script lang="ts" setup>
   import type { FilterGroup, QueueFilters } from './queue'
   import { mdiMagnify } from '@mdi/js'
+  import FilterChip from './FilterChip.vue'
+  import FilterTable from './FilterTable.vue'
 
   // The queue's search and filters (PRD REQ-7): search, then priority, country and category with
   // how many requests each leaves. On a phone it sits in a bottom sheet and on a desktop in the
@@ -119,18 +95,5 @@
   // A value already picked is let go by picking it again; "Any" always clears the field
   function pick (field: FilterGroup['field'], value: string | null): void {
     emit('change', { [field]: value === null || props.filters[field] === value ? null : value })
-  }
-
-  function chip (on: boolean): string {
-    return on
-      ? 'border-primary-600 font-medium text-primary-800 dark:border-primary-300 dark:text-primary-100'
-      : 'border-transparent text-surface-900'
-  }
-
-  // No fill on a chip: the picked one has a coloured line under it. The count sits in a coloured badge, strong on the picked chip and soft on the others
-  function badge (on: boolean): string {
-    return on
-      ? 'bg-primary-700 text-white dark:bg-primary-100 dark:text-primary-800'
-      : 'bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-100'
   }
 </script>
