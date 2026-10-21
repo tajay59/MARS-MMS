@@ -67,7 +67,7 @@
         <div class="flex flex-wrap gap-1.5">
           <button
             :aria-pressed="filters[group.field] === null"
-            class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
+            class="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm"
             :class="chip(filters[group.field] === null)"
             type="button"
             @click="pick(group.field, null)"
@@ -77,11 +77,11 @@
             v-for="option in group.options"
             :key="option.value"
             :aria-pressed="filters[group.field] === option.value"
-            class="inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm"
+            class="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm"
             :class="chip(filters[group.field] === option.value)"
             type="button"
             @click="pick(group.field, option.value)"
-          >{{ option.label }}<span class="tabular-nums font-semibold">{{ option.count }}</span></button>
+          >{{ option.label }}<span class="inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-xs font-semibold tabular-nums" :class="badge(filters[group.field] === option.value)">{{ option.count }}</span></button>
         </div>
       </div>
     </template>
@@ -123,7 +123,14 @@
 
   function chip (on: boolean): string {
     return on
-      ? 'border-transparent bg-primary-100 font-medium text-primary-800 dark:bg-primary-800 dark:text-primary-100'
-      : 'border-surface-300 text-surface-900'
+      ? 'bg-primary-100 font-medium text-primary-800 dark:bg-primary-800 dark:text-primary-100'
+      : 'bg-surface-100 text-surface-900'
+  }
+
+  // The count sits in a coloured badge: strong on a picked chip, soft on the others
+  function badge (on: boolean): string {
+    return on
+      ? 'bg-primary-700 text-white dark:bg-primary-100 dark:text-primary-800'
+      : 'bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-100'
   }
 </script>
