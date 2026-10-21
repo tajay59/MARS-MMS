@@ -1,4 +1,5 @@
-"""Send queued account emails (NOT-3).
+"""Send queued emails: account emails (NOT-3), the email that follows a notification (NOT-4)
+and the weekly calibration digest (CAL-5).
 
 Every platform instance runs the loop; claims in `email_queue` keep two senders off the same
 row. For a reset or invitation the link is minted by auth at send time (TRD §6.2). A link auth
@@ -22,8 +23,11 @@ from mms_common.logging import get_logger
 from mms_common.time import Clock
 from pymongo.asynchronous.database import AsyncDatabase
 
-from app.domain.account_emails import LINK_KIND, EmailJob, Kind, render, retry_at
-from app.repo import emails
+from app.domain import notification_emails, preferences
+from app.domain.account_emails import LINK_KIND, EmailJob, Kind, Rendered, render, retry_at
+from app.repo import digests, directory, emails
+from app.repo import notifications as notification_repo
+from app.repo import preferences as preference_repo
 
 log = get_logger(__name__)
 
@@ -65,6 +69,11 @@ class SmtpMailer:
 
 class LinkGone(Exception):
     """auth answered 410: the reset or invitation can no longer be used."""
+
+
+class Skipped(Exception):
+    """An email that is no longer wanted: the person turned it off, left, or the notification
+    it follows has expired. Recorded as skipped, never retried."""
 
 
 @dataclass(frozen=True)
@@ -125,6 +134,10 @@ class Sender:
             await emails.mark_skipped(self.db, row["_id"], now(), "link no longer valid")
             log.info("account_email_skipped", email_id=row["_id"], kind=job.kind)
             return
+        except Skipped as skip:
+            await emails.mark_skipped(self.db, row["_id"], now(), str(skip))
+            log.info("email_skipped", email_id=row["_id"], kind=job.kind, why=str(skip))
+            return
         except Exception as exc:  # noqa: BLE001 - SMTP, network or auth failure: retry later
             error = f"{type(exc).__name__}: {exc}"
             at = retry_at(int(row["attempts"]), now())
@@ -138,16 +151,36 @@ class Sender:
         await emails.mark_sent(self.db, row["_id"], now())
         log.info("account_email_sent", email_id=row["_id"], kind=job.kind)
 
-    async def _message(self, job: EmailJob, email_id: str) -> EmailMessage:
-        if job.kind in LINK_KIND:
-            if job.link_id is None:
-                raise LinkGone("no link id")
-            link = await self.links.mint(LINK_KIND[job.kind], job.link_id)
-            to, name, url = link.email, link.name, link.url
+    async def _follow_up(self, job: EmailJob, email_id: str) -> EmailMessage:
+        """The email for a notification or the digest, if the person still wants it (NOT-4)."""
+        user = await directory.get(self.db, job.user_id)
+        if user is None or user["status"] != "active":
+            raise Skipped("not an active person")
+        note = await notification_repo.col(self.db).find_one({"_id": job.notification_id})
+        if note is None:
+            raise Skipped("the notification has expired")
+        choices = await preference_repo.email_choices(self.db, user["_id"])
+        if not preferences.is_on(choices, note["type"], set(user["roles"])):
+            raise Skipped("turned off")
+        url = self.app_url.rstrip("/") + note["link"]
+        rendered: Rendered
+        if job.kind is Kind.DIGEST:
+            run = await digests.get(self.db, job.digest_id or "")
+            if run is None:
+                raise Skipped("the digest is gone")
+            local = self.clock.now()
+            rendered = notification_emails.render_digest(
+                name=user["name"], items=run["items"], within_days=run["within_days"], url=url,
+                when=f"{local.day} {local:%b}",
+            )
         else:
-            to, name = job.to or "", job.name or ""
-            url = self.app_url.rstrip("/") + "/login" if job.kind is Kind.APPROVED else ""
-        rendered = render(job.kind, name=name, url=url or None, reason=job.reason)
+            rendered = notification_emails.render_notification(
+                title=note["title"], body=note["body"], name=user["name"], url=url,
+                button="Open the request" if note["entity"]["type"] == "request" else "Open",
+            )
+        return self._compose(rendered, user["email"], user["name"], email_id)
+
+    def _compose(self, rendered: Rendered, to: str, name: str, email_id: str) -> EmailMessage:
         message = EmailMessage()
         message["Subject"] = rendered.subject
         message["From"] = self.mail_from
@@ -157,6 +190,20 @@ class Sender:
         message.set_content(rendered.text)
         message.add_alternative(rendered.html, subtype="html")
         return message
+
+    async def _message(self, job: EmailJob, email_id: str) -> EmailMessage:
+        if job.kind in (Kind.NOTIFICATION, Kind.DIGEST):
+            return await self._follow_up(job, email_id)
+        if job.kind in LINK_KIND:
+            if job.link_id is None:
+                raise LinkGone("no link id")
+            link = await self.links.mint(LINK_KIND[job.kind], job.link_id)
+            to, name, url = link.email, link.name, link.url
+        else:
+            to, name = job.to or "", job.name or ""
+            url = self.app_url.rstrip("/") + "/login" if job.kind is Kind.APPROVED else ""
+        rendered = render(job.kind, name=name, url=url or None, reason=job.reason)
+        return self._compose(rendered, to, name, email_id)
 
 
 async def run(sender: Sender, stop: asyncio.Event, every_s: float = 5.0) -> None:

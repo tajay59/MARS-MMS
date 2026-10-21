@@ -99,6 +99,7 @@ type Platform = PlatformComponents['schemas']
 export type NotificationOut = Platform['NotificationOut']
 export type NotificationPage = Platform['NotificationPage']
 export type NotificationRead = Platform['ReadAll']
+export type Preferences = Platform['Preferences']
 
 type Report = ReportComponents['schemas']
 

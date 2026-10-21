@@ -12,6 +12,8 @@ from mms_common.snapshot import SnapshotPage, page
 from pydantic import BaseModel, Field
 
 from app.api.context import CtxDep
+from app.api.stations.calibration_routes import due_list
+from app.api.stations.schemas import DueList
 from app.events.publish import calibration_data, request_data, station_data, unit_data
 from app.repo.requests import requests as request_repo
 from app.repo.stations import models, units
@@ -22,6 +24,7 @@ router = APIRouter(tags=["internal"])
 SnapshotReader = Annotated[ServicePrincipal, Depends(require_service("report", "platform"))]
 MediaService = Annotated[ServicePrincipal, Depends(require_service("media"))]
 ReportService = Annotated[ServicePrincipal, Depends(require_service("report"))]
+PlatformService = Annotated[ServicePrincipal, Depends(require_service("platform"))]
 WRITE_ROLES = frozenset({"technician", "admin"})
 
 
@@ -42,6 +45,17 @@ class LabelOut(BaseModel):
     qr_token: str
     org_name: str
     country: str
+
+
+@router.get("/internal/calibrations/due")
+async def calibrations_due(
+    svc: PlatformService, ctx: CtxDep,
+    within_days: Annotated[int, Query(ge=0, le=365)] = 30,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 1000,
+) -> DueList:
+    """The weekly digest's list (CAL-5): the same units as the staff list, for every
+    organization, read by platform with its service token (rule 1)."""
+    return await due_list(ctx, within_days=within_days, limit=limit)
 
 
 @router.post("/internal/labels")

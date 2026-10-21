@@ -24,7 +24,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from redis.asyncio import Redis
 
 from app import realtime
-from app.domain.account_emails import EVENT_TYPES, job_for
+from app.domain.account_emails import EVENT_TYPES, EmailJob, Kind, job_for
 from app.domain.notifications import LIVE_EVENTS, NOTIFY_EVENTS, plan
 from app.repo import directory, emails, notifications
 
@@ -90,6 +90,15 @@ def processor(
             envelope.type, payload.model_dump(), envelope.actor.user_id, envelope.actor.name, who
         )
         rows = await notifications.insert_many(db, made.drafts, envelope.event_id, now, session)
+        # An email follows the notifications Appendix B says go by email too; the person's
+        # choice is looked at when it is sent (NOT-4), so a change takes effect at once
+        for draft, row in zip(made.drafts, rows, strict=True):
+            if draft.email:
+                await emails.enqueue(
+                    db, row["_id"],
+                    EmailJob(Kind.NOTIFICATION, row["user_id"], notification_id=row["_id"]),
+                    now, session,
+                )
         # Set, not extended: a retried event starts again from nothing
         pending[:] = [(row["user_id"], realtime.notification_message(row)) for row in rows]
         pending.extend(

@@ -25,6 +25,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Preferences
+         * @description NOT-4: what this person can choose, as it stands.
+         */
+        get: operations["get_preferences_api_v1_notifications_preferences_get"];
+        /**
+         * Put Preferences
+         * @description NOT-4: save choices. Only types this person can be emailed about may be named; anything
+         *     else is refused whole and nothing is saved.
+         */
+        put: operations["put_preferences_api_v1_notifications_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/read-all": {
         parameters: {
             query?: never;
@@ -108,6 +133,40 @@ export interface components {
             /** Unread */
             unread: number;
         };
+        /** PreferenceGroup */
+        PreferenceGroup: {
+            /** Items */
+            items: components["schemas"]["PreferenceItem"][];
+            /** Label */
+            label: string;
+        };
+        /** PreferenceItem */
+        PreferenceItem: {
+            /** Email */
+            email: boolean;
+            /** Hint */
+            hint: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /**
+         * Preferences
+         * @description Email choices for the types this person can be emailed about (NOT-4). In-app
+         *     notifications are always on, and account emails are always sent (NOT-3).
+         */
+        Preferences: {
+            /** Groups */
+            groups: components["schemas"]["PreferenceGroup"][];
+        };
+        /** PreferencesIn */
+        PreferencesIn: {
+            /** Email */
+            email: {
+                [key: string]: boolean;
+            };
+        };
         /** ReadAll */
         ReadAll: {
             /** Marked */
@@ -143,7 +202,7 @@ export interface operations {
                 after?: string | null;
                 before?: string | null;
                 unread?: boolean;
-                group?: ("requests" | "comments" | "accounts") | null;
+                group?: ("requests" | "comments" | "accounts" | "calibration") | null;
                 limit?: number;
             };
             header?: never;
@@ -159,6 +218,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_preferences_api_v1_notifications_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    put_preferences_api_v1_notifications_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
                 };
             };
             /** @description Validation Error */

@@ -113,6 +113,89 @@
         "title": "NotificationPage",
         "type": "object"
       },
+      "PreferenceGroup": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PreferenceItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "items"
+        ],
+        "title": "PreferenceGroup",
+        "type": "object"
+      },
+      "PreferenceItem": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "boolean"
+          },
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "hint",
+          "email"
+        ],
+        "title": "PreferenceItem",
+        "type": "object"
+      },
+      "Preferences": {
+        "description": "Email choices for the types this person can be emailed about (NOT-4). In-app\nnotifications are always on, and account emails are always sent (NOT-3).",
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/PreferenceGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "title": "Preferences",
+        "type": "object"
+      },
+      "PreferencesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Email",
+            "type": "object"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PreferencesIn",
+        "type": "object"
+      },
       "ReadAll": {
         "properties": {
           "marked": {
@@ -245,7 +328,8 @@
                   "enum": [
                     "requests",
                     "comments",
-                    "accounts"
+                    "accounts",
+                    "calibration"
                   ],
                   "type": "string"
                 },
@@ -297,6 +381,78 @@
           }
         ],
         "summary": "List Notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/preferences": {
+      "get": {
+        "description": "NOT-4: what this person can choose, as it stands.",
+        "operationId": "get_preferences_api_v1_notifications_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Preferences",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "put": {
+        "description": "NOT-4: save choices. Only types this person can be emailed about may be named; anything\nelse is refused whole and nothing is saved.",
+        "operationId": "put_preferences_api_v1_notifications_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Preferences",
         "tags": [
           "notifications"
         ]

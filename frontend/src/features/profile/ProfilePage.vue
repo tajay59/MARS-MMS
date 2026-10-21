@@ -127,6 +127,8 @@
               :model-value="true"
             />
           </div>
+
+          <EmailPreferences />
         </section>
       </div>
 
@@ -155,6 +157,7 @@
   import PaneContent from '@/components/PaneContent.vue'
   import PasswordField from '@/components/PasswordField.vue'
   import { useSessionStore } from '@/stores/session'
+  import EmailPreferences from './EmailPreferences.vue'
 
   // /profile for every role (AUTH-13; DBD D2). Viewers may edit their own profile.
   const session = useSessionStore()

@@ -48,6 +48,10 @@
             <span class="tabular-nums text-surface-600">{{ kind.count }}</span>
           </button>
         </div>
+
+        <router-link class="mx-1 mt-2 inline-flex h-10 items-center gap-2 self-start rounded-card px-3 text-sm font-medium text-primary no-underline hover:bg-surface-100" :to="{ name: 'profile' }">
+          <v-icon :icon="mdiEmailOutline" size="18" />Email preferences
+        </router-link>
       </div>
     </PaneContent>
 
@@ -95,7 +99,7 @@
 
 <script lang="ts" setup>
   import type { NotificationOut } from '@/api/models'
-  import { mdiCheckAll } from '@mdi/js'
+  import { mdiCheckAll, mdiEmailOutline } from '@mdi/js'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { icons } from '@/app/theme/icons'
@@ -117,7 +121,7 @@
   const kindKey = ref<string | null>(null)
 
   const KINDS: Record<string, string> = {
-    request: 'Requests', comment: 'Comments', account: 'Accounts',
+    request: 'Requests', comment: 'Comments', account: 'Accounts', calibration: 'Calibration',
   }
 
   function kindOf (item: NotificationOut): string {

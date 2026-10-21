@@ -10,7 +10,7 @@ from mms_common.auth import User, require_roles, require_staff
 from mms_common.ids import UUID7_PATTERN, new_id
 from pymongo.asynchronous.client_session import AsyncClientSession
 
-from app.api.context import CtxDep
+from app.api.context import Ctx, CtxDep
 from app.api.stations.document_routes import file_facts
 from app.api.stations.schemas import (
     CalibrationIn,
@@ -32,17 +32,12 @@ Staff = Annotated[User, Depends(require_staff())]
 Writer = Annotated[User, Depends(require_roles("technician", "admin"))]
 
 
-@router.get("/due")
-async def calibration_due(
-    staff: Staff,
-    ctx: CtxDep,
-    within_days: Annotated[int, Query(ge=0, le=365)] = rules.DUE_SOON_DAYS,
-    org_id: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
-    country: Annotated[str | None, Query(pattern="^[A-Z]{2}$")] = None,
-    station_id: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
-    limit: Annotated[int, Query(ge=1, le=2000)] = 1000,
+async def due_list(
+    ctx: Ctx, *, within_days: int, org_id: str | None = None, country: str | None = None,
+    station_id: str | None = None, limit: int = 1000,
 ) -> DueList:
-    """CAL-4: units overdue or due within `within_days`, overdue first."""
+    """CAL-4: units overdue or due within `within_days`, overdue first. The staff route and
+    the weekly digest's internal route (CAL-5) share it."""
     now = ctx.clock.now()
     station_ids: list[str] | None = None
     if country or station_id:
@@ -71,6 +66,21 @@ async def calibration_due(
             due_state=(state or rules.DueState.DUE_SOON).value,
         ))
     return DueList(items=items, within_days=within_days)
+
+
+@router.get("/due")
+async def calibration_due(
+    staff: Staff,
+    ctx: CtxDep,
+    within_days: Annotated[int, Query(ge=0, le=365)] = rules.DUE_SOON_DAYS,
+    org_id: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
+    country: Annotated[str | None, Query(pattern="^[A-Z]{2}$")] = None,
+    station_id: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 1000,
+) -> DueList:
+    """CAL-4: units overdue or due within `within_days`, overdue first."""
+    return await due_list(ctx, within_days=within_days, org_id=org_id, country=country,
+                          station_id=station_id, limit=limit)
 
 
 @router.get("")
