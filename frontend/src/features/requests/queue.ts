@@ -7,6 +7,14 @@ import { CATEGORIES, PRIORITIES } from './requests'
   Vue here, so Vitest covers it directly.
 */
 
+/** One filter's options for the panel; `any` is how many requests the other filters leave */
+export interface FilterGroup {
+  field: 'country' | 'priority' | 'category'
+  label: string
+  any: number
+  options: { value: string, label: string, count: number }[]
+}
+
 export interface QueueFilters {
   q: string
   country: string | null
