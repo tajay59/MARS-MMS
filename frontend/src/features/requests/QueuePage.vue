@@ -142,12 +142,14 @@
           :filtered="filtered"
           :filters="filters"
           :groups="groups"
-          :tables="false"
+          tables
           @change="setFilters"
           @clear="clearFilters"
         />
 
-        <v-btn block color="primary" @click="filterOpen = false">Show {{ shown.length }} {{ shown.length === 1 ? 'request' : 'requests' }}</v-btn>
+        <div class="sticky bottom-0 -mb-px bg-surface pb-1 pt-2">
+          <v-btn block color="primary" @click="filterOpen = false">Show {{ shown.length }} {{ shown.length === 1 ? 'request' : 'requests' }}</v-btn>
+        </div>
       </div>
     </ModalSheet>
 

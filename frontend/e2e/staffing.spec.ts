@@ -159,7 +159,7 @@ test('On desktop the search and filters sit in the pane, country and category as
   await expect(first.getByRole('button')).toHaveAttribute('aria-pressed', 'false')
 })
 
-test('On a phone the search and filters open in a bottom sheet with chips @phone @REQ-7', async ({ watched: page, browser }) => {
+test('On a phone the search and filters open in a bottom sheet with the same tables @phone @REQ-7', async ({ watched: page, browser }) => {
   const title = unique('Gate hinge')
   await approvedRequest(browser, title)
   await logIn(page, 'tech1@example.org')
@@ -169,8 +169,10 @@ test('On a phone the search and filters open in a bottom sheet with chips @phone
   await page.getByRole('button', { name: 'Search and filter the queue' }).click()
   const sheet = page.getByRole('dialog', { name: 'Search and filter' })
   await expect(sheet).toBeVisible()
-  await expect(sheet.getByRole('group', { name: 'Country' })).toBeVisible()
-  await expect(sheet.getByRole('table')).toHaveCount(0)
+  // The same two tables as the desktop pane; only Priority is chips
+  await expect(sheet.getByRole('table', { name: /^Country/ })).toBeVisible()
+  await expect(sheet.getByRole('table', { name: /^Category/ })).toBeVisible()
+  await expect(sheet.getByRole('group', { name: 'Priority' })).toBeVisible()
   await checkA11y(page, '/queue (filter sheet, phone)')
   await sheet.getByRole('searchbox', { name: /Search the queue/ }).fill(title)
   await sheet.getByRole('button', { name: 'Show 1 request' }).click()
