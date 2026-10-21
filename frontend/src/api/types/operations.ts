@@ -795,6 +795,201 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Visits
+         * @description Soonest first. A client sees their organization's visits (VIS-11).
+         */
+        get: operations["list_visits_api_v1_visits_get"];
+        put?: never;
+        /**
+         * Schedule Visit
+         * @description VIS-1: the request's assigned staff or an admin plan a visit: dates, who attends (one the
+         *     lead), which of the request's stations, and who owns each. The request becomes Scheduled.
+         *     Sending the same `id` again returns the visit that was made (200).
+         */
+        post: operations["schedule_visit_api_v1_visits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Visits
+         * @description The visits I attend that are planned or under way, soonest first (AFD "My upcoming
+         *     visits").
+         */
+        get: operations["my_visits_api_v1_visits_mine_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Visit
+         * @description A client reads their organization's visits only; another's is not found (rule 4).
+         */
+        get: operations["get_visit_api_v1_visits__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Visit
+         * @description VIS-2, AFD J5 steps 5 and 5b. A planned visit: dates, people, lead, stations, owners and
+         *     notes. A started visit: only who owns which station, by the lead or an admin.
+         */
+        patch: operations["change_visit_api_v1_visits__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Visit
+         * @description VIS-2: a planned visit is cancelled; the request returns to Assigned when no other visit
+         *     is planned.
+         */
+        post: operations["cancel_visit_api_v1_visits__id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End Visit
+         * @description VIS-9: end the visit and say whether another is needed. If so the request goes back to
+         *     Assigned to be scheduled again; if not it waits for the visit report (Phase 6). The VIS-6
+         *     check of Before and After images arrives with media on visits (W12).
+         */
+        post: operations["end_visit_api_v1_visits__id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Visit
+         * @description An admin brings a cancelled visit back: work was recorded on it offline (TRD §7.4).
+         */
+        post: operations["restore_visit_api_v1_visits__id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Visit
+         * @description VIS-4: attending staff start the visit; the request is In progress.
+         */
+        post: operations["start_visit_api_v1_visits__id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/arrive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arrive
+         * @description VIS-4: the station's owner records arriving there.
+         */
+        post: operations["arrive_api_v1_visits__id__stations__station_id__arrive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/depart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Depart
+         * @description VIS-4: the station's owner records leaving it (after arriving).
+         */
+        post: operations["depart_api_v1_visits__id__stations__station_id__depart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/attachable": {
         parameters: {
             query?: never;
@@ -870,7 +1065,7 @@ export interface paths {
         /**
          * Snapshot
          * @description Current state for read-model backfill (TRD §8.6), shaped like the events' data.
-         *     Visits join in Phase 4.
+         *     Visits are in `site_visits`.
          */
         get: operations["snapshot_internal_snapshot__entity__get"];
         put?: never;
@@ -895,6 +1090,14 @@ export interface components {
             staff_ids: string[];
             /** Version */
             version?: number | null;
+        };
+        /**
+         * AtIn
+         * @description The time something happened, as the device saw it. The server's now when absent.
+         */
+        AtIn: {
+            /** At */
+            at?: string | null;
         };
         /** AttachableOut */
         AttachableOut: {
@@ -1317,6 +1520,17 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /** EndIn */
+        EndIn: {
+            /** Additional Visit Required */
+            additional_visit_required: boolean;
+            /** At */
+            at?: string | null;
+            /** Follow Up Notes */
+            follow_up_notes?: string | null;
+            /** Overrides */
+            overrides?: components["schemas"]["Override"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1509,6 +1723,16 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * Override
+         * @description VIS-6: a station ended without a Before or After image, with the reason (W12).
+         */
+        Override: {
+            /** Reason */
+            reason: string;
+            /** Station Id */
+            station_id: string;
+        };
         /** PersonRef */
         PersonRef: {
             /** Id */
@@ -1636,7 +1860,7 @@ export interface components {
         /** RequestDetail */
         RequestDetail: {
             /** Actions */
-            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit")[];
+            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit" | "schedule_visit")[];
             /** Assigned Staff */
             assigned_staff: components["schemas"]["PersonRef"][];
             /** Attachments */
@@ -1683,6 +1907,8 @@ export interface components {
             updated_at: string;
             /** Version */
             version: number;
+            /** Visits */
+            visits: components["schemas"]["VisitBrief"][];
         };
         /**
          * RequestIn
@@ -2275,6 +2501,177 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VisitBrief
+         * @description A visit as the request page lists it.
+         */
+        VisitBrief: {
+            /** Id */
+            id: string;
+            lead: components["schemas"]["VisitPersonOut"];
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /** Ref */
+            ref: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "started" | "ended" | "cancelled";
+        };
+        /** VisitCancelIn */
+        VisitCancelIn: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * VisitIn
+         * @description Scheduling (VIS-1). `id` is made on the device and makes a retry safe (rule 9): the same
+         *     `id` again returns the visit that was made.
+         */
+        VisitIn: {
+            /** Id */
+            id?: string | null;
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /** Request Id */
+            request_id: string;
+            /** Staff Ids */
+            staff_ids: string[];
+            /** Stations */
+            stations: components["schemas"]["VisitStationIn"][];
+        };
+        /** VisitOut */
+        VisitOut: {
+            /** Actions */
+            actions: ("reschedule" | "cancel" | "start" | "end" | "change_owner" | "restore")[];
+            /** Additional Visit Required */
+            additional_visit_required: boolean | null;
+            /** Ended At */
+            ended_at: string | null;
+            /** Follow Up Notes */
+            follow_up_notes: string | null;
+            /** Id */
+            id: string;
+            lead: components["schemas"]["VisitPersonOut"];
+            /** Notes */
+            notes: string | null;
+            /** Org Id */
+            org_id: string;
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /** Ref */
+            ref: string;
+            /** Request Id */
+            request_id: string;
+            /** Request Ref */
+            request_ref: string | null;
+            /** Request Title */
+            request_title: string | null;
+            /** Staff */
+            staff: components["schemas"]["VisitPersonOut"][];
+            /** Started At */
+            started_at: string | null;
+            /** Stations */
+            stations: components["schemas"]["VisitStationOut"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "started" | "ended" | "cancelled";
+            /** Version */
+            version: number;
+        };
+        /** VisitPage */
+        VisitPage: {
+            /** Items */
+            items: components["schemas"]["VisitOut"][];
+            /** Next After */
+            next_after: string | null;
+            /** Total */
+            total: number;
+        };
+        /**
+         * VisitPatch
+         * @description A planned visit: any of these. A started visit: only `stations[].owner_staff_id`. What is
+         *     left out stays as it is; `notes: null` clears the notes.
+         */
+        VisitPatch: {
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Planned End */
+            planned_end?: string | null;
+            /** Planned Start */
+            planned_start?: string | null;
+            /** Staff Ids */
+            staff_ids?: string[] | null;
+            /** Stations */
+            stations?: components["schemas"]["VisitStationIn"][] | null;
+            /** Version */
+            version?: number | null;
+        };
+        /** VisitPersonOut */
+        VisitPersonOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** VisitStationIn */
+        VisitStationIn: {
+            /** Owner Staff Id */
+            owner_staff_id?: string | null;
+            /** Station Id */
+            station_id: string;
+        };
+        /** VisitStationOut */
+        VisitStationOut: {
+            /** Actions */
+            actions: ("arrive" | "depart")[];
+            /** Arrived At */
+            arrived_at: string | null;
+            /** Departed At */
+            departed_at: string | null;
+            owner: components["schemas"]["VisitPersonOut"];
+            /** Station Code */
+            station_code: string | null;
+            /** Station Id */
+            station_id: string;
+            /** Station Name */
+            station_name: string | null;
+            /** Time Zone */
+            time_zone: string | null;
         };
         /**
          * Workload
@@ -3921,6 +4318,370 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_visits_api_v1_visits_get: {
+        parameters: {
+            query?: {
+                request_id?: string | null;
+                staff_id?: string | null;
+                status?: string[] | null;
+                from?: string | null;
+                to?: string | null;
+                after?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_visit_api_v1_visits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_visits_api_v1_visits_mine_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitPage"];
+                };
+            };
+        };
+    };
+    get_visit_api_v1_visits__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_visit_api_v1_visits__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisitPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_visit_api_v1_visits__id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisitCancelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_visit_api_v1_visits__id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_visit_api_v1_visits__id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_visit_api_v1_visits__id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arrive_api_v1_visits__id__stations__station_id__arrive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    depart_api_v1_visits__id__stations__station_id__depart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
                 };
             };
             /** @description Validation Error */

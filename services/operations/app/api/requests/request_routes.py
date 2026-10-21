@@ -35,15 +35,19 @@ from app.api.requests.schemas import (
     RequestSummary,
     Workload,
 )
+from app.api.visits import glue as visit_glue
+from app.api.visits.schemas import VisitBrief
 from app.domain.requests import comments as comment_rules
 from app.domain.requests import rules, staffing
 from app.domain.requests.state import MILESTONES, Action, Status, Who, allowed, transition
+from app.domain.visits import schedule as visit_schedule
 from app.events.publish import ev
 from app.repo.requests import comments as comment_repo
 from app.repo.requests import requests as repo
 from app.repo.stations import orgs
 from app.repo.stations import stations as station_repo
 from app.repo.stations.common import Db, stamp
+from app.repo.visits import visits as visit_repo
 
 router = APIRouter(prefix="/api/v1/requests", tags=["requests"])
 
@@ -56,6 +60,8 @@ IdPath = Annotated[str, Path(pattern=UUID7_PATTERN)]
 # `staffing.actions_for` (who is on the request matters); the client's accept and reject wait
 # for Phase 6.
 OFFERED = frozenset({Action.APPROVE, Action.DENY, Action.CANCEL})
+# Visits can be planned while the request is assigned and being worked on (W10)
+SCHEDULABLE = frozenset({Status.ASSIGNED, Status.SCHEDULED, Status.IN_PROGRESS})
 
 
 def who_of(user: User) -> Who | None:
@@ -104,9 +110,14 @@ async def _detail(ctx: Ctx, doc: dict[str, Any], user: User) -> RequestDetail:
             actions.append("edit")
         except (ValidationFailed, Forbidden):
             pass
+        if Status(doc["status"]) in SCHEDULABLE and visit_schedule.can_schedule(
+            user.id, user.is_admin, doc.get("assigned_staff_ids", [])
+        ):
+            actions.append("schedule_visit")
     seen = await comment_repo.counts(ctx.db, [doc["_id"]], user)
+    visits = [VisitBrief.of(v) for v in await visit_repo.for_request(ctx.db, doc["_id"], user)]
     return RequestDetail.build(doc, stations, org_names, cast(list[ActionName], actions),
-                               comment_count=seen.get(doc["_id"], 0))
+                               comment_count=seen.get(doc["_id"], 0), visits=visits)
 
 
 def _entry(
@@ -333,6 +344,8 @@ async def _move(
         await emitter.request(model, type_, updated, s, before=current, **extra)
         await emitter.request_status(updated, s, from_status=before.value, event_id=event_id,
                                      reason=reason)
+        if action is Action.CANCEL:  # its planned visits go with it (TRD §3.2.2)
+            await visit_glue.cancel_planned_visits(ctx, user, updated, s, reason)
         return updated
 
     return await _detail(ctx, await ctx.tx(save), user)
@@ -481,6 +494,8 @@ async def release_request(id: IdPath, user: Worker, ctx: CtxDep) -> RequestDetai
     """A technician lets go of their claim, or an admin unassigns everyone. With nobody left
     the request returns to the queue (Assigned to Approved)."""
     current = await repo.require(ctx.db, id)
+    if await visit_repo.has_live(ctx.db, id):  # a booked visit would be left with no request
+        raise Conflict("Cancel the planned visits first", code="has_visits")
     me = staffing.Person(user.id, user.name)
     change = staffing.release(Status(current["status"]), require_who(user), me, _people(current))
     return await _apply_staff(ctx, user, current, change)

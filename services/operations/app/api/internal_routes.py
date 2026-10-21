@@ -14,7 +14,13 @@ from pydantic import BaseModel, Field
 from app.api.context import CtxDep
 from app.api.stations.calibration_routes import due_list
 from app.api.stations.schemas import DueList
-from app.events.publish import calibration_data, request_data, station_data, unit_data
+from app.events.publish import (
+    calibration_data,
+    request_data,
+    station_data,
+    unit_data,
+    visit_snapshot,
+)
 from app.repo.requests import requests as request_repo
 from app.repo.stations import models, units
 from app.repo.stations import stations as station_repo
@@ -142,19 +148,22 @@ async def attachable(
 async def snapshot(
     svc: SnapshotReader,
     ctx: CtxDep,
-    entity: Annotated[str, Path(pattern="^(stations|sensor_units|calibrations|requests)$")],
+    entity: Annotated[str, Path(pattern="^(stations|sensor_units|calibrations|requests|visits)$")],
     after: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 500,
 ) -> SnapshotPage:
     """Current state for read-model backfill (TRD §8.6), shaped like the events' data.
-    Visits join in Phase 4."""
-    result = await page(ctx.db[entity], after=after, limit=limit)
+    Visits are in `site_visits`."""
+    result = await page(ctx.db["site_visits" if entity == "visits" else entity], after=after,
+                        limit=limit)
     if entity == "stations":
         items = [{**station_data(d), "aggregate_version": d["version"]} for d in result.items]
     elif entity == "sensor_units":
         items = [{**unit_data(d), "aggregate_version": d["version"]} for d in result.items]
     elif entity == "requests":
         items = [{**request_data(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "visits":
+        items = [{**visit_snapshot(d), "aggregate_version": d["version"]} for d in result.items]
     else:
         items = [
             {**calibration_data(d, None), "aggregate_version": d["version"]}

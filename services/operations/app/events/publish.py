@@ -33,6 +33,10 @@ REQUEST_FIELDS = (
     "assigned_staff_ids", "denial_reason", "cancel_reason",
 )
 COMMENT_FIELDS = ("request_id", "author_id", "author_role", "body", "internal", "attachments")
+VISIT_FIELDS = (
+    "ref", "request_id", "status", "planned_start", "planned_end", "staff_ids", "lead_staff_id",
+    "started_at", "ended_at", "additional_visit_required", "cancel_reason",
+)
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
     "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "needs_review",
@@ -92,6 +96,35 @@ def request_data(doc: dict[str, Any]) -> dict[str, Any]:
         "priority": doc["priority"], "status": doc["status"], "title": doc["title"],
         "created_by": doc.get("created_by"),
         "assigned_staff_ids": list(doc.get("assigned_staff_ids", [])),
+    }
+
+
+def visit_data(visit: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "visit_id": visit["_id"], "ref": visit["ref"], "request_id": request["_id"],
+        "request_ref": request["ref"], "org_id": request["org_id"], "title": request.get("title"),
+        "created_by": request.get("created_by"), "status": visit["status"],
+        "planned_start": visit["planned_start"], "planned_end": visit["planned_end"],
+        "staff_ids": list(visit["staff_ids"]), "lead_staff_id": visit["lead_staff_id"],
+        "station_ids": [s["station_id"] for s in visit["stations"]],
+        "station_owners": [
+            {"station_id": s["station_id"], "owner_staff_id": s["owner_staff_id"]}
+            for s in visit["stations"]
+        ],
+    }
+
+
+def visit_snapshot(visit: dict[str, Any]) -> dict[str, Any]:
+    """A visit as the backfill sends it (TRD §8.6): the facts a read model keeps, with no notes."""
+    return {
+        "visit_id": visit["_id"], "ref": visit["ref"], "request_id": visit["request_id"],
+        "org_id": visit["org_id"], "status": visit["status"],
+        "planned_start": visit["planned_start"], "planned_end": visit["planned_end"],
+        "staff_ids": list(visit["staff_ids"]), "lead_staff_id": visit["lead_staff_id"],
+        "station_ids": [s["station_id"] for s in visit["stations"]],
+        "started_at": visit.get("started_at"), "ended_at": visit.get("ended_at"),
+        "additional_visit_required": visit.get("additional_visit_required"),
+        "report_status": visit.get("report_status"),
     }
 
 
@@ -318,6 +351,19 @@ class Emitter:
             type_="media.visibility_requested", key=request["_id"],
             resource=(owner_type, owner["_id"]), aggregate_version=owner["version"],
             org_id=request["org_id"], session=session,
+        )
+
+    async def visit(
+        self, model: type[BaseModel], type_: str, visit: dict[str, Any], request: dict[str, Any],
+        session: AsyncClientSession, *, before: dict[str, Any] | None = None, **extra: Any,
+    ) -> Envelope:
+        """A visit event, keyed by its request (TRD §8.1) and versioned by the visit. The data
+        holds the dates, people and stations a notification needs, never the visit's notes."""
+        return await self.emit(
+            model(**visit_data(visit, request), **extra), type_=type_, key=request["_id"],
+            resource=("visit", visit["_id"]), aggregate_version=visit["version"],
+            org_id=request["org_id"], session=session,
+            before=view(before, VISIT_FIELDS), after=view(visit, VISIT_FIELDS),
         )
 
     async def config_version(

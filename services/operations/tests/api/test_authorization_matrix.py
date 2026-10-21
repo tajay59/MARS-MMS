@@ -80,6 +80,20 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/requests/{id}/approve"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/deny"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/cancel"): roles("client", "admin"),
+    # Visits (VIS-1 to VIS-4, VIS-9, VIS-11, W10): everyone reads what their scope allows (a client
+    # their organization's); technicians and admins plan and run them (the domain narrows it to
+    # the people on the request or attending), only admins restore; viewers and clients never write.
+    ("POST", "/api/v1/visits"): WRITE,
+    ("GET", "/api/v1/visits/mine"): STAFF,
+    ("GET", "/api/v1/visits"): Expect(ANY),
+    ("GET", "/api/v1/visits/{id}"): Expect(ANY),
+    ("PATCH", "/api/v1/visits/{id}"): WRITE,
+    ("POST", "/api/v1/visits/{id}/cancel"): WRITE,
+    ("POST", "/api/v1/visits/{id}/restore"): roles("admin"),
+    ("POST", "/api/v1/visits/{id}/start"): WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/arrive"): WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/depart"): WRITE,
+    ("POST", "/api/v1/visits/{id}/end"): WRITE,
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),
