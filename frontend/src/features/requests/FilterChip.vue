@@ -2,17 +2,15 @@
   <button
     ref="button"
     :aria-pressed="active"
-    class="relative inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium"
+    class="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium"
     :class="active ? 'text-primary-800 dark:text-primary-100' : 'text-surface-900'"
     type="button"
   >
-    <!-- The line under the picked chip: a bottom border that curves up at its ends -->
-    <span
-      ref="line"
-      aria-hidden="true"
-      class="pointer-events-none absolute inset-0 rounded-lg border-b-[3px] border-primary-600 dark:border-primary-300"
-      :class="active ? 'opacity-100' : 'opacity-0'"
-    />
+    <!-- The picked chip's mark: a solid core with a lighter halo that pulses outward -->
+    <span aria-hidden="true" class="relative grid size-2.5 shrink-0 place-items-center">
+      <span ref="halo" class="absolute inset-0 rounded-full bg-primary-300 dark:bg-primary-500" />
+      <span ref="dot" class="relative size-2.5 rounded-full bg-primary-700 dark:bg-primary-200" />
+    </span>
     {{ label }}
     <span
       v-if="count !== undefined"
@@ -24,22 +22,70 @@
 </template>
 
 <script lang="ts" setup>
-  import { nextTick, useTemplateRef, watch } from 'vue'
-  import { dur, DURATION, EASE, gsap } from '@/app/motion'
+  import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+  import { dur, DURATION, EASE, gsap, reducedMotion } from '@/app/motion'
 
-  // One filter chip (queue filters). Picking it fades and widens the line under it and eases the
-  // colours of its text and count; letting go does the reverse. The new look is plain classes: the
-  // tween starts from how the chip looked a moment before (read while the old classes are still
-  // there) and runs to the new look, so there is nothing to keep in step by hand.
+  // One filter chip (queue filters). The picked chip shows a two-tone circle at its left: a solid
+  // core that grows in, and a lighter halo that pulses outward. Picking or letting go also eases the
+  // colours of the text and the count. The new look is plain classes: the colour tween starts from
+  // how the chip looked a moment before (read while the old classes are still there) and runs to the
+  // new look, so there is nothing to keep in step by hand.
+  // The pulse is the one thing here that loops, so it stops under reduced motion (WCAG 2.3.3) and
+  // the halo is then a still ring.
   const props = defineProps<{ label: string, active: boolean, count?: number }>()
 
   const button = useTemplateRef<HTMLElement>('button')
-  const line = useTemplateRef<HTMLElement>('line')
+  const halo = useTemplateRef<HTMLElement>('halo')
+  const dot = useTemplateRef<HTMLElement>('dot')
   const badge = useTemplateRef<HTMLElement>('badge')
 
-  const LINE_FROM = 0.4
+  const PULSE_S = 1.6
+  const STILL_RING = { scale: 1.9, opacity: 0.4 }
+  let pulse: gsap.core.Tween | null = null
 
-  watch(() => props.active, async (now, was) => {
+  function stopPulse (): void {
+    pulse?.kill()
+    pulse = null
+  }
+
+  function show (animate: boolean): void {
+    stopPulse()
+    if (!dot.value || !halo.value) {
+      return
+    }
+    const time = animate ? dur(DURATION.chip) : 0
+    gsap.fromTo(dot.value, { scale: 0 }, { scale: 1, duration: time, ease: EASE.emphasized })
+    if (reducedMotion()) {
+      gsap.set(halo.value, STILL_RING)
+      return
+    }
+    pulse = gsap.fromTo(
+      halo.value,
+      { scale: 1, opacity: 0.55 },
+      { scale: 2.6, opacity: 0, duration: PULSE_S, ease: EASE.out, repeat: -1, repeatDelay: 0.15 },
+    )
+  }
+
+  function hide (animate: boolean): void {
+    stopPulse()
+    if (!dot.value || !halo.value) {
+      return
+    }
+    gsap.to(halo.value, { opacity: 0, duration: animate ? dur(DURATION.hover) : 0, ease: EASE.out })
+    gsap.to(dot.value, { scale: 0, duration: animate ? dur(DURATION.chip) : 0, ease: EASE.emphasized })
+  }
+
+  onMounted(() => {
+    if (props.active) {
+      show(false)
+    } else {
+      hide(false)
+    }
+  })
+
+  onBeforeUnmount(stopPulse)
+
+  watch(() => props.active, async now => {
     // Still the old classes here: remember the colours before Vue changes them
     const before = {
       color: button.value ? getComputedStyle(button.value).color : '',
@@ -57,15 +103,10 @@
         clearProps: 'backgroundColor,color',
       })
     }
-    if (line.value) {
-      gsap.fromTo(
-        line.value,
-        { opacity: was ? 1 : 0, scaleX: was ? 1 : LINE_FROM },
-        {
-          opacity: now ? 1 : 0, scaleX: now ? 1 : LINE_FROM, duration: time,
-          ease: now ? EASE.emphasized : EASE.out, clearProps: 'opacity,transform',
-        },
-      )
+    if (now) {
+      show(true)
+    } else {
+      hide(true)
     }
   }, { flush: 'pre' })
 </script>
