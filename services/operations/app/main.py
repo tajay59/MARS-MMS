@@ -40,7 +40,7 @@ from app.api.stations import (
     sensor_routes,
     station_routes,
 )
-from app.api.visits import visit_routes
+from app.api.visits import visit_routes, work_routes
 from app.config import Settings
 from app.events import consumer
 from app.jobs import org_backfill
@@ -162,6 +162,7 @@ def create_app(
     app.include_router(queue_routes.router)
     app.include_router(comment_routes.router)
     app.include_router(visit_routes.router)
+    app.include_router(work_routes.router)
     app.include_router(template_routes.router)
     app.include_router(internal_routes.router)
     return app

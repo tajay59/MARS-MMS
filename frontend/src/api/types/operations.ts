@@ -1081,6 +1081,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visits/{id}/stations/{station_id}/work": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Work
+         * @description VIS-7: the owner saves what was found and done at the station.
+         */
+        put: operations["save_work_api_v1_visits__id__stations__station_id__work_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/attachable": {
         parameters: {
             query?: never;
@@ -1217,6 +1237,26 @@ export interface components {
              */
             stations: string;
         };
+        /** CalibrationData */
+        CalibrationData: {
+            /**
+             * Method
+             * @default field_check
+             * @enum {string}
+             */
+            method: "field_check" | "field_adjust";
+            /**
+             * Readings
+             * @default []
+             */
+            readings: components["schemas"]["Reading"][];
+            reference_instrument?: components["schemas"]["ReferenceInstrument"] | null;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "pass" | "adjusted" | "fail";
+        };
         /**
          * CalibrationIn
          * @description A calibration recorded outside a visit (CAL-1); field checks come with visits.
@@ -1304,6 +1344,37 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
+        /** ChecklistRowIn */
+        ChecklistRowIn: {
+            /**
+             * Ad Hoc
+             * @default false
+             */
+            ad_hoc: boolean;
+            /** Item Id */
+            item_id: string;
+            /** Label */
+            label?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Result */
+            result?: ("ok" | "fixed" | "issue" | "na") | null;
+        };
+        /** ChecklistRowOut */
+        ChecklistRowOut: {
+            /** Ad Hoc */
+            ad_hoc: boolean;
+            /** Group */
+            group: string | null;
+            /** Item Id */
+            item_id: string;
+            /** Label */
+            label: string;
+            /** Note */
+            note: string | null;
+            /** Result */
+            result: ("ok" | "fixed" | "issue" | "na") | null;
+        };
         /**
          * CommentIn
          * @description REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already
@@ -1374,6 +1445,20 @@ export interface components {
             provider?: string | null;
             /** Type */
             type?: string | null;
+        };
+        /** ConditionIn */
+        ConditionIn: {
+            /** Notes */
+            notes?: string | null;
+            /** Status */
+            status?: ("operational" | "degraded" | "offline") | null;
+        };
+        /** ConditionOut */
+        ConditionOut: {
+            /** Notes */
+            notes: string | null;
+            /** Status */
+            status: ("operational" | "degraded" | "offline") | null;
         };
         /**
          * ConfigDiff
@@ -1564,6 +1649,27 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** DownloadedIn */
+        DownloadedIn: {
+            /**
+             * Done
+             * @default false
+             */
+            done: boolean;
+            /** From */
+            from?: string | null;
+            /** To */
+            to?: string | null;
+        };
+        /** DownloadedOut */
+        DownloadedOut: {
+            /** Done */
+            done: boolean;
+            /** From */
+            from?: string | null;
+            /** To */
+            to?: string | null;
+        };
         /** DueList */
         DueList: {
             /** Items */
@@ -1741,6 +1847,19 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /** IssueIn */
+        IssueIn: {
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            /**
+             * Severity
+             * @default medium
+             * @enum {string}
+             */
+            severity: "low" | "medium" | "high";
+        };
         /** ItemIn */
         ItemIn: {
             /** Help */
@@ -1841,6 +1960,18 @@ export interface components {
             reason: string;
             /** Station Id */
             station_id: string;
+        };
+        /** PartIn */
+        PartIn: {
+            /** Description */
+            description: string;
+            /** Id */
+            id: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number;
         };
         /** PersonRef */
         PersonRef: {
@@ -2157,6 +2288,29 @@ export interface components {
          * @enum {string}
          */
         Scope: "model" | "station";
+        /** SensorActionIn */
+        SensorActionIn: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "replace" | "calibrate" | "clean" | "repair" | "remove" | "install";
+            calibration?: components["schemas"]["CalibrationData"] | null;
+            /** Id */
+            id: string;
+            /** New Serial */
+            new_serial?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Old Serial */
+            old_serial?: string | null;
+            /** Parameter */
+            parameter?: string | null;
+            /** Removal Reason */
+            removal_reason?: ("faulty" | "calibration" | "retired" | "other") | null;
+            /** Sensor Model Id */
+            sensor_model_id?: string | null;
+        };
         /** SensorModelIn */
         SensorModelIn: {
             /** Default Calibration Interval Days */
@@ -2881,6 +3035,93 @@ export interface components {
             station_name: string | null;
             /** Time Zone */
             time_zone: string | null;
+            work: components["schemas"]["WorkOut"] | null;
+        };
+        /** WorkConfigVersionIn */
+        WorkConfigVersionIn: {
+            /** Files */
+            files: string[];
+            /** Id */
+            id: string;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * WorkIn
+         * @description The record whole, with the version the editor was looking at.
+         */
+        WorkIn: {
+            /** Base Version */
+            base_version: number;
+            /**
+             * Checklist
+             * @default []
+             */
+            checklist: components["schemas"]["ChecklistRowIn"][];
+            condition_on_arrival?: components["schemas"]["ConditionIn"] | null;
+            condition_on_departure?: components["schemas"]["ConditionIn"] | null;
+            /**
+             * Config Versions
+             * @default []
+             */
+            config_versions: components["schemas"]["WorkConfigVersionIn"][];
+            data_downloaded?: components["schemas"]["DownloadedIn"] | null;
+            /** Device Id */
+            device_id?: string | null;
+            /**
+             * Issues Found
+             * @default []
+             */
+            issues_found: components["schemas"]["IssueIn"][];
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Parts Used
+             * @default []
+             */
+            parts_used: components["schemas"]["PartIn"][];
+            /**
+             * Sensor Actions
+             * @default []
+             */
+            sensor_actions: components["schemas"]["SensorActionIn"][];
+        };
+        /**
+         * WorkOut
+         * @description A station's work record as staff see it. Clients never get one (rule 6).
+         */
+        WorkOut: {
+            /** Checklist */
+            checklist: components["schemas"]["ChecklistRowOut"][];
+            condition_on_arrival: components["schemas"]["ConditionOut"] | null;
+            condition_on_departure: components["schemas"]["ConditionOut"] | null;
+            /** Config Versions */
+            config_versions: {
+                [key: string]: unknown;
+            }[];
+            data_downloaded: components["schemas"]["DownloadedOut"] | null;
+            /** Device Id */
+            device_id: string | null;
+            /** Issues Found */
+            issues_found: {
+                [key: string]: unknown;
+            }[];
+            /** Notes */
+            notes: string | null;
+            /** Parts Used */
+            parts_used: {
+                [key: string]: unknown;
+            }[];
+            /** Sensor Actions */
+            sensor_actions: {
+                [key: string]: unknown;
+            }[];
+            /** Updated At */
+            updated_at: string | null;
+            /** Updated By */
+            updated_by: string | null;
+            /** Version */
+            version: number;
         };
         /**
          * Workload
@@ -5064,6 +5305,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_work_api_v1_visits__id__stations__station_id__work_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkIn"];
             };
         };
         responses: {

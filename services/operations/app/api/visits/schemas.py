@@ -1,8 +1,8 @@
 """Visits module request and response bodies (TRD §3.2 visits; PRD VIS-1 to VIS-4, VIS-9, VIS-11).
 
 Staff and clients get one shape, filtered when it is built (rule 6): a client never gets the
-scheduling `notes`, and no work records or media exist on the shape yet. Staff names are shown to
-clients (decisions A7, D4); email and phone never are.
+scheduling `notes` and never a station's work record (W11); no media exist on the shape yet.
+Staff names are shown to clients (decisions A7, D4); email and phone never are.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from mms_common.auth import User
 from mms_common.ids import UUID7_PATTERN
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
+from app.api.visits.work_schemas import WorkOut
 from app.domain.visits import actions as visit_actions
 from app.domain.visits import schedule
 
@@ -101,6 +102,7 @@ class VisitStationOut(BaseModel):
     arrived_at: datetime | None
     departed_at: datetime | None
     actions: list[StationAction]  # what the person asking may do here now
+    work: WorkOut | None  # the work record: staff only, never a client (rule 6)
 
 
 class VisitBrief(BaseModel):
@@ -163,6 +165,7 @@ class VisitOut(VisitBrief):
                     departed_at=s.get("departed_at"),
                     actions=cast(list[StationAction], visit_actions.station_actions(
                         doc, s, viewer.id, viewer.is_admin) if staff_side else []),
+                    work=WorkOut.of(s["work"]) if s.get("work") and not viewer.is_client else None,
                 )
                 for s in doc["stations"]
             ],

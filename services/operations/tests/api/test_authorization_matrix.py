@@ -95,6 +95,7 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/visits/{id}/stations/{station_id}/arrive"): WRITE,
     ("POST", "/api/v1/visits/{id}/stations/{station_id}/depart"): WRITE,
     ("POST", "/api/v1/visits/{id}/end"): WRITE,
+    ("PUT", "/api/v1/visits/{id}/stations/{station_id}/work"): WRITE,
     # Checklist templates (VIS-8, W10): staff read, only admins write; clients never see them.
     ("GET", "/api/v1/checklist-templates"): STAFF,
     ("POST", "/api/v1/checklist-templates"): roles("admin"),
