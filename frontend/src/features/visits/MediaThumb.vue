@@ -1,13 +1,12 @@
 <template>
-  <li class="relative flex w-33 flex-none flex-col overflow-hidden rounded-lg border bg-surface-50 max-md:w-28" :class="state === 'failed' ? 'border-error' : 'border-surface-200'">
+  <li class="relative flex flex-col overflow-hidden rounded-lg border bg-surface-50" :class="[state === 'failed' ? 'border-error' : 'border-surface-200', fluid ? 'w-full min-w-0' : 'w-33 flex-none max-md:w-28']">
     <div class="relative aspect-4/3 bg-surface-100">
       <button
         v-if="state === 'ready'"
         :aria-label="openLabel"
         class="group relative block size-full cursor-pointer border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-        :disabled="opening"
         type="button"
-        @click="open"
+        @click="emit('open')"
       >
         <img
           v-if="thumbnail && !broken"
@@ -109,21 +108,24 @@
   import { mdiAlertCircleOutline, mdiDeleteOutline, mdiDotsVertical, mdiEyeOffOutline, mdiEyeOutline, mdiPencilOutline, mdiPlay } from '@mdi/js'
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { icons } from '@/app/theme/icons'
-  import { clock, mediaDetail, onItsWay, openMedia } from './mediaLinks'
+  import { clock, mediaDetail, onItsWay } from './mediaLinks'
 
   // One photo or video on an element of a station's board: its thumbnail from a ten-minute link,
   // or where it is in the checks (board "W11 screens" 1). The element holds the caption and who
   // added it; the media service knows whether the file is ready, so this asks it, and looks again
-  // every few seconds while it is not. The board's element sheet shows the file itself (W11-29).
+  // every few seconds while it is not. A click asks the element sheet to show the file in place (W11-29).
   const props = defineProps<{
     item: BoardMedia
     canCaption: boolean
     canRemove: boolean
+    /** Fill the grid cell instead of the strip's fixed width. */
+    fluid?: boolean
     /** Seconds between looks while a file is being processed. Tests set it small. */
     pollSeconds?: number
   }>()
 
   const emit = defineEmits<{
+    open: []
     caption: []
     hide: [hidden: boolean]
     remove: []
@@ -132,7 +134,6 @@
 
   const detail = ref<MediaDetail | null>(null)
   const broken = ref(false)
-  const opening = ref(false)
   let timer: ReturnType<typeof setTimeout> | undefined
   let gone = false
 
@@ -165,17 +166,6 @@
     }
     if (!gone && (!detail.value || onItsWay(detail.value.status))) {
       timer = setTimeout(look, (props.pollSeconds ?? 5) * 1000)
-    }
-  }
-
-  async function open (): Promise<void> {
-    opening.value = true
-    try {
-      await openMedia(props.item.media_id)
-    } catch {
-      emit('problem', 'We couldn’t open that file. Try again in a moment.')
-    } finally {
-      opening.value = false
     }
   }
 

@@ -1,6 +1,6 @@
 # Phase 4 · Visit board plan: Notes, Tasks, Recommendations and Config replace the work record
 
-Proposed 2026-10-22. **Questions answered 2026-10-22** (section 9). W11 slice 4 is merged (#65). **Slice 0 (the documents) is done** on `docs/visit-board`. The mock-up boards (section 5) must be drawn and approved before slices 2 and 3.
+Proposed 2026-10-22. **Questions answered 2026-10-22** (section 9). W11 slice 4 is merged (#65). Slice 0 (#66) and slice 1 (#68) are merged. **Slices 2 and 3 are built** on `feat/p4-board-screens`, from the approved Stitch screens and the mock-up for the rest (decision 36). The mock-up boards (section 5) must be drawn and approved before slices 2 and 3.
 
 A visit is now **filling in a board for each station on it**. The board holds sticky notes of four kinds: **Note**, **Task**, **Recommendation** and **Config**. They capture everything that happened during the visit. This replaces the structured work record (W11 slices 1 and 2), the media phases Before, During and After (W11 slice 4) and the checklist templates (W10 slice 2). The visit's lifecycle (schedule, start, arrive, depart, end, cancel, restore), the request status derived from visits, the media pipeline (W11 slice 3), the browser's hashing and upload queue, and VIS-9 (another visit needed) are unchanged.
 
@@ -64,6 +64,8 @@ These supersede W11-1 to W11-9, W11-15 (the screens for the work record and the 
 33. **Ending with incomplete tasks** (answered: allowed, with a warning). The End visit dialog lists the incomplete tasks and asks to confirm. The check is only in the dialog: the server never refuses `end` for it, because an `end` synced from a phone cannot answer a question. The tasks stay editable until the report locks.
 34. **VIS-6 is dropped** (answered). Before and After now belong to Tasks and Config, so nothing is required per station at `end`. The override reason goes too.
 35. **Events and notifications.** The events are `visit.element_added`, `visit.element_updated` and `visit.element_deleted`, keyed by `request_id`. They carry facts only: `visit_id`, `station_id`, `element_id`, `kind`, `shared`, `completed` (task), `priority` (recommendation), `aggregate_version`. They never carry the title, description or item text, as comment events don't (W9). `visit.media_changed` gains `element_id` and `section`. There are no new emails or notifications (answered): clients see shared recommendations on the visit page and in the visit report (Phase 6). The audit consumer records the new types by default (AUD-1).
+
+36. **Sticky notes are white cards with a coloured top edge** (answered 2026-10-22, after the Stitch screens). The kind's accent is on the card's 4 px top edge, its icon and its label; the pale tint is kept for the open sheet's header band and the Add menu's swatch. The title is the card's button, stretched over the whole card, so the card's name is the title (WCAG 2.5.3).
 
 ## 3. Back end (slice 1, plus slice 4's two features)
 

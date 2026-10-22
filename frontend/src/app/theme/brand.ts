@@ -93,10 +93,35 @@ const darkStatus = {
   'on-status-cancelled': '#E2E8F0',
 }
 
+// The visit board's four kinds (DBD 1.8 "Sticky-note tints", W11-19): an accent for the card's
+// top edge, icon and label, and a pale tint for the open sheet's header and the Add menu's swatch.
+// Never status colours, never from the Material theme, and only ever on board elements.
+const lightSticky = {
+  'sticky-note': '#FFF3B0',
+  'on-sticky-note': '#7A5C00',
+  'sticky-task': '#D3F2DA',
+  'on-sticky-task': '#1B6B34',
+  'sticky-recommendation': '#FFDCD8',
+  'on-sticky-recommendation': '#A8251B',
+  'sticky-config': '#EADFFF',
+  'on-sticky-config': '#61389A',
+}
+
+const darkSticky = {
+  'sticky-note': '#3B3414',
+  'on-sticky-note': '#F2D35B',
+  'sticky-task': '#173A23',
+  'on-sticky-task': '#7FD99A',
+  'sticky-recommendation': '#45201C',
+  'on-sticky-recommendation': '#FF9C92',
+  'sticky-config': '#2E2343',
+  'on-sticky-config': '#CDB3FA',
+}
+
 /** Vuetify's light and dark themes for a Material theme: its brand colours plus the fixed statuses. */
 export function buildThemes (material: MaterialTheme): { light: ThemeDefinition, dark: ThemeDefinition } {
   return {
-    light: { dark: false, colors: { ...stationStatus, ...lightStatus, ...materialColors(material, false) } },
-    dark: { dark: true, colors: { ...stationStatus, ...darkStatus, ...materialColors(material, true) } },
+    light: { dark: false, colors: { ...stationStatus, ...lightStatus, ...lightSticky, ...materialColors(material, false) } },
+    dark: { dark: true, colors: { ...stationStatus, ...darkStatus, ...darkSticky, ...materialColors(material, true) } },
   }
 }

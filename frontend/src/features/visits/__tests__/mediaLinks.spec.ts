@@ -1,6 +1,6 @@
 import type { MediaDetail } from '@/api/models'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { clock, forgetMedia, forgetMediaLinks, mediaDetail, onItsWay, openMedia } from '../mediaLinks'
+import { clock, forgetMedia, forgetMediaLinks, mediaDetail, onItsWay } from '../mediaLinks'
 
 function detail (status: string, urls: Record<string, string> = {}): MediaDetail {
   return { id: 'm1', status, urls } as MediaDetail
@@ -49,26 +49,6 @@ describe('onItsWay', () => {
     expect(['pending', 'uploaded', 'processing'].every(s => onItsWay(s))).toBe(true)
     expect(onItsWay('ready')).toBe(false)
     expect(onItsWay('failed')).toBe(false)
-  })
-})
-
-describe('openMedia', () => {
-  it('opens the tab in the click and points it at a fresh link', async () => {
-    const tab = { opener: {}, location: { href: '' }, close: vi.fn() }
-    const open = vi.spyOn(globalThis, 'open').mockReturnValue(tab as unknown as Window)
-    await openMedia('m1', async () => detail('ready', { view: 'https://files/v' }))
-    expect(open).toHaveBeenCalledWith('', '_blank')
-    expect(tab.location.href).toBe('https://files/v')
-    expect(tab.opener).toBeNull()
-    open.mockRestore()
-  })
-
-  it('closes the tab when there is no link yet', async () => {
-    const tab = { opener: {}, location: { href: '' }, close: vi.fn() }
-    const open = vi.spyOn(globalThis, 'open').mockReturnValue(tab as unknown as Window)
-    await expect(openMedia('m1', async () => detail('processing'))).rejects.toThrow()
-    expect(tab.close).toHaveBeenCalled()
-    open.mockRestore()
   })
 })
 

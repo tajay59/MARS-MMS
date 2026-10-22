@@ -65,31 +65,6 @@ export function forgetMediaLinks (): void {
   kept.clear()
 }
 
-/**
- * Show a photo or video in a new tab. The tab is opened in the click itself because Safari refuses
- * a window opened after an `await`; the link is asked for fresh, since the one in a thumbnail may
- * be old.
- */
-export async function openMedia (id: string, fetcher: Fetcher = mediaApi.get): Promise<void> {
-  const tab = globalThis.open('', '_blank')
-  try {
-    const detail = await fetcher(id)
-    const url = detail.urls?.view
-    if (!url) {
-      throw new Error('not_ready')
-    }
-    if (tab) {
-      tab.opener = null
-      tab.location.href = url
-    } else {
-      globalThis.location.assign(url)
-    }
-  } catch (error) {
-    tab?.close()
-    throw error
-  }
-}
-
 /** m:ss for a clip, from its length in seconds. */
 export function clock (seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) {
