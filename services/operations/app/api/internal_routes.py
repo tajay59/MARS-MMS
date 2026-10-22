@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from app.api.context import CtxDep
 from app.api.stations.calibration_routes import due_list
 from app.api.stations.schemas import DueList
+from app.domain.visits import media as visit_rules
 from app.events.publish import (
     calibration_data,
     request_data,
@@ -24,6 +25,7 @@ from app.events.publish import (
 from app.repo.requests import requests as request_repo
 from app.repo.stations import models, units
 from app.repo.stations import stations as station_repo
+from app.repo.visits import visits as visit_repo
 
 router = APIRouter(tags=["internal"])
 
@@ -127,6 +129,19 @@ async def attachable(
         if not held & {"client", "technician", "admin"}:
             raise Forbidden()
         return AttachableOut(org_id=found["org_id"])
+    elif parts[0] == "visit" and (target := visit_rules.parse_owner_ref(owner_ref)) is not None:
+        # A photo or video for a station of a visit: staff attending it (W11-10). A client has
+        # no way to add one, and a visit they cannot see does not exist for them.
+        found_visit = await visit_repo.get(ctx.db, target[0])
+        if found_visit is None or "client" in held:
+            raise NotFound()
+        if target[1] not in {s["station_id"] for s in found_visit["stations"]}:
+            raise NotFound()
+        if not held & WRITE_ROLES:
+            raise Forbidden()
+        if "admin" not in held and user_id not in found_visit["staff_ids"]:
+            raise Forbidden()
+        return AttachableOut(org_id=found_visit["org_id"])
     elif parts[0] == "comment" and len(parts) == 3:
         # A comment's files go with the comment, so the request must exist and be the caller's
         found = await request_repo.get(ctx.db, parts[1])

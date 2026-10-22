@@ -427,3 +427,24 @@ class VisitWorkUpdated(VisitFacts):
     version: int  # the work record's, not the visit's
     sensor_actions: list[dict[str, str]] = Field(default_factory=list)  # {id, action}
     config_versions: list[str] = Field(default_factory=list)  # ids
+
+
+@register("visit.media_changed")
+class VisitMediaChanged(VisitFacts):
+    """A photo or video was added to a station of the visit, captioned, hidden from or shown to
+    the client again, or removed (W11-10). Ids and kinds only: no file name, no caption."""
+
+    station_id: str
+    media_id: str
+    phase: str  # before | during | after
+    kind: str  # image | video
+    change: str  # added | captioned | hidden | shown | removed
+
+
+@register("media.deletion_requested")
+class MediaDeletionRequested(_Data):
+    """Operations asks media to delete files it no longer holds on any owner (a photo taken off
+    a visit). Media deletes them and says so with `media.deleted`."""
+
+    media_ids: list[str]
+    reason: str

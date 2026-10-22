@@ -35,6 +35,7 @@ from app.api.visits.schemas import (
 from app.domain.requests import staffing
 from app.domain.requests.state import Status
 from app.domain.visits import lifecycle, schedule, work
+from app.domain.visits import media as media_rules
 from app.domain.visits.state import VStatus
 from app.events.publish import Emitter, ev
 from app.repo.checklists import resolve
@@ -451,6 +452,11 @@ async def end_visit(id: IdPath, body: EndIn, user: Worker, ctx: CtxDep) -> Visit
                 ctx, user, ended, st["station_id"], record["sensor_actions"], s, emitter)
             await sensor_apply.create_config(ctx, user, ended, st, todo[st["station_id"]], s,
                                              emitter)
+        # The client sees the visit's photos and video from now on, except what was hidden
+        # (W11-13). The same transaction as the end, so a visit is never ended and unshared.
+        shown = media_rules.shared_ids(ended)
+        if shown:
+            await emitter.visit_visibility(shown, "org", ended, s)
 
     return await _write(
         ctx, user, visit, result.fields, after=apply_work,

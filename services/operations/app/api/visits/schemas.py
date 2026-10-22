@@ -1,7 +1,8 @@
 """Visits module request and response bodies (TRD §3.2 visits; PRD VIS-1 to VIS-4, VIS-9, VIS-11).
 
 Staff and clients get one shape, filtered when it is built (rule 6): a client never gets the
-scheduling `notes` and never a station's work record (W11); no media exist on the shape yet.
+scheduling `notes` and never a station's work record (W11); a station's media are listed for staff
+only until the client's view arrives (W12).
 Staff names are shown to clients (decisions A7, D4); email and phone never are.
 """
 
@@ -93,6 +94,21 @@ class VisitPersonOut(BaseModel):
     name: str
 
 
+class VisitMediaOut(BaseModel):
+    """A photo or video on a station of the visit. The file itself (thumbnail, link, processing
+    state) comes from the media service by `media_id`, so nothing here expires."""
+
+    media_id: str
+    phase: Literal["before", "during", "after"]
+    kind: Literal["image", "video"]
+    filename: str
+    caption: str | None
+    captured_at: datetime | None
+    added_by: VisitPersonOut
+    added_at: datetime
+    hidden: bool  # kept from the client even after the visit ends
+
+
 class VisitStationOut(BaseModel):
     station_id: str
     station_code: str | None
@@ -103,6 +119,7 @@ class VisitStationOut(BaseModel):
     departed_at: datetime | None
     actions: list[StationAction]  # what the person asking may do here now
     work: WorkOut | None  # the work record: staff only, never a client (rule 6)
+    media: list[VisitMediaOut]  # staff only for now (W12 adds the client's view)
 
 
 class VisitBrief(BaseModel):
@@ -166,12 +183,24 @@ class VisitOut(VisitBrief):
                     actions=cast(list[StationAction], visit_actions.station_actions(
                         doc, s, viewer.id, viewer.is_admin) if staff_side else []),
                     work=WorkOut.of(s["work"]) if s.get("work") and not viewer.is_client else None,
+                    media=[] if viewer.is_client else [
+                        _media(m) for m in s.get("media", [])],
                 )
                 for s in doc["stations"]
             ],
             actions=cast(list[VisitAction], acts),
             version=doc["version"],
         )
+
+
+def _media(entry: dict[str, Any]) -> VisitMediaOut:
+    return VisitMediaOut(
+        media_id=entry["media_id"], phase=entry["phase"], kind=entry["kind"],
+        filename=entry["filename"], caption=entry.get("caption"),
+        captured_at=entry.get("captured_at"),
+        added_by=VisitPersonOut(id=entry["added_by"], name=entry.get("added_by_name") or ""),
+        added_at=entry["added_at"], hidden=bool(entry.get("hidden")),
+    )
 
 
 def _person(doc: dict[str, Any], staff_id: str) -> VisitPersonOut:

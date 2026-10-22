@@ -52,7 +52,7 @@ AUD1: dict[str, tuple[str, ...]] = {
     "visit scheduling, start, end and overrides": (
         "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored",
         "visit.started", "visit.ended", "visit.work_updated", "visit.station_owner_changed",
-        "visit.station_arrived", "visit.station_departed",
+        "visit.station_arrived", "visit.station_departed", "visit.media_changed",
     ),
     "media uploads and deletions": ("media.uploaded", "media.deleted"),
     "report finalization, signatures and reopening": (
