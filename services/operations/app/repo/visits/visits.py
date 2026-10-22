@@ -161,30 +161,6 @@ async def update(
     raise VersionConflict()
 
 
-async def set_work(
-    db: Db, visit_id: str, station_id: str, work: dict[str, Any], *, base_version: int,
-    now: datetime, by: str, session: AsyncClientSession,
-) -> dict[str, Any] | None:
-    """Replace one station's work record if it is still at `base_version` (a visit started
-    before records existed has none, which counts as version 0). Another station's work and
-    arrival are not touched, so two owners saving at once do not collide. Returns the visit, or
-    None when the record moved on (the caller reads it and reports `work_changed`)."""
-    match: dict[str, Any] = {"station_id": station_id}
-    if base_version == 0:
-        match["$or"] = [{"work.version": 0}, {"work": None}]
-    else:
-        match["work.version"] = base_version
-    doc: dict[str, Any] | None = await col(db).find_one_and_update(
-        {"_id": visit_id, "status": {"$in": ["started", "ended"]}, "locked": {"$ne": True},
-         "stations": {"$elemMatch": match}},
-        {"$set": {"stations.$[s].work": work, "updated_at": now, "updated_by": by},
-         "$inc": {"version": 1}},
-        array_filters=[{"s.station_id": station_id}],
-        return_document=ReturnDocument.AFTER, session=session,
-    )
-    return doc
-
-
 async def set_station(
     db: Db, visit_id: str, station_id: str, fields: dict[str, Any], *, now: datetime, by: str,
     session: AsyncClientSession,
@@ -204,58 +180,16 @@ async def set_station(
     return doc
 
 
-# --- photos and video (W11-10) ------------------------------------------------------------------
-# One array operation each, in the caller's transaction. They do not look at the work record or at
-# another station's media, so people adding photos while the owner saves the record do not collide.
-
-
-def _open(visit_id: str, station: dict[str, Any]) -> dict[str, Any]:
-    return {"_id": visit_id, "status": {"$in": ["started", "ended"]}, "locked": {"$ne": True},
-            "stations": {"$elemMatch": station}}
-
-
-async def add_media(
-    db: Db, visit_id: str, station_id: str, entry: dict[str, Any], *, now: datetime, by: str,
-    session: AsyncClientSession,
-) -> dict[str, Any] | None:
-    """Append the entry unless this file is on the station already. None when the visit is not
-    open for it or the file is there (the caller reads the visit to tell which)."""
+async def next_visibility_seq(db: Db, visit_id: str, session: AsyncClientSession) -> int:
+    """The number for a request to show or hide a visit's files (W11-28). Media applies only the
+    newest per file, so every request from a visit, at its end or for one element later, takes the
+    next number in the request's transaction. It starts above the visit's own version, which
+    numbered these requests before the board."""
     doc: dict[str, Any] | None = await col(db).find_one_and_update(
-        _open(visit_id, {"station_id": station_id, "media.media_id": {"$ne": entry["media_id"]}}),
-        {"$push": {"stations.$[s].media": entry},
-         "$set": {"updated_at": now, "updated_by": by}, "$inc": {"version": 1}},
-        array_filters=[{"s.station_id": station_id}],
+        {"_id": visit_id},
+        [{"$set": {"visibility_seq": {"$add": [{"$max": ["$visibility_seq", "$version"]}, 1]}}}],
         return_document=ReturnDocument.AFTER, session=session,
     )
-    return doc
-
-
-async def change_media(
-    db: Db, visit_id: str, station_id: str, media_id: str, fields: dict[str, Any], *,
-    now: datetime, by: str, session: AsyncClientSession,
-) -> dict[str, Any] | None:
-    """Set fields (`caption`, `hidden`) on one entry. None when the visit is not open or the
-    entry is gone."""
-    sets = {f"stations.$[s].media.$[m].{k}": v for k, v in fields.items()}
-    doc: dict[str, Any] | None = await col(db).find_one_and_update(
-        _open(visit_id, {"station_id": station_id, "media.media_id": media_id}),
-        {"$set": {**sets, "updated_at": now, "updated_by": by}, "$inc": {"version": 1}},
-        array_filters=[{"s.station_id": station_id}, {"m.media_id": media_id}],
-        return_document=ReturnDocument.AFTER, session=session,
-    )
-    return doc
-
-
-async def remove_media(
-    db: Db, visit_id: str, station_id: str, media_id: str, *, now: datetime, by: str,
-    session: AsyncClientSession,
-) -> dict[str, Any] | None:
-    doc: dict[str, Any] | None = await col(db).find_one_and_update(
-        _open(visit_id, {"station_id": station_id, "media.media_id": media_id}),
-        {"$pull": {"stations.$[s].media": {"media_id": media_id}},
-         "$set": {"updated_at": now, "updated_by": by}, "$inc": {"version": 1}},
-        array_filters=[{"s.station_id": station_id}],
-        return_document=ReturnDocument.AFTER, session=session,
-    )
-    return doc
-
+    if doc is None:
+        raise NotFound()
+    return int(doc["visibility_seq"])

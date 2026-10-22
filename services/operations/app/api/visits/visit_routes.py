@@ -14,13 +14,13 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 from mms_common.auth import User, require_roles
-from mms_common.errors import Conflict, Forbidden, NotFound, ValidationFailed
+from mms_common.errors import Conflict, Forbidden, ValidationFailed
 from mms_common.ids import UUID7_PATTERN, new_id
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
 
 from app.api.context import Ctx, CtxDep
-from app.api.visits import glue, sensor_apply
+from app.api.visits import glue
 from app.api.visits.schemas import (
     AtIn,
     EndIn,
@@ -34,14 +34,14 @@ from app.api.visits.schemas import (
 )
 from app.domain.requests import staffing
 from app.domain.requests.state import Status
-from app.domain.visits import lifecycle, schedule, work
-from app.domain.visits import media as media_rules
+from app.domain.visits import elements as element_rules
+from app.domain.visits import lifecycle, schedule
 from app.domain.visits.state import VStatus
 from app.events.publish import Emitter, ev
-from app.repo.checklists import resolve
 from app.repo.requests import requests as request_repo
 from app.repo.stations import stations as station_repo
 from app.repo.stations.common import stamp
+from app.repo.visits import elements as element_repo
 from app.repo.visits import visits as repo
 
 router = APIRouter(prefix="/api/v1/visits", tags=["visits"])
@@ -58,9 +58,36 @@ AfterWrite = Callable[[AsyncClientSession, dict[str, Any], Emitter], Awaitable[N
 SCHEDULABLE = frozenset({Status.ASSIGNED, Status.SCHEDULED, Status.IN_PROGRESS})
 
 
+async def boards(
+    ctx: Ctx, docs: list[dict[str, Any]], viewer: User
+) -> dict[str, dict[str, element_rules.Summary]]:
+    """Each station's board at a glance, by visit and station. A client counts the shared
+    elements of ended visits only (W11-28)."""
+    found: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for element in await element_repo.for_visits(ctx.db, [d["_id"] for d in docs], viewer):
+        found.setdefault(element["visit_id"], {}).setdefault(element["station_id"], []).append(
+            element)
+    out: dict[str, dict[str, element_rules.Summary]] = {}
+    for doc in docs:
+        mine = found.get(doc["_id"], {})
+        if viewer.is_client and not element_rules.ended(doc):
+            mine = {}
+        out[doc["_id"]] = {
+            s["station_id"]: element_rules.summarize(mine.get(s["station_id"], []))
+            for s in doc["stations"]
+        }
+    return out
+
+
+async def built(
+    ctx: Ctx, doc: dict[str, Any], request: dict[str, Any] | None, viewer: User
+) -> VisitOut:
+    return VisitOut.build(doc, request, viewer, (await boards(ctx, [doc], viewer))[doc["_id"]])
+
+
 async def _out(ctx: Ctx, doc: dict[str, Any], viewer: User) -> VisitOut:
     request = await request_repo.get(ctx.db, doc["request_id"])
-    return VisitOut.build(doc, request, viewer)
+    return await built(ctx, doc, request, viewer)
 
 
 async def _people(ctx: Ctx, ids: list[str]) -> list[dict[str, str]]:
@@ -128,7 +155,6 @@ async def schedule_visit(
             "report_status": "none", "report_version": None, "prepared_on": [],
             "started_at": None, "ended_at": None, "additional_visit_required": None,
             "follow_up_notes": None, "cancelled_at": None, "cancel_reason": None,
-            "overrides": [],
             "stations": [
                 schedule.new_station(sid, owner, details.get(sid, {}))
                 for sid, owner in owners.items()
@@ -148,7 +174,7 @@ async def schedule_visit(
             raise Conflict("That ID is already used", code="id_taken") from None
         response.status_code = status.HTTP_200_OK
         return await _out(ctx, won, user)
-    return VisitOut.build(holder["doc"], holder["request"], user)
+    return await built(ctx, holder["doc"], holder["request"], user)
 
 
 @router.get("/mine")
@@ -157,8 +183,10 @@ async def my_visits(user: StaffReader, ctx: CtxDep) -> VisitPage:
     visits")."""
     docs = await repo.mine(ctx.db, user)
     requests = await glue.requests_by_id(ctx, [d["request_id"] for d in docs])
+    summaries = await boards(ctx, docs, user)
     return VisitPage(
-        items=[VisitOut.build(d, requests.get(d["request_id"]), user) for d in docs],
+        items=[VisitOut.build(d, requests.get(d["request_id"]), user, summaries[d["_id"]])
+               for d in docs],
         total=len(docs), next_after=None,
     )
 
@@ -197,8 +225,10 @@ async def list_visits(
     more = len(docs) > limit
     docs = docs[:limit]
     requests = await glue.requests_by_id(ctx, [d["request_id"] for d in docs])
+    summaries = await boards(ctx, docs, viewer)
     return VisitPage(
-        items=[VisitOut.build(d, requests.get(d["request_id"]), viewer) for d in docs],
+        items=[VisitOut.build(d, requests.get(d["request_id"]), viewer, summaries[d["_id"]])
+               for d in docs],
         total=total, next_after=docs[-1]["_id"] if more and docs else None,
     )
 
@@ -224,8 +254,8 @@ async def _write(
 ) -> VisitOut:
     """One change: the visit, its events and (when its status moved) the request's status, in one
     transaction. `emit` is `(model, type, extra)` for each event, written in that order. `after`
-    runs once the visit is written and before its events: ending a visit applies the work's
-    sensor actions there, so a refusal undoes everything."""
+    runs once the visit is written and before its events: ending a visit shares the board's
+    files there, so a failure undoes everything."""
     now = ctx.clock.now()
     emitter = ctx.emitter(user)
     holder: dict[str, Any] = {}
@@ -246,7 +276,7 @@ async def _write(
         holder["doc"] = updated
 
     await ctx.tx(save)
-    return VisitOut.build(holder["doc"], holder["request"], user)
+    return await built(ctx, holder["doc"], holder["request"], user)
 
 
 @router.patch("/{id}")
@@ -352,18 +382,8 @@ async def start_visit(id: IdPath, body: AtIn, user: Worker, ctx: CtxDep) -> Visi
     result = lifecycle.start(visit, user.id, user.is_admin, body.at, now)
     if result.noop:
         return await _out(ctx, visit, user)
-    # The checklist templates are copied now, so a template edited later changes nothing (VIS-8)
-    stations = []
-    for station in visit["stations"]:
-        if station.get("work") is None:
-            try:
-                _, items = await resolve.for_station(ctx.db, station["station_id"])
-            except NotFound:
-                items = []
-            station = {**station, "work": work.blank(items, now)}
-        stations.append(station)
     return await _write(
-        ctx, user, visit, {**result.fields, "stations": stations},
+        ctx, user, visit, result.fields,
         emit=[(ev.VisitStarted, "visit.started", {"started_at": result.fields["started_at"]})],
         settle_note=f"Visit {visit['ref']} started",
     )
@@ -392,7 +412,7 @@ async def _station_move(
         holder["doc"], holder["request"] = updated, request
 
     await ctx.tx(save)
-    return VisitOut.build(holder["doc"], holder["request"], user)
+    return await built(ctx, holder["doc"], holder["request"], user)
 
 
 @router.post("/{id}/stations/{station_id}/arrive")
@@ -418,53 +438,34 @@ async def depart(
 @router.post("/{id}/end")
 async def end_visit(id: IdPath, body: EndIn, user: Worker, ctx: CtxDep) -> VisitOut:
     """VIS-9: end the visit and say whether another is needed. If so the request goes back to
-    Assigned to be scheduled again; if not it waits for the visit report (Phase 6). The VIS-6
-    check of Before and After images arrives with media on visits (W12)."""
+    Assigned to be scheduled again; if not it waits for the visit report (Phase 6). Incomplete
+    tasks are only a warning in the End dialog: an end synced from a phone can't answer a
+    question, so the server never refuses it for them (W11-33)."""
     visit = await repo.require(ctx.db, id)
     now = ctx.clock.now()
-    on_visit = {s["station_id"] for s in visit["stations"]}
-    for override in body.overrides:
-        if override.station_id not in on_visit:
-            raise ValidationFailed("That station is not on this visit",
-                                   code="station_not_on_visit", field="overrides")
     result = lifecycle.end(
         visit, user.id, user.is_admin, additional_visit_required=body.additional_visit_required,
-        follow_up_notes=body.follow_up_notes,
-        overrides=[{"station_id": o.station_id, "reason": o.reason} for o in body.overrides],
-        at=body.at, now=now,
+        follow_up_notes=body.follow_up_notes, at=body.at, now=now,
     )
     if result.noop:
         return await _out(ctx, visit, user)
-    # The work recorded at each station reaches the inventory in the same transaction as the end
-    # (SEN-4, CFG-4). Files are checked with media first: it is a network call.
-    todo = {
-        st["station_id"]: await sensor_apply.check_config(
-            ctx, visit, st, (st.get("work") or {}).get("config_versions", []))
-        for st in visit["stations"]
-    }
 
-    async def apply_work(s: AsyncClientSession, ended: dict[str, Any], emitter: Emitter) -> None:
-        for st in ended["stations"]:
-            record = st.get("work")
-            if record is None:
-                continue
-            await sensor_apply.reconcile_station(
-                ctx, user, ended, st["station_id"], record["sensor_actions"], s, emitter)
-            await sensor_apply.create_config(ctx, user, ended, st, todo[st["station_id"]], s,
-                                             emitter)
-        # The client sees the visit's photos and video from now on, except what was hidden
-        # (W11-13). The same transaction as the end, so a visit is never ended and unshared.
-        shown = media_rules.shared_ids(ended)
+    async def share(s: AsyncClientSession, ended: dict[str, Any], emitter: Emitter) -> None:
+        # The client sees the shared elements' files from now on, except what was hidden
+        # (W11-28). The same transaction as the end, so a visit is never ended and unshared.
+        board = await element_repo.for_visits(ctx.db, [ended["_id"]], None, s)
+        shown = sorted({m for e in board if e.get("shared") for m in
+                        element_rules.shown_media_ids(e)})
         if shown:
-            await emitter.visit_visibility(shown, "org", ended, s)
+            seq = await repo.next_visibility_seq(ctx.db, ended["_id"], s)
+            await emitter.visit_visibility(shown, "org", ended, s, version=seq)
 
     return await _write(
-        ctx, user, visit, result.fields, after=apply_work,
+        ctx, user, visit, result.fields, after=share,
         emit=[(ev.VisitEnded, "visit.ended", {
             "ended_at": result.fields["ended_at"],
             "additional_visit_required": body.additional_visit_required,
             "follow_up_notes": result.fields["follow_up_notes"],
-            "overrides": result.fields["overrides"],
         })],
         settle_note=f"Visit {visit['ref']} ended",
     )

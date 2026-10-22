@@ -1,5 +1,5 @@
 import type { Upload } from '../useUpload'
-import type { VisitOut } from '@/api/models'
+import type { BoardElement, ElementSection, VisitOut } from '@/api/models'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError, NetworkError } from '@/api/problem'
 import { useVisitMedia, type VisitMediaDeps } from '../useVisitMedia'
@@ -8,6 +8,12 @@ const VISIT = {
   id: 'v1',
   stations: [{ station_id: 's1', time_zone: 'America/Jamaica' }],
 } as unknown as VisitOut
+
+const ELEMENT = { id: 'e1', kind: 'task' } as unknown as BoardElement
+
+function at (section: ElementSection, elementId = 'e1', anyFile = false) {
+  return { stationId: 's1', elementId, section, anyFile }
+}
 
 function photo (name = 'IMG_1.jpg'): File {
   return new File(['x'], name, { type: 'image/jpeg', lastModified: Date.parse('2026-10-21T15:00:00Z') })
@@ -44,7 +50,7 @@ function fake (file: File, ok = true, id = 'media-1'): FakeUpload {
 }
 
 function setup (overrides: Partial<VisitMediaDeps> = {}) {
-  const seen: VisitOut[] = []
+  const seen: BoardElement[] = []
   const uploads: FakeUpload[] = []
   const deps: VisitMediaDeps = {
     prepare: vi.fn(async (file: File) => ({ file, captured: null, resized: false })),
@@ -53,10 +59,10 @@ function setup (overrides: Partial<VisitMediaDeps> = {}) {
       uploads.push(u)
       return u as unknown as Upload
     }),
-    addMedia: vi.fn(async () => VISIT),
+    addMedia: vi.fn(async () => ELEMENT),
     ...overrides,
   }
-  const media = useVisitMedia({ visit: () => VISIT, onVisit: v => seen.push(v), deps })
+  const media = useVisitMedia({ visit: () => VISIT, onElement: e => seen.push(e), deps })
   return { media, deps, seen, uploads }
 }
 
@@ -68,32 +74,42 @@ async function settle (): Promise<void> {
 }
 
 describe('useVisitMedia', () => {
-  it('prepares a photo, uploads it for the station and phase, and puts it on the station', async () => {
+  it('prepares a photo, uploads it for the element and section, and puts it on the element', async () => {
     const { media, deps, seen } = setup()
-    const refused = media.add('s1', 'before', [photo()])
+    const refused = media.add(at('before'), [photo()])
     expect(refused).toEqual([])
     await settle()
     expect(deps.prepare).toHaveBeenCalledOnce()
-    expect(deps.upload).toHaveBeenCalledWith(expect.any(File), { ownerRef: 'visit:v1:station:s1:before', kind: 'image' })
-    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', {
-      media_id: 'media-1', phase: 'before', captured_at: '2026-10-21T15:00:00.000Z',
+    expect(deps.upload).toHaveBeenCalledWith(expect.any(File), { ownerRef: 'visit:v1:station:s1:element:e1:before', kind: 'image' })
+    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', 'e1', {
+      media_id: 'media-1', section: 'before', captured_at: '2026-10-21T15:00:00.000Z',
     })
-    expect(seen).toEqual([VISIT])
-    expect(media.items).toHaveLength(0) // the visit shows it now
+    expect(seen).toEqual([ELEMENT])
+    expect(media.items).toHaveLength(0) // the element shows it now
   })
 
   it('sends a video as recorded, without preparing it', async () => {
     const { media, deps } = setup()
-    media.add('s1', 'during', [video()])
+    media.add(at('after'), [video()])
     await settle()
     expect(deps.prepare).not.toHaveBeenCalled()
-    expect(deps.upload).toHaveBeenCalledWith(expect.any(File), { ownerRef: 'visit:v1:station:s1:during', kind: 'video' })
-    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', expect.objectContaining({ captured_at: '2026-10-21T15:05:00.000Z' }))
+    expect(deps.upload).toHaveBeenCalledWith(expect.any(File), { ownerRef: 'visit:v1:station:s1:element:e1:after', kind: 'video' })
+    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', 'e1', expect.objectContaining({ captured_at: '2026-10-21T15:05:00.000Z' }))
+  })
+
+  it('takes any file for an element that takes files, and sends it as it is with no capture time', async () => {
+    const { media, deps } = setup()
+    const refused = media.add(at('after', 'e2', true), [new File(['print 1'], 'logger.py', { type: 'text/x-python' })])
+    expect(refused).toEqual([])
+    await settle()
+    expect(deps.prepare).not.toHaveBeenCalled()
+    expect(deps.upload).toHaveBeenCalledWith(expect.any(File), { ownerRef: 'visit:v1:station:s1:element:e2:after', kind: 'config' })
+    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', 'e2', expect.objectContaining({ captured_at: null }))
   })
 
   it('names the files that are neither photos nor video and takes the rest', async () => {
     const { media, deps } = setup()
-    const refused = media.add('s1', 'after', [new File(['x'], 'notes.txt', { type: 'text/plain' }), photo()])
+    const refused = media.add(at('after'), [new File(['x'], 'notes.txt', { type: 'text/plain' }), photo()])
     expect(refused).toEqual(['notes.txt'])
     await settle()
     expect(deps.addMedia).toHaveBeenCalledOnce()
@@ -103,9 +119,9 @@ describe('useVisitMedia', () => {
     const { media, deps } = setup({
       prepare: vi.fn(async (file: File) => ({ file, captured: { local: '2026-10-21T08:03:05', offset: null }, resized: false })),
     })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
-    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', expect.objectContaining({ captured_at: '2026-10-21T13:03:00.000Z' }))
+    expect(deps.addMedia).toHaveBeenCalledWith('v1', 's1', 'e1', expect.objectContaining({ captured_at: '2026-10-21T13:03:00.000Z' }))
   })
 
   it('keeps a failed upload on the list and tries again from where it stopped', async () => {
@@ -118,7 +134,7 @@ describe('useVisitMedia', () => {
         return u as unknown as Upload
       }),
     })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
     const [item] = media.items
     expect(item?.state).toBe('failed')
@@ -139,12 +155,12 @@ describe('useVisitMedia', () => {
     expect(media.items).toHaveLength(0)
   })
 
-  it('does not upload again when only putting it on the station failed', async () => {
+  it('does not upload again when only putting it on the element failed', async () => {
     const addMedia = vi.fn()
       .mockRejectedValueOnce(new NetworkError(new Error('offline')))
-      .mockResolvedValueOnce(VISIT)
+      .mockResolvedValueOnce(ELEMENT)
     const { media, deps, uploads } = setup({ addMedia: addMedia as unknown as VisitMediaDeps['addMedia'] })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
     expect(media.items[0]?.state).toBe('failed')
     expect(media.items[0]?.error).toContain('connection')
@@ -160,19 +176,19 @@ describe('useVisitMedia', () => {
   it('shows the reason the server gave in words a person can act on', async () => {
     const refusal = new ApiError(409, { status: 409, code: 'locked', detail: 'x' })
     const { media } = setup({ addMedia: vi.fn().mockRejectedValue(refusal) as unknown as VisitMediaDeps['addMedia'] })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
     expect(media.items[0]?.error).toBe('The visit report has been finalized. Ask an admin to reopen it.')
     const unknown = new ApiError(422, { status: 422, code: 'something_new', detail: 'The server’s own words.' })
     const other = setup({ addMedia: vi.fn().mockRejectedValue(unknown) as unknown as VisitMediaDeps['addMedia'] })
-    other.media.add('s1', 'before', [photo()])
+    other.media.add(at('before'), [photo()])
     await settle()
     expect(other.media.items[0]?.error).toBe('The server’s own words.')
   })
 
   it('removes an item and the half-sent file with it', async () => {
     const { media, uploads } = setup({ upload: vi.fn((file: File) => ({ ...fake(file, false) }) as unknown as Upload) })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
     const key = media.items[0]!.key
     await media.discard(key)
@@ -189,7 +205,7 @@ describe('useVisitMedia', () => {
         return u as unknown as Upload
       }),
     })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
     await media.discard(media.items[0]!.key)
     expect(made[0]?.cancel).toHaveBeenCalledWith(true)
@@ -208,7 +224,7 @@ describe('useVisitMedia', () => {
         return u as unknown as Upload
       }),
     })
-    media.add('s1', 'before', [photo('a.jpg'), photo('b.jpg'), photo('c.jpg')])
+    media.add(at('before'), [photo('a.jpg'), photo('b.jpg'), photo('c.jpg')])
     await settle()
     expect(deps.upload).toHaveBeenCalledTimes(2)
     gates.shift()!()
@@ -221,14 +237,16 @@ describe('useVisitMedia', () => {
     expect(media.items).toHaveLength(0)
   })
 
-  it('lists what is on its way for one station and phase', async () => {
+  it('lists what is on its way for one element and section', async () => {
     const { media } = setup({ upload: vi.fn((file: File) => fake(file, false) as unknown as Upload) })
-    media.add('s1', 'before', [photo('a.jpg')])
-    media.add('s1', 'after', [photo('b.jpg')])
+    media.add(at('before'), [photo('a.jpg')])
+    media.add(at('after'), [photo('b.jpg')])
+    media.add(at('main', 'e3'), [photo('c.jpg')])
     await settle()
-    expect(media.forStation('s1').map(i => i.name)).toEqual(['a.jpg', 'b.jpg'])
-    expect(media.forStation('s1', 'after').map(i => i.name)).toEqual(['b.jpg'])
-    expect(media.forStation('s2')).toEqual([])
+    expect(media.forElement('e1').map(i => i.name)).toEqual(['a.jpg', 'b.jpg'])
+    expect(media.forElement('e1', 'after').map(i => i.name)).toEqual(['b.jpg'])
+    expect(media.forElement('e3').map(i => i.section)).toEqual(['main'])
+    expect(media.forElement('e9')).toEqual([])
   })
 
   it('stops sending when the page goes away', async () => {
@@ -240,7 +258,7 @@ describe('useVisitMedia', () => {
         return u as unknown as Upload
       }),
     })
-    media.add('s1', 'before', [photo()])
+    media.add(at('before'), [photo()])
     await settle()
     media.dispose()
     expect(made[0]?.dispose).toHaveBeenCalledOnce()

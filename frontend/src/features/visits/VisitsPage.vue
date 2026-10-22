@@ -126,15 +126,10 @@
           :is-admin="session.hasAnyRole(['admin'])"
           :is-client="isClient"
           :me="session.user?.id"
-          :pending="pendingMedia"
           :visit="detail"
-          @add-media="addingTo = $event"
           @arrive="station('arrive', $event)"
           @change-owner="ownerOf = $event; dialog = 'owner'"
-          @changed="adopt"
           @depart="station('depart', $event)"
-          @discard-media="uploads?.discard($event)"
-          @retry-media="uploads?.retry($event)"
         />
       </template>
     </template>
@@ -246,21 +241,11 @@
       @done="changed('Owner changed. Both people are told.', $event)"
     />
 
-    <AddMediaDialog
-      v-if="detail && addingStation"
-      :model-value="addingTo !== null"
-      :station-code="addingStation.station_code"
-      :station-name="addingStation.station_name ?? 'this station'"
-      @pick="addFiles"
-      @update:model-value="addingTo = null"
-    />
-
     <v-snackbar v-model="toast.show" location="bottom" :timeout="6000">{{ toast.text }}</v-snackbar>
   </PageBody>
 </template>
 
 <script lang="ts" setup>
-  import type { Phase } from './media'
   import type { VisitOut } from '@/api/models'
   import { mdiMagnify } from '@mdi/js'
   import { storeToRefs } from 'pinia'
@@ -270,7 +255,6 @@
   import { visitsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
   import { isVisitUpdate, settled, useLive } from '@/app/composables/useLive'
-  import { useVisitMedia } from '@/app/composables/useVisitMedia'
   import { pressDown, pressPulse, pressUp } from '@/app/motion'
   import { usePaneSelection } from '@/app/shells/pane'
   import { icons } from '@/app/theme/icons'
@@ -279,7 +263,6 @@
   import PaneContent from '@/components/PaneContent.vue'
   import VisitStatusChip from '@/components/VisitStatusChip.vue'
   import { useSessionStore } from '@/stores/session'
-  import AddMediaDialog from './AddMediaDialog.vue'
   import CancelVisitDialog from './CancelVisitDialog.vue'
   import ChangeOwnerDialog from './ChangeOwnerDialog.vue'
   import EndVisitDialog from './EndVisitDialog.vue'
@@ -455,58 +438,8 @@
 
   onBeforeUnmount(() => detailAbort?.abort())
 
-  // --- Photos and video: one upload queue for each visit opened, kept while the page is open so a
-  // file keeps going up when the person glances at another visit ---------------------------------------
-
-  const latest = new Map<string, VisitOut>()
-  const queues = new Map<string, ReturnType<typeof useVisitMedia>>()
-  const addingTo = ref<string | null>(null)
-
-  /** The visit as the server holds it after a change made here: the page and the list show it. */
-  function adopt (visit: VisitOut): void {
-    latest.set(visit.id, visit)
-    if (visit.id === visitId.value) {
-      detail.value = visit
-    }
-    visits.value = replaceVisit(visits.value, visit)
-  }
-
-  function queueFor (visit: VisitOut) {
-    latest.set(visit.id, visit)
-    let queue = queues.get(visit.id)
-    if (!queue) {
-      queue = useVisitMedia({
-        visit: () => latest.get(visit.id) ?? visit,
-        onVisit: adopt,
-      })
-      queues.set(visit.id, queue)
-    }
-    return queue
-  }
-
-  const uploads = computed(() => detail.value ? queueFor(detail.value) : null)
-  const pendingMedia = computed(() => uploads.value?.items ?? [])
-  const addingStation = computed(() => detail.value?.stations.find(s => s.station_id === addingTo.value) ?? null)
-
-  function addFiles (files: File[], phase: Phase): void {
-    const stationId = addingTo.value
-    if (!uploads.value || !stationId) {
-      return
-    }
-    const refused = uploads.value.add(stationId, phase, files)
-    if (refused.length > 0) {
-      say(refused.length === 1
-        ? `${refused[0]} isn’t a photo or video, so it was left out.`
-        : `${refused.length} files weren’t photos or videos, so they were left out.`)
-    }
-  }
-
-  onBeforeUnmount(() => {
-    for (const queue of queues.values()) {
-      queue.dispose()
-    }
-    forgetMediaLinks()
-  })
+  // Ten-minute file links are kept in memory only; nothing of them outlives the page
+  onBeforeUnmount(forgetMediaLinks)
 
   // --- Actions: the dialogs, and the moves that need no form ---------------------------------------
 

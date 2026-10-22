@@ -53,7 +53,6 @@ function unit (patch: Partial<SensorUnitOut> = {}): SensorUnitOut {
     last_calibration_result: null,
     calibration_due_at: null,
     due_state: null,
-    needs_review: false,
     flags: [],
     notes: null,
     created_at: '2026-01-01T00:00:00Z',
@@ -161,7 +160,6 @@ describe('unit form', () => {
     expect(unitPatchBody(unitValues(was), was)).toBeNull()
     expect(unitPatchBody({ ...unitValues(was), serial: 'V-9' }, was)).toEqual({ version: 5, serial: 'V-9' })
     expect(unitPatchBody({ ...unitValues(was), status: 'retired' }, was)).toEqual({ version: 5, status: 'retired' })
-    expect(unitPatchBody({ ...unitValues(was), needsReview: true }, was)).toEqual({ version: 5, needs_review: true })
     // Clearing the override goes back to the model's interval; clearing the notes sends null
     expect(unitPatchBody({ ...unitValues(was), interval: '', notes: '' }, was)).toEqual({
       version: 5,

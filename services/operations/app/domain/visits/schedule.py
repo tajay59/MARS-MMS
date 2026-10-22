@@ -136,7 +136,6 @@ def new_station(station_id: str, owner: str, info: Mapping[str, Any]) -> dict[st
         "station_id": station_id, "station_code": info.get("code"),
         "station_name": info.get("name"), "time_zone": info.get("time_zone"),
         "owner_staff_id": owner, "arrived_at": None, "departed_at": None,
-        "media": [], "media_override_reason": None, "work": None,
     }
 
 

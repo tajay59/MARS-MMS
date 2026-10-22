@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ChecklistTemplate, ChecklistTemplateIn, ChecklistTemplateList, ChecklistTemplatePatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitMediaIn, VisitMediaPatch, VisitOut, VisitPage, VisitPatch, WorkIn, Workload } from './models'
+import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -145,17 +145,6 @@ export const configVersionsApi = {
     api.get<ConfigDiff>(`/stations/${stationId}/config-versions/${version}/diff`, { query: { against }, signal }),
 }
 
-// Checklist templates (VIS-8, W10): staff read, admins write. Saving writes the next version;
-// `version` is the one the editor was looking at, and a newer one answers 409 `version_conflict`.
-export const checklistsApi = {
-  list: (all = false, signal?: AbortSignal) =>
-    api.get<ChecklistTemplateList>('/checklist-templates', { query: { all: all || undefined }, signal }),
-  get: (id: string, version?: number, signal?: AbortSignal) =>
-    api.get<ChecklistTemplate>(`/checklist-templates/${id}`, { query: { version }, signal }),
-  create: (body: ChecklistTemplateIn) => api.post<ChecklistTemplate>('/checklist-templates', body),
-  update: (id: string, body: ChecklistTemplatePatch) => api.patch<ChecklistTemplate>(`/checklist-templates/${id}`, body),
-}
-
 export interface VisitQuery {
   request_id?: string
   staff_id?: string
@@ -185,14 +174,30 @@ export const visitsApi = {
   arrive: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/arrive`, {}),
   depart: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/depart`, {}),
   end: (id: string, body: EndVisitIn) => api.post<VisitOut>(`/visits/${id}/end`, body),
-  /** The owner's work record, whole, at `base_version` (409 `work_changed` when it moved on) */
-  saveWork: (id: string, stationId: string, body: WorkIn) =>
-    api.put<VisitOut>(`/visits/${id}/stations/${stationId}/work`, body),
-  /** Put an uploaded photo or video on a station; the same `media_id` again changes nothing */
-  addMedia: (id: string, stationId: string, body: VisitMediaIn) =>
-    api.post<VisitOut>(`/visits/${id}/stations/${stationId}/media`, body),
-  changeMedia: (id: string, stationId: string, mediaId: string, body: VisitMediaPatch) =>
-    api.patch<VisitOut>(`/visits/${id}/stations/${stationId}/media/${mediaId}`, body),
-  removeMedia: (id: string, stationId: string, mediaId: string) =>
-    api.delete<VisitOut>(`/visits/${id}/stations/${stationId}/media/${mediaId}`),
+}
+
+const board = (id: string, stationId: string) => `/visits/${id}/stations/${stationId}/elements`
+
+// A station's board (VIS-5, VIS-7; W11-16 to W11-35): Notes, Tasks, Recommendations and Config.
+// `body.id` of a new element is made on the device: the same id and content again returns it.
+// A save sends the whole content with `base_version` (409 `element_changed` with `current` when it
+// moved on); a delete leaves a tombstone (409 `element_deleted` for a late save). Files go on an
+// element after their upload, by `media_id`, and never change its version.
+export const boardApi = {
+  list: (id: string, stationId: string, signal?: AbortSignal) =>
+    api.get<BoardElementList>(board(id, stationId), { signal }),
+  get: (id: string, stationId: string, elementId: string, signal?: AbortSignal) =>
+    api.get<BoardElement>(`${board(id, stationId)}/${elementId}`, { signal }),
+  create: (id: string, stationId: string, body: BoardElementIn) =>
+    api.post<BoardElement>(board(id, stationId), body),
+  save: (id: string, stationId: string, elementId: string, body: BoardElementPut) =>
+    api.put<BoardElement>(`${board(id, stationId)}/${elementId}`, body),
+  remove: (id: string, stationId: string, elementId: string, baseVersion: number) =>
+    api.delete<void>(`${board(id, stationId)}/${elementId}`, { query: { base_version: baseVersion } }),
+  addMedia: (id: string, stationId: string, elementId: string, body: BoardMediaIn) =>
+    api.post<BoardElement>(`${board(id, stationId)}/${elementId}/media`, body),
+  changeMedia: (id: string, stationId: string, elementId: string, mediaId: string, body: BoardMediaPatch) =>
+    api.patch<BoardElement>(`${board(id, stationId)}/${elementId}/media/${mediaId}`, body),
+  removeMedia: (id: string, stationId: string, elementId: string, mediaId: string) =>
+    api.delete<BoardElement>(`${board(id, stationId)}/${elementId}/media/${mediaId}`),
 }

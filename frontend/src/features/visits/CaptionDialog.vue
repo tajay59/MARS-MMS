@@ -30,9 +30,9 @@
 </template>
 
 <script lang="ts" setup>
-  import type { VisitMedia, VisitOut } from '@/api/models'
+  import type { BoardElement, BoardMedia } from '@/api/models'
   import { computed, ref, watch } from 'vue'
-  import { visitsApi } from '@/api/operations'
+  import { boardApi } from '@/api/operations'
   import { useFormDialog } from '@/app/composables/useFormDialog'
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
@@ -40,14 +40,15 @@
   import ModalSheet from '@/components/ModalSheet.vue'
   import { mediaFailure } from './media'
 
-  // The caption of one photo or video on a station (PRD VIS-5). Empty clears it.
+  // The caption of one photo or video on an element of a station's board (PRD VIS-5). Empty clears it.
   const props = defineProps<{
     visitId: string
     stationId: string
-    item: VisitMedia | null
+    elementId: string
+    item: BoardMedia | null
   }>()
 
-  const emit = defineEmits<{ done: [visit: VisitOut] }>()
+  const emit = defineEmits<{ done: [element: BoardElement] }>()
   const open = defineModel<boolean>({ required: true })
 
   const caption = ref('')
@@ -78,9 +79,9 @@
     busy.value = true
     problem.value = null
     try {
-      const visit = await visitsApi.changeMedia(props.visitId, props.stationId, props.item.media_id, { caption: text || null })
+      const element = await boardApi.changeMedia(props.visitId, props.stationId, props.elementId, props.item.media_id, { caption: text || null })
       open.value = false
-      emit('done', visit)
+      emit('done', element)
     } catch (error_) {
       problem.value = mediaFailure(error_, 'We couldn’t save the caption. Try again in a moment.')
     } finally {

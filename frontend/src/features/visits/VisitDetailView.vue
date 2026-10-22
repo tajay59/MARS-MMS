@@ -138,71 +138,16 @@
       </ul>
     </section>
 
-    <!-- Photos and video, for the people on the visit (clients see them from W12) -->
-    <section v-if="showMedia" aria-labelledby="vm-h" class="flex flex-col gap-3">
-      <div class="flex items-baseline justify-between gap-3">
-        <h2 id="vm-h" class="m-0 text-h3 text-surface-900">Photos and video</h2>
-        <span class="text-sm text-surface-600">{{ mediaCount }} {{ mediaCount === 1 ? 'file' : 'files' }}</span>
-      </div>
+    <!-- Each station's board at a glance (W11-18). A client counts what is shared, after the end -->
+    <section v-if="showBoards" aria-labelledby="vb-h" class="flex flex-col gap-2">
+      <h2 id="vb-h" class="m-0 text-h3 text-surface-900">Recorded at each station</h2>
 
-      <p class="m-0 flex items-center gap-2 text-xs text-surface-700">
-        <v-icon class="shrink-0 text-primary" :icon="mdiInformationOutline" size="16" />
-        {{ visit.status === 'started'
-          ? 'Photos and video are shared with the client when the visit ends. You can hide any of them first, or later.'
-          : 'Photos and video are shared with the client. You can hide any of them from the menu on each one.' }}
-      </p>
-
-      <FeedbackBanner v-if="!online && pending.length > 0" :icon="mdiWifiOff" type="info">
-        You’re offline. Uploads need a connection; they carry on when you have signal.
-      </FeedbackBanner>
-
-      <div class="flex flex-col">
-        <StationMedia
-          v-for="station in visit.stations"
-          :key="station.station_id"
-          :can-add="canAdd"
-          class="border-t border-surface-200 py-4 first:border-t-0 first:pt-1"
-          :is-admin="isAdmin"
-          :me="me ?? ''"
-          :pending="pending.filter(p => p.stationId === station.station_id)"
-          :station="station"
-          :visit-id="visit.id"
-          @add="emit('add-media', station.station_id)"
-          @changed="emit('changed', $event)"
-          @discard="emit('discard-media', $event)"
-          @retry="emit('retry-media', $event)"
-        />
-      </div>
-    </section>
-
-    <!-- The work record, read only: the owner fills it in on the phone (W12) -->
-    <section v-if="showMedia && recorded.length > 0" aria-labelledby="wr-h" class="flex flex-col gap-3">
-      <h2 id="wr-h" class="m-0 text-h3 text-surface-900">Work record</h2>
-
-      <v-tabs
-        v-if="recorded.length > 1"
-        v-model="recordOf"
-        aria-label="Station"
-        color="primary"
-        density="comfortable"
-      >
-        <v-tab v-for="station in recorded" :key="station.station_id" :value="station.station_id">
-          <span class="flex flex-col items-start leading-tight">
-            {{ station.station_name }}
-            <small class="text-xs font-normal normal-case text-surface-600">Owner {{ station.owner.name }}</small>
-          </span>
-        </v-tab>
-      </v-tabs>
-
-      <p v-else-if="recorded[0]" class="m-0 text-sm text-surface-700">{{ recorded[0].station_name }} · Owner {{ recorded[0].owner.name }}</p>
-
-      <WorkRecordView
-        v-if="shownRecord?.work"
-        :saved-by="shownRecord.work.updated_by === shownRecord.owner.id ? shownRecord.owner.name : null"
-        :visit-ended="visit.status === 'ended'"
-        :work="shownRecord.work"
-        :zone="shownRecord.time_zone"
-      />
+      <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
+        <li v-for="station in visit.stations" :key="station.station_id" class="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span class="font-medium text-surface-900">{{ station.station_name }}</span>
+          <span class="text-surface-700">{{ summaryText(station.board) }}</span>
+        </li>
+      </ul>
     </section>
 
     <!-- Scheduling notes are staff only: the server leaves them out for a client -->
@@ -215,16 +160,11 @@
 
 <script lang="ts" setup>
   import type { VisitOut, VisitStation } from '@/api/models'
-  import type { PendingMedia } from '@/app/composables/useVisitMedia'
-  import { mdiInformationOutline, mdiWifiOff } from '@mdi/js'
-  import { computed, ref, watch } from 'vue'
+  import { computed } from 'vue'
   import { useDisplay } from 'vuetify'
-  import { useOnline } from '@/app/composables/useOnline'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
-  import { canAddMedia } from './media'
-  import StationMedia from './StationMedia.vue'
+  import { summaryText } from './board'
   import { canDo, formatRange, formatWhen, names, stationTimes, visitZone, zoneLabel } from './visits'
-  import WorkRecordView from './WorkRecordView.vue'
 
   // The body of /visits/:id (AFD J5, J6 step 3; DBD "Request page" layout). Dates are in the zone
   // of the first station; each station's own times are in its own zone. A client sees dates,
@@ -237,40 +177,24 @@
     busy?: string | null
     me?: string | null
     isAdmin?: boolean
-    /** Files on their way to a station of this visit. */
-    pending?: PendingMedia[]
   }>()
 
   const emit = defineEmits<{
     'arrive': [stationId: string]
     'depart': [stationId: string]
     'change-owner': [stationId: string]
-    'add-media': [stationId: string]
-    'retry-media': [key: string]
-    'discard-media': [key: string]
-    'changed': [visit: VisitOut]
   }>()
 
   const { mdAndUp } = useDisplay()
-  const online = useOnline()
   const zone = computed(() => visitZone(props.visit))
   const zoneName = computed(() => zone.value ? zoneLabel(zone.value) : '')
   const when = computed(() => formatRange(props.visit.planned_start, props.visit.planned_end, zone.value))
   const canChangeOwner = computed(() => canDo(props.visit, 'change_owner') && ['planned', 'started'].includes(props.visit.status))
 
-  // Media and the work record are for the people on the visit; a planned or cancelled visit has none
-  const showMedia = computed(() => !props.isClient && (props.visit.status === 'started' || props.visit.status === 'ended'))
-  const canAdd = computed(() => canAddMedia(props.visit, props.me ?? '', props.isAdmin ?? false))
-  const mediaCount = computed(() => props.visit.stations.reduce((n, s) => n + s.media.length, 0))
-  const pending = computed(() => props.pending ?? [])
-  const recorded = computed(() => props.visit.stations.filter(s => s.work))
-  const recordOf = ref<string | null>(null)
-  const shownRecord = computed(() => recorded.value.find(s => s.station_id === recordOf.value) ?? recorded.value[0] ?? null)
-  watch(recorded, list => {
-    if (!list.some(s => s.station_id === recordOf.value)) {
-      recordOf.value = list[0]?.station_id ?? null
-    }
-  }, { immediate: true })
+  // The boards fill in once the visit has started; a client sees them once it has ended (W11-28)
+  const showBoards = computed(() => props.isClient
+    ? props.visit.status === 'ended'
+    : props.visit.status === 'started' || props.visit.status === 'ended')
 
   function ownedBy (station: VisitStation): string {
     return station.owner.id === props.me ? 'Owned by you' : `Owned by ${station.owner.name}`

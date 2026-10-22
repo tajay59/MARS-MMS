@@ -24,19 +24,6 @@
     <p v-else-if="units.length === 0" class="m-0 py-4 text-sm text-surface-600">No units of this model are registered yet.</p>
 
     <div v-else class="flex flex-col gap-4">
-      <!-- A unit the field added: what to check, and the way to clear the flag -->
-      <FeedbackBanner v-if="reviewing" type="info">
-        <p class="m-0 font-semibold">{{ reviewing.serial }} needs a check.</p>
-        <p class="m-0 mt-0.5">It was added from the field because its serial was not in the inventory. Check the serial and the details, then mark it as reviewed.</p>
-        <p v-if="reviewing.notes" class="m-0 mt-0.5 text-sm opacity-90">{{ reviewing.notes }}</p>
-        <p v-if="reviewProblem" class="m-0 mt-1 font-medium" role="alert">{{ reviewProblem }}</p>
-
-        <div v-if="canWrite" class="mt-2 flex flex-wrap gap-2">
-          <v-btn size="small" variant="outlined" @click="$emit('edit', reviewing)">Edit details</v-btn>
-          <v-btn color="primary" :loading="reviewBusy" size="small" @click="markReviewed(reviewing)">Mark as reviewed</v-btn>
-        </div>
-      </FeedbackBanner>
-
       <!-- Tablet and desktop: a table, one row a unit -->
       <div v-if="mdAndUp" class="overflow-x-auto">
         <table class="w-full border-collapse text-sm">
@@ -65,7 +52,6 @@
                   @click="picked = u.id"
                 >{{ u.serial }}</button>
 
-                <NeedsReviewChip v-if="u.needs_review" class="ml-2" />
               </td>
 
               <td class="whitespace-nowrap px-4"><UnitStatusChip :status="u.status" /></td>
@@ -96,7 +82,6 @@
               <div class="flex min-w-0 flex-wrap items-center gap-2">
                 <span class="font-mono font-semibold text-surface-900" translate="no">{{ u.serial }}</span>
                 <UnitStatusChip :status="u.status" />
-                <NeedsReviewChip v-if="u.needs_review" />
               </div>
 
               <UnitMenu v-if="canWrite" :unit="u" @edit="$emit('edit', u)" />
@@ -162,12 +147,9 @@
   import { mdiChevronRight, mdiPlus } from '@mdi/js'
   import { computed, ref, watch } from 'vue'
   import { useDisplay } from 'vuetify'
-  import { sensorUnitsApi } from '@/api/operations'
-  import { ApiError, NetworkError } from '@/api/problem'
   import { formatDate } from '@/app/format'
   import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
-  import NeedsReviewChip from './NeedsReviewChip.vue'
   import { calibrationSentence, compliance, firstToShow, whereIcon, whereLabel } from './sensors'
   import UnitMenu from './UnitMenu.vue'
   import UnitStatusChip from './UnitStatusChip.vue'
@@ -179,20 +161,17 @@
     units: SensorUnitOut[] | null
     error: string | null
     canWrite: boolean
-    /** A unit to show first, from the Needs review list. */
+    /** A unit to show first (`?unit=` in the address). */
     focus?: string | null
   }>()
 
-  const emit = defineEmits<{
+  defineEmits<{
     add: []
     edit: [unit: SensorUnitOut]
-    reviewed: []
   }>()
 
   const { mdAndUp } = useDisplay()
   const picked = ref<string | null>(null)
-  const reviewBusy = ref(false)
-  const reviewProblem = ref<string | null>(null)
 
   watch(() => props.focus, id => {
     if (id) {
@@ -205,28 +184,6 @@
     return list.find(u => u.id === picked.value) ?? firstToShow(list)
   })
   const fitness = computed(() => compliance(props.units ?? []))
-
-  // The unit in front, when it was added from the field and still waits for a check
-  const reviewing = computed(() => shown.value?.needs_review ? shown.value : null)
-
-  async function markReviewed (unit: SensorUnitOut): Promise<void> {
-    reviewBusy.value = true
-    reviewProblem.value = null
-    try {
-      await sensorUnitsApi.update(unit.id, { version: unit.version, needs_review: false })
-      emit('reviewed')
-    } catch (error) {
-      if (error instanceof NetworkError) {
-        reviewProblem.value = 'This needs a connection. Try again when you have signal.'
-      } else if (error instanceof ApiError && error.code === 'version_conflict') {
-        reviewProblem.value = 'Someone else changed this unit. Reload the page, then try again.'
-      } else {
-        reviewProblem.value = 'We couldn’t mark it as reviewed. Try again in a moment.'
-      }
-    } finally {
-      reviewBusy.value = false
-    }
-  }
 
   function asDue (value: string | null): DueState | null {
     return (['overdue', 'due_soon', 'ok'] as const).find(state => state === value) ?? null

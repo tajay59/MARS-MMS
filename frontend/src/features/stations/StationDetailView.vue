@@ -114,14 +114,6 @@
 
                 <td class="whitespace-nowrap px-4 font-mono text-surface-900" translate="no">
                   {{ unit.serial }}
-                  <v-icon
-                    v-if="isStaff && unit.needs_review"
-                    aria-hidden="false"
-                    aria-label="Flagged for review"
-                    class="ml-1 text-on-warning-container"
-                    :icon="mdiFlagOutline"
-                    size="16"
-                  />
                 </td>
 
                 <td class="whitespace-nowrap px-4 tabular-nums text-surface-900">{{ formatDate(unit.installed_at, station.time_zone) }}</td>
@@ -262,7 +254,7 @@
 <script lang="ts" setup>
   import type { DueState } from './stations'
   import type { CalibrationOut, StationDetail } from '@/api/models'
-  import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiFlagOutline, mdiMapMarker, mdiProgressClock } from '@mdi/js'
+  import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiMapMarker, mdiProgressClock } from '@mdi/js'
   import { computed, inject, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'

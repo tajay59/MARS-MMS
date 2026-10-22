@@ -119,7 +119,8 @@ def test_a_new_owner_and_the_old_one_both_hear_not_the_person_who_changed_it():
 def test_every_visit_event_goes_live_to_staff_and_the_organization_with_its_request():
     for event in ("visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored",
                   "visit.started", "visit.ended", "visit.station_owner_changed",
-                  "visit.station_arrived", "visit.station_departed", "visit.media_changed"):
+                  "visit.station_arrived", "visit.station_departed", "visit.media_changed",
+                  "visit.element_added", "visit.element_updated", "visit.element_deleted"):
         assert event in LIVE_EVENTS
         made = run(event, ADMIN, {"station_id": "s1", "from_staff_id": TECH, "to_staff_id": TECH2,
                                   "by_request": False, "additional_visit_required": False})
@@ -132,7 +133,8 @@ def test_every_visit_event_goes_live_to_staff_and_the_organization_with_its_requ
 @pytest.mark.req("NOT-5")
 def test_arriving_and_starting_are_live_only():
     for event in ("visit.started", "visit.station_arrived", "visit.station_departed",
-                  "visit.restored", "visit.media_changed"):
+                  "visit.restored", "visit.media_changed", "visit.element_added",
+                  "visit.element_updated", "visit.element_deleted"):
         assert event not in NOTIFY_EVENTS
         assert run(event, TECH, {"station_id": "s1"}).drafts == []
 
