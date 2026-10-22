@@ -157,6 +157,39 @@ async def apply_visibility(
     return int(result.modified_count)
 
 
+async def mark_deleted(
+    db: Db, id_: str, now: datetime, session: Session = None
+) -> tuple[Doc, Doc] | None:
+    """Delete a file its owner no longer holds, whatever state it is in. Returns the record
+    before and after, or None when it is not there or already deleted. The objects are removed
+    afterwards by `purge_deleted`."""
+    before = await col(db).find_one({"_id": id_, "status": {"$ne": Status.DELETED.value}},
+                                    session=session)
+    if before is None:
+        return None
+    after: Doc | None = await col(db).find_one_and_update(
+        {"_id": id_, "status": before["status"]},
+        {"$set": {"status": Status.DELETED.value, "deleted_at": now, "updated_at": now},
+         "$inc": {"version": 1}},
+        return_document=ReturnDocument.AFTER, session=session,
+    )
+    return None if after is None else (before, after)
+
+
+async def deleted_with_objects(db: Db, limit: int = 200) -> list[Doc]:
+    """Deleted files whose objects may still be in the store."""
+    cursor = col(db).find({"status": Status.DELETED.value, "objects_removed_at": None}
+                          ).limit(limit)
+    return [d async for d in cursor]
+
+
+async def mark_objects_removed(db: Db, id_: str, now: datetime) -> bool:
+    result = await col(db).update_one(
+        {"_id": id_, "objects_removed_at": None}, {"$set": {"objects_removed_at": now}}
+    )
+    return result.modified_count == 1
+
+
 async def existing_ids(db: Db, ids: list[str], session: Session = None) -> set[str]:
     found = col(db).find({"_id": {"$in": ids}}, {"_id": 1}, session=session)
     return {d["_id"] async for d in found}

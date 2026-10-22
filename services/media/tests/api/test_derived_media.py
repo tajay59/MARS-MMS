@@ -8,8 +8,12 @@ import io
 from datetime import datetime
 
 import pytest
+from mms_common.events import Envelope
+from mms_common.events import operations as ev
+from mms_common.ids import new_id
 from PIL import Image
 
+from app.events import visibility_consumer
 from app.jobs import cron
 from app.jobs.process import process_media
 from tests.media_files import ffmpeg_available, has_exif_or_gps, jpeg, video
@@ -232,3 +236,55 @@ async def test_a_host_without_ffmpeg_puts_the_video_back_to_try_again(media, mon
     with pytest.raises(Retry):
         await process_media(media.svc, out["media_id"])
     assert (await media.record(out["media_id"]))["status"] == "uploaded"
+
+
+# --- Deletion asked for by the owner (a photo taken off a visit, W11-10) -----------------------
+
+
+async def ask_to_delete(media, media_ids: list[str]) -> None:
+    """Deliver `media.deletion_requested` the way the Kafka consumer does."""
+    async def dlq(raw: bytes, reason: str) -> None:  # pragma: no cover
+        raise AssertionError(reason)
+
+    processor = visibility_consumer.processor(
+        media.app.state.mongo, media.app.state.db, dlq, media.clock
+    )
+    envelope = Envelope(
+        event_id=new_id(), type="media.deletion_requested", occurred_at=media.clock.now(),
+        source="operations", key=new_id(), aggregate_version=1,
+        resource={"type": "visit", "id": new_id()},
+        data=ev.MediaDeletionRequested(media_ids=media_ids, reason="removed_from_visit"
+                                       ).model_dump(),
+    )
+    await processor.process(envelope.model_dump_json().encode())
+
+
+@pytest.mark.req("MED-5")
+async def test_a_deleted_photo_disappears_at_once_and_its_objects_are_removed(media):
+    media_id, _ = await photo(media)
+    await process_media(media.svc, media_id)
+    await share(media, media_id)
+    record = await media.record(media_id)
+    assert exists(media, "originals", record["original_key"])
+
+    await ask_to_delete(media, [media_id])
+    assert (await media.record(media_id))["status"] == "deleted"
+    for who in ("admin", "client_a1"):
+        got = await media.http.get(f"/api/v1/media/{media_id}", headers=media.bearer(who))
+        assert got.status_code == 404, who
+    [event] = await media.outbox("media.deleted")
+    assert event.data["media_id"] == media_id
+
+    assert await cron.purge_deleted(media.svc) == 1
+    assert not exists(media, "originals", record["original_key"])
+    assert not exists(media, "media", record["processed_key"])
+    assert not exists(media, "media", record["thumbnail_key"])
+    assert await cron.purge_deleted(media.svc) == 0  # once
+
+
+async def test_asking_twice_or_for_a_file_that_is_not_there_changes_nothing(media):
+    media_id, _ = await photo(media)
+    await ask_to_delete(media, [media_id, new_id(), media_id])
+    await ask_to_delete(media, [media_id])
+    assert len(await media.outbox("media.deleted")) == 1
+    assert (await media.record(media_id))["version"] >= 1
