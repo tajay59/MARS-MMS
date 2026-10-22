@@ -125,6 +125,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/visits/VisitsPage.vue'),
     meta: { title: 'Visits', layout: 'app' },
   },
+  {
+    // A started visit on a phone (AFD J6, W12): its stations, and each station's board. Phones are
+    // sent here from /visits/:id once the visit has started; the page sends other screens back.
+    path: '/visits/:id/field',
+    name: 'visit-field',
+    component: () => import('@/features/visits/field/VisitFieldPage.vue'),
+    meta: { title: 'Visit', layout: 'field', roles: STAFF },
+  },
   later('/reports', 'reports', 'Reports', 7),
   {
     // The person's own notifications (PRD NOT-1, NOT-2)

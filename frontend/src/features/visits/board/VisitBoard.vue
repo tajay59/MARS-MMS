@@ -1,9 +1,9 @@
 <template>
   <section aria-labelledby="vb-h" class="flex flex-col gap-3">
     <div class="flex flex-wrap items-baseline justify-between gap-2">
-      <h2 id="vb-h" class="m-0 text-h3 text-surface-900">Board</h2>
+      <h2 id="vb-h" class="m-0 text-h3 text-surface-900" :class="{ 'sr-only': field }">Board</h2>
 
-      <span v-if="!isClient" class="inline-flex items-center gap-1.5 text-xs text-surface-600">
+      <span v-if="!isClient && !field" class="inline-flex items-center gap-1.5 text-xs text-surface-600">
         <v-icon class="text-primary" :icon="mdiInformationOutline" size="16" />
         Shared notes are shown to the client when the visit ends.
       </span>
@@ -11,7 +11,7 @@
 
     <!-- Stations: a tab each when there are several -->
     <v-tabs
-      v-if="visit.stations.length > 1"
+      v-if="visit.stations.length > 1 && !field"
       v-model="stationId"
       aria-label="Station"
       color="primary"
@@ -172,6 +172,8 @@
     visit: VisitOut
     isClient: boolean
     me?: string | null
+    /** In the field shell (phones): the page lists the stations, so the board has no tabs of its own. */
+    field?: boolean
   }>()
 
   const emit = defineEmits<{ changed: [] }>()
