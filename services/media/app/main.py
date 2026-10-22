@@ -125,6 +125,7 @@ def create_app(
 
             async def purge() -> None:
                 await cron.purge_originals(svc)
+                await cron.purge_deleted(svc)
 
             tasks += [
                 asyncio.create_task(relay),

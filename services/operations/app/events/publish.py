@@ -396,6 +396,33 @@ class Emitter:
             before=view(before, VISIT_FIELDS), after=view(visit, VISIT_FIELDS),
         )
 
+    async def visit_visibility(
+        self, media_ids: list[str], visibility: str, visit: dict[str, Any],
+        session: AsyncClientSession,
+    ) -> Envelope:
+        """Ask media to show a visit's photos and video to the client (when the visit ends, and
+        for what is added after), or keep them staff-only (an item hidden again). Versioned by
+        the visit, so media applies only the newest request for each file (W11-13)."""
+        return await self.emit(
+            ev.MediaVisibilityRequested(
+                media_ids=media_ids, visibility=visibility, visibility_version=visit["version"],
+            ),
+            type_="media.visibility_requested", key=visit["request_id"],
+            resource=("visit", visit["_id"]), aggregate_version=visit["version"],
+            org_id=visit["org_id"], session=session,
+        )
+
+    async def media_deletion(
+        self, media_ids: list[str], reason: str, visit: dict[str, Any], request: dict[str, Any],
+        session: AsyncClientSession,
+    ) -> Envelope:
+        return await self.emit(
+            ev.MediaDeletionRequested(media_ids=media_ids, reason=reason),
+            type_="media.deletion_requested", key=request["_id"],
+            resource=("visit", visit["_id"]), aggregate_version=visit["version"],
+            org_id=request["org_id"], session=session,
+        )
+
     async def config_version(
         self, version: dict[str, Any], station: dict[str, Any], session: AsyncClientSession
     ) -> Envelope:

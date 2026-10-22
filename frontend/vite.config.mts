@@ -60,6 +60,9 @@ export default defineConfig({
         // Google Sans, Roboto Flex and JetBrains Mono: only the Latin subsets are precached
         // (caching.md §3); Google Sans ships a file for every script
         globPatterns: ['**/*.{js,css,html,svg}', '**/*-latin-*.woff2'],
+        // The brand-colour generator is loaded only by an admin on Settings, which needs a connection
+        // anyway (OFF-10); leaving it out keeps the first install short (F14, e2e/offline.spec.ts)
+        globIgnores: ['**/materialGenerate-*.js'],
       },
       devOptions: {
         enabled: false, // `npm run build && npm run preview` to work on the worker

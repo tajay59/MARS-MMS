@@ -1,6 +1,6 @@
-import type { SensorModelOut } from '@/api/models'
+import type { SensorModelOut, SensorUnitOut } from '@/api/models'
 import { describe, expect, it } from 'vitest'
-import { calibrationSentence, compliance, firstToShow, inKind, kindCounts, matchesModel, modelLine, sensorFiltersFrom, sensorQueryFrom, specHint, unitBreakdown, unitsRegistered, whereLabel } from '../sensors'
+import { calibrationSentence, compliance, firstToShow, inKind, kindCounts, matchesModel, matchesReviewUnit, modelLine, reviewLine, sensorFiltersFrom, sensorQueryFrom, specHint, unitBreakdown, unitsRegistered, whereLabel } from '../sensors'
 
 function model (patch: Partial<SensorModelOut> = {}): SensorModelOut {
   return {
@@ -23,14 +23,16 @@ function model (patch: Partial<SensorModelOut> = {}): SensorModelOut {
 
 describe('filters', () => {
   it('reads them from the URL and ignores a kind it does not know', () => {
-    expect(sensorFiltersFrom({ q: ' hmp ', kind: 'logger' })).toEqual({ q: 'hmp', kind: 'logger' })
-    expect(sensorFiltersFrom({ kind: 'nonsense' })).toEqual({ q: '', kind: 'all' })
-    expect(sensorFiltersFrom({})).toEqual({ q: '', kind: 'all' })
+    expect(sensorFiltersFrom({ q: ' hmp ', kind: 'logger' })).toEqual({ q: 'hmp', kind: 'logger', review: false })
+    expect(sensorFiltersFrom({ kind: 'nonsense' })).toEqual({ q: '', kind: 'all', review: false })
+    expect(sensorFiltersFrom({})).toEqual({ q: '', kind: 'all', review: false })
+    expect(sensorFiltersFrom({ review: '1' }).review).toBe(true)
+    expect(sensorFiltersFrom({ review: 'yes' }).review).toBe(false)
   })
 
   it('leaves the empty ones out of the URL', () => {
-    expect(sensorQueryFrom({ q: '', kind: 'all' })).toEqual({ q: undefined, kind: undefined })
-    expect(sensorQueryFrom({ q: 'rv', kind: 'modem' })).toEqual({ q: 'rv', kind: 'modem' })
+    expect(sensorQueryFrom({ q: '', kind: 'all', review: false })).toEqual({ q: undefined, kind: undefined, review: undefined })
+    expect(sensorQueryFrom({ q: 'rv', kind: 'modem', review: true })).toEqual({ q: 'rv', kind: 'modem', review: '1' })
   })
 
   it('groups batteries and solar panels under Power', () => {
@@ -111,5 +113,28 @@ describe('calibration of the units', () => {
       .toMatch(/^Last calibrated .*2026 · Pass\. Next due .*2026 \(in 42 days\)\.$/)
     expect(calibrationSentence({ last_calibrated_at: null, last_calibration_result: null, calibration_due_at: '2026-10-19T12:00:00Z' }, now))
       .toMatch(/\(1 day overdue\)\.$/)
+  })
+})
+
+describe('units waiting for a check', () => {
+  const unit = {
+    id: 'u1', serial: 'V-23044', parameter: 'AT', status: 'installed', needs_review: true,
+    model: { id: 'm1', kind: 'sensor', manufacturer: 'Vaisala', model: 'HMP155' },
+    station: { id: 's1', name: 'Kingston Harbour', code: 'JM-KIN-001' },
+  } as SensorUnitOut
+
+  it('reads as the model and what it measures', () => {
+    expect(reviewLine(unit)).toBe('Vaisala HMP155 · AT')
+    expect(reviewLine({ ...unit, parameter: null })).toBe('Vaisala HMP155')
+  })
+
+  it('is found by serial, model, parameter or station', () => {
+    expect(matchesReviewUnit(unit, '')).toBe(true)
+    expect(matchesReviewUnit(unit, ' v-230 ')).toBe(true)
+    expect(matchesReviewUnit(unit, 'hmp')).toBe(true)
+    expect(matchesReviewUnit(unit, 'harbour')).toBe(true)
+    expect(matchesReviewUnit(unit, 'jm-kin')).toBe(true)
+    expect(matchesReviewUnit(unit, 'campbell')).toBe(false)
+    expect(matchesReviewUnit({ ...unit, station: null }, 'harbour')).toBe(false)
   })
 })

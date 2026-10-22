@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import type { Browser, Page } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
 import { expect, seedPassword, submitPaced } from './support'
 
@@ -13,6 +13,42 @@ export async function logIn (page: Page, email: string): Promise<void> {
 }
 
 export const unique = (what: string): string => `${what} ${randomUUID().slice(0, 8)}`
+
+/** A page signed in as someone, in a context of its own. */
+export async function staffPage (browser: Browser, email: string): Promise<Page> {
+  const page = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage()
+  await logIn(page, email)
+  return page
+}
+
+/** A client asks about Kingston Harbour and Montego Bay Airport, an admin approves, Tech 1 claims. Returns the request's path. */
+export async function claimedRequest (browser: Browser, title: string): Promise<string> {
+  const client = await staffPage(browser, 'client.a1@example.org')
+  await client.goto('/requests/new')
+  for (const code of ['JM-KIN-001', 'JM-MBJ-002']) {
+    await client.getByLabel('Which stations is this about?').fill(code)
+    await client.getByRole('option', { name: new RegExp(code) }).click()
+  }
+  await client.getByLabel('Title', { exact: true }).fill(title)
+  await client.getByLabel('Description', { exact: true }).fill('Readings stopped on Saturday at both sites.')
+  await client.getByRole('button', { name: 'Submit request' }).click()
+  await expect(client).toHaveURL(/\/requests\/[\da-f-]{36}$/)
+  const path = new URL(client.url()).pathname
+  await client.context().close()
+
+  const admin = await staffPage(browser, 'admin@example.org')
+  await admin.goto(path)
+  await admin.getByRole('button', { name: 'Approve' }).click()
+  await expect(admin.getByText('Request approved. It is now in the queue.')).toBeVisible()
+  await admin.context().close()
+
+  const tech = await staffPage(browser, 'tech1@example.org')
+  await tech.goto(path)
+  await tech.getByRole('button', { name: 'Claim' }).click()
+  await expect(tech.getByText(/You claimed/)).toBeVisible()
+  await tech.context().close()
+  return path
+}
 
 /** Fills the new-request form as a client would and submits it; returns the page's URL path. */
 export async function submitRequest (page: Page, title: string, options: { category?: string, priority?: string } = {}): Promise<string> {

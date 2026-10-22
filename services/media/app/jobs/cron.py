@@ -14,7 +14,7 @@ from datetime import timedelta
 from mms_common.events import Actor
 
 from app.domain import derive
-from app.domain.media import Status
+from app.domain.media import Kind, Status
 from app.jobs.uploads import enqueue_processing, fail_upload
 from app.repo import media as repo
 from app.repo.storage import StorageError
@@ -56,6 +56,28 @@ async def purge_originals(svc: Services) -> int:
             log.exception("purge_failed", extra={"media_id": doc["_id"]})
             continue
         if await repo.mark_purged(svc.db, doc["_id"], svc.clock.now()) is not None:
+            count += 1
+    return count
+
+
+async def purge_deleted(svc: Services) -> int:
+    """Remove the stored objects of deleted files: the original, and the copy and thumbnail of a
+    photo or video. Missing objects are fine (a purged original, a file that never got a copy).
+    A failure is tried again on the next run; the record is marked only when all are gone."""
+    count = 0
+    for doc in await repo.deleted_with_objects(svc.db):
+        kind = Kind(doc["kind"])
+        keys = [(svc.bucket(doc["kind"]), doc["original_key"])]
+        if kind in (Kind.IMAGE, Kind.VIDEO):
+            keys += [(svc.settings.bucket_media, k) for k in derive.derived_keys(
+                doc["original_key"], kind)]
+        try:
+            for bucket, key in keys:
+                await svc.storage.delete(bucket, key)
+        except StorageError:
+            log.exception("purge_deleted_failed", extra={"media_id": doc["_id"]})
+            continue
+        if await repo.mark_objects_removed(svc.db, doc["_id"], svc.clock.now()):
             count += 1
     return count
 

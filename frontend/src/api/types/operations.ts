@@ -1081,6 +1081,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visits/{id}/stations/{station_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Media
+         * @description VIS-5: a photo or video, for a phase of the visit at this station.
+         */
+        post: operations["add_media_api_v1_visits__id__stations__station_id__media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Media
+         * @description Take a photo or video off the visit and delete the file: the person who added it, or an
+         *     admin, until the report locks the visit.
+         */
+        delete: operations["remove_media_api_v1_visits__id__stations__station_id__media__media_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Change Media
+         * @description A caption, or hide an item from the client (W11-13) and show it again.
+         */
+        patch: operations["change_media_api_v1_visits__id__stations__station_id__media__media_id__patch"];
+        trace?: never;
+    };
     "/api/v1/visits/{id}/stations/{station_id}/work": {
         parameters: {
             query?: never;
@@ -1906,6 +1951,31 @@ export interface components {
             model?: string | null;
             /** Serial */
             serial?: string | null;
+        };
+        /**
+         * MediaIn
+         * @description Put an uploaded file on a station. `media_id` is the upload's own id, so a retry after a
+         *     lost answer attaches nothing twice.
+         */
+        MediaIn: {
+            /** Caption */
+            caption?: string | null;
+            /** Captured At */
+            captured_at?: string | null;
+            /** Media Id */
+            media_id: string;
+            /** Phase */
+            phase: string;
+        };
+        /**
+         * MediaPatch
+         * @description Any of these. `caption: null` clears it; `hidden: true` keeps the item from the client.
+         */
+        MediaPatch: {
+            /** Caption */
+            caption?: string | null;
+            /** Hidden */
+            hidden?: boolean | null;
         };
         /** Milestones */
         Milestones: {
@@ -2925,6 +2995,39 @@ export interface components {
             /** Stations */
             stations: components["schemas"]["VisitStationIn"][];
         };
+        /**
+         * VisitMediaOut
+         * @description A photo or video on a station of the visit. The file itself (thumbnail, link, processing
+         *     state) comes from the media service by `media_id`, so nothing here expires.
+         */
+        VisitMediaOut: {
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            added_by: components["schemas"]["VisitPersonOut"];
+            /** Caption */
+            caption: string | null;
+            /** Captured At */
+            captured_at: string | null;
+            /** Filename */
+            filename: string;
+            /** Hidden */
+            hidden: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "image" | "video";
+            /** Media Id */
+            media_id: string;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "before" | "during" | "after";
+        };
         /** VisitOut */
         VisitOut: {
             /** Actions */
@@ -3026,6 +3129,8 @@ export interface components {
             arrived_at: string | null;
             /** Departed At */
             departed_at: string | null;
+            /** Media */
+            media: components["schemas"]["VisitMediaOut"][];
             owner: components["schemas"]["VisitPersonOut"];
             /** Station Code */
             station_code: string | null;
@@ -5305,6 +5410,112 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_media_api_v1_visits__id__stations__station_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_media_api_v1_visits__id__stations__station_id__media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_media_api_v1_visits__id__stations__station_id__media__media_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaPatch"];
             };
         };
         responses: {

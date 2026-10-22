@@ -30,7 +30,7 @@ NOTIFY_EVENTS = frozenset({
 VISIT_LIVE_EVENTS = frozenset({
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored", "visit.started",
     "visit.ended", "visit.station_owner_changed", "visit.station_arrived",
-    "visit.station_departed",
+    "visit.station_departed", "visit.media_changed",
 })
 LIVE_EVENTS = frozenset({
     "request.updated", "request.status_changed", "request.assigned", "request.staff_changed",

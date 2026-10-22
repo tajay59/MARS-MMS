@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, ChecklistTemplate, ChecklistTemplateIn, ChecklistTemplateList, ChecklistTemplatePatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
+import type { CalibrationPage, ChecklistTemplate, ChecklistTemplateIn, ChecklistTemplateList, ChecklistTemplatePatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitMediaIn, VisitMediaPatch, VisitOut, VisitPage, VisitPatch, WorkIn, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -95,7 +95,7 @@ export const calibrationsApi = {
 
 export const sensorUnitsApi = {
   get: (id: string, signal?: AbortSignal) => api.get<SensorUnitDetail>(`/sensor-units/${id}`, { signal }),
-  list: (query: { model_id?: string, station_id?: string, status?: string, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
+  list: (query: { model_id?: string, station_id?: string, status?: string, needs_review?: boolean, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
     api.get<SensorUnitPage>('/sensor-units', { query: { ...query }, signal }),
   // Staff who write (technician, admin). A unit reaches a station only through install (SEN-2).
   create: (body: SensorUnitIn) => api.post<SensorUnitOut>('/sensor-units', body),
@@ -185,4 +185,14 @@ export const visitsApi = {
   arrive: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/arrive`, {}),
   depart: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/depart`, {}),
   end: (id: string, body: EndVisitIn) => api.post<VisitOut>(`/visits/${id}/end`, body),
+  /** The owner's work record, whole, at `base_version` (409 `work_changed` when it moved on) */
+  saveWork: (id: string, stationId: string, body: WorkIn) =>
+    api.put<VisitOut>(`/visits/${id}/stations/${stationId}/work`, body),
+  /** Put an uploaded photo or video on a station; the same `media_id` again changes nothing */
+  addMedia: (id: string, stationId: string, body: VisitMediaIn) =>
+    api.post<VisitOut>(`/visits/${id}/stations/${stationId}/media`, body),
+  changeMedia: (id: string, stationId: string, mediaId: string, body: VisitMediaPatch) =>
+    api.patch<VisitOut>(`/visits/${id}/stations/${stationId}/media/${mediaId}`, body),
+  removeMedia: (id: string, stationId: string, mediaId: string) =>
+    api.delete<VisitOut>(`/visits/${id}/stations/${stationId}/media/${mediaId}`),
 }

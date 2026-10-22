@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { newId, UUID7 } from '@/app/ids'
-import { MAX_IN_MEMORY, sha256Hex, TooLargeToHash } from '../hash'
+import { sha256Hex } from '../hash'
 import { browserNetwork, PartError, sendPartXhr, sleep, withUploadLock } from '../transport'
 
 afterEach(() => {
@@ -23,11 +23,6 @@ describe('sha256Hex', () => {
   it('matches the known digest', async () => {
     const hex = await sha256Hex(new Blob(['abc']))
     expect(hex).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
-  })
-
-  it('refuses a file too big to read into memory until the incremental hasher exists (F4)', async () => {
-    const big = { size: MAX_IN_MEMORY + 1 } as Blob
-    await expect(sha256Hex(big)).rejects.toBeInstanceOf(TooLargeToHash)
   })
 })
 
