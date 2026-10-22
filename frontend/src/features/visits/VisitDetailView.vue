@@ -138,17 +138,8 @@
       </ul>
     </section>
 
-    <!-- Each station's board at a glance (W11-18). A client counts what is shared, after the end -->
-    <section v-if="showBoards" aria-labelledby="vb-h" class="flex flex-col gap-2">
-      <h2 id="vb-h" class="m-0 text-h3 text-surface-900">Recorded at each station</h2>
-
-      <ul class="m-0 flex list-none flex-col gap-1.5 p-0">
-        <li v-for="station in visit.stations" :key="station.station_id" class="flex flex-wrap items-baseline gap-x-2 text-sm">
-          <span class="font-medium text-surface-900">{{ station.station_name }}</span>
-          <span class="text-surface-700">{{ summaryText(station.board) }}</span>
-        </li>
-      </ul>
-    </section>
+    <!-- Each station's board (W11-18): staff from the start, a client the shared part after the end -->
+    <VisitBoard v-if="showBoards" :is-client="isClient" :me="me" :visit="visit" />
 
     <!-- Scheduling notes are staff only: the server leaves them out for a client -->
     <section v-if="visit.notes" aria-labelledby="vn-h" class="flex flex-col gap-2">
@@ -163,7 +154,7 @@
   import { computed } from 'vue'
   import { useDisplay } from 'vuetify'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
-  import { summaryText } from './board'
+  import VisitBoard from './board/VisitBoard.vue'
   import { canDo, formatRange, formatWhen, names, stationTimes, visitZone, zoneLabel } from './visits'
 
   // The body of /visits/:id (AFD J5, J6 step 3; DBD "Request page" layout). Dates are in the zone

@@ -269,6 +269,7 @@
   import { failureOf, replaceVisit } from './failures'
   import { forgetMediaLinks } from './mediaLinks'
   import RescheduleDialog from './RescheduleDialog.vue'
+  import { disposeQueues } from './uploadQueues'
   import VisitActions from './VisitActions.vue'
   import VisitCard from './VisitCard.vue'
   import VisitDetailView from './VisitDetailView.vue'
@@ -438,8 +439,11 @@
 
   onBeforeUnmount(() => detailAbort?.abort())
 
-  // Ten-minute file links are kept in memory only; nothing of them outlives the page
-  onBeforeUnmount(forgetMediaLinks)
+  // Uploads stop and ten-minute file links are forgotten with the page; nothing of them is stored
+  onBeforeUnmount(() => {
+    disposeQueues()
+    forgetMediaLinks()
+  })
 
   // --- Actions: the dialogs, and the moves that need no form ---------------------------------------
 

@@ -61,8 +61,10 @@ export default defineConfig({
         // (caching.md §3); Google Sans ships a file for every script
         globPatterns: ['**/*.{js,css,html,svg}', '**/*-latin-*.woff2'],
         // The brand-colour generator is loaded only by an admin on Settings, which needs a connection
-        // anyway (OFF-10); leaving it out keeps the first install short (F14, e2e/offline.spec.ts)
-        globIgnores: ['**/materialGenerate-*.js'],
+        // anyway (OFF-10); leaving it out keeps the first install short (F14, e2e/offline.spec.ts).
+        // pdf.js and its worker (1.6 MB) stay out too: a PDF on the board needs a connection until
+        // Phase 5 decides whether the field bundle carries them (F17, W11-30).
+        globIgnores: ['**/materialGenerate-*.js', '**/pdf-*.js', '**/pdf.worker*.js'],
       },
       devOptions: {
         enabled: false, // `npm run build && npm run preview` to work on the worker

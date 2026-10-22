@@ -8,6 +8,7 @@ import {
   mdiCancel,
   mdiCarOutline,
   mdiCheck,
+  mdiCheckboxMarkedOutline,
   mdiCheckCircleOutline,
   mdiChip,
   mdiClose,
@@ -16,14 +17,17 @@ import {
   mdiCogOutline,
   mdiDownloadOutline,
   mdiEyeOffOutline,
+  mdiFileCogOutline,
   mdiFileDocumentEditOutline,
   mdiFilePdfBox,
   mdiFileUploadOutline,
   mdiHistory,
   mdiInboxOutline,
+  mdiLightbulbOnOutline,
   mdiMapMarkerOutline,
   mdiMapOutline,
   mdiMinusCircleOutline,
+  mdiNoteTextOutline,
   mdiPaletteOutline,
   mdiQrcodeScan,
   mdiReplay,
@@ -67,6 +71,11 @@ export const icons = {
   upload: mdiFileUploadOutline,
   download: mdiDownloadOutline,
   restore: mdiRestore,
+  // The visit board's four kinds (DBD 1.8)
+  note: mdiNoteTextOutline,
+  task: mdiCheckboxMarkedOutline,
+  recommendation: mdiLightbulbOnOutline,
+  config: mdiFileCogOutline,
 } as const
 
 export const requestStatusIcons = {
