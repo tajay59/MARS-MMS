@@ -262,7 +262,7 @@ def new_element(
     return {
         "_id": element_id, "visit_id": visit["_id"], "request_id": visit["request_id"],
         "station_id": station_id, "org_id": org_id, "kind": kind, **fields,
-        "request_ref": None, "config_version_ids": [],
+        "request_ref": None, "config_version_ids": [], "config_versions": [],
         "media": {s: [] for s in SECTIONS[kind]},
         "created_by": user_id, "created_by_name": user_name, "created_at": now,
         "updated_by": user_id, "updated_at": now, "device_id": device_id,
@@ -414,3 +414,53 @@ def summarize(elements: Sequence[Mapping[str, Any]]) -> Summary:
                         newest is None or entry["added_at"] > newest):
                     newest, cover = entry["added_at"], (entry["media_id"], entry["kind"])
     return Summary(counts=counts, incomplete_tasks=incomplete, cover=cover)
+
+
+# --- Config → configuration versions (W11-24, W11-37) -------------------------------------------
+
+
+def config_files(element: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """The files a Config element's version holds: its After files that are not photos or video,
+    in the order they were added."""
+    if element["kind"] != "config":
+        return []
+    after = element.get("media", {}).get("after", [])
+    return sorted((e for e in after if e["kind"] == "config"), key=lambda e: e["added_at"])
+
+
+def config_version_due(element: Mapping[str, Any]) -> bool:
+    """Whether the After files differ from the last version made from this element. A version
+    never changes (CFG-2): a correction makes the next one."""
+    files = [e["media_id"] for e in config_files(element)]
+    if not files:
+        return False
+    made = element.get("config_versions", [])
+    return not made or sorted(made[-1]["media_ids"]) != sorted(files)
+
+
+def check_ended_for_version(visit: Mapping[str, Any]) -> None:
+    """After the end and before the report locks the visit: the end itself makes the first ones."""
+    if VStatus(visit["status"]) is not VStatus.ENDED:
+        raise Conflict("The visit's end makes the configuration versions", code="not_ended")
+    if visit.get("locked"):
+        raise Conflict("The visit report has been finalized. Ask an admin to reopen it",
+                       code="locked")
+
+
+# --- Recommendation → request (W11-23, W11-38) --------------------------------------------------
+
+REQUEST_PRIORITY = {"low": "low", "medium": "normal", "high": "high"}
+
+
+def check_can_request(element: Mapping[str, Any], request_id: str) -> bool:
+    """Whether a request is still to be made: False when this one was made already (a retry).
+    One recommendation makes one request."""
+    if element["kind"] != "recommendation":
+        raise ValidationFailed("Only a recommendation makes a request", code="not_recommendation")
+    made = element.get("request_ref")
+    if made is None:
+        return True
+    if made["id"] == request_id:
+        return False
+    raise Conflict("A request was already made from this", code="already_requested",
+                   request_ref=made["ref"])

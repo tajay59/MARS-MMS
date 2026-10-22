@@ -16,11 +16,13 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 from mms_common.auth import User, require_roles
 from mms_common.errors import Conflict, NotFound
-from mms_common.ids import UUID7_PATTERN
+from mms_common.ids import UUID7_PATTERN, new_id
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
 
 from app.api.context import Ctx, CtxDep
+from app.api.requests.request_routes import insert_request
+from app.api.visits import board_versions
 from app.api.visits.element_schemas import (
     ElementIn,
     ElementList,
@@ -28,8 +30,10 @@ from app.api.visits.element_schemas import (
     ElementMediaPatch,
     ElementOut,
     ElementPut,
+    ElementRequestIn,
     ItemBody,
 )
+from app.domain.requests import rules as request_rules
 from app.domain.visits import elements as rules
 from app.events.publish import Emitter, ev
 from app.repo.requests import comments as file_repo
@@ -397,6 +401,90 @@ async def remove_element_media(
         await emitter.element_media(updated, current, request, s, media_id=media_id,
                                     section=section, kind=entry["kind"], change="removed")
         holder["doc"] = updated
+
+    await ctx.tx(save)
+    return _out(holder["doc"], visit, station, user)
+
+
+# --- Config → configuration versions (W11-37) ----------------------------------------------------
+
+
+@router.post(ONE + "/config-version")
+async def save_config_version(
+    id: IdPath, station_id: IdPath, element_id: IdPath, user: Worker, ctx: CtxDep
+) -> ElementOut:
+    """After the end, the Config element's changed After files become the station's next
+    configuration version (CFG-2: a version never changes). Nothing changed: nothing is made,
+    so pressing it twice makes one version."""
+    visit, station, doc, request = await _editable(ctx, id, station_id, element_id, user)
+    rules.check_ended_for_version(visit)
+    if doc["kind"] != "config":
+        raise Conflict("Only a Config element makes configuration versions", code="not_config")
+    if not rules.config_version_due(doc):
+        return _out(doc, visit, station, user)
+    checked = await board_versions.checked_files(ctx, doc)
+    emitter = ctx.emitter(user)
+    version_id = new_id()
+    holder: dict[str, Any] = {}
+
+    async def save(s: AsyncClientSession) -> None:
+        fresh = await _element(ctx, visit, station_id, element_id, s)
+        if not rules.config_version_due(fresh):
+            holder["doc"] = fresh  # someone made it a moment ago
+            return
+        updated = await board_versions.make_version(ctx, user, visit, fresh, checked,
+                                                    version_id, s, emitter)
+        await emitter.element(ev.VisitElementUpdated, "visit.element_updated", updated, visit,
+                              request, s, before=fresh, changed_fields=["config_versions"])
+        holder["doc"] = updated
+
+    await ctx.tx(save)
+    return _out(holder["doc"], visit, station, user)
+
+
+# --- Recommendation → request (W11-23, W11-38) ---------------------------------------------------
+
+
+@router.post(ONE + "/request")
+async def request_from_recommendation(
+    id: IdPath, station_id: IdPath, element_id: IdPath, body: ElementRequestIn, user: Worker,
+    ctx: CtxDep,
+) -> ElementOut:
+    """A new maintenance request for this station, from the recommendation: a technician's
+    starts Submitted for an admin to approve, an admin's Approved, as any request. The request
+    and the link on the element are one transaction; the same request `id` again changes
+    nothing. Online only (OFF-10)."""
+    visit, station, doc, request = await _editable(ctx, id, station_id, element_id, user)
+    if not rules.check_can_request(doc, body.id):
+        return _out(doc, visit, station, user)
+    title = request_rules.clean_text(body.title or doc["title"], "title",
+                                     maximum=request_rules.MAX_TITLE)
+    description = request_rules.clean_text(
+        body.description or doc.get("description") or doc["title"], "description",
+        maximum=request_rules.MAX_DESCRIPTION)
+    priority = rules.REQUEST_PRIORITY.get(doc.get("priority") or "medium", "normal")
+    now = ctx.clock.now()
+    emitter = ctx.emitter(user)
+    holder: dict[str, Any] = {}
+
+    async def save(s: AsyncClientSession) -> None:
+        fresh = await _element(ctx, visit, station_id, element_id, s)
+        rules.check_alive(fresh)
+        if not rules.check_can_request(fresh, body.id):
+            holder["doc"] = fresh
+            return
+        made = await insert_request(
+            ctx, user, s, request_id=body.id, org_id=visit["org_id"], station_ids=[station_id],
+            title=title, description=description, category=body.category, priority=priority,
+            source={"visit_id": id, "element_id": element_id},
+        )
+        updated = await repo.set_fields(
+            ctx.db, element_id, {"request_ref": {"id": made["_id"], "ref": made["ref"]}},
+            now=now, by=user.id, session=s)
+        current = await visit_repo.require(ctx.db, id, None, s)
+        await emitter.element(ev.VisitElementUpdated, "visit.element_updated", updated or fresh,
+                              current, request, s, before=fresh, changed_fields=["request_ref"])
+        holder["doc"] = updated or fresh
 
     await ctx.tx(save)
     return _out(holder["doc"], visit, station, user)

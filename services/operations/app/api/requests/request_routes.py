@@ -174,6 +174,44 @@ async def list_requests(
     )
 
 
+async def insert_request(
+    ctx: Ctx, user: User, s: AsyncClientSession, *, request_id: str, org_id: str,
+    station_ids: list[str], title: str, description: str, category: str, priority: str,
+    attachments: list[dict[str, Any]] | None = None, media_ids: list[str] | None = None,
+    source: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Write a new request with its events, in the caller's transaction (rule 2). An admin's
+    starts Approved; anyone else's Submitted. `source` names the board recommendation it came
+    from (W11-38)."""
+    now = ctx.clock.now()
+    to = Status.APPROVED if user.is_admin else Status.SUBMITTED
+    event_id = new_id()
+    emitter = ctx.emitter(user)
+    ref = await repo.next_ref(ctx.db, now, s)
+    milestones = {MILESTONES[Status.SUBMITTED]: now}
+    if to is Status.APPROVED:
+        milestones[MILESTONES[Status.APPROVED]] = now
+    doc = stamp({
+        "_id": request_id, "ref": ref, "org_id": org_id, "station_ids": station_ids,
+        "title": title, "description": description, "category": category,
+        "priority": priority, "status": to.value,
+        "status_history": [_entry(from_status=None, to=to, user=user, now=now,
+                                  event_id=event_id)],
+        "assigned_staff_ids": [], "assigned_staff": [], "denial_reason": None,
+        "cancel_reason": None, "rework_since": None, "review_started_at": None,
+        "reminders_sent": [], "client_verification": None, "reopen_count": 0,
+        "attachments": attachments or [], "milestones": milestones, "requester_name": user.name,
+        "source": source,
+    }, now, user.id)
+    await repo.insert(ctx.db, doc, s)
+    await emitter.request(ev.RequestSubmitted, "request.submitted", doc, s,
+                          by_admin=user.is_admin)
+    await emitter.request_status(doc, s, from_status=None, event_id=event_id)
+    if attachments and media_ids:
+        await emitter.attachments_visibility("request", doc, doc, media_ids, "org", s)
+    return doc
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_request(
     body: RequestIn, user: Creator, ctx: CtxDep, response: Response
@@ -218,35 +256,14 @@ async def create_request(
     request_id = body.id or new_id()
     attachments = await verified(ctx, user, comment_rules.request_owner_ref(request_id),
                                  media_ids)
-    now = ctx.clock.now()
-    to = Status.APPROVED if user.is_admin else Status.SUBMITTED
-    event_id = new_id()
-    emitter = ctx.emitter(user)
     holder: dict[str, Any] = {}
 
     async def save(s: AsyncClientSession) -> None:
-        ref = await repo.next_ref(ctx.db, now, s)
-        milestones = {MILESTONES[Status.SUBMITTED]: now}
-        if to is Status.APPROVED:
-            milestones[MILESTONES[Status.APPROVED]] = now
-        doc = stamp({
-            "_id": request_id, "ref": ref, "org_id": org_id, "station_ids": station_ids,
-            "title": title, "description": description, "category": body.category,
-            "priority": body.priority, "status": to.value,
-            "status_history": [_entry(from_status=None, to=to, user=user, now=now,
-                                      event_id=event_id)],
-            "assigned_staff_ids": [], "assigned_staff": [], "denial_reason": None,
-            "cancel_reason": None, "rework_since": None, "review_started_at": None,
-            "reminders_sent": [], "client_verification": None, "reopen_count": 0,
-            "attachments": attachments, "milestones": milestones, "requester_name": user.name,
-        }, now, user.id)
-        await repo.insert(ctx.db, doc, s)
-        await emitter.request(ev.RequestSubmitted, "request.submitted", doc, s,
-                              by_admin=user.is_admin)
-        await emitter.request_status(doc, s, from_status=None, event_id=event_id)
-        if attachments:
-            await emitter.attachments_visibility("request", doc, doc, media_ids, "org", s)
-        holder["doc"] = doc
+        holder["doc"] = await insert_request(
+            ctx, user, s, request_id=request_id, org_id=org_id, station_ids=station_ids,
+            title=title, description=description, category=body.category,
+            priority=body.priority, attachments=attachments, media_ids=media_ids,
+        )
 
     try:
         await ctx.tx(save)

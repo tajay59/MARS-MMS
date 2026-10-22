@@ -91,6 +91,7 @@ async def create_config_version(
                 for m, f in zip(ids, checked, strict=True)
             ],
             "notes": body.notes, "visit_id": body.visit_id, "created_by_name": user.name,
+            "from_board": False,
         }, now, user.id), "version": number}
         await repo.insert_version(ctx.db, doc, s)
         await emitter.config_version(doc, station, s)

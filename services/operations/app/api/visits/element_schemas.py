@@ -20,6 +20,9 @@ Id = Annotated[str, StringConstraints(pattern=UUID7_PATTERN)]
 Kind = Literal["note", "task", "recommendation", "config"]
 Section = Literal["main", "before", "after"]
 Priority = Literal["low", "medium", "high"]
+Category = Literal[
+    "fault", "communications", "power", "calibration", "relocation", "inspection", "other",
+]
 # The rules check the lengths after trimming; these bounds stop an absurd body early
 Title = Annotated[str, StringConstraints(max_length=rules.MAX_TITLE * 2)]
 Description = Annotated[str, StringConstraints(max_length=rules.MAX_DESCRIPTION * 2)]
@@ -71,6 +74,16 @@ class ElementMediaIn(In):
     captured_at: AwareDatetime | None = None
 
 
+class ElementRequestIn(In):
+    """Make a request from a recommendation (W11-23, W11-38). `id` is the request's, made on the
+    device: sending it again returns the element with the request already made."""
+
+    id: Id
+    category: Category
+    title: Title | None = None  # the recommendation's when absent
+    description: Description | None = None
+
+
 class ElementMediaPatch(In):
     """Any of these. `caption: null` clears it; `hidden: true` keeps the file from the client."""
 
@@ -111,6 +124,11 @@ class RequestRefOut(BaseModel):
     ref: str
 
 
+class ConfigVersionRef(BaseModel):
+    id: str
+    version: int  # the station's version number
+
+
 class ElementOut(BaseModel):
     id: str
     visit_id: str
@@ -124,6 +142,8 @@ class ElementOut(BaseModel):
     priority: Priority | None
     request_ref: RequestRefOut | None
     config_version_ids: list[str]
+    config_versions: list[ConfigVersionRef]  # made from this Config element, oldest first
+    version_due: bool  # a Config element's After files differ from its last version
     media: dict[str, list[ElementMediaOut]]  # by section: `main`, or `before` and `after`
     shared: bool
     created_by: PersonOut
@@ -147,6 +167,9 @@ class ElementOut(BaseModel):
             completed_at=doc.get("completed_at"), priority=doc.get("priority"),
             request_ref=RequestRefOut(**doc["request_ref"]) if doc.get("request_ref") else None,
             config_version_ids=list(doc.get("config_version_ids", [])),
+            config_versions=[ConfigVersionRef(id=v["id"], version=v["version"])
+                             for v in doc.get("config_versions", [])],
+            version_due=rules.config_version_due(doc) if doc["kind"] == "config" else False,
             media={
                 section: [_media(e) for e in entries if not (client and e.get("hidden"))]
                 for section, entries in doc.get("media", {}).items()

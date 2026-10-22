@@ -224,7 +224,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | CFG-1 | Staff can upload a **configuration version** for a station: a set of one or more files (TXT, XML, JSON, Python, CSV, logger programs, network or modem configs, related photos) with change notes. | M |
 | CFG-2 | Configuration versions are numbered (v1, v2, …), timestamped, record who uploaded them and optionally the visit they relate to. They can never be overwritten or deleted through the app. | M |
 | CFG-3 | Staff can view and download any version and see which files changed between two versions (by checksum). | M |
-| CFG-4 | Technicians capture a new configuration version during a visit with a **Config** element: its After files become a version of the station when the visit ends, and again whenever they change until the visit is locked (W11-24). Including offline. | S |
+| CFG-4 | Technicians capture a new configuration version during a visit with a **Config** element: its After files become a version of the station when the visit ends; when they change after that, a technician saves them as the next version (W11-24, W11-37). Including offline. | S |
 
 ### 4.6 Maintenance requests
 

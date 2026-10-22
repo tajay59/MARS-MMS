@@ -906,6 +906,24 @@
         "title": "ConfigVersionOut",
         "type": "object"
       },
+      "ConfigVersionRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "title": "ConfigVersionRef",
+        "type": "object"
+      },
       "DenyIn": {
         "additionalProperties": false,
         "properties": {
@@ -1767,6 +1785,13 @@
             "title": "Config Version Ids",
             "type": "array"
           },
+          "config_versions": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigVersionRef"
+            },
+            "title": "Config Versions",
+            "type": "array"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -1864,6 +1889,10 @@
             "title": "Version",
             "type": "integer"
           },
+          "version_due": {
+            "title": "Version Due",
+            "type": "boolean"
+          },
           "visit_id": {
             "title": "Visit Id",
             "type": "string"
@@ -1882,6 +1911,8 @@
           "priority",
           "request_ref",
           "config_version_ids",
+          "config_versions",
+          "version_due",
           "media",
           "shared",
           "created_by",
@@ -1966,6 +1997,60 @@
           "base_version"
         ],
         "title": "ElementPut",
+        "type": "object"
+      },
+      "ElementRequestIn": {
+        "additionalProperties": false,
+        "description": "Make a request from a recommendation (W11-23, W11-38). `id` is the request's, made on the\ndevice: sending it again returns the element with the request already made.",
+        "properties": {
+          "category": {
+            "enum": [
+              "fault",
+              "communications",
+              "power",
+              "calibration",
+              "relocation",
+              "inspection",
+              "other"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "category"
+        ],
+        "title": "ElementRequestIn",
         "type": "object"
       },
       "EndIn": {
@@ -10611,6 +10696,75 @@
         ]
       }
     },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/config-version": {
+      "post": {
+        "description": "After the end, the Config element's changed After files become the station's next\nconfiguration version (CFG-2: a version never changes). Nothing changed: nothing is made,\nso pressing it twice makes one version.",
+        "operationId": "save_config_version_api_v1_visits__id__stations__station_id__elements__element_id__config_version_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Config Version",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
     "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media": {
       "post": {
         "description": "A photo, a video or (on Config) any file, for a section of the element.",
@@ -10851,6 +11005,85 @@
           }
         ],
         "summary": "Change Element Media",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/request": {
+      "post": {
+        "description": "A new maintenance request for this station, from the recommendation: a technician's\nstarts Submitted for an admin to approve, an admin's Approved, as any request. The request\nand the link on the element are one transaction; the same request `id` again changes\nnothing. Online only (OFF-10).",
+        "operationId": "request_from_recommendation_api_v1_visits__id__stations__station_id__elements__element_id__request_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request From Recommendation",
         "tags": [
           "visits"
         ]

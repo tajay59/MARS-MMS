@@ -18,7 +18,7 @@ function element (fields: Partial<BoardElement> = {}): BoardElement {
   return {
     id: 'e1', visit_id: 'v1', station_id: 's1', kind: 'note', title: 'Water inside the enclosure',
     description: null, items: [], complete: null, completed_at: null, priority: null, request_ref: null,
-    config_version_ids: [], media: { main: [] }, shared: false,
+    config_version_ids: [], config_versions: [], version_due: false, media: { main: [] }, shared: false,
     created_by: { id: 'u1', name: 'Andrea Clarke' }, created_at: '2026-10-22T13:00:00Z',
     updated_at: '2026-10-22T13:00:00Z', version: 1, can_edit: true, ...fields,
   }

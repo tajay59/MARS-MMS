@@ -291,6 +291,8 @@
   }
 
   watch([stationId, () => props.visit.id], () => void load(), { immediate: true })
+  // The visit itself changed (it ended, an owner changed): its end made versions and shared files
+  watch(() => props.visit.version, () => void load(true))
 
   const refresh = settled(() => void load(true))
   useLive(event => {
