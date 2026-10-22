@@ -86,23 +86,6 @@
         />
       </FormField>
 
-      <div v-if="unit" class="flex items-start gap-3 border-t border-surface-200 pt-3">
-        <v-switch
-          id="uf-review"
-          v-model="values.needsReview"
-          class="shrink-0"
-          color="primary"
-          hide-details
-          inset
-          role="switch"
-        />
-
-        <div class="min-w-0 pt-1.5">
-          <label class="text-label text-surface-900" for="uf-review">Needs review</label>
-          <div class="mt-0.5 text-xs text-surface-600">Marks the unit for someone to check, for example after an import. Switch it off once it has been checked.</div>
-        </div>
-      </div>
-
       <FormField id="uf-notes" label="Notes (optional)">
         <v-textarea
           id="uf-notes"

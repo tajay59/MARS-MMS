@@ -50,75 +50,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/checklist-templates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Templates
-         * @description The current version of each template. Inactive ones too, for an admin who asks (`all`).
-         */
-        get: operations["list_templates_api_v1_checklist_templates_get"];
-        put?: never;
-        /**
-         * Create Template
-         * @description A new template for a station type, or an add-on for a sensor model.
-         */
-        post: operations["create_template_api_v1_checklist_templates_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/checklist-templates/resolve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Resolve For Station
-         * @description What a visit to this station is given: its type's template, then an add-on for each
-         *     sensor model installed there.
-         */
-        get: operations["resolve_for_station_api_v1_checklist_templates_resolve_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/checklist-templates/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Template
-         * @description The current version, or an older one by number (what a visit copied).
-         */
-        get: operations["get_template_api_v1_checklist_templates__id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change Template
-         * @description Save the next version (name, items, or active). Nothing changed writes nothing.
-         */
-        patch: operations["change_template_api_v1_checklist_templates__id__patch"];
-        trace?: never;
-    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -587,7 +518,7 @@ export interface paths {
         head?: never;
         /**
          * Patch Unit
-         * @description Serial and model corrections (SEN-5 review), status in or out of stock, the interval
+         * @description Serial and model corrections, status in or out of stock, the interval
          *     override (CAL-3), notes. Installing and removing have their own actions.
          */
         patch: operations["patch_unit_api_v1_sensor_units__id__patch"];
@@ -991,8 +922,9 @@ export interface paths {
         /**
          * End Visit
          * @description VIS-9: end the visit and say whether another is needed. If so the request goes back to
-         *     Assigned to be scheduled again; if not it waits for the visit report (Phase 6). The VIS-6
-         *     check of Before and After images arrives with media on visits (W12).
+         *     Assigned to be scheduled again; if not it waits for the visit report (Phase 6). Incomplete
+         *     tasks are only a warning in the End dialog: an end synced from a phone can't answer a
+         *     question, so the server never refuses it for them (W11-33).
          */
         post: operations["end_visit_api_v1_visits__id__end_post"];
         delete?: never;
@@ -1081,7 +1013,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/visits/{id}/stations/{station_id}/media": {
+    "/api/v1/visits/{id}/stations/{station_id}/elements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Elements
+         * @description A station's board, newest first. A client sees the shared elements once the visit has
+         *     ended, and nothing before (W11-28).
+         */
+        get: operations["list_elements_api_v1_visits__id__stations__station_id__elements_get"];
+        put?: never;
+        /**
+         * Add Element
+         * @description VIS-5, VIS-7: a Note, Task, Recommendation or Config on the station's board. Sending the
+         *     same `id` and content again returns the element that was made (200).
+         */
+        post: operations["add_element_api_v1_visits__id__stations__station_id__elements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Element */
+        get: operations["get_element_api_v1_visits__id__stations__station_id__elements__element_id__get"];
+        /**
+         * Save Element
+         * @description The whole content, against `base_version` (W11-26). A save that says what is already
+         *     saved succeeds whatever its version: it is a retry after a lost answer.
+         */
+        put: operations["save_element_api_v1_visits__id__stations__station_id__elements__element_id__put"];
+        post?: never;
+        /**
+         * Delete Element
+         * @description Take an element off the board and delete its files. A tombstone stays, so a late save
+         *     from another device cannot bring it back (W11-26). Deleting it again changes nothing.
+         */
+        delete: operations["delete_element_api_v1_visits__id__stations__station_id__elements__element_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media": {
         parameters: {
             query?: never;
             header?: never;
@@ -1091,17 +1076,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Add Media
-         * @description VIS-5: a photo or video, for a phase of the visit at this station.
+         * Add Element Media
+         * @description A photo, a video or (on Config) any file, for a section of the element.
          */
-        post: operations["add_media_api_v1_visits__id__stations__station_id__media_post"];
+        post: operations["add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/visits/{id}/stations/{station_id}/media/{media_id}": {
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1112,38 +1097,17 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Remove Media
-         * @description Take a photo or video off the visit and delete the file: the person who added it, or an
-         *     admin, until the report locks the visit.
+         * Remove Element Media
+         * @description Take a file off the element and delete it.
          */
-        delete: operations["remove_media_api_v1_visits__id__stations__station_id__media__media_id__delete"];
+        delete: operations["remove_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__delete"];
         options?: never;
         head?: never;
         /**
-         * Change Media
-         * @description A caption, or hide an item from the client (W11-13) and show it again.
+         * Change Element Media
+         * @description A caption, or hide a file from the client (W11-13) and show it again.
          */
-        patch: operations["change_media_api_v1_visits__id__stations__station_id__media__media_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/visits/{id}/stations/{station_id}/work": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Save Work
-         * @description VIS-7: the owner saves what was found and done at the station.
-         */
-        put: operations["save_work_api_v1_visits__id__stations__station_id__work_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch"];
         trace?: never;
     };
     "/internal/attachable": {
@@ -1269,6 +1233,33 @@ export interface components {
             /** Size Bytes */
             size_bytes: number;
         };
+        /** BoardCover */
+        BoardCover: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "image" | "video";
+            /** Media Id */
+            media_id: string;
+        };
+        /**
+         * BoardSummaryOut
+         * @description A station's board at a glance (the visit page, the End dialog's warning).
+         */
+        BoardSummaryOut: {
+            /** Config */
+            config: number;
+            cover: components["schemas"]["BoardCover"] | null;
+            /** Incomplete Tasks */
+            incomplete_tasks: number;
+            /** Note */
+            note: number;
+            /** Recommendation */
+            recommendation: number;
+            /** Task */
+            task: number;
+        };
         /** Body_import_stations_api_v1_stations_import_post */
         Body_import_stations_api_v1_stations_import_post: {
             /**
@@ -1281,26 +1272,6 @@ export interface components {
              * @description XLSX workbook, stations CSV, or the existing system's site export (JSON)
              */
             stations: string;
-        };
-        /** CalibrationData */
-        CalibrationData: {
-            /**
-             * Method
-             * @default field_check
-             * @enum {string}
-             */
-            method: "field_check" | "field_adjust";
-            /**
-             * Readings
-             * @default []
-             */
-            readings: components["schemas"]["Reading"][];
-            reference_instrument?: components["schemas"]["ReferenceInstrument"] | null;
-            /**
-             * Result
-             * @enum {string}
-             */
-            result: "pass" | "adjusted" | "fail";
         };
         /**
          * CalibrationIn
@@ -1389,37 +1360,6 @@ export interface components {
             /** Reason */
             reason?: string | null;
         };
-        /** ChecklistRowIn */
-        ChecklistRowIn: {
-            /**
-             * Ad Hoc
-             * @default false
-             */
-            ad_hoc: boolean;
-            /** Item Id */
-            item_id: string;
-            /** Label */
-            label?: string | null;
-            /** Note */
-            note?: string | null;
-            /** Result */
-            result?: ("ok" | "fixed" | "issue" | "na") | null;
-        };
-        /** ChecklistRowOut */
-        ChecklistRowOut: {
-            /** Ad Hoc */
-            ad_hoc: boolean;
-            /** Group */
-            group: string | null;
-            /** Item Id */
-            item_id: string;
-            /** Label */
-            label: string;
-            /** Note */
-            note: string | null;
-            /** Result */
-            result: ("ok" | "fixed" | "issue" | "na") | null;
-        };
         /**
          * CommentIn
          * @description REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already
@@ -1490,20 +1430,6 @@ export interface components {
             provider?: string | null;
             /** Type */
             type?: string | null;
-        };
-        /** ConditionIn */
-        ConditionIn: {
-            /** Notes */
-            notes?: string | null;
-            /** Status */
-            status?: ("operational" | "degraded" | "offline") | null;
-        };
-        /** ConditionOut */
-        ConditionOut: {
-            /** Notes */
-            notes: string | null;
-            /** Status */
-            status: ("operational" | "degraded" | "offline") | null;
         };
         /**
          * ConfigDiff
@@ -1694,27 +1620,6 @@ export interface components {
             /** Url */
             url: string;
         };
-        /** DownloadedIn */
-        DownloadedIn: {
-            /**
-             * Done
-             * @default false
-             */
-            done: boolean;
-            /** From */
-            from?: string | null;
-            /** To */
-            to?: string | null;
-        };
-        /** DownloadedOut */
-        DownloadedOut: {
-            /** Done */
-            done: boolean;
-            /** From */
-            from?: string | null;
-            /** To */
-            to?: string | null;
-        };
         /** DueList */
         DueList: {
             /** Items */
@@ -1762,6 +1667,167 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /**
+         * ElementIn
+         * @description A new element. `id` is made on the device (rule 9): the same `id` and content again
+         *     returns the element that was made.
+         */
+        ElementIn: {
+            /** Description */
+            description?: string | null;
+            /** Device Id */
+            device_id?: string | null;
+            /** Id */
+            id: string;
+            /** Items */
+            items?: components["schemas"]["ItemBody"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "task" | "recommendation" | "config";
+            /** Priority */
+            priority?: ("low" | "medium" | "high") | null;
+            /** Shared */
+            shared?: boolean | null;
+            /** Title */
+            title: string;
+        };
+        /** ElementList */
+        ElementList: {
+            /** Can Add */
+            can_add: boolean;
+            /** Items */
+            items: components["schemas"]["ElementOut"][];
+        };
+        /**
+         * ElementMediaIn
+         * @description Put an uploaded file on a section of the element. `media_id` is the upload's own id, so a
+         *     retry attaches nothing twice.
+         */
+        ElementMediaIn: {
+            /** Caption */
+            caption?: string | null;
+            /** Captured At */
+            captured_at?: string | null;
+            /** Media Id */
+            media_id: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "main" | "before" | "after";
+        };
+        /**
+         * ElementMediaOut
+         * @description A file on the element. Its thumbnail, link and processing state come from the media
+         *     service by `media_id`, so nothing here expires.
+         */
+        ElementMediaOut: {
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            added_by: components["schemas"]["PersonOut"];
+            /** Caption */
+            caption: string | null;
+            /** Captured At */
+            captured_at: string | null;
+            /** Filename */
+            filename: string;
+            /** Hidden */
+            hidden: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "image" | "video" | "config";
+            /** Media Id */
+            media_id: string;
+            /** Size Bytes */
+            size_bytes: number | null;
+        };
+        /**
+         * ElementMediaPatch
+         * @description Any of these. `caption: null` clears it; `hidden: true` keeps the file from the client.
+         */
+        ElementMediaPatch: {
+            /** Caption */
+            caption?: string | null;
+            /** Hidden */
+            hidden?: boolean | null;
+        };
+        /** ElementOut */
+        ElementOut: {
+            /** Can Edit */
+            can_edit: boolean;
+            /** Complete */
+            complete: boolean | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Config Version Ids */
+            config_version_ids: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["PersonOut"];
+            /** Description */
+            description: string | null;
+            /** Id */
+            id: string;
+            /** Items */
+            items: components["schemas"]["ItemOut"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "task" | "recommendation" | "config";
+            /** Media */
+            media: {
+                [key: string]: components["schemas"]["ElementMediaOut"][];
+            };
+            /** Priority */
+            priority: ("low" | "medium" | "high") | null;
+            request_ref: components["schemas"]["RequestRefOut"] | null;
+            /** Shared */
+            shared: boolean;
+            /** Station Id */
+            station_id: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id: string;
+        };
+        /**
+         * ElementPut
+         * @description The whole editable content, with the version the editor was looking at (W11-26).
+         */
+        ElementPut: {
+            /** Base Version */
+            base_version: number;
+            /** Description */
+            description?: string | null;
+            /** Device Id */
+            device_id?: string | null;
+            /** Items */
+            items?: components["schemas"]["ItemBody"][];
+            /** Priority */
+            priority?: ("low" | "medium" | "high") | null;
+            /** Shared */
+            shared: boolean;
+            /** Title */
+            title: string;
+        };
         /** EndIn */
         EndIn: {
             /** Additional Visit Required */
@@ -1770,8 +1836,6 @@ export interface components {
             at?: string | null;
             /** Follow Up Notes */
             follow_up_notes?: string | null;
-            /** Overrides */
-            overrides?: components["schemas"]["Override"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1883,8 +1947,6 @@ export interface components {
             /** Last Calibration Result */
             last_calibration_result: string | null;
             model: components["schemas"]["ModelSummary"];
-            /** Needs Review */
-            needs_review: boolean;
             /** Parameter */
             parameter: string | null;
             /** Serial */
@@ -1892,36 +1954,30 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
-        /** IssueIn */
-        IssueIn: {
-            /** Description */
-            description: string;
+        /** ItemBody */
+        ItemBody: {
+            /**
+             * Done
+             * @default false
+             */
+            done: boolean;
             /** Id */
             id: string;
-            /**
-             * Severity
-             * @default medium
-             * @enum {string}
-             */
-            severity: "low" | "medium" | "high";
-        };
-        /** ItemIn */
-        ItemIn: {
-            /** Help */
-            help?: string | null;
-            /** Id */
-            id?: string | null;
-            /** Label */
-            label: string;
+            /** Text */
+            text: string;
         };
         /** ItemOut */
         ItemOut: {
-            /** Help */
-            help: string | null;
+            /** Done */
+            done: boolean;
+            /** Done At */
+            done_at: string | null;
+            /** Done By */
+            done_by: string | null;
             /** Id */
             id: string;
-            /** Label */
-            label: string;
+            /** Text */
+            text: string;
         };
         /** LabelOut */
         LabelOut: {
@@ -1951,31 +2007,6 @@ export interface components {
             model?: string | null;
             /** Serial */
             serial?: string | null;
-        };
-        /**
-         * MediaIn
-         * @description Put an uploaded file on a station. `media_id` is the upload's own id, so a retry after a
-         *     lost answer attaches nothing twice.
-         */
-        MediaIn: {
-            /** Caption */
-            caption?: string | null;
-            /** Captured At */
-            captured_at?: string | null;
-            /** Media Id */
-            media_id: string;
-            /** Phase */
-            phase: string;
-        };
-        /**
-         * MediaPatch
-         * @description Any of these. `caption: null` clears it; `hidden: true` keeps the item from the client.
-         */
-        MediaPatch: {
-            /** Caption */
-            caption?: string | null;
-            /** Hidden */
-            hidden?: boolean | null;
         };
         /** Milestones */
         Milestones: {
@@ -2021,27 +2052,12 @@ export interface components {
             /** Name */
             name: string;
         };
-        /**
-         * Override
-         * @description VIS-6: a station ended without a Before or After image, with the reason (W12).
-         */
-        Override: {
-            /** Reason */
-            reason: string;
-            /** Station Id */
-            station_id: string;
-        };
-        /** PartIn */
-        PartIn: {
-            /** Description */
-            description: string;
+        /** PersonOut */
+        PersonOut: {
             /** Id */
             id: string;
-            /**
-             * Quantity
-             * @default 1
-             */
-            quantity: number;
+            /** Name */
+            name: string;
         };
         /** PersonRef */
         PersonRef: {
@@ -2278,6 +2294,13 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** RequestRefOut */
+        RequestRefOut: {
+            /** Id */
+            id: string;
+            /** Ref */
+            ref: string;
+        };
         /** RequestStation */
         RequestStation: {
             /** Code */
@@ -2327,60 +2350,10 @@ export interface components {
             updated_at: string;
         };
         /**
-         * Resolved
-         * @description What a visit to this station is given (W10-11).
-         */
-        Resolved: {
-            /** Items */
-            items: components["schemas"]["ResolvedItem"][];
-            /** Station Id */
-            station_id: string;
-            /** Station Type */
-            station_type: string | null;
-        };
-        /** ResolvedItem */
-        ResolvedItem: {
-            /** Group */
-            group: string;
-            /** Help */
-            help: string | null;
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-            /** Template Id */
-            template_id: string;
-            /** Template Version */
-            template_version: number;
-        };
-        /**
          * Scope
          * @enum {string}
          */
         Scope: "model" | "station";
-        /** SensorActionIn */
-        SensorActionIn: {
-            /**
-             * Action
-             * @enum {string}
-             */
-            action: "replace" | "calibrate" | "clean" | "repair" | "remove" | "install";
-            calibration?: components["schemas"]["CalibrationData"] | null;
-            /** Id */
-            id: string;
-            /** New Serial */
-            new_serial?: string | null;
-            /** Note */
-            note?: string | null;
-            /** Old Serial */
-            old_serial?: string | null;
-            /** Parameter */
-            parameter?: string | null;
-            /** Removal Reason */
-            removal_reason?: ("faulty" | "calibration" | "retired" | "other") | null;
-            /** Sensor Model Id */
-            sensor_model_id?: string | null;
-        };
         /** SensorModelIn */
         SensorModelIn: {
             /** Default Calibration Interval Days */
@@ -2490,8 +2463,6 @@ export interface components {
             /** Last Calibration Result */
             last_calibration_result: string | null;
             model: components["schemas"]["ModelSummary"];
-            /** Needs Review */
-            needs_review: boolean;
             /** Notes */
             notes: string | null;
             /** Parameter */
@@ -2552,8 +2523,6 @@ export interface components {
             /** Last Calibration Result */
             last_calibration_result: string | null;
             model: components["schemas"]["ModelSummary"];
-            /** Needs Review */
-            needs_review: boolean;
             /** Notes */
             notes: string | null;
             /** Parameter */
@@ -2584,8 +2553,6 @@ export interface components {
             calibration_interval_days?: number | null;
             /** Model Id */
             model_id?: string | null;
-            /** Needs Review */
-            needs_review?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Serial */
@@ -2866,62 +2833,6 @@ export interface components {
             /** Type */
             type: string | null;
         };
-        /** TemplateIn */
-        TemplateIn: {
-            /** Items */
-            items: components["schemas"]["ItemIn"][];
-            /** Name */
-            name: string;
-            /** Sensor Model Id */
-            sensor_model_id?: string | null;
-            /** Station Type */
-            station_type?: string | null;
-        };
-        /** TemplateList */
-        TemplateList: {
-            /** Items */
-            items: components["schemas"]["TemplateOut"][];
-        };
-        /** TemplateOut */
-        TemplateOut: {
-            /** Active */
-            active: boolean;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Is Current */
-            is_current: boolean;
-            /** Items */
-            items: components["schemas"]["ItemOut"][];
-            /** Name */
-            name: string;
-            /** Sensor Model Id */
-            sensor_model_id: string | null;
-            /** Sensor Model Name */
-            sensor_model_name: string | null;
-            /** Station Type */
-            station_type: string | null;
-            /** Version */
-            version: number;
-        };
-        /**
-         * TemplatePatch
-         * @description `version` is the version the editor was looking at: if someone saved a newer one, 409.
-         */
-        TemplatePatch: {
-            /** Active */
-            active?: boolean | null;
-            /** Items */
-            items?: components["schemas"]["ItemIn"][] | null;
-            /** Name */
-            name?: string | null;
-            /** Version */
-            version: number;
-        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -2994,39 +2905,6 @@ export interface components {
             staff_ids: string[];
             /** Stations */
             stations: components["schemas"]["VisitStationIn"][];
-        };
-        /**
-         * VisitMediaOut
-         * @description A photo or video on a station of the visit. The file itself (thumbnail, link, processing
-         *     state) comes from the media service by `media_id`, so nothing here expires.
-         */
-        VisitMediaOut: {
-            /**
-             * Added At
-             * Format: date-time
-             */
-            added_at: string;
-            added_by: components["schemas"]["VisitPersonOut"];
-            /** Caption */
-            caption: string | null;
-            /** Captured At */
-            captured_at: string | null;
-            /** Filename */
-            filename: string;
-            /** Hidden */
-            hidden: boolean;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "image" | "video";
-            /** Media Id */
-            media_id: string;
-            /**
-             * Phase
-             * @enum {string}
-             */
-            phase: "before" | "during" | "after";
         };
         /** VisitOut */
         VisitOut: {
@@ -3127,10 +3005,9 @@ export interface components {
             actions: ("arrive" | "depart")[];
             /** Arrived At */
             arrived_at: string | null;
+            board: components["schemas"]["BoardSummaryOut"];
             /** Departed At */
             departed_at: string | null;
-            /** Media */
-            media: components["schemas"]["VisitMediaOut"][];
             owner: components["schemas"]["VisitPersonOut"];
             /** Station Code */
             station_code: string | null;
@@ -3140,93 +3017,6 @@ export interface components {
             station_name: string | null;
             /** Time Zone */
             time_zone: string | null;
-            work: components["schemas"]["WorkOut"] | null;
-        };
-        /** WorkConfigVersionIn */
-        WorkConfigVersionIn: {
-            /** Files */
-            files: string[];
-            /** Id */
-            id: string;
-            /** Notes */
-            notes?: string | null;
-        };
-        /**
-         * WorkIn
-         * @description The record whole, with the version the editor was looking at.
-         */
-        WorkIn: {
-            /** Base Version */
-            base_version: number;
-            /**
-             * Checklist
-             * @default []
-             */
-            checklist: components["schemas"]["ChecklistRowIn"][];
-            condition_on_arrival?: components["schemas"]["ConditionIn"] | null;
-            condition_on_departure?: components["schemas"]["ConditionIn"] | null;
-            /**
-             * Config Versions
-             * @default []
-             */
-            config_versions: components["schemas"]["WorkConfigVersionIn"][];
-            data_downloaded?: components["schemas"]["DownloadedIn"] | null;
-            /** Device Id */
-            device_id?: string | null;
-            /**
-             * Issues Found
-             * @default []
-             */
-            issues_found: components["schemas"]["IssueIn"][];
-            /** Notes */
-            notes?: string | null;
-            /**
-             * Parts Used
-             * @default []
-             */
-            parts_used: components["schemas"]["PartIn"][];
-            /**
-             * Sensor Actions
-             * @default []
-             */
-            sensor_actions: components["schemas"]["SensorActionIn"][];
-        };
-        /**
-         * WorkOut
-         * @description A station's work record as staff see it. Clients never get one (rule 6).
-         */
-        WorkOut: {
-            /** Checklist */
-            checklist: components["schemas"]["ChecklistRowOut"][];
-            condition_on_arrival: components["schemas"]["ConditionOut"] | null;
-            condition_on_departure: components["schemas"]["ConditionOut"] | null;
-            /** Config Versions */
-            config_versions: {
-                [key: string]: unknown;
-            }[];
-            data_downloaded: components["schemas"]["DownloadedOut"] | null;
-            /** Device Id */
-            device_id: string | null;
-            /** Issues Found */
-            issues_found: {
-                [key: string]: unknown;
-            }[];
-            /** Notes */
-            notes: string | null;
-            /** Parts Used */
-            parts_used: {
-                [key: string]: unknown;
-            }[];
-            /** Sensor Actions */
-            sensor_actions: {
-                [key: string]: unknown;
-            }[];
-            /** Updated At */
-            updated_at: string | null;
-            /** Updated By */
-            updated_by: string | null;
-            /** Version */
-            version: number;
         };
         /**
          * Workload
@@ -3336,169 +3126,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DueList"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_templates_api_v1_checklist_templates_get: {
-        parameters: {
-            query?: {
-                all?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TemplateList"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_template_api_v1_checklist_templates_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TemplateIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TemplateOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resolve_for_station_api_v1_checklist_templates_resolve_get: {
-        parameters: {
-            query: {
-                station_id: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Resolved"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_template_api_v1_checklist_templates__id__get: {
-        parameters: {
-            query?: {
-                version?: number | null;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TemplateOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    change_template_api_v1_checklist_templates__id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TemplatePatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TemplateOut"];
                 };
             };
             /** @description Validation Error */
@@ -4412,7 +4039,6 @@ export interface operations {
                 status?: ("in_stock" | "installed" | "in_repair" | "retired") | null;
                 model_id?: string | null;
                 station_id?: string | null;
-                needs_review?: boolean | null;
                 q?: string | null;
                 after?: string | null;
                 limit?: number;
@@ -5433,7 +5059,7 @@ export interface operations {
             };
         };
     };
-    add_media_api_v1_visits__id__stations__station_id__media_post: {
+    list_elements_api_v1_visits__id__stations__station_id__elements_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -5443,11 +5069,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MediaIn"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -5455,7 +5077,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VisitOut"];
+                    "application/json": components["schemas"]["ElementList"];
                 };
             };
             /** @description Validation Error */
@@ -5469,13 +5091,190 @@ export interface operations {
             };
         };
     };
-    remove_media_api_v1_visits__id__stations__station_id__media__media_id__delete: {
+    add_element_api_v1_visits__id__stations__station_id__elements_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 id: string;
                 station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_element_api_v1_visits__id__stations__station_id__elements__element_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_element_api_v1_visits__id__stations__station_id__elements__element_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_element_api_v1_visits__id__stations__station_id__elements__element_id__delete: {
+        parameters: {
+            query: {
+                base_version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementMediaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
                 media_id: string;
             };
             cookie?: never;
@@ -5488,7 +5287,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VisitOut"];
+                    "application/json": components["schemas"]["ElementOut"];
                 };
             };
             /** @description Validation Error */
@@ -5502,20 +5301,21 @@ export interface operations {
             };
         };
     };
-    change_media_api_v1_visits__id__stations__station_id__media__media_id__patch: {
+    change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 id: string;
                 station_id: string;
+                element_id: string;
                 media_id: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MediaPatch"];
+                "application/json": components["schemas"]["ElementMediaPatch"];
             };
         };
         responses: {
@@ -5525,43 +5325,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["VisitOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_work_api_v1_visits__id__stations__station_id__work_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                station_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VisitOut"];
+                    "application/json": components["schemas"]["ElementOut"];
                 };
             };
             /** @description Validation Error */

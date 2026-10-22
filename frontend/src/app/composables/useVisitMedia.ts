@@ -1,19 +1,19 @@
 import type { Upload, UploadOptions } from './useUpload'
-import type { VisitOut } from '@/api/models'
-import type { MediaKind, Phase } from '@/features/visits/media'
+import type { BoardElement, ElementSection, VisitOut } from '@/api/models'
+import type { MediaKind } from '@/features/visits/media'
 import { reactive } from 'vue'
-import { visitsApi } from '@/api/operations'
+import { boardApi } from '@/api/operations'
 import { ApiError, NetworkError } from '@/api/problem'
 import { capturedAt, kindOf, mediaRefusal, ownerRef } from '@/features/visits/media'
 import { prepareImage } from '@/offline/image'
 import { createUpload } from './useUpload'
 
 /*
-  Photos and video on their way to a station of a visit (PRD VIS-5; W11-10, W11-12). One item is:
+  Files on their way to an element of a station's board (PRD VIS-5; W11-27, W11-12). One item is:
   prepare (a photo is shrunk, its capture time read) → upload to the media service (the engine in
-  offline/upload.ts, resumable) → put it on the station. Every step is safe to repeat, so "Try
-  again" carries on from the step that failed. Nothing is stored on the device in week 11 (OFF-10):
-  a reload loses the pending items and the person chooses the files again.
+  offline/upload.ts, resumable) → put it on the element. Every step is safe to repeat, so "Try
+  again" carries on from the step that failed. Nothing is stored on the device until Phase 5
+  (OFF-10): a reload loses the pending items and the person chooses the files again.
 */
 
 export type PendingState = 'waiting' | 'preparing' | 'uploading' | 'saving' | 'failed'
@@ -21,7 +21,8 @@ export type PendingState = 'waiting' | 'preparing' | 'uploading' | 'saving' | 'f
 export interface PendingMedia {
   key: string
   stationId: string
-  phase: Phase
+  elementId: string
+  section: ElementSection
   name: string
   kind: MediaKind
   size: number
@@ -34,16 +35,24 @@ export interface PendingMedia {
 export interface VisitMediaDeps {
   prepare: typeof prepareImage
   upload: (file: File, options: UploadOptions) => Upload
-  addMedia: typeof visitsApi.addMedia
+  addMedia: typeof boardApi.addMedia
 }
 
 export interface VisitMediaOptions {
   visit: () => Pick<VisitOut, 'id' | 'stations'>
-  /** The visit as the server holds it after an item was put on a station. */
-  onVisit: (visit: VisitOut) => void
+  /** The element as the server holds it after a file was put on it. */
+  onElement: (element: BoardElement) => void
   /** Files at a time. Two keeps a video from starving the photos behind it on a phone. */
   concurrency?: number
   deps?: Partial<VisitMediaDeps>
+}
+
+export interface Target {
+  stationId: string
+  elementId: string
+  section: ElementSection
+  /** Whether the element takes any file (Config) or photos and video only. */
+  anyFile?: boolean
 }
 
 interface Work {
@@ -70,7 +79,7 @@ export function useVisitMedia (options: VisitMediaOptions) {
   const deps: VisitMediaDeps = {
     prepare: prepareImage,
     upload: createUpload,
-    addMedia: visitsApi.addMedia,
+    addMedia: boardApi.addMedia,
     ...options.deps,
   }
   const limit = options.concurrency ?? 2
@@ -95,7 +104,7 @@ export function useVisitMedia (options: VisitMediaOptions) {
       job.captured = capturedAt(job.source, prepared.captured, zoneOf(job.item.stationId))
     } else {
       job.file = job.source
-      job.captured = capturedAt(job.source, null, zoneOf(job.item.stationId))
+      job.captured = job.item.kind === 'video' ? capturedAt(job.source, null, zoneOf(job.item.stationId)) : null
     }
     job.item.size = job.file.size
   }
@@ -106,7 +115,7 @@ export function useVisitMedia (options: VisitMediaOptions) {
     }
     job.item.state = 'uploading'
     job.upload ??= deps.upload(job.file!, {
-      ownerRef: ownerRef(options.visit().id, job.item.stationId, job.item.phase),
+      ownerRef: ownerRef(options.visit().id, job.item.stationId, job.item.elementId, job.item.section),
       kind: job.item.kind,
     })
     const upload = job.upload
@@ -137,10 +146,10 @@ export function useVisitMedia (options: VisitMediaOptions) {
         return
       }
       job.item.state = 'saving'
-      const visit = await deps.addMedia(options.visit().id, job.item.stationId, {
-        media_id: job.mediaId!, phase: job.item.phase, captured_at: job.captured,
+      const element = await deps.addMedia(options.visit().id, job.item.stationId, job.item.elementId, {
+        media_id: job.mediaId!, section: job.item.section, captured_at: job.captured,
       })
-      options.onVisit(visit)
+      options.onElement(element)
       work.delete(job.item.key)
       const at = items.indexOf(job.item)
       if (at !== -1) {
@@ -166,18 +175,18 @@ export function useVisitMedia (options: VisitMediaOptions) {
     }
   }
 
-  /** Choose files for a phase of a station. Returns the names it could not take. */
-  function add (stationId: string, phase: Phase, files: Iterable<File>): string[] {
+  /** Choose files for a section of an element. Returns the names it could not take. */
+  function add (target: Target, files: Iterable<File>): string[] {
     const refused: string[] = []
     for (const file of files) {
-      const kind = kindOf(file)
+      const kind = kindOf(file, target.anyFile)
       if (!kind) {
         refused.push(file.name)
         continue
       }
       const item = reactive<PendingMedia>({
-        key: `pending-${++counter}`, stationId, phase, name: file.name, kind, size: file.size,
-        state: 'waiting', progress: 0, error: null,
+        key: `pending-${++counter}`, stationId: target.stationId, elementId: target.elementId,
+        section: target.section, name: file.name, kind, size: file.size, state: 'waiting', progress: 0, error: null,
       })
       items.push(item)
       work.set(item.key, { item, source: file, file: null, captured: null, upload: null, mediaId: null })
@@ -212,8 +221,9 @@ export function useVisitMedia (options: VisitMediaOptions) {
     await job.upload?.cancel(true)
   }
 
-  function forStation (stationId: string, phase?: Phase): PendingMedia[] {
-    return items.filter(i => i.stationId === stationId && (!phase || i.phase === phase))
+  /** What is on its way to an element, or to one of its sections. */
+  function forElement (elementId: string, section?: ElementSection): PendingMedia[] {
+    return items.filter(i => i.elementId === elementId && (!section || i.section === section))
   }
 
   /** The page is going away: stop sending without telling the server. */
@@ -224,5 +234,5 @@ export function useVisitMedia (options: VisitMediaOptions) {
     }
   }
 
-  return { items, add, retry, discard, forStation, dispose }
+  return { items, add, retry, discard, forElement, dispose }
 }

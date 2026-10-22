@@ -1,13 +1,14 @@
 """Visits module request and response bodies (TRD §3.2 visits; PRD VIS-1 to VIS-4, VIS-9, VIS-11).
 
 Staff and clients get one shape, filtered when it is built (rule 6): a client never gets the
-scheduling `notes` and never a station's work record (W11); a station's media are listed for staff
-only until the client's view arrives (W12).
+scheduling `notes`, and a station's board summary counts only what a client may see (the shared
+elements of an ended visit, W11-28). The board itself is read from its own routes.
 Staff names are shown to clients (decisions A7, D4); email and phone never are.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal, cast
 
@@ -15,9 +16,10 @@ from mms_common.auth import User
 from mms_common.ids import UUID7_PATTERN
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
-from app.api.visits.work_schemas import WorkOut
+from app.api.visits.element_schemas import BoardSummaryOut
 from app.domain.visits import actions as visit_actions
 from app.domain.visits import schedule
+from app.domain.visits.elements import Summary, summarize
 
 Id = Annotated[str, StringConstraints(pattern=UUID7_PATTERN)]
 Notes = Annotated[str, StringConstraints(max_length=schedule.MAX_NOTES)]
@@ -75,38 +77,15 @@ class VisitCancelIn(In):
     reason: Reason | None = None
 
 
-class Override(In):
-    """VIS-6: a station ended without a Before or After image, with the reason (W12)."""
-
-    station_id: Id
-    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
-
-
 class EndIn(In):
     additional_visit_required: bool
     follow_up_notes: Notes | None = None
-    overrides: list[Override] = Field(default_factory=list, max_length=schedule.MAX_STATIONS)
     at: AwareDatetime | None = None
 
 
 class VisitPersonOut(BaseModel):
     id: str
     name: str
-
-
-class VisitMediaOut(BaseModel):
-    """A photo or video on a station of the visit. The file itself (thumbnail, link, processing
-    state) comes from the media service by `media_id`, so nothing here expires."""
-
-    media_id: str
-    phase: Literal["before", "during", "after"]
-    kind: Literal["image", "video"]
-    filename: str
-    caption: str | None
-    captured_at: datetime | None
-    added_by: VisitPersonOut
-    added_at: datetime
-    hidden: bool  # kept from the client even after the visit ends
 
 
 class VisitStationOut(BaseModel):
@@ -118,8 +97,7 @@ class VisitStationOut(BaseModel):
     arrived_at: datetime | None
     departed_at: datetime | None
     actions: list[StationAction]  # what the person asking may do here now
-    work: WorkOut | None  # the work record: staff only, never a client (rule 6)
-    media: list[VisitMediaOut]  # staff only for now (W12 adds the client's view)
+    board: BoardSummaryOut  # the station's board at a glance (W11-18)
 
 
 class VisitBrief(BaseModel):
@@ -158,8 +136,10 @@ class VisitOut(VisitBrief):
 
     @classmethod
     def build(
-        cls, doc: dict[str, Any], request: dict[str, Any] | None, viewer: User
+        cls, doc: dict[str, Any], request: dict[str, Any] | None, viewer: User,
+        boards: Mapping[str, Summary] | None = None,
     ) -> VisitOut:
+        """`boards` is each station's summary, by station (an empty board when absent)."""
         staff_side = not viewer.is_client and (viewer.is_admin or "technician" in viewer.roles)
         assigned = list(request.get("assigned_staff_ids", [])) if request else []
         acts = (visit_actions.visit_actions(doc, viewer.id, viewer.is_admin, assigned)
@@ -182,25 +162,14 @@ class VisitOut(VisitBrief):
                     departed_at=s.get("departed_at"),
                     actions=cast(list[StationAction], visit_actions.station_actions(
                         doc, s, viewer.id, viewer.is_admin) if staff_side else []),
-                    work=WorkOut.of(s["work"]) if s.get("work") and not viewer.is_client else None,
-                    media=[] if viewer.is_client else [
-                        _media(m) for m in s.get("media", [])],
+                    board=BoardSummaryOut.of(
+                        (boards or {}).get(s["station_id"]) or summarize([])),
                 )
                 for s in doc["stations"]
             ],
             actions=cast(list[VisitAction], acts),
             version=doc["version"],
         )
-
-
-def _media(entry: dict[str, Any]) -> VisitMediaOut:
-    return VisitMediaOut(
-        media_id=entry["media_id"], phase=entry["phase"], kind=entry["kind"],
-        filename=entry["filename"], caption=entry.get("caption"),
-        captured_at=entry.get("captured_at"),
-        added_by=VisitPersonOut(id=entry["added_by"], name=entry.get("added_by_name") or ""),
-        added_at=entry["added_at"], hidden=bool(entry.get("hidden")),
-    )
 
 
 def _person(doc: dict[str, Any], staff_id: str) -> VisitPersonOut:

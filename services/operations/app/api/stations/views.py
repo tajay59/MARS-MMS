@@ -31,7 +31,6 @@ async def installed_units(ctx: Ctx, station_id: str, viewer: User) -> list[Insta
             calibration_due_at=unit.get("calibration_due_at"),
             due_state=state.value if state else None,
             flags=list(unit.get("flags", [])),
-            needs_review=bool(unit.get("needs_review")) and not viewer.is_client,
         ))
     return out
 

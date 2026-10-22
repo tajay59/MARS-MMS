@@ -201,7 +201,7 @@ async def _save_station(
                 "_id": new_id(), "model_id": model["_id"], "serial": sensor.serial,
                 **placed, "calibration_interval_days": sensor.calibration_interval_days,
                 "last_calibrated_at": None, "calibration_due_at": None,
-                "last_calibration_result": None, "needs_review": False, "flags": [],
+                "last_calibration_result": None, "flags": [],
                 "notes": None, **calibration,
             }, now, by)
             await units.insert(db, unit, s)

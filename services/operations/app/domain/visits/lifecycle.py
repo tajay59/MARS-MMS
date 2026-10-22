@@ -5,12 +5,12 @@ These are written for sync as well as for the routes: each takes the person, the
 and an `at` time, and returns what changes or raises the conflict `/sync` will report in Phase 5
 (`not_owner`, `visit_cancelled`, `already_ended`, ...). The same move by the same person made
 twice (a lost response, then a retry) changes nothing and is not an error: the result is empty.
-Ending here is the lifecycle only; the VIS-6 media check arrives with media on visits (W12).
+Ending here is the lifecycle only: VIS-6 was dropped with the visit board (W11-34).
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -116,8 +116,7 @@ def depart(visit: Mapping[str, Any], station_id: str, user_id: str, is_admin: bo
 
 def end(
     visit: Mapping[str, Any], user_id: str, is_admin: bool, *, additional_visit_required: bool,
-    follow_up_notes: str | None, overrides: Sequence[Mapping[str, str]], at: datetime | None,
-    now: datetime,
+    follow_up_notes: str | None, at: datetime | None, now: datetime,
 ) -> Result:
     """VIS-9: say whether another visit is needed; if so, what remains."""
     _require_attending(user_id, is_admin, visit)
@@ -136,7 +135,6 @@ def end(
     return Result({
         "status": to.value, "ended_at": check_at(at, now),
         "additional_visit_required": additional_visit_required, "follow_up_notes": notes,
-        "overrides": [dict(o) for o in overrides],
     })
 
 

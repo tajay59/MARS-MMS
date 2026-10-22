@@ -21,6 +21,7 @@ import {
 } from '../visits'
 
 const JAMAICA = 'America/Jamaica' // UTC-5 all year, no daylight saving
+const EMPTY_BOARD = { note: 0, task: 0, recommendation: 0, config: 0, incomplete_tasks: 0, cover: null }
 
 function visit (patch: Partial<VisitOut> = {}): VisitOut {
   return {
@@ -31,8 +32,8 @@ function visit (patch: Partial<VisitOut> = {}): VisitOut {
     lead: { id: 'u1', name: 'Andrea Clarke' },
     staff: [{ id: 'u1', name: 'Andrea Clarke' }, { id: 'u2', name: 'Devon Brown' }],
     stations: [
-      { station_id: 's1', station_code: 'JM-KIN-001', station_name: 'Kingston Harbour', time_zone: JAMAICA, owner: { id: 'u1', name: 'Andrea Clarke' }, arrived_at: null, departed_at: null, actions: [], work: null, media: [] },
-      { station_id: 's2', station_code: 'JM-MBJ-002', station_name: 'Montego Bay Airport', time_zone: JAMAICA, owner: { id: 'u2', name: 'Devon Brown' }, arrived_at: null, departed_at: null, actions: [], work: null, media: [] },
+      { station_id: 's1', station_code: 'JM-KIN-001', station_name: 'Kingston Harbour', time_zone: JAMAICA, owner: { id: 'u1', name: 'Andrea Clarke' }, arrived_at: null, departed_at: null, actions: [], board: EMPTY_BOARD },
+      { station_id: 's2', station_code: 'JM-MBJ-002', station_name: 'Montego Bay Airport', time_zone: JAMAICA, owner: { id: 'u2', name: 'Devon Brown' }, arrived_at: null, departed_at: null, actions: [], board: EMPTY_BOARD },
     ],
     actions: [], version: 1, ...patch,
   }

@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.database import AsyncDatabase
 
+from app.domain.visits.elements import facts as element_facts
+
 SOURCE = "operations"
 
 STATION_FIELDS = (
@@ -39,8 +41,11 @@ VISIT_FIELDS = (
 )
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
-    "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "needs_review",
-    "flags", "notes",
+    "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "flags", "notes",
+)
+ELEMENT_FIELDS = (
+    "visit_id", "station_id", "kind", "title", "description", "items", "priority", "shared",
+    "completed_at", "request_ref", "config_version_ids", "deleted_at",
 )
 
 
@@ -67,8 +72,7 @@ def model_data(doc: dict[str, Any]) -> dict[str, Any]:
 def unit_data(doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "unit_id": doc["_id"], "serial": doc["serial"], "model_id": doc["model_id"],
-        "status": doc["status"], "needs_review": bool(doc.get("needs_review")),
-        "current_station_id": doc.get("current_station_id"),
+        "status": doc["status"], "current_station_id": doc.get("current_station_id"),
         "calibration_due_at": doc.get("calibration_due_at"),
     }
 
@@ -281,21 +285,6 @@ class Emitter:
             org_id=doc.get("org_id"), session=session,
         )
 
-    async def application_reversed(
-        self, visit: dict[str, Any], station_id: str, action_id: str, unit_ids: list[str],
-        station: dict[str, Any], session: AsyncClientSession,
-    ) -> Envelope:
-        """A visit's sensor action was changed or removed and its effects undone."""
-        return await self.emit(
-            ev.SensorApplicationReversed(
-                action_id=action_id, visit_id=visit["_id"], station_id=station_id,
-                unit_ids=unit_ids,
-            ),
-            type_="sensor.application_reversed", key=station_id,
-            resource=("sensor_application", action_id), aggregate_version=visit["version"],
-            org_id=station["owner_org_id"], session=session,
-        )
-
     async def document(
         self, model: type[BaseModel], doc: dict[str, Any], session: AsyncClientSession, *,
         before: dict[str, Any] | None = None, **extra: Any,
@@ -396,16 +385,47 @@ class Emitter:
             before=view(before, VISIT_FIELDS), after=view(visit, VISIT_FIELDS),
         )
 
+    async def element(
+        self, model: type[BaseModel], type_: str, element: dict[str, Any], visit: dict[str, Any],
+        request: dict[str, Any], session: AsyncClientSession, *,
+        before: dict[str, Any] | None = None, **extra: Any,
+    ) -> Envelope:
+        """An element of a station's board (W11-35), keyed by the request and versioned by the
+        element's `revision`. The event holds ids and flags; the audit block keeps the text."""
+        return await self.emit(
+            model(**visit_data(visit, request), **element_facts(element), **extra),
+            type_=type_, key=request["_id"], resource=("visit_element", element["_id"]),
+            aggregate_version=element["revision"], org_id=request["org_id"], session=session,
+            before=view(before, ELEMENT_FIELDS), after=view(element, ELEMENT_FIELDS),
+        )
+
+    async def element_media(
+        self, element: dict[str, Any], visit: dict[str, Any], request: dict[str, Any],
+        session: AsyncClientSession, *, media_id: str, section: str, kind: str, change: str,
+    ) -> Envelope:
+        """A file on an element was added, captioned, hidden, shown or removed (W11-27)."""
+        return await self.emit(
+            ev.VisitMediaChanged(
+                **visit_data(visit, request), station_id=element["station_id"],
+                media_id=media_id, kind=kind, change=change, element_id=element["_id"],
+                section=section,
+            ),
+            type_="visit.media_changed", key=request["_id"],
+            resource=("visit_element", element["_id"]), aggregate_version=element["revision"],
+            org_id=request["org_id"], session=session,
+        )
+
     async def visit_visibility(
         self, media_ids: list[str], visibility: str, visit: dict[str, Any],
-        session: AsyncClientSession,
+        session: AsyncClientSession, *, version: int,
     ) -> Envelope:
-        """Ask media to show a visit's photos and video to the client (when the visit ends, and
-        for what is added after), or keep them staff-only (an item hidden again). Versioned by
-        the visit, so media applies only the newest request for each file (W11-13)."""
+        """Ask media to show a visit's files to the client (when the visit ends, and for what is
+        shared after), or keep them staff-only (unshared or hidden again). `version` comes from
+        the visit's `visibility_seq`, so media applies only the newest request for each file
+        (W11-13, W11-28)."""
         return await self.emit(
             ev.MediaVisibilityRequested(
-                media_ids=media_ids, visibility=visibility, visibility_version=visit["version"],
+                media_ids=media_ids, visibility=visibility, visibility_version=version,
             ),
             type_="media.visibility_requested", key=visit["request_id"],
             resource=("visit", visit["_id"]), aggregate_version=visit["version"],

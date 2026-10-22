@@ -97,6 +97,73 @@
         "title": "AttachmentOut",
         "type": "object"
       },
+      "BoardCover": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "image",
+              "video"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_id",
+          "kind"
+        ],
+        "title": "BoardCover",
+        "type": "object"
+      },
+      "BoardSummaryOut": {
+        "description": "A station's board at a glance (the visit page, the End dialog's warning).",
+        "properties": {
+          "config": {
+            "title": "Config",
+            "type": "integer"
+          },
+          "cover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoardCover"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "incomplete_tasks": {
+            "title": "Incomplete Tasks",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "integer"
+          },
+          "recommendation": {
+            "title": "Recommendation",
+            "type": "integer"
+          },
+          "task": {
+            "title": "Task",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "note",
+          "task",
+          "recommendation",
+          "config",
+          "incomplete_tasks",
+          "cover"
+        ],
+        "title": "BoardSummaryOut",
+        "type": "object"
+      },
       "Body_import_stations_api_v1_stations_import_post": {
         "properties": {
           "sensors": {
@@ -123,53 +190,6 @@
           "stations"
         ],
         "title": "Body_import_stations_api_v1_stations_import_post",
-        "type": "object"
-      },
-      "CalibrationData": {
-        "additionalProperties": false,
-        "properties": {
-          "method": {
-            "default": "field_check",
-            "enum": [
-              "field_check",
-              "field_adjust"
-            ],
-            "title": "Method",
-            "type": "string"
-          },
-          "readings": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/Reading"
-            },
-            "maxItems": 50,
-            "title": "Readings",
-            "type": "array"
-          },
-          "reference_instrument": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ReferenceInstrument"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "result": {
-            "enum": [
-              "pass",
-              "adjusted",
-              "fail"
-            ],
-            "title": "Result",
-            "type": "string"
-          }
-        },
-        "required": [
-          "result"
-        ],
-        "title": "CalibrationData",
         "type": "object"
       },
       "CalibrationIn": {
@@ -439,133 +459,6 @@
         "title": "CancelIn",
         "type": "object"
       },
-      "ChecklistRowIn": {
-        "additionalProperties": false,
-        "properties": {
-          "ad_hoc": {
-            "default": false,
-            "title": "Ad Hoc",
-            "type": "boolean"
-          },
-          "item_id": {
-            "maxLength": 64,
-            "minLength": 1,
-            "title": "Item Id",
-            "type": "string"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "maxLength": 200,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "maxLength": 1000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "enum": [
-                  "ok",
-                  "fixed",
-                  "issue",
-                  "na"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result"
-          }
-        },
-        "required": [
-          "item_id"
-        ],
-        "title": "ChecklistRowIn",
-        "type": "object"
-      },
-      "ChecklistRowOut": {
-        "properties": {
-          "ad_hoc": {
-            "title": "Ad Hoc",
-            "type": "boolean"
-          },
-          "group": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Group"
-          },
-          "item_id": {
-            "title": "Item Id",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "enum": [
-                  "ok",
-                  "fixed",
-                  "issue",
-                  "na"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Result"
-          }
-        },
-        "required": [
-          "item_id",
-          "label",
-          "group",
-          "result",
-          "note",
-          "ad_hoc"
-        ],
-        "title": "ChecklistRowOut",
-        "type": "object"
-      },
       "CommentIn": {
         "additionalProperties": false,
         "description": "REQ-9, REQ-10. `id` is made on the device: sending it again returns the comment already\nposted. Files are PDFs uploaded for `comment:<request id>:<id>` and already checked.",
@@ -788,78 +681,6 @@
           }
         },
         "title": "Comms",
-        "type": "object"
-      },
-      "ConditionIn": {
-        "additionalProperties": false,
-        "properties": {
-          "notes": {
-            "anyOf": [
-              {
-                "maxLength": 4000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "operational",
-                  "degraded",
-                  "offline"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status"
-          }
-        },
-        "title": "ConditionIn",
-        "type": "object"
-      },
-      "ConditionOut": {
-        "properties": {
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "operational",
-                  "degraded",
-                  "offline"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status"
-          }
-        },
-        "required": [
-          "status",
-          "notes"
-        ],
-        "title": "ConditionOut",
         "type": "object"
       },
       "ConfigDiff": {
@@ -1496,79 +1317,6 @@
         "title": "DownloadOut",
         "type": "object"
       },
-      "DownloadedIn": {
-        "additionalProperties": false,
-        "properties": {
-          "done": {
-            "default": false,
-            "title": "Done",
-            "type": "boolean"
-          },
-          "from": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "From"
-          },
-          "to": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To"
-          }
-        },
-        "title": "DownloadedIn",
-        "type": "object"
-      },
-      "DownloadedOut": {
-        "properties": {
-          "done": {
-            "title": "Done",
-            "type": "boolean"
-          },
-          "from": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "From"
-          },
-          "to": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "To"
-          }
-        },
-        "required": [
-          "done"
-        ],
-        "title": "DownloadedOut",
-        "type": "object"
-      },
       "DueList": {
         "properties": {
           "items": {
@@ -1710,6 +1458,516 @@
         "title": "DueUnit",
         "type": "object"
       },
+      "ElementIn": {
+        "additionalProperties": false,
+        "description": "A new element. `id` is made on the device (rule 9): the same `id` and content again\nreturns the element that was made.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemBody"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "task",
+              "recommendation",
+              "config"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared"
+          },
+          "title": {
+            "maxLength": 160,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title"
+        ],
+        "title": "ElementIn",
+        "type": "object"
+      },
+      "ElementList": {
+        "properties": {
+          "can_add": {
+            "title": "Can Add",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ElementOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "can_add"
+        ],
+        "title": "ElementList",
+        "type": "object"
+      },
+      "ElementMediaIn": {
+        "additionalProperties": false,
+        "description": "Put an uploaded file on a section of the element. `media_id` is the upload's own id, so a\nretry attaches nothing twice.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "media_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Media Id",
+            "type": "string"
+          },
+          "section": {
+            "enum": [
+              "main",
+              "before",
+              "after"
+            ],
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_id",
+          "section"
+        ],
+        "title": "ElementMediaIn",
+        "type": "object"
+      },
+      "ElementMediaOut": {
+        "description": "A file on the element. Its thumbnail, link and processing state come from the media\nservice by `media_id`, so nothing here expires.",
+        "properties": {
+          "added_at": {
+            "format": "date-time",
+            "title": "Added At",
+            "type": "string"
+          },
+          "added_by": {
+            "$ref": "#/components/schemas/PersonOut"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "config"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          }
+        },
+        "required": [
+          "media_id",
+          "kind",
+          "filename",
+          "size_bytes",
+          "caption",
+          "captured_at",
+          "added_by",
+          "added_at",
+          "hidden"
+        ],
+        "title": "ElementMediaOut",
+        "type": "object"
+      },
+      "ElementMediaPatch": {
+        "additionalProperties": false,
+        "description": "Any of these. `caption: null` clears it; `hidden: true` keeps the file from the client.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          }
+        },
+        "title": "ElementMediaPatch",
+        "type": "object"
+      },
+      "ElementOut": {
+        "properties": {
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complete"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_version_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Config Version Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/PersonOut"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "task",
+              "recommendation",
+              "config"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/ElementMediaOut"
+              },
+              "type": "array"
+            },
+            "title": "Media",
+            "type": "object"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "request_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "visit_id",
+          "station_id",
+          "kind",
+          "title",
+          "description",
+          "items",
+          "complete",
+          "completed_at",
+          "priority",
+          "request_ref",
+          "config_version_ids",
+          "media",
+          "shared",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "version",
+          "can_edit"
+        ],
+        "title": "ElementOut",
+        "type": "object"
+      },
+      "ElementPut": {
+        "additionalProperties": false,
+        "description": "The whole editable content, with the version the editor was looking at (W11-26).",
+        "properties": {
+          "base_version": {
+            "minimum": 1.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemBody"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "title": {
+            "maxLength": 160,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "shared",
+          "base_version"
+        ],
+        "title": "ElementPut",
+        "type": "object"
+      },
       "EndIn": {
         "additionalProperties": false,
         "properties": {
@@ -1740,14 +1998,6 @@
               }
             ],
             "title": "Follow Up Notes"
-          },
-          "overrides": {
-            "items": {
-              "$ref": "#/components/schemas/Override"
-            },
-            "maxItems": 20,
-            "title": "Overrides",
-            "type": "array"
           }
         },
         "required": [
@@ -2146,10 +2396,6 @@
           "model": {
             "$ref": "#/components/schemas/ModelSummary"
           },
-          "needs_review": {
-            "title": "Needs Review",
-            "type": "boolean"
-          },
           "parameter": {
             "anyOf": [
               {
@@ -2180,86 +2426,56 @@
           "last_calibration_result",
           "calibration_due_at",
           "due_state",
-          "flags",
-          "needs_review"
+          "flags"
         ],
         "title": "InstalledUnit",
         "type": "object"
       },
-      "IssueIn": {
+      "ItemBody": {
         "additionalProperties": false,
         "properties": {
-          "description": {
-            "maxLength": 1000,
-            "title": "Description",
-            "type": "string"
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
           },
           "id": {
             "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "title": "Id",
             "type": "string"
           },
-          "severity": {
-            "default": "medium",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ],
-            "title": "Severity",
+          "text": {
+            "maxLength": 400,
+            "title": "Text",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "description"
+          "text"
         ],
-        "title": "IssueIn",
-        "type": "object"
-      },
-      "ItemIn": {
-        "additionalProperties": false,
-        "properties": {
-          "help": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Help"
-          },
-          "id": {
-            "anyOf": [
-              {
-                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
-          "label": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Label",
-            "type": "string"
-          }
-        },
-        "required": [
-          "label"
-        ],
-        "title": "ItemIn",
+        "title": "ItemBody",
         "type": "object"
       },
       "ItemOut": {
         "properties": {
-          "help": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "done_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done At"
+          },
+          "done_by": {
             "anyOf": [
               {
                 "type": "string"
@@ -2268,21 +2484,23 @@
                 "type": "null"
               }
             ],
-            "title": "Help"
+            "title": "Done By"
           },
           "id": {
             "title": "Id",
             "type": "string"
           },
-          "label": {
-            "title": "Label",
+          "text": {
+            "title": "Text",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "label",
-          "help"
+          "text",
+          "done",
+          "done_by",
+          "done_at"
         ],
         "title": "ItemOut",
         "type": "object"
@@ -2385,80 +2603,6 @@
           }
         },
         "title": "Logger",
-        "type": "object"
-      },
-      "MediaIn": {
-        "additionalProperties": false,
-        "description": "Put an uploaded file on a station. `media_id` is the upload's own id, so a retry after a\nlost answer attaches nothing twice.",
-        "properties": {
-          "caption": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Caption"
-          },
-          "captured_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Captured At"
-          },
-          "media_id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "title": "Media Id",
-            "type": "string"
-          },
-          "phase": {
-            "title": "Phase",
-            "type": "string"
-          }
-        },
-        "required": [
-          "media_id",
-          "phase"
-        ],
-        "title": "MediaIn",
-        "type": "object"
-      },
-      "MediaPatch": {
-        "additionalProperties": false,
-        "description": "Any of these. `caption: null` clears it; `hidden: true` keeps the item from the client.",
-        "properties": {
-          "caption": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Caption"
-          },
-          "hidden": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Hidden"
-          }
-        },
-        "title": "MediaPatch",
         "type": "object"
       },
       "Milestones": {
@@ -2616,55 +2760,22 @@
         "title": "OrgOption",
         "type": "object"
       },
-      "Override": {
-        "additionalProperties": false,
-        "description": "VIS-6: a station ended without a Before or After image, with the reason (W12).",
+      "PersonOut": {
         "properties": {
-          "reason": {
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Reason",
-            "type": "string"
-          },
-          "station_id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "title": "Station Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "station_id",
-          "reason"
-        ],
-        "title": "Override",
-        "type": "object"
-      },
-      "PartIn": {
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "maxLength": 200,
-            "title": "Description",
-            "type": "string"
-          },
           "id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
             "title": "Id",
             "type": "string"
           },
-          "quantity": {
-            "default": 1,
-            "maximum": 999.0,
-            "minimum": 1.0,
-            "title": "Quantity",
-            "type": "integer"
+          "name": {
+            "title": "Name",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "description"
+          "name"
         ],
-        "title": "PartIn",
+        "title": "PersonOut",
         "type": "object"
       },
       "PersonRef": {
@@ -3451,6 +3562,24 @@
         "title": "RequestPatch",
         "type": "object"
       },
+      "RequestRefOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ref"
+        ],
+        "title": "RequestRefOut",
+        "type": "object"
+      },
       "RequestStation": {
         "properties": {
           "code": {
@@ -3574,85 +3703,6 @@
         "title": "RequestSummary",
         "type": "object"
       },
-      "Resolved": {
-        "description": "What a visit to this station is given (W10-11).",
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ResolvedItem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "station_id": {
-            "title": "Station Id",
-            "type": "string"
-          },
-          "station_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Station Type"
-          }
-        },
-        "required": [
-          "station_id",
-          "station_type",
-          "items"
-        ],
-        "title": "Resolved",
-        "type": "object"
-      },
-      "ResolvedItem": {
-        "properties": {
-          "group": {
-            "title": "Group",
-            "type": "string"
-          },
-          "help": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Help"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "template_id": {
-            "title": "Template Id",
-            "type": "string"
-          },
-          "template_version": {
-            "title": "Template Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "label",
-          "help",
-          "group",
-          "template_id",
-          "template_version"
-        ],
-        "title": "ResolvedItem",
-        "type": "object"
-      },
       "Scope": {
         "enum": [
           "model",
@@ -3660,121 +3710,6 @@
         ],
         "title": "Scope",
         "type": "string"
-      },
-      "SensorActionIn": {
-        "additionalProperties": false,
-        "properties": {
-          "action": {
-            "enum": [
-              "replace",
-              "calibrate",
-              "clean",
-              "repair",
-              "remove",
-              "install"
-            ],
-            "title": "Action",
-            "type": "string"
-          },
-          "calibration": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CalibrationData"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "title": "Id",
-            "type": "string"
-          },
-          "new_serial": {
-            "anyOf": [
-              {
-                "maxLength": 80,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "New Serial"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "maxLength": 1000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
-          },
-          "old_serial": {
-            "anyOf": [
-              {
-                "maxLength": 80,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Old Serial"
-          },
-          "parameter": {
-            "anyOf": [
-              {
-                "maxLength": 40,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameter"
-          },
-          "removal_reason": {
-            "anyOf": [
-              {
-                "enum": [
-                  "faulty",
-                  "calibration",
-                  "retired",
-                  "other"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Removal Reason"
-          },
-          "sensor_model_id": {
-            "anyOf": [
-              {
-                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sensor Model Id"
-          }
-        },
-        "required": [
-          "id",
-          "action"
-        ],
-        "title": "SensorActionIn",
-        "type": "object"
       },
       "SensorModelIn": {
         "additionalProperties": false,
@@ -4159,10 +4094,6 @@
           "model": {
             "$ref": "#/components/schemas/ModelSummary"
           },
-          "needs_review": {
-            "title": "Needs Review",
-            "type": "boolean"
-          },
           "notes": {
             "anyOf": [
               {
@@ -4226,7 +4157,6 @@
           "last_calibration_result",
           "calibration_due_at",
           "due_state",
-          "needs_review",
           "flags",
           "notes",
           "version",
@@ -4395,10 +4325,6 @@
           "model": {
             "$ref": "#/components/schemas/ModelSummary"
           },
-          "needs_review": {
-            "title": "Needs Review",
-            "type": "boolean"
-          },
           "notes": {
             "anyOf": [
               {
@@ -4462,7 +4388,6 @@
           "last_calibration_result",
           "calibration_due_at",
           "due_state",
-          "needs_review",
           "flags",
           "notes",
           "version",
@@ -4527,17 +4452,6 @@
               }
             ],
             "title": "Model Id"
-          },
-          "needs_review": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Needs Review"
           },
           "notes": {
             "anyOf": [
@@ -5655,210 +5569,6 @@
         "title": "StationSummary",
         "type": "object"
       },
-      "TemplateIn": {
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ItemIn"
-            },
-            "maxItems": 60,
-            "minItems": 1,
-            "title": "Items",
-            "type": "array"
-          },
-          "name": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          },
-          "sensor_model_id": {
-            "anyOf": [
-              {
-                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sensor Model Id"
-          },
-          "station_type": {
-            "anyOf": [
-              {
-                "maxLength": 60,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Station Type"
-          }
-        },
-        "required": [
-          "name",
-          "items"
-        ],
-        "title": "TemplateIn",
-        "type": "object"
-      },
-      "TemplateList": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/TemplateOut"
-            },
-            "title": "Items",
-            "type": "array"
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "title": "TemplateList",
-        "type": "object"
-      },
-      "TemplateOut": {
-        "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "is_current": {
-            "title": "Is Current",
-            "type": "boolean"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ItemOut"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "sensor_model_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sensor Model Id"
-          },
-          "sensor_model_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sensor Model Name"
-          },
-          "station_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Station Type"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "station_type",
-          "sensor_model_id",
-          "sensor_model_name",
-          "version",
-          "is_current",
-          "active",
-          "items",
-          "created_at"
-        ],
-        "title": "TemplateOut",
-        "type": "object"
-      },
-      "TemplatePatch": {
-        "additionalProperties": false,
-        "description": "`version` is the version the editor was looking at: if someone saved a newer one, 409.",
-        "properties": {
-          "active": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active"
-          },
-          "items": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/ItemIn"
-                },
-                "maxItems": 60,
-                "minItems": 1,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Items"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "version"
-        ],
-        "title": "TemplatePatch",
-        "type": "object"
-      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -6047,84 +5757,6 @@
           "stations"
         ],
         "title": "VisitIn",
-        "type": "object"
-      },
-      "VisitMediaOut": {
-        "description": "A photo or video on a station of the visit. The file itself (thumbnail, link, processing\nstate) comes from the media service by `media_id`, so nothing here expires.",
-        "properties": {
-          "added_at": {
-            "format": "date-time",
-            "title": "Added At",
-            "type": "string"
-          },
-          "added_by": {
-            "$ref": "#/components/schemas/VisitPersonOut"
-          },
-          "caption": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Caption"
-          },
-          "captured_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Captured At"
-          },
-          "filename": {
-            "title": "Filename",
-            "type": "string"
-          },
-          "hidden": {
-            "title": "Hidden",
-            "type": "boolean"
-          },
-          "kind": {
-            "enum": [
-              "image",
-              "video"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "media_id": {
-            "title": "Media Id",
-            "type": "string"
-          },
-          "phase": {
-            "enum": [
-              "before",
-              "during",
-              "after"
-            ],
-            "title": "Phase",
-            "type": "string"
-          }
-        },
-        "required": [
-          "media_id",
-          "phase",
-          "kind",
-          "filename",
-          "caption",
-          "captured_at",
-          "added_by",
-          "added_at",
-          "hidden"
-        ],
-        "title": "VisitMediaOut",
         "type": "object"
       },
       "VisitOut": {
@@ -6508,6 +6140,9 @@
             ],
             "title": "Arrived At"
           },
+          "board": {
+            "$ref": "#/components/schemas/BoardSummaryOut"
+          },
           "departed_at": {
             "anyOf": [
               {
@@ -6519,13 +6154,6 @@
               }
             ],
             "title": "Departed At"
-          },
-          "media": {
-            "items": {
-              "$ref": "#/components/schemas/VisitMediaOut"
-            },
-            "title": "Media",
-            "type": "array"
           },
           "owner": {
             "$ref": "#/components/schemas/VisitPersonOut"
@@ -6566,16 +6194,6 @@
               }
             ],
             "title": "Time Zone"
-          },
-          "work": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -6587,298 +6205,9 @@
           "arrived_at",
           "departed_at",
           "actions",
-          "work",
-          "media"
+          "board"
         ],
         "title": "VisitStationOut",
-        "type": "object"
-      },
-      "WorkConfigVersionIn": {
-        "additionalProperties": false,
-        "properties": {
-          "files": {
-            "items": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "type": "string"
-            },
-            "maxItems": 20,
-            "title": "Files",
-            "type": "array"
-          },
-          "id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "title": "Id",
-            "type": "string"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "maxLength": 1000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          }
-        },
-        "required": [
-          "id",
-          "files"
-        ],
-        "title": "WorkConfigVersionIn",
-        "type": "object"
-      },
-      "WorkIn": {
-        "additionalProperties": false,
-        "description": "The record whole, with the version the editor was looking at.",
-        "properties": {
-          "base_version": {
-            "minimum": 0.0,
-            "title": "Base Version",
-            "type": "integer"
-          },
-          "checklist": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/ChecklistRowIn"
-            },
-            "maxItems": 200,
-            "title": "Checklist",
-            "type": "array"
-          },
-          "condition_on_arrival": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ConditionIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "condition_on_departure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ConditionIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "config_versions": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/WorkConfigVersionIn"
-            },
-            "title": "Config Versions",
-            "type": "array"
-          },
-          "data_downloaded": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DownloadedIn"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "device_id": {
-            "anyOf": [
-              {
-                "maxLength": 64,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Device Id"
-          },
-          "issues_found": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/IssueIn"
-            },
-            "title": "Issues Found",
-            "type": "array"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "maxLength": 4000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
-          "parts_used": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/PartIn"
-            },
-            "title": "Parts Used",
-            "type": "array"
-          },
-          "sensor_actions": {
-            "default": [],
-            "items": {
-              "$ref": "#/components/schemas/SensorActionIn"
-            },
-            "title": "Sensor Actions",
-            "type": "array"
-          }
-        },
-        "required": [
-          "base_version"
-        ],
-        "title": "WorkIn",
-        "type": "object"
-      },
-      "WorkOut": {
-        "description": "A station's work record as staff see it. Clients never get one (rule 6).",
-        "properties": {
-          "checklist": {
-            "items": {
-              "$ref": "#/components/schemas/ChecklistRowOut"
-            },
-            "title": "Checklist",
-            "type": "array"
-          },
-          "condition_on_arrival": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ConditionOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "condition_on_departure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ConditionOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "config_versions": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Config Versions",
-            "type": "array"
-          },
-          "data_downloaded": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DownloadedOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "device_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Device Id"
-          },
-          "issues_found": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Issues Found",
-            "type": "array"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
-          },
-          "parts_used": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Parts Used",
-            "type": "array"
-          },
-          "sensor_actions": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "title": "Sensor Actions",
-            "type": "array"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          },
-          "updated_by": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated By"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "version",
-          "updated_by",
-          "updated_at",
-          "device_id",
-          "condition_on_arrival",
-          "checklist",
-          "sensor_actions",
-          "config_versions",
-          "parts_used",
-          "issues_found",
-          "data_downloaded",
-          "condition_on_departure",
-          "notes"
-        ],
-        "title": "WorkOut",
         "type": "object"
       },
       "Workload": {
@@ -7171,272 +6500,6 @@
         "summary": "Calibration Due",
         "tags": [
           "calibrations"
-        ]
-      }
-    },
-    "/api/v1/checklist-templates": {
-      "get": {
-        "description": "The current version of each template. Inactive ones too, for an admin who asks (`all`).",
-        "operationId": "list_templates_api_v1_checklist_templates_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "all",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "All",
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TemplateList"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "List Templates",
-        "tags": [
-          "checklists"
-        ]
-      },
-      "post": {
-        "description": "A new template for a station type, or an add-on for a sensor model.",
-        "operationId": "create_template_api_v1_checklist_templates_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TemplateIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TemplateOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Create Template",
-        "tags": [
-          "checklists"
-        ]
-      }
-    },
-    "/api/v1/checklist-templates/resolve": {
-      "get": {
-        "description": "What a visit to this station is given: its type's template, then an add-on for each\nsensor model installed there.",
-        "operationId": "resolve_for_station_api_v1_checklist_templates_resolve_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "station_id",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "title": "Station Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Resolved"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Resolve For Station",
-        "tags": [
-          "checklists"
-        ]
-      }
-    },
-    "/api/v1/checklist-templates/{id}": {
-      "get": {
-        "description": "The current version, or an older one by number (what a visit copied).",
-        "operationId": "get_template_api_v1_checklist_templates__id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "title": "Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "version",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Version"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TemplateOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Get Template",
-        "tags": [
-          "checklists"
-        ]
-      },
-      "patch": {
-        "description": "Save the next version (name, items, or active). Nothing changed writes nothing.",
-        "operationId": "change_template_api_v1_checklist_templates__id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "title": "Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TemplatePatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TemplateOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Change Template",
-        "tags": [
-          "checklists"
         ]
       }
     },
@@ -9301,22 +8364,6 @@
           },
           {
             "in": "query",
-            "name": "needs_review",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Needs Review"
-            }
-          },
-          {
-            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -9488,7 +8535,7 @@
         ]
       },
       "patch": {
-        "description": "Serial and model corrections (SEN-5 review), status in or out of stock, the interval\noverride (CAL-3), notes. Installing and removing have their own actions.",
+        "description": "Serial and model corrections, status in or out of stock, the interval\noverride (CAL-3), notes. Installing and removing have their own actions.",
         "operationId": "patch_unit_api_v1_sensor_units__id__patch",
         "parameters": [
           {
@@ -10920,7 +9967,7 @@
     },
     "/api/v1/visits/{id}/end": {
       "post": {
-        "description": "VIS-9: end the visit and say whether another is needed. If so the request goes back to\nAssigned to be scheduled again; if not it waits for the visit report (Phase 6). The VIS-6\ncheck of Before and After images arrives with media on visits (W12).",
+        "description": "VIS-9: end the visit and say whether another is needed. If so the request goes back to\nAssigned to be scheduled again; if not it waits for the visit report (Phase 6). Incomplete\ntasks are only a warning in the End dialog: an end synced from a phone can't answer a\nquestion, so the server never refuses it for them (W11-33).",
         "operationId": "end_visit_api_v1_visits__id__end_post",
         "parameters": [
           {
@@ -11223,10 +10270,67 @@
         ]
       }
     },
-    "/api/v1/visits/{id}/stations/{station_id}/media": {
+    "/api/v1/visits/{id}/stations/{station_id}/elements": {
+      "get": {
+        "description": "A station's board, newest first. A client sees the shared elements once the visit has\nended, and nothing before (W11-28).",
+        "operationId": "list_elements_api_v1_visits__id__stations__station_id__elements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Elements",
+        "tags": [
+          "visits"
+        ]
+      },
       "post": {
-        "description": "VIS-5: a photo or video, for a phase of the visit at this station.",
-        "operationId": "add_media_api_v1_visits__id__stations__station_id__media_post",
+        "description": "VIS-5, VIS-7: a Note, Task, Recommendation or Config on the station's board. Sending the\nsame `id` and content again returns the element that was made (200).",
+        "operationId": "add_element_api_v1_visits__id__stations__station_id__elements_post",
         "parameters": [
           {
             "in": "path",
@@ -11253,18 +10357,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MediaIn"
+                "$ref": "#/components/schemas/ElementIn"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VisitOut"
+                  "$ref": "#/components/schemas/ElementOut"
                 }
               }
             },
@@ -11286,16 +10390,16 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Add Media",
+        "summary": "Add Element",
         "tags": [
           "visits"
         ]
       }
     },
-    "/api/v1/visits/{id}/stations/{station_id}/media/{media_id}": {
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}": {
       "delete": {
-        "description": "Take a photo or video off the visit and delete the file: the person who added it, or an\nadmin, until the report locks the visit.",
-        "operationId": "remove_media_api_v1_visits__id__stations__station_id__media__media_id__delete",
+        "description": "Take an element off the board and delete its files. A tombstone stays, so a late save\nfrom another device cannot bring it back (W11-26). Deleting it again changes nothing.",
+        "operationId": "delete_element_api_v1_visits__id__stations__station_id__elements__element_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -11319,11 +10423,80 @@
           },
           {
             "in": "path",
-            "name": "media_id",
+            "name": "element_id",
             "required": true,
             "schema": {
               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "title": "Media Id",
+              "title": "Element Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "base_version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Base Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Element",
+        "tags": [
+          "visits"
+        ]
+      },
+      "get": {
+        "operationId": "get_element_api_v1_visits__id__stations__station_id__elements__element_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
               "type": "string"
             }
           }
@@ -11333,7 +10506,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VisitOut"
+                  "$ref": "#/components/schemas/ElementOut"
                 }
               }
             },
@@ -11355,14 +10528,249 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Remove Media",
+        "summary": "Get Element",
+        "tags": [
+          "visits"
+        ]
+      },
+      "put": {
+        "description": "The whole content, against `base_version` (W11-26). A save that says what is already\nsaved succeeds whatever its version: it is a retry after a lost answer.",
+        "operationId": "save_element_api_v1_visits__id__stations__station_id__elements__element_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Element",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media": {
+      "post": {
+        "description": "A photo, a video or (on Config) any file, for a section of the element.",
+        "operationId": "add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementMediaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Element Media",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}": {
+      "delete": {
+        "description": "Take a file off the element and delete it.",
+        "operationId": "remove_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Element Media",
         "tags": [
           "visits"
         ]
       },
       "patch": {
-        "description": "A caption, or hide an item from the client (W11-13) and show it again.",
-        "operationId": "change_media_api_v1_visits__id__stations__station_id__media__media_id__patch",
+        "description": "A caption, or hide a file from the client (W11-13) and show it again.",
+        "operationId": "change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -11381,6 +10789,16 @@
             "schema": {
               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
               "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
               "type": "string"
             }
           },
@@ -11399,7 +10817,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MediaPatch"
+                "$ref": "#/components/schemas/ElementMediaPatch"
               }
             }
           },
@@ -11410,7 +10828,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VisitOut"
+                  "$ref": "#/components/schemas/ElementOut"
                 }
               }
             },
@@ -11432,76 +10850,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Change Media",
-        "tags": [
-          "visits"
-        ]
-      }
-    },
-    "/api/v1/visits/{id}/stations/{station_id}/work": {
-      "put": {
-        "description": "VIS-7: the owner saves what was found and done at the station.",
-        "operationId": "save_work_api_v1_visits__id__stations__station_id__work_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "title": "Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "station_id",
-            "required": true,
-            "schema": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-              "title": "Station Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WorkIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VisitOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Save Work",
+        "summary": "Change Element Media",
         "tags": [
           "visits"
         ]
