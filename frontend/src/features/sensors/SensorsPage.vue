@@ -30,14 +30,14 @@
     <PaneContent pin>
       <div class="flex flex-col gap-3 px-3">
         <v-text-field
-          aria-label="Search by make, model or parameter"
+          :aria-label="filters.review ? 'Search by serial, model or station' : 'Search by make, model or parameter'"
           autocomplete="off"
           class="px-1"
           clearable
           hide-details
           :model-value="filters.q"
           name="q"
-          placeholder="Search make, model or parameter"
+          :placeholder="filters.review ? 'Search serial, model or station' : 'Search make, model or parameter'"
           :prepend-inner-icon="mdiMagnify"
           spellcheck="false"
           type="search"
@@ -52,9 +52,29 @@
           @click="addModel"
         >Add a model</v-btn>
 
-        <div aria-label="Filter by kind of part" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
+        <div aria-label="Filter the catalogue" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
           <button
-            v-for="k in kindFilters"
+            v-if="filters.review"
+            class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-surface-300 px-3 text-sm font-medium text-surface-900"
+            type="button"
+            @click="setFilters({ review: false })"
+          >All units</button>
+
+          <button
+            v-if="reviewUnits.length > 0 || filters.review"
+            :aria-pressed="filters.review"
+            class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium"
+            :class="filters.review ? 'border-transparent bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-100' : 'border-surface-300 text-surface-900'"
+            type="button"
+            @click="setFilters({ review: !filters.review })"
+          >
+            <v-icon :icon="mdiFlagOutline" size="16" />
+            Needs review
+            <span class="text-xs tabular-nums opacity-80">{{ reviewUnits.length }}</span>
+          </button>
+
+          <button
+            v-for="k in filters.review ? [] : kindFilters"
             :key="k.value"
             :aria-pressed="filters.kind === k.value"
             class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium"
@@ -68,7 +88,21 @@
         </div>
 
         <!-- From 768 px the list is here; on phones it is the view, under the pinned header -->
-        <p v-if="mdAndUp && !loading && !loadError && shown.length === 0" class="m-0 px-2 text-sm text-surface-600">No models match.</p>
+        <template v-if="filters.review && mdAndUp">
+          <p v-if="shownReview.length === 0" class="m-0 px-2 text-sm text-surface-600">{{ reviewUnits.length === 0 ? 'No units are waiting for a check.' : 'No units match.' }}</p>
+
+          <ul v-else aria-label="Units that need review" class="m-0 flex list-none flex-col gap-1 p-0">
+            <ReviewRow
+              v-for="u in shownReview"
+              :key="u.id"
+              :active="u.id === unitId"
+              :to="reviewLink(u)"
+              :unit="u"
+            />
+          </ul>
+        </template>
+
+        <p v-else-if="mdAndUp && !loading && !loadError && shown.length === 0" class="m-0 px-2 text-sm text-surface-600">No models match.</p>
 
         <ul v-else-if="mdAndUp" aria-label="Sensor models" class="m-0 flex list-none flex-col gap-1 p-0">
           <ModelRow
@@ -99,16 +133,32 @@
       <ModelUnits
         :can-write="canWrite"
         :error="unitsError"
+        :focus="unitId"
         :model="selected"
         :units="units"
         @add="addUnit"
         @edit="editUnit"
+        @reviewed="onUnitsChanged"
       />
     </div>
 
     <!-- Phones: the list, which slides up under the pinned header's curve -->
     <template v-else-if="!mdAndUp && !modelId">
-      <p v-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600">No models match.</p>
+      <template v-if="filters.review">
+        <p v-if="shownReview.length === 0" class="m-0 py-8 text-center text-surface-600">{{ reviewUnits.length === 0 ? 'No units are waiting for a check.' : 'No units match.' }}</p>
+
+        <ul v-else aria-label="Units that need review" class="m-0 flex list-none flex-col gap-1 p-0">
+          <ReviewRow
+            v-for="u in shownReview"
+            :key="u.id"
+            :active="false"
+            :to="reviewLink(u)"
+            :unit="u"
+          />
+        </ul>
+      </template>
+
+      <p v-else-if="shown.length === 0" class="m-0 py-8 text-center text-surface-600">No models match.</p>
 
       <ul v-else aria-label="Sensor models" class="m-0 flex list-none flex-col gap-1 p-0">
         <ModelRow
@@ -128,8 +178,8 @@
 
     <div v-else class="flex flex-col items-center gap-2 py-14 text-center">
       <v-icon class="text-surface-500" :icon="icons.sensor" size="40" />
-      <h2 class="m-0 text-h3 text-surface-900">Choose a sensor model</h2>
-      <p class="m-0 max-w-sm text-sm text-surface-600">Its photos, specifications, datasheets and manuals, and every unit of it, are here.</p>
+      <h2 class="m-0 text-h3 text-surface-900">{{ filters.review ? 'Choose a unit to check' : 'Choose a sensor model' }}</h2>
+      <p class="m-0 max-w-sm text-sm text-surface-600">{{ filters.review ? 'Units added from the field are listed on the left. Open one, check its serial and details, then mark it as reviewed.' : 'Its photos, specifications, datasheets and manuals, and every unit of it, are here.' }}</p>
     </div>
 
     <ModelFormDialog
@@ -156,7 +206,7 @@
 <script lang="ts" setup>
   import type { SensorFilters } from './sensors'
   import type { SensorModelOut, SensorUnitOut } from '@/api/models'
-  import { mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
+  import { mdiFlagOutline, mdiMagnify, mdiPencilOutline, mdiPlus } from '@mdi/js'
   import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
@@ -177,7 +227,8 @@
   import ModelSpecs from './ModelSpecs.vue'
   import ModelUnits from './ModelUnits.vue'
   import { forgetPhotoLinks } from './photoLinks'
-  import { kindCounts, kindFilters, matchesModel, sensorFiltersFrom, sensorQueryFrom } from './sensors'
+  import ReviewRow from './ReviewRow.vue'
+  import { kindCounts, kindFilters, matchesModel, matchesReviewUnit, sensorFiltersFrom, sensorQueryFrom } from './sensors'
   import UnitFormDialog from './UnitFormDialog.vue'
 
   // /sensors and /sensors/:id (AFD §3; PRD CAL-1, DOC-1): the catalogue of models with their photos,
@@ -192,11 +243,14 @@
   const loading = ref(true)
   const loadError = ref<string | null>(null)
   const units = ref<SensorUnitOut[] | null>(null)
+  /** Units made from a serial the field entered, waiting for a check (SEN-5). */
+  const reviewUnits = ref<SensorUnitOut[]>([])
   const unitsError = ref<string | null>(null)
   /** Bumped when photos were added from the model form, so the gallery looks again. */
   const photosVersion = ref(0)
 
   const modelId = computed(() => typeof route.params.id === 'string' && route.params.id ? route.params.id : null)
+  const unitId = computed(() => typeof route.query.unit === 'string' && route.query.unit ? route.query.unit : null)
   const open = computed(() => modelId.value !== null)
   usePaneSelection(() => open.value)
 
@@ -204,6 +258,7 @@
   const filters = computed(() => sensorFiltersFrom(route.query))
   const listQuery = computed(() => sensorQueryFrom(filters.value))
   const shown = computed(() => models.value.filter(m => matchesModel(m, filters.value)))
+  const shownReview = computed(() => reviewUnits.value.filter(u => matchesReviewUnit(u, filters.value.q)))
   const counts = computed(() => kindCounts(models.value))
   const selected = computed(() => models.value.find(m => m.id === modelId.value) ?? null)
   const summary = computed(() => loading.value || loadError.value ? undefined : `${models.value.length} ${models.value.length === 1 ? 'model' : 'models'} in the catalogue`)
@@ -226,6 +281,19 @@
     } finally {
       loading.value = false
     }
+  }
+
+  /** A missed look leaves the list as it was: the count is a convenience, not the page. */
+  async function loadReview (): Promise<void> {
+    try {
+      reviewUnits.value = (await sensorUnitsApi.list({ needs_review: true, limit: 200 })).items
+    } catch {
+      // Keep what is on screen
+    }
+  }
+
+  function reviewLink (unit: SensorUnitOut) {
+    return { name: 'sensors', params: { id: unit.model.id }, query: { ...listQuery.value, unit: unit.id } }
   }
 
   async function loadUnits (id: string): Promise<void> {
@@ -294,10 +362,13 @@
     if (modelId.value) {
       await loadUnits(modelId.value)
     }
-    await loadModels()
+    await Promise.all([loadModels(), loadReview()])
   }
 
-  onMounted(loadModels)
+  onMounted(() => {
+    void loadModels()
+    void loadReview()
+  })
   // A ten-minute photo link must not outlive the page: the next person to sign in on this device
   // starts with none
   onBeforeUnmount(forgetPhotoLinks)

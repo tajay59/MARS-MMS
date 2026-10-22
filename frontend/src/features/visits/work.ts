@@ -153,6 +153,47 @@ export function checklistSummary (rows: readonly { result: string | null }[]): s
   return parts.join(', ')
 }
 
+export interface ChecklistGroup {
+  /** The heading above the rows; null for rows with none. */
+  title: string | null
+  rows: WorkOut['checklist']
+}
+
+/**
+ * The checklist as it reads: the template's rows under their own headings in the order the template
+ * gave them, then the items the technician added on the visit (VIS-8) under one heading.
+ */
+export function checklistGroups (rows: WorkOut['checklist']): ChecklistGroup[] {
+  const groups: ChecklistGroup[] = []
+  for (const row of rows.filter(r => !r.ad_hoc)) {
+    const title = row.group ?? null
+    const last = groups.at(-1)
+    if (last && last.title === title) {
+      last.rows.push(row)
+    } else {
+      groups.push({ title, rows: [row] })
+    }
+  }
+  const added = rows.filter(r => r.ad_hoc)
+  if (added.length > 0) {
+    groups.push({ title: 'Added on the visit', rows: added })
+  }
+  return groups
+}
+
+/** "Yes, 1 Oct 2026 to 22 Oct 2026", "Yes", or "No". */
+export function downloadedSentence (
+  data: WorkOut['data_downloaded'], formatDay: (iso: string) => string,
+): string {
+  if (!data || !data.done) {
+    return 'No'
+  }
+  if (data.from && data.to) {
+    return `Yes, ${formatDay(data.from)} to ${formatDay(data.to)}`
+  }
+  return 'Yes'
+}
+
 /** The server's detail with a full stop, so another sentence can follow it. */
 function sentence (detail: string): string {
   return /[.!?]$/.test(detail) ? detail : `${detail}.`

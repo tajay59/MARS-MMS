@@ -95,7 +95,7 @@ export const calibrationsApi = {
 
 export const sensorUnitsApi = {
   get: (id: string, signal?: AbortSignal) => api.get<SensorUnitDetail>(`/sensor-units/${id}`, { signal }),
-  list: (query: { model_id?: string, station_id?: string, status?: string, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
+  list: (query: { model_id?: string, station_id?: string, status?: string, needs_review?: boolean, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
     api.get<SensorUnitPage>('/sensor-units', { query: { ...query }, signal }),
   // Staff who write (technician, admin). A unit reaches a station only through install (SEN-2).
   create: (body: SensorUnitIn) => api.post<SensorUnitOut>('/sensor-units', body),

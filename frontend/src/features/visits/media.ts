@@ -1,5 +1,7 @@
 import type { VisitMedia, VisitOut } from '@/api/models'
 import type { CaptureTime } from '@/offline/exif'
+import { ApiError } from '@/api/problem'
+import { failureOf } from './failures'
 import { zonedToUtc } from './visits'
 
 /*
@@ -117,4 +119,15 @@ const REFUSALS: Record<string, string> = {
 /** The sentence for a refused add, caption, hide or remove, or null for anything unknown. */
 export function mediaRefusal (code: string): string | null {
   return REFUSALS[code] ?? null
+}
+
+/** What to tell the person when a change to a station's media fails. */
+export function mediaFailure (error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const known = mediaRefusal(error.code)
+    if (known) {
+      return known
+    }
+  }
+  return failureOf(error, fallback).message
 }

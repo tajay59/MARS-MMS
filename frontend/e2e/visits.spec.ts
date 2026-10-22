@@ -1,5 +1,4 @@
-import type { Browser, Page } from '@playwright/test'
-import { logIn, unique } from './requestFlows'
+import { claimedRequest, logIn, staffPage, unique } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
 /*
@@ -9,41 +8,6 @@ import { checkA11y, expect, test } from './support'
   notes; the lead starts it, each owner arrives and leaves their own station, and the lead ends it
   saying another visit is needed, which sends the request back to Assigned.
 */
-
-async function staffPage (browser: Browser, email: string): Promise<Page> {
-  const page = await (await browser.newContext({ ignoreHTTPSErrors: true })).newPage()
-  await logIn(page, email)
-  return page
-}
-
-/** A client asks about Kingston Harbour and Montego Bay Airport, an admin approves, Tech 1 claims. Returns the request's path. */
-async function claimedRequest (browser: Browser, title: string): Promise<string> {
-  const client = await staffPage(browser, 'client.a1@example.org')
-  await client.goto('/requests/new')
-  for (const code of ['JM-KIN-001', 'JM-MBJ-002']) {
-    await client.getByLabel('Which stations is this about?').fill(code)
-    await client.getByRole('option', { name: new RegExp(code) }).click()
-  }
-  await client.getByLabel('Title', { exact: true }).fill(title)
-  await client.getByLabel('Description', { exact: true }).fill('Readings stopped on Saturday at both sites.')
-  await client.getByRole('button', { name: 'Submit request' }).click()
-  await expect(client).toHaveURL(/\/requests\/[\da-f-]{36}$/)
-  const path = new URL(client.url()).pathname
-  await client.context().close()
-
-  const admin = await staffPage(browser, 'admin@example.org')
-  await admin.goto(path)
-  await admin.getByRole('button', { name: 'Approve' }).click()
-  await expect(admin.getByText('Request approved. It is now in the queue.')).toBeVisible()
-  await admin.context().close()
-
-  const tech = await staffPage(browser, 'tech1@example.org')
-  await tech.goto(path)
-  await tech.getByRole('button', { name: 'Claim' }).click()
-  await expect(tech.getByText(/You claimed/)).toBeVisible()
-  await tech.context().close()
-  return path
-}
 
 test('A technician plans a visit with a colleague as lead, and the lead runs it @REQ-VIS-1 @J5', async ({ watched: tech1, browser }) => {
   const title = unique('No readings')

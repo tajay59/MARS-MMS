@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, NetworkError } from '@/api/problem'
-import { actionSentence, actionSentences, checklistSummary, plain, workFailure } from '../work'
+import { actionSentence, actionSentences, checklistGroups, checklistSummary, downloadedSentence, plain, workFailure } from '../work'
 
 function problem (status: number, code: string, detail: string, extra: Record<string, unknown> = {}): ApiError {
   return new ApiError(status, { status, code, detail, ...extra })
@@ -94,5 +94,33 @@ describe('workFailure', () => {
     expect(workFailure(new NetworkError(new Error('offline'))).message).toContain('connection')
     expect(workFailure(new Error('boom')).message).toBe('Could not save the record. Try again.')
     expect(workFailure(problem(500, 'internal', 'x'), 'Try later').message).toBe('Try later')
+  })
+})
+
+describe('checklistGroups', () => {
+  const row = (id: string, group: string | null, adHoc = false) => ({ item_id: id, label: id, group, ad_hoc: adHoc, result: null, note: null })
+
+  it('keeps the template order under its headings and puts added items last', () => {
+    const groups = checklistGroups([row('a', null), row('b', null), row('c', 'Vaisala HMP155'), row('x', null, true), row('d', 'Vaisala HMP155')])
+    expect(groups.map(g => [g.title, g.rows.map(r => r.item_id)])).toEqual([
+      [null, ['a', 'b']],
+      ['Vaisala HMP155', ['c', 'd']],
+      ['Added on the visit', ['x']],
+    ])
+  })
+
+  it('is empty for an empty checklist', () => {
+    expect(checklistGroups([])).toEqual([])
+  })
+})
+
+describe('downloadedSentence', () => {
+  const day = (iso: string) => iso.slice(0, 10)
+
+  it('says yes with the dates, yes alone, or no', () => {
+    expect(downloadedSentence({ done: true, from: '2026-10-01T00:00:00Z', to: '2026-10-22T00:00:00Z' }, day)).toBe('Yes, 2026-10-01 to 2026-10-22')
+    expect(downloadedSentence({ done: true, from: null, to: null }, day)).toBe('Yes')
+    expect(downloadedSentence({ done: false, from: null, to: null }, day)).toBe('No')
+    expect(downloadedSentence(null, day)).toBe('No')
   })
 })
