@@ -77,6 +77,12 @@ jobs:
         working-directory: .
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-inter
 
+      # The media pipeline's tests make a real video and play it back with ffmpeg (media only).
+      - name: ffmpeg for the media pipeline
+        if: matrix.service == 'media'
+        working-directory: .
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
       - run: >-
           pip install -e ../../libs/mms_common -e ".[dev]"
           --config-settings editable_mode=compat

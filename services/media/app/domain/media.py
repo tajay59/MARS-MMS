@@ -93,6 +93,15 @@ DOCUMENT_TYPES: dict[str, str] = {  # extension -> Content-Type served on downlo
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
 }
+# Photos and video from phones (PRD MED-1, MED-2). What arrives is checked by name and by its first
+# bytes; what is shown is the processed copy, never the original.
+IMAGE_TYPES: dict[str, str] = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
+    ".heic": "image/heic", ".heif": "image/heif",
+}
+VIDEO_TYPES: dict[str, str] = {
+    ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm",
+}
 # Opened by the browser in place; everything else downloads (never HTML or SVG).
 INLINE = frozenset({".pdf", ".png", ".jpg", ".jpeg"})
 # Configuration sets hold logger programs and modem files with unpredictable names, so they
@@ -143,12 +152,17 @@ def check_name(kind: Kind, filename: str) -> str:
         if ext in BLOCKED:
             raise Rejected("bad_type", f"Files of type {ext} can't be uploaded")
         return ext if _EXT.match(ext) else ""
-    # Images and video arrive with Phase 4's pipeline.
-    return ext if _EXT.match(ext) else ""
+    allowed = IMAGE_TYPES if kind is Kind.IMAGE else VIDEO_TYPES
+    if ext not in allowed:
+        what = "a photo" if kind is Kind.IMAGE else "a video"
+        raise Rejected("bad_type", f"This must be {what}, not a {ext or '(no extension)'} file")
+    return ext
 
 
 def content_type(filename: str) -> str:
-    return DOCUMENT_TYPES.get(extension(filename), "application/octet-stream")
+    ext = extension(filename)
+    return (DOCUMENT_TYPES.get(ext) or IMAGE_TYPES.get(ext) or VIDEO_TYPES.get(ext)
+            or "application/octet-stream")
 
 
 def disposition(filename: str, *, inline: bool) -> str:
@@ -247,6 +261,31 @@ _MAGIC: dict[str, tuple[bytes, ...]] = {
     ".jpg": (b"\xff\xd8\xff",), ".jpeg": (b"\xff\xd8\xff",),
 }
 _TEXT = frozenset({".txt", ".csv"})
+# Boxes a phone's video starts with after its size (MP4, MOV); the brand follows `ftyp`.
+_ISO_BOXES = (b"ftyp", b"moov", b"mdat", b"wide", b"free", b"skip", b"pnot")
+_HEIF_BRANDS = (b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1", b"avif")
+
+
+_JPEG = bytes.fromhex("ffd8ff")
+_PNG = bytes.fromhex("89504e470d0a1a0a")
+_WEBM = bytes.fromhex("1a45dfa3")
+
+
+def _looks_like(ext: str, head: bytes) -> bool:
+    """The magic bytes of the photo and video types a phone makes."""
+    if ext in (".jpg", ".jpeg"):
+        return head.startswith(_JPEG)
+    if ext == ".png":
+        return head.startswith(_PNG)
+    if ext == ".webp":
+        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    if ext in (".heic", ".heif"):
+        return head[4:8] == b"ftyp" and head[8:12] in _HEIF_BRANDS
+    if ext in (".mp4", ".m4v", ".mov"):
+        return head[4:8] in _ISO_BOXES
+    if ext == ".webm":
+        return head.startswith(_WEBM)
+    return False
 
 
 def check_content(kind: Kind, filename: str, head: bytes) -> str | None:
@@ -256,6 +295,8 @@ def check_content(kind: Kind, filename: str, head: bytes) -> str | None:
     ext = extension(filename)
     if kind is Kind.CONFIG:
         return None
+    if kind in (Kind.IMAGE, Kind.VIDEO):
+        return None if _looks_like(ext, head) else f"the content is not a {ext} file"
     signatures = _MAGIC.get(ext)
     if signatures is not None:
         return None if head.startswith(signatures) else f"the content is not a {ext} file"

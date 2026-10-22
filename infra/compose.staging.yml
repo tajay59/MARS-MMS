@@ -50,8 +50,10 @@ services:
   media:
     mem_limit: 256m
 
+  # Photos need little; a phone video is decoded and encoded by ffmpeg, which peaks at a few
+  # hundred MB (W11 measures it; R7, R8). One video at a time, two threads.
   media-worker:
-    mem_limit: 256m
+    mem_limit: 640m
 
   # Label sheets: WeasyPrint needs about 150 MB while it draws, and the API alone far less.
   report:

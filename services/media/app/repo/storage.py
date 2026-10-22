@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -143,6 +144,33 @@ class Storage:
                 yield bytes(data)
         finally:
             body.close()
+
+    async def download_to(self, bucket: str, key: str, path: Path) -> None:
+        """The object saved to a file, for a tool that needs one (ffmpeg, Pillow)."""
+        try:
+            await asyncio.to_thread(self._s3.download_file, bucket, key, str(path))
+        except ClientError as e:
+            raise StorageError(_code(e)) from e
+
+    async def upload_file(self, bucket: str, key: str, path: Path, content_type: str) -> int:
+        """A file stored under `key` (multipart for a large one, handled by boto3); returns its
+        size."""
+        def send() -> int:
+            self._s3.upload_file(str(path), bucket, key, ExtraArgs={"ContentType": content_type})
+            return path.stat().st_size
+
+        try:
+            return await asyncio.to_thread(send)
+        except (ClientError, boto3.exceptions.S3UploadFailedError) as e:
+            raise StorageError(type(e).__name__) from e
+
+    async def put(self, bucket: str, key: str, data: bytes, content_type: str) -> None:
+        try:
+            await asyncio.to_thread(
+                self._s3.put_object, Bucket=bucket, Key=key, Body=data, ContentType=content_type
+            )
+        except ClientError as e:
+            raise StorageError(_code(e)) from e
 
     async def delete(self, bucket: str, key: str) -> None:
         try:

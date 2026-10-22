@@ -113,6 +113,26 @@ async def transition(
     return found
 
 
+async def purgeable(db: Db, ready_before: datetime, limit: int = 200) -> list[Doc]:
+    """Photos and video whose original is still stored although the copy has been ready since
+    before `ready_before` (30 days, TRD §10.1)."""
+    cursor = col(db).find({
+        "status": Status.READY.value, "kind": {"$in": ["image", "video"]},
+        "thumbnail_key": {"$type": "string"}, "original_purged_at": None,
+        "ready_at": {"$lt": ready_before},
+    }).limit(limit)
+    return [d async for d in cursor]
+
+
+async def mark_purged(db: Db, id_: str, now: datetime) -> Doc | None:
+    found: Doc | None = await col(db).find_one_and_update(
+        {"_id": id_, "original_purged_at": None},
+        {"$set": {"original_purged_at": now, "updated_at": now}, "$inc": {"version": 1}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return found
+
+
 async def set_caption(db: Db, id_: str, caption: str | None, now: datetime) -> Doc | None:
     found: Doc | None = await col(db).find_one_and_update(
         {"_id": id_, "status": {"$ne": Status.DELETED.value}},

@@ -2,6 +2,11 @@ FROM python:3.13-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 
+# ffmpeg makes the playable copy of a phone's video (TRD §10); photos use Pillow from pip.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Build context is the repository root (compose passes `context: ..`) so mms_common is available.
 COPY libs/mms_common /srv/libs/mms_common
 RUN pip install /srv/libs/mms_common

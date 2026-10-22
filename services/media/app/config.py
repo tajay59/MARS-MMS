@@ -46,10 +46,14 @@ class Settings(BaseSettings):
     part_url_ttl_s: int = 3600  # upload parts: 1 hour
     get_url_ttl_s: int = 600  # downloads: 10 minutes
 
-    # --- Uploads. The documents path ships in Phase 2; images and video follow in Phase 4.
-    enabled_kinds: tuple[str, ...] = ("pdf", "document", "config")
+    # --- Uploads. The documents path shipped in Phase 2; photos and video joined in Phase 4 (W11).
+    enabled_kinds: tuple[str, ...] = ("pdf", "document", "config", "image", "video")
     stale_upload_hours: int = 48  # abort_stale_uploads
     reconcile_after_minutes: int = 15  # re-enqueue media stuck in `uploaded`
+    # The worker shares a small host (R7, R8): one video at a time, few threads, a time limit.
+    video_threads: int = 2
+    video_timeout_s: int = 1800
+    work_dir: str = ""  # scratch space for ffmpeg; the system temp folder when empty
 
     # --- Virus scan (MED-3). `clamd` streams every file to ClamAV; `off` is for hosts too small
     # to run it (staging, TRD T8) and is refused in production. Files then carry

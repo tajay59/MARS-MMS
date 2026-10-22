@@ -64,7 +64,9 @@ class Emitter:
         self, doc: dict[str, Any], session: AsyncClientSession, before: dict[str, Any] | None
     ) -> Envelope:
         data = ev.MediaProcessed(
-            **_base(doc), scan_status=doc["scan_status"], checksum_sha256=doc["checksum_sha256"]
+            **_base(doc), scan_status=doc["scan_status"], checksum_sha256=doc["checksum_sha256"],
+            width=doc.get("width"), height=doc.get("height"), duration_s=doc.get("duration_s"),
+            captured_at=doc.get("captured_at"),
         )
         return await self._emit(data, "media.processed", doc, session, before)
 

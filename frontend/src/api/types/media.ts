@@ -175,6 +175,8 @@ export interface components {
         MediaDetail: {
             /** Caption */
             caption?: string | null;
+            /** Captured At */
+            captured_at?: string | null;
             /** Checksum Sha256 */
             checksum_sha256?: string | null;
             /**
@@ -182,10 +184,14 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Duration S */
+            duration_s?: number | null;
             /** Error */
             error?: string | null;
             /** Filename */
             filename: string;
+            /** Height */
+            height?: number | null;
             /** Id */
             id: string;
             /** Kind */
@@ -212,6 +218,8 @@ export interface components {
             };
             /** Visibility */
             visibility: string;
+            /** Width */
+            width?: number | null;
         };
         /**
          * MediaInfo
@@ -243,6 +251,8 @@ export interface components {
         MediaOut: {
             /** Caption */
             caption?: string | null;
+            /** Captured At */
+            captured_at?: string | null;
             /** Checksum Sha256 */
             checksum_sha256?: string | null;
             /**
@@ -250,10 +260,14 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Duration S */
+            duration_s?: number | null;
             /** Error */
             error?: string | null;
             /** Filename */
             filename: string;
+            /** Height */
+            height?: number | null;
             /** Id */
             id: string;
             /** Kind */
@@ -273,6 +287,8 @@ export interface components {
             updated_at: string;
             /** Visibility */
             visibility: string;
+            /** Width */
+            width?: number | null;
         };
         /** MediaPage */
         MediaPage: {
