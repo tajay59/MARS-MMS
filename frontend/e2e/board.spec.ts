@@ -172,7 +172,7 @@ test('A technician fills in a station’s board and the client sees what was sha
   await client.context().close()
 })
 
-test('The board on a phone: one column, a floating Add and a sheet that fills the screen @REQ-VIS-5 @phone', async ({ watched: page, browser }) => {
+test('A visit on a phone: stations, arrive, a board, depart and end in the field shell @REQ-VIS-5 @REQ-VIS-3 @J6 @phone', async ({ watched: page, browser }) => {
   test.setTimeout(240_000)
   const title = unique('Rain gauge')
   const path = await claimedRequest(browser, title)
@@ -184,13 +184,32 @@ test('The board on a phone: one column, a floating Add and a sheet that fills th
   await page.goto('/visits')
   await page.getByRole('list', { name: 'Visits' }).getByRole('link', { name: new RegExp(title) }).click()
   await page.getByRole('button', { name: 'Start visit' }).click()
-  await expect(page.getByText('Visit started. The request is In progress.')).toBeVisible()
+
+  // Starting carries the phone into the field shell: the stations, with the visit's one big action
+  await expect(page).toHaveURL(/\/visits\/[\da-f-]{36}\/field$/)
+  const visitField = new URL(page.url()).pathname
+  const stations = page.getByRole('list', { name: 'Stations' })
+  await expect(stations.getByRole('listitem')).toHaveCount(2)
+  await expect(page.getByRole('navigation', { name: 'Field' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'End visit' })).toBeVisible()
+  await checkA11y(page, '/visits/:id/field (stations, phone)')
+
+  // The visit page sends a phone back here while the visit is under way
+  await page.goto(visitField.replace('/field', ''))
+  await expect(page).toHaveURL(/\/field$/)
+
+  // Arriving opens the station's board
+  await stations.getByRole('listitem').first().getByRole('button', { name: 'Arrive' }).click()
+  await expect(page).toHaveURL(/\/field\?station=/)
+  await expect(page.getByRole('button', { name: 'Depart' })).toBeVisible()
+  await expect(page.getByText('Nothing recorded at this station yet')).toBeVisible()
+  await checkA11y(page, '/visits/:id/field (board, phone)')
 
   // The kinds come up from the bottom
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   const kinds = page.getByRole('dialog', { name: 'Add to the board' })
   await expect(kinds).toBeVisible()
-  await checkA11y(page, '/visits/:id (add sheet, phone)')
+  await checkA11y(page, '/visits/:id/field (add sheet, phone)')
   await kinds.getByRole('button', { name: /^Task/ }).click()
 
   // The task fills the screen
@@ -201,9 +220,26 @@ test('The board on a phone: one column, a floating Add and a sheet that fills th
   await sheet.getByRole('button', { name: 'Add item' }).click()
   await sheet.getByRole('checkbox', { name: 'Clear the funnel and the filter' }).check()
   await expect(sheet.getByText('Complete')).toBeVisible({ timeout: 15_000 })
-  await checkA11y(page, '/visits/:id (task sheet, phone)')
+  await checkA11y(page, '/visits/:id/field (task sheet, phone)')
   await sheet.getByRole('button', { name: 'Done' }).click()
   await expect(note(page, 'Clean the rain gauge funnel')).toContainText('Complete')
+
+  // Departing returns to the stations, which now say where the visit stands
+  await page.getByRole('button', { name: 'Depart' }).click()
+  await expect(page).toHaveURL(/\/field$/)
+  await expect(stations.getByRole('listitem').first()).toContainText('1 task')
+  await expect(stations.getByRole('listitem').first()).toContainText('left')
+
+  // The second station: the back arrow from a board returns to the list
+  await stations.getByRole('listitem').nth(1).getByRole('link').click()
+  await expect(page.getByText('Nothing recorded at this station yet')).toBeVisible()
+  await page.getByRole('link', { name: 'Back to the stations' }).click()
+  await expect(page).toHaveURL(/\/field$/)
+
+  // End visit: no open task, so no warning; the phone lands on Sync
+  await page.getByRole('button', { name: 'End visit' }).click()
+  await page.getByRole('dialog', { name: 'End visit' }).getByRole('button', { name: 'End visit' }).click()
+  await expect(page).toHaveURL(/\/sync$/)
 })
 
 test('A file keeps going up when the technician leaves the Visits page, and the Sync entry says so @REQ-VIS-5 @REQ-OFF-6', async ({ watched: page, browser }) => {

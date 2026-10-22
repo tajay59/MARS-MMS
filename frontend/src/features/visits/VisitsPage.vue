@@ -266,9 +266,10 @@
   import CancelVisitDialog from './CancelVisitDialog.vue'
   import ChangeOwnerDialog from './ChangeOwnerDialog.vue'
   import EndVisitDialog from './EndVisitDialog.vue'
-  import { failureOf, replaceVisit } from './failures'
+  import { replaceVisit } from './failures'
   import { forgetMediaLinks } from './mediaLinks'
   import RescheduleDialog from './RescheduleDialog.vue'
+  import { useVisitMoves } from './useVisitMoves'
   import VisitActions from './VisitActions.vue'
   import VisitCard from './VisitCard.vue'
   import VisitDetailView from './VisitDetailView.vue'
@@ -288,7 +289,6 @@
   const visits = ref<VisitOut[]>([])
   const loading = ref(true)
   const loadError = ref<string | null>(null)
-  const busy = ref<string | null>(null)
   const toast = reactive({ show: false, text: '' })
 
   const visitId = computed(() => typeof route.params.id === 'string' && route.params.id ? route.params.id : null)
@@ -474,44 +474,20 @@
       : 'Visit ended.', visit)
   }
 
-  async function move (key: string, run: () => Promise<VisitOut>, said: string): Promise<void> {
-    if (busy.value) {
-      return
-    }
-    busy.value = key
-    try {
-      changed(said, await run())
-    } catch (error) {
-      const result = failureOf(error, 'We couldn’t do that. Try again in a moment.')
-      say(result.message)
-      if (result.reload) {
-        await reloadDetail()
-      }
-    } finally {
-      busy.value = null
-    }
-  }
+  const { busy, start, restore, station } = useVisitMoves({
+    visit: () => detail.value,
+    changed,
+    say,
+    reload: reloadDetail,
+  })
 
-  async function start (): Promise<void> {
-    if (detail.value) {
-      const id = detail.value.id
-      await move('start', () => visitsApi.start(id), 'Visit started. The request is In progress.')
+  // Staff on a phone work a started visit in the field shell (W12; AFD J6): stations, then boards.
+  // The check is on what the page holds, so starting the visit here carries the person across.
+  watch([detail, mdAndUp], ([visit, wide]) => {
+    if (visit && visit.id === visitId.value && visit.status === 'started' && !wide && canAttend.value && !isClient.value) {
+      void router.replace({ name: 'visit-field', params: { id: visit.id } })
     }
-  }
-
-  async function restore (): Promise<void> {
-    if (detail.value) {
-      const id = detail.value.id
-      await move('restore', () => visitsApi.restore(id), 'Visit restored to planned.')
-    }
-  }
-
-  async function station (kind: 'arrive' | 'depart', stationId: string): Promise<void> {
-    if (detail.value) {
-      const id = detail.value.id
-      await move(`${kind}-${stationId}`, () => visitsApi[kind](id, stationId), kind === 'arrive' ? 'Arrival recorded.' : 'Departure recorded.')
-    }
-  }
+  }, { immediate: true })
 
   // --- Rows -------------------------------------------------------------------------------------
 

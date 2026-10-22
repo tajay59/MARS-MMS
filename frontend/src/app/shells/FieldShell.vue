@@ -1,7 +1,19 @@
 <template>
   <v-defaults-provider :defaults="fieldDefaults">
     <v-app-bar border="b" class="bg-surface" flat height="56">
-      <div class="flex w-full items-center gap-2 pl-[max(16px,env(safe-area-inset-left))] pr-[max(4px,env(safe-area-inset-right))]">
+      <div class="flex w-full items-center gap-2 pr-[max(4px,env(safe-area-inset-right))]" :class="fieldBar.back ? 'pl-[max(4px,env(safe-area-inset-left))]' : 'pl-[max(16px,env(safe-area-inset-left))]'">
+        <v-btn
+          v-if="fieldBar.back"
+          :active="false"
+          :aria-label="fieldBar.backLabel"
+          icon
+          :size="48"
+          :to="fieldBar.back"
+          variant="text"
+        >
+          <v-icon class="text-surface-700" :icon="mdiArrowLeft" />
+        </v-btn>
+
         <h1 class="m-0 grow truncate text-lg font-semibold text-surface-900">{{ title }}</h1>
         <SyncBadge />
       </div>
@@ -54,10 +66,12 @@
 </template>
 
 <script lang="ts" setup>
+  import { mdiArrowLeft } from '@mdi/js'
   import { computed, provide } from 'vue'
   import { useRoute } from 'vue-router'
   import { fieldMenu } from '@/app/navigation'
   import SyncBadge from '@/components/SyncBadge.vue'
+  import { fieldBar } from './fieldBar'
   import { shellKey } from './pane'
   import { tabDot, tabDown, tabIcon, tabItem, tabKey, tabLabel, tabUp } from './tabBar'
 
@@ -70,7 +84,7 @@
     navigate(event)
   }
 
-  const title = computed(() => route.meta.title ?? '')
+  const title = computed(() => fieldBar.title ?? route.meta.title ?? '')
 
   const fieldDefaults = {
     VBtn: { height: 48 },
