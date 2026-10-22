@@ -3,14 +3,15 @@
 
 | | |
 |---|---|
-| **Version** | 1.5 |
-| **Date** | 2026-10-18 |
+| **Version** | 1.6 |
+| **Date** | 2026-10-22 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0: five services and six databases; SeaweedFS instead of MinIO; Nginx instead of Kong; `org_id` copied onto sensor installations and calibrations (closes B2); model documents reached through operations (B4); files start staff-only (ADR-19); station owners on visits; offline profile and PIN verifier on the device; read models rebuilt by backfill. B3 closed by TRD §5 indexes; B5 and B6 recorded as decisions |
 | **Changes in 1.2** | Follows TRD 2.1 (auth as built): reset and invitation rows hold no token until the link is minted on send; the sealed refresh successor; `organizations.name_key`; the Redis access-token revocation list in the enforcement layers |
 | **Changes in 1.3** | auth's `settings` collection (one document, `branding`: the organization's Material 3 brand colours, decision W4-12); the PWA keeps its last copy in `localStorage` (`mms-branding`), with the per-device `mms-motion` setting |
 | **Changes in 1.5** | Follows TRD 2.7 (decision W5-8): auth's `organizations` gain `short_name` and `external_id` (unique where set), copied into operations' `organizations`; `stations.external_id` (unique where set). Imported from the organization's existing system; its MQTT credentials are never copied |
 | **Changes in 1.4** | The stations module as built (TRD 2.6): operations' `organizations` copy (name, country, status) from auth's events and snapshot; `sensor_models.key` unique; `installations.source_action_id` unique only where set |
+| **Changes in 1.6** | Follows TRD 2.16 (decisions W11-16 to W11-35, 2026-10-22): the visit board. New collection `visit_elements` (Notes, Tasks, Recommendations, Config; one document per element, versioned, tombstoned on delete; client scope `org_id` + `shared` + an ended visit). Removed: the embedded work record (`site_visits.stations[].work` and `media[]`), `sensor_applications`, `checklist_templates` and `sensor_units.needs_review`. Media owners name an element and its section |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) (App Flow), [DBD.md](DBD.md) (Design Brief) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/bfd6c029-c1d7-4fc0-a6fe-b75502654c02) (1.0; superseded by this file) |
 
@@ -49,7 +50,7 @@ Object keys are never reused and no API overwrites a finalized report or a confi
 | --- | --- | --- |
 | Kafka (4 topics, 14-day retention) | Domain events in transit | Read models rebuilt from current state with `backfill.py` (TRD §8.6) |
 | Redis | Job queues, JWKS cache, login throttle, outbox leader leases, WebSocket fan-out, 60 s dashboard cache | Queued jobs re-enqueued by reconciliation crons |
-| Device IndexedDB (Dexie) | Prepared visit bundles and files, offline work records, queued operations and media, offline profile | Only until synced; deleted after the server confirms (OFF-8) or on logout (bundles and files only) |
+| Device IndexedDB (Dexie) | Prepared visit bundles and files, offline board elements, queued operations and media, offline profile | Only until synced; deleted after the server confirms (OFF-8) or on logout (bundles and files only) |
 
 ### Databases by owning service
 
@@ -58,7 +59,7 @@ Each service owns its database and has a MongoDB user that can reach only that d
 | Database | Service | Owns | Client data in it |
 | --- | --- | --- | --- |
 | `auth` | auth | users, organizations, tokens, signing keys | Client user accounts and their organization |
-| `operations` | operations | stations, sensor models and units, installations, calibrations, sensor applications, documents, config versions; requests, comments, client reports; site visits, work records, checklist templates, sync log, counters | Their stations, installed sensors, requests, comments, client reports, acceptance signatures, visits |
+| `operations` | operations | stations, sensor models and units, installations, calibrations, documents, config versions; requests, comments, client reports; site visits, visit elements, sync log, counters | Their stations, installed sensors, requests, comments, client reports, acceptance signatures, visits and their shared elements |
 | `media` | media | media metadata (files are in the S3 store) | Photos, videos and files about their stations and requests |
 | `report` | report | reports, signatures, report jobs, dashboard read model | Visit and close-out reports for their requests |
 | `notification` | platform | notifications, preferences, user directory | Their notifications and email settings |
@@ -79,7 +80,10 @@ erDiagram
     REQUEST ||--o{ COMMENT : "request_id"
     REQUEST ||--o{ CLIENT_REPORT : "request_id"
     REQUEST ||--o{ SITE_VISIT : "request_id"
-    SITE_VISIT }o--|{ STATION : "stations[] (owner + work record each)"
+    SITE_VISIT }o--|{ STATION : "stations[] (owner each)"
+    SITE_VISIT ||--o{ VISIT_ELEMENT : "visit_id + station_id"
+    VISIT_ELEMENT |o--o{ CONFIG_VERSION : "config_version_ids[]"
+    VISIT_ELEMENT |o--o| REQUEST : "request_ref (recommendation)"
     SITE_VISIT ||--o{ REPORT : "subject_ref = visit"
     REQUEST ||--o{ REPORT : "subject_ref = request (close-out)"
     REPORT ||--o{ SIGNATURE : "report_id"
@@ -164,12 +168,13 @@ Every `FK` here is a plain ID string: MongoDB does not enforce it. Kafka, Redis 
 - **Organization 1 → n** users, stations, requests.
 - **Request n ↔ n Station** through `requests.station_ids[]`; one request covers one or more of the same org's stations.
 - **Request 1 → n** site visits (several may be open at once), comments, client reports.
-- **Site visit 1 → n** station entries, each with one owner (`owner_staff_id`) and one embedded work record; a visit covers a subset of its request's stations.
+- **Site visit 1 → n** station entries, each with one owner (`owner_staff_id`); a visit covers a subset of its request's stations.
+- **Site visit station 1 → n** visit elements (the station's board): Notes, Tasks, Recommendations and Config, each its own document.
 - **Site visit 1 → n** report versions (`subject_ref = visit:{id}`); exactly one is `final` at a time, older finals are `superseded`.
 - **Report version 1 → n** signatures, each tied to that version's `content_hash`.
 - **Sensor unit 1 → n** installations over time; at most one has no `removed_at`.
 - **Sensor action 1 → 1** sensor application, which records its effects on the inventory so a corrected action can be reversed and re-applied (TRD §3.2.3).
-- **Media n → 1** owner, named by `owner_ref` (a visit station phase, request, comment, document, config version, calibration or client report).
+- **Media n → 1** owner, named by `owner_ref` (a visit element's section, request, comment, document, config version, calibration or client report).
 
 ## Schema definitions
 
@@ -194,10 +199,9 @@ Rule: a user with the `client` role holds no staff role, and has exactly one `or
 | --- | --- | --- | --- | --- |
 | `stations` | One per weather station | `code` unique, `external_id` (the device ID in the system its data came from, W5-8), `owner_org_id` (never changes), `owner_org_name` (copy), `country`, `time_zone`, `location` (GeoJSON point), `status`, `qr_token` unique, `current_config_version` | `owner_org_id` | `code`, `qr_token` unique; `external_id` unique where set; `owner_org_id`; `country`; 2dsphere on `location` |
 | `sensor_models` | Catalogue of makes and models | `kind`, `manufacturer`, `model`, `key` (manufacturer and model, lower case), `default_calibration_interval_days` | Read via installed units only | `key` unique |
-| `sensor_units` | One physical unit by serial | `model_id`, `serial`, `status`, `current_station_id`, `current_org_id`, `calibration_due_at`, `needs_review` | `current_org_id` | `(model_id, serial)` unique; `calibration_due_at`; `current_org_id` |
+| `sensor_units` | One physical unit by serial | `model_id`, `serial`, `status`, `current_station_id`, `current_org_id`, `calibration_due_at` | `current_org_id` | `(model_id, serial)` unique; `calibration_due_at`; `current_org_id` |
 | `installations` | Which unit sat where, and when | `sensor_unit_id`, `station_id`, `org_id`, `parameter`, `installed_at`, `removed_at`, `installed_visit_id`, `removed_visit_id`, `source_action_id` | `org_id` | `(station_id, removed_at)`; `org_id`; `source_action_id` unique |
 | `calibrations` | Field and lab calibrations | `_id` = sensor action ID (from a visit), `sensor_unit_id`, `station_id`, `org_id`, `visit_id`, `readings[]`, `result`, `certificate_media_id` | `org_id` | `(sensor_unit_id, at)`; `org_id` |
-| `sensor_applications` | Effects of each applied sensor action, for reversal | `_id` = action ID, `visit_id`, `station_id`, `action_hash`, `effects` | — | `visit_id` |
 | `documents` | Manuals and station documents, versioned | `scope` (model or station), `scope_id`, `doc_type`, `client_visible`, `media_id`, `supersedes_id`, `is_current` | Station docs: own station and `client_visible`. Model docs: `client_visible` and a unit of that model installed at one of the client's stations | `(scope, scope_id, is_current)` |
 | `organizations` | operations' copy of each client organization (as built, TRD 2.6) | `_id` (auth's), `name`, `name_key`, `short_name`, `external_id`, `country`, `status`, `aggregate_version` | — (staff only; clients see their own name on stations) | `name_key` |
 | `config_versions` | Numbered config file sets | `station_id`, `version` (1..n), `files[]` (`media_id`, `sha256`), `visit_id` | — (staff only, STN-6) | `(station_id, version)` unique |
@@ -217,11 +221,11 @@ Rule: a user with the `client` role holds no staff role, and has exactly one `or
 
 | Collection | Purpose | Key fields | Client scope | Indexes |
 | --- | --- | --- | --- | --- |
-| `site_visits` | One trip for one request, with an owner and a work record per station | `ref` (VR-YYYY-NNNN-NN), `request_id`, `org_id`, `staff_ids[]`, `lead_staff_id`, `status`, `locked`, `report_status`, `prepared_on[]`, `stations[]` (each with `owner_staff_id`, `media[]` and `work`) | `org_id` | `request_id`; `(staff_ids, planned_start)`; `status` |
-| `checklist_templates` | Admin-managed checklists, versioned | `station_type`, `sensor_model_id`, `version`, `items[]`, `active` | — | `(station_type, active)` |
+| `site_visits` | One trip for one request, with an owner per station | `ref` (VR-YYYY-NNNN-NN), `request_id`, `org_id`, `staff_ids[]`, `lead_staff_id`, `status`, `locked`, `report_status`, `prepared_on[]`, `stations[]` (each with `owner_staff_id`, `arrived_at`, `departed_at`) | `org_id` | `request_id`; `(staff_ids, planned_start)`; `status` |
+| `visit_elements` | One sticky note on a station's board: a Note, Task, Recommendation or Config | `_id` (device-made), `visit_id`, `request_id`, `station_id`, `org_id`, `kind`, `title`, `description`, `items[]`, `priority`, `request_ref`, `config_version_ids[]`, `media{main,before,after}`, `shared`, `completed_at`, `version`, `created_by`, `deleted_at` | `org_id`, and for clients also `shared` and an ended visit | `(visit_id, station_id, created_at)`; `org_id` |
 | `sync_operations` | Idempotency log for offline sync | `_id` = client op ID, `user_id`, `device_id`, `result` | — | TTL 90 days on `applied_at` |
 
-The work record is embedded in `site_visits.stations[].work`, not a separate collection, so a visit and all its station work save in one write. Only the station's owner writes it (ADR-18). Its `sensor_actions[]` and `config_versions[]` items carry device-made IDs; operations uses those IDs to apply them exactly once and to reverse a corrected action.
+A station's board is a set of `visit_elements` documents rather than one embedded record, so each element has its own `version` and a conflict covers one element only (ADR-18 kept: an element is edited by its author, the station's owner or an admin). Elements and task items carry device-made IDs, so a retried save never doubles them. A deleted element keeps a tombstone (`deleted_at`), so a late save from another device cannot bring it back. Visits no longer change sensor units or installations (W11-17).
 
 ### media
 
@@ -253,7 +257,7 @@ The work record is embedded in `site_visits.stations[].work`, not a separate col
 | Table | Holds | Personal or client data | Cleared |
 | --- | --- | --- | --- |
 | `bundles`, `files` | Prepared visits, stations, sensors, manuals and config files | Station and client data for prepared visits | On logout or change of user; after the visit syncs and ends |
-| `visits`, `outbox`, `blobs` | Work records, queued operations, captured photos, videos and config files | Client station data; photos | After the server confirms each item (OFF-8). Kept through logout, tied to `user_id` |
+| `visits`, `outbox`, `blobs` | Board elements, queued operations, captured photos, videos and config files | Client station data; photos | After the server confirms each item (OFF-8). Kept through logout, tied to `user_id` |
 | `meta` | Device ID, offline profile (`id`, `name`, `roles`, `org_id`), PIN verifier (PBKDF2 hash and salt), `offline_until`, failed PIN count | Staff name and roles | Profile and verifier removed on logout |
 
 ## Access control
@@ -272,8 +276,8 @@ A client sees only records whose `org_id` (`owner_org_id` on stations, `current_
 | Documents | Own stations' `client_visible` docs, and `client_visible` docs for models installed at their stations; read | Read, write | Read, write | Read |
 | Requests | Own org: create, edit and cancel until Scheduled, verify | Read; claim; write when assigned | Read, write, approve, assign, cancel until Closed | Read |
 | Comments | Own org, non-internal; write | Read, write, mark internal | Read, write | Read |
-| Site visits | Own org, read (owners shown by name) | Read; add media when in `staff_ids` | Read; schedule, change owners, restore | Read |
-| Work records | Own org, read | Write the stations they own, until locked | Write any station, until locked | Read |
+| Site visits | Own org, read (owners shown by name) | Read | Read; schedule, change owners, restore | Read |
+| Visit elements | Own org, shared elements of ended visits, read | Read; create when in `staff_ids`; edit their own and those at stations they own, until locked | Read, write any, until locked | Read |
 | Media | Own org, `visibility = org` | Read; write as uploader or attending staff | Read, write, delete | Read |
 | Reports | Own org, final versions only | Read; edit and sign when attending | Read, write, finalize, reopen | Read |
 | Client reports | Own org: create, edit draft, submit | Read | Read | Read |
@@ -334,7 +338,7 @@ Business and audit records are kept indefinitely and are never hard-deleted thro
 
 | Data | Kept for | Mechanism |
 | --- | --- | --- |
-| Requests, visits, work records, reports, signatures, sensor and calibration history, sensor applications, config versions | Indefinitely | No TTL |
+| Requests, visits, visit elements (tombstones included), reports, signatures, sensor and calibration history, config versions | Indefinitely | No TTL |
 | Audit events | Indefinitely | Insert-only; no TTL |
 | Processed media, documents, report PDFs | Indefinitely | No deletion job |
 | Raw photo and video originals | 30 days after processing (configurable) | Daily `purge_originals` cron in media; sets `original_purged_at` |

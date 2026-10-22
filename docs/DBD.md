@@ -3,8 +3,8 @@
 
 | | |
 |---|---|
-| **Version** | 1.7 |
-| **Date** | 2026-10-18 |
+| **Version** | 1.8 |
+| **Date** | 2026-10-22 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
 | **Changes in 1.2** | Follows AFD 1.1 and TRD 2.0: the Unlock page (offline PIN), station owners on the visit and field pages, the finalizing state on the visit report, feedback `*-container` theme colours, and links to the AFD fixed. 37 pages |
@@ -13,7 +13,8 @@
 | **Changes in 1.5** | **Brand colours from a Material 3 theme** (decision W4-12, 2026-10-17; closes D1's colour part): the built-in theme is `frontend/src/app/theme/material-theme.json` (Material Theme Builder, seed `#026D88`), and admins can replace it for everyone on **Settings** (`/admin/settings`). Status colours stay fixed. **Motion with GSAP** (W4-10): the pane's width, page and list entrances, the rail's hover, sliding indicator and tooltips. **Person avatars** with initials on a brand gradient (W4-13), the one allowed gradient. **Settings** page for admins (W4-11) |
 | **Changes in 1.6** | Below 1024 px the rail becomes a docked, translucent **bottom bar** with the open section as a filled pill (decision W4-14, 2026-10-18); tablets keep the pane and view side by side above it. Pane lists of people are **message-style** rows: 48 px avatar, name with a short time on its right, one line below, the open row fully round (W4-15). **Motion curves** (W4-15): the pane's width on Material 3's emphasized curve, a record opened from the pane rises in, list rows shrink while pressed and spring back |
 | **Changes in 1.7** | **Inputs are filled, not outlined** (2026-10-21): `VTextField`, `VSelect`, `VAutocomplete` and `VDateInput` use `variant="solo-inverted"` with `flat`, set once in `app/theme/vuetify.ts`. Labels and placeholders are drawn at full strength (`base.css`) so they pass 4.5:1 on the light grey fill. |
-| **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
+| **Changes in 1.8** | **The visit board** (decisions W11-16 to W11-35, 2026-10-22): sticky-note tints for Note, Task, Recommendation and Config (a new palette part, never status colours); the Sticky note, Board and Element sheet components and the in-place File viewer replace the Stepper and `MediaCapture`'s phase tags; the field visit, visit page and media viewer follow; the Checklist templates page and the checklist status row are removed |
+| **Changes in 1.4** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
 
 > The two wireframes are redrawn here as text; the live copy has the drawn versions.
@@ -128,7 +129,6 @@ Every chip shows **icon + word + colour**, so no status depends on colour alone.
 | Priority | — | — | High | Urgent (solid `#B91C1C`, white text) | Low, Normal (plain text, no chip) |
 | Calibration due | In date | — | Due within 30 days | Overdue | No interval set |
 | Calibration result | Pass | Adjusted | — | Fail | — |
-| Checklist item | OK | Fixed | — | Issue | N/A |
 | Visit report | Final | — | Draft | — | Superseded |
 | Sync | Synced | Syncing (spinner) | Waiting (count) | Failed | Paused |
 | Sensor unit | Installed | In stock | In repair | — | Retired |
@@ -139,6 +139,19 @@ Every chip shows **icon + word + colour**, so no status depends on colour alone.
 - Status colours never decorate. A green button or a red heading is not allowed.
 - Primary blue is for actions and selection. It never means a status, so “Info” banners use blue but status chips use sky, blue, indigo and violet from the table above.
 - Only one solid red chip (Urgent) is allowed per row, so urgency stands out.
+
+### Sticky-note tints (the visit board; decision W11-19)
+
+The four kinds of board element each have a fixed tint, used for the sticky note's background and an accent (its icon, kind label and top edge). They are **not status colours** and do not come from the Material theme, so an admin's brand colours never change them. The kind is always named by an icon and a label as well, so colour is never the only cue (WCAG 1.4.1). Body text on a tint is the normal text token.
+
+| Kind | Icon (`@mdi/js`) | Light tint · accent | Dark tint · accent | Contrast (text · accent) light / dark |
+| --- | --- | --- | --- | --- |
+| Note (`sticky-note`) | `mdiNoteTextOutline` | `#FFF3B0` · `#7A5C00` | `#3B3414` · `#F2D35B` | 15.9 · 5.6 / 11.4 · 8.4 |
+| Task (`sticky-task`) | `mdiCheckboxMarkedOutline` | `#D3F2DA` · `#1B6B34` | `#173A23` · `#7FD99A` | 14.9 · 5.5 / 11.5 · 7.4 |
+| Recommendation (`sticky-recommendation`) | `mdiLightbulbOnOutline` | `#FFDCD8` · `#A8251B` | `#45201C` · `#FF9C92` | 14.0 · 5.6 / 13.0 · 7.1 |
+| Config (`sticky-config`) | `mdiFileCogOutline` | `#EADFFF` · `#61389A` | `#2E2343` · `#CDB3FA` | 14.0 · 6.5 / 13.3 · 7.9 |
+
+Contrast is against `#0F172A` text in light and `#F1F5F9` in dark. The tints live in `brand.ts` next to the status colours and are used only on board elements.
 
 ### Dark theme
 
@@ -271,32 +284,29 @@ APP SHELL · desktop (staff and clients)          ground colour behind, 5 px gap
 ```text
 FIELD SHELL · phone, during a visit
 +----------------------------+
-| <- WXR-012 · Work (sync 3) | (1)
+| <- WXR-012 · Board (sync 3)| (1)
 +----------------------------+
-|  (*)---(@)---( )---( )     |
-| Before Work  After Review  | (2)
+| [All 6] Notes Tasks Rec Cfg| (2)
 |----------------------------|
-| Rain gauge funnel clear    |
-| [OK]  Fixed  Issue   N/A   | (3)
-|                            |
-| Cable glands sealed        |
-|  OK   Fixed [Issue]  N/A   |
-|                            |
 | +------------------------+ |
+| |[v] TASK          2 of 3| | (3)
 | | Replace RH sensor      | |
-| | Serials and readings   | |
+| | [img] 4 · Shared       | |
 | +------------------------+ |
-+----------------------------+
-|     [   Next: After   ]    | (4)
+| +------------------------+ |
+| |[!] RECOMMENDATION  High| |
+| | Guy wires corroded     | |
+| +------------------------+ |
+|                     [ + ] | (4)
 +----------------------------+
 | Visit  Scan  Stations  Sync| (5)
 +----------------------------+
 ```
 
-1. App bar: back, station and step, sync badge.
-2. Stepper: Before, Work, After, Review; labels always shown. `(*)` done, `(@)` current, `( )` ahead.
-3. Checklist answers as 48 px OK / Fixed / Issue / N/A buttons.
-4. Sticky action bar: one main button.
+1. App bar: back, station and "Board", sync badge.
+2. Filter chips with counts: All, Notes, Tasks, Recommendations, Config.
+3. Sticky notes in one column, newest first, each in its kind's tint: icon and kind label, the title, two lines of description, then by kind a task's progress, a recommendation's priority or Config's file count, the media count with a thumbnail, and "Shared" when the client will see it.
+4. Floating Add button: Note, Task, Recommendation, Config. A note opens as a full-screen sheet.
 5. Bottom bar: Visit · Scan · Stations · Sync.
 
 Each numbered marker matches the note beside it. The frame stays put and only the content area changes between pages.
@@ -306,7 +316,7 @@ Each numbered marker matches the note beside it. The frame stays put and only th
 | Shell | Frame | Content width | Who sees it |
 | --- | --- | --- | --- |
 | **App shell** | Three tiles on the `ground` colour, 5 px apart and 5 px from the window edges, square corners, no border or shadow: the **rail** (64 px), the **interactive pane** (300 / 360 / 420 px, hideable from 1024 px) and the **view** (the rest). No app-wide top bar: each tile has its own header. On phones (< 768 px) the pane and view fill the screen edge to edge, one after the other; once a record is open the view shows alone with a Back button. Below 1024 px the rail becomes a **bottom bar** docked to the bottom edge, translucent (surface at 85 % with a backdrop blur, a top border and a soft upward shadow) and padded for the home indicator: four sections and **Me** (profile, notifications, sync, Admin), centred within 448 px. The section open has no background: its icon and label are in the primary colour (label bold) with a dot below it, and the field shell's bar looks the same; the others are bare 22 px icons with a hover tint, and labels are always shown (12 px). | View body max 1080 px; tables and maps use the full view | Staff and clients |
-| **Field** | Top app bar, 56 px: back arrow, visit or station name, sync badge. Bottom bar, 64 px plus safe area: Visit · Scan · Stations · Sync. A sticky action bar sits above it for the step’s main button. | Full width, 16 px side gutters | Staff on phones on `/visits/:id/field`, `/scan` and `/sync` |
+| **Field** | Top app bar, 56 px: back arrow, visit or station name, sync badge. Bottom bar, 64 px plus safe area: Visit · Scan · Stations · Sync. On a station's board a floating Add button sits above it. | Full width, 16 px side gutters | Staff on phones on `/visits/:id/field`, `/scan` and `/sync` |
 
 The app shell is plain Tailwind layout inside the one `VApp` (`frontend/src/app/shells/AppShell.vue`, `AppRail.vue`, `AppTabBar.vue`). A page fills the view with `PageBody` (its header and scrolling body) and puts its list or controls into the pane with `PaneContent`; the record it has open lives in the URL (`/admin/registrations/:id`), so a reload or Back keeps the place. The field shell uses Vuetify's `VAppBar` and `VBottomNavigation`. Nothing is reachable only by hover: the bottom bar has labels, and every rail icon has an accessible name and its tooltip text as a description.
 
@@ -367,8 +377,11 @@ Vuetify components are used as they come and styled only through the brand theme
 | **Page banner** | `VAlert border="start"` | Full-width, 4 px left border in the feedback colour, icon, one sentence + one action | For page-level states: Client Review, “needs a connection”, signatures cleared, not prepared for offline. At most one per page. |
 | **Toast** | `VSnackbarQueue` (one per app) | White card, 4 px left border in the feedback colour, `shadow-lg` | Top-right on desktop, above the bottom bar on phones. Success toasts close after 5 s; errors stay until dismissed. |
 | **Dialog** | `VDialog`; confirmations use `ConfirmDialog` (a `VDialog` opened through a `useConfirm()` composable, because Vuetify has no confirm service) | 10 px radius, max 560 px, title `text-h2`; full-screen sheet on phones (`fullscreen` below `md`) | A destructive dialog names the record (“Deny MR-2026-0042?”) and has a required reason field when the PRD needs one |
-| **Stepper** | `VStepper alt-labels` | Four steps: Before → Work → After → Review. Each is a numbered circle that is filled primary when done, ringed when current and grey when ahead. | Field visit only. The step label is always visible, not just the number, so the stepper never uses its `mobile` mode, which hides labels. |
-| **Media capture** (`MediaCapture`) | `VCard` tiles over a native `<input type="file" capture>` | 2-column thumbnail grid on phones (4 on desktop); a large “+ Photo / video” tile first. Each tile has a phase tag (Before, During or After) and a sync dot. | Shows the count against the target (“3 Before photos”). Desktop drop zones elsewhere (attachments, Verify) use `VFileUpload`. |
+| **Sticky note** (`StickyNote`) | A `button` tile in the kind's tint (Sticky-note tints) | 10 px corners, a 4 px top edge in the accent, no shadow at rest and `shadow-sm` on hover; icon and kind label in the accent, title `text-h4` (two lines), description two lines in secondary text, then the kind's detail (task "2 of 3" with a progress bar, a check when complete; recommendation priority; Config file count), the media count with the first thumbnail, "Shared" and the author. | Grid of 1 column below 640 px, 2 to 4 above; newest first. The whole tile opens the element sheet. |
+| **Board** (`VisitBoard`) | Tailwind grid + `VChipGroup` | Filter chips with counts (All, Notes, Tasks, Recommendations, Config) above the grid; an **Add** menu (desktop) or a floating button (phones) with the four kinds | One per station on a visit, on the visit page and in the field shell. Empty: "Nothing recorded at this station yet" and the Add button. |
+| **Element sheet** (`ElementDialog`) | `ModalSheet` (dialog from 640 px, full-screen sheet below) | Header in the kind's tint with icon, kind and title; then description, the kind's part (task items as 48 px checkbox rows with an "Add item" field; recommendation priority and **Create request**; Config's files), the media sections (one, or Before and After side by side from 768 px), **Share with client** switch, author and times | Text saves as typed ("Saved · 14:05"); read only for people who can't edit it. |
+| **Media section** (`MediaSection`) | `VCard` tiles over a native `<input type="file" capture>` | 2-column thumbnail grid on phones (4 on desktop); a large “+ Photo / video” tile first (Config: “+ File”); each tile has a sync dot, a play icon and duration for video, a file-type icon, name and size for other files. | Desktop drop zones elsewhere (attachments, Verify) use `VFileUpload`. |
+| **File viewer** (`FileViewer`) | Inside the element sheet, never a new tab | Image: the photo on black with prev/next and "3 of 7"; video: `<video controls playsinline>`; PDF: pages drawn by pdf.js with page count and zoom; text and code: JetBrains Mono with line numbers on surface-50; any other file: icon, name, size and **Download**. Caption and capture time (station local) below. | "This needs a connection" for a PDF or text file offline (until Phase 5). |
 | **Signature pad** (`SignaturePad`) | `signature_pad` in a `VCard` | White canvas at 3:1 ratio (full width), 1 px surface-500 border, surface-900 ink, baseline rule and “Sign here” placeholder; typed full name field; attestation checkbox with the exact wording | **Clear** text button under the canvas. The submit button is disabled until name, drawing and checkbox are all done. |
 | **Sync badge** (`SyncBadge`) | `VBtn` + `VBadge` | Cloud icon. Green check when synced; amber count when waiting; spinning when syncing; red when failed. | Always on the rail (staff) and in the field app bar. Links to `/sync`. |
 | **Empty state** | `VEmptyState` | Centred 48 px surface-500 icon, one `text-h3` line, one sentence, one primary or secondary button | Always offers the next action (AFD §6): “No open requests. **Report a problem**” |
@@ -400,7 +413,7 @@ The app uses **Material Design Icons** (MDI), Vuetify's default set, in their ou
 
 - **Real stations only.** Use photographs of the organization’s own stations: the login panel, empty-state headers on the station page, and the station photo on each station page. No stock photos, illustrations or mascots.
 - **Station photos** are cropped 4:3 with 10 px corners. A missing photo shows a surface-100 tile with a 32 px `mdi-map-marker-outline` and no placeholder art.
-- **Visit media** keeps its own aspect ratio inside square thumbnails (`object-fit: cover`). A small tag in the top-left shows the phase (Before, During or After), and a play icon plus duration marks videos. The media viewer has a black background with capture time in station local time and the caption below.
+- **Visit media** keeps its own aspect ratio inside square thumbnails (`object-fit: cover`). A play icon plus duration marks videos. A Task's or Config's sections are labelled Before and After. The file viewer inside the element sheet has a black background for photos and video, with capture time in station local time and the caption below.
 - **Logo** (to be supplied, PRD Q1): it goes at the top of the rail (32 px tall), the login panel (48 px, reversed white) and the PDF header (12 mm tall). The PWA icon is a 512 px square mark on primary-600.
 
 ### Maps
@@ -492,9 +505,8 @@ Tiles with a count above zero that need action (pending registrations, overdue c
 | Comments tab | (tab) | Flat thread, oldest first, each with avatar initials, name, role tag and time. Internal comments have an amber-50 background, a `mdi-eye-off-outline` icon and the label “Internal — not visible to client”. The composer sits at the bottom with an **Internal** toggle (staff). | Post |
 | Review and sign off | `/requests/:id/review` | Focused page, max 880 px: summary of the work, final visit reports (cards with **Open PDF**), a media strip, then a decision card with two clear choices: **Accept work** (opens the signature card) and **Reject** (opens a reason field). | Sign and accept |
 | New client report | `/requests/:id/client-reports/new` | First a choice of two large option cards: “Upload a PDF” and “Fill in the online form”. The form has a sticky footer with **Save draft** and **Submit**. | Submit |
-| Visit page | `/visits/:id` | Header: visit number, status chip, dates (station local time), attending staff by name (lead marked with a star; clients see names only, no contact details), **Ready offline** chip. Below are station sections, each with its owner's name (“Recorded by Devon Brown”), arrival/departure times, a media grid by phase, and the work record summary. Lead and admins get a **Change owner** text button per station. | Prepare for field · Start visit · Continue visit (by state) |
-| Media viewer | `/visits/:id/media/:mediaId` | Black full-screen, the image or video centred. Prev/next arrows and a counter (“7 of 42”). The caption, phase, station and capture time are shown below. | — |
-| Visit report | `/visit-reports/:id` | Two panes on lg screens. On the left, the editor: narrative fields as auto-saving text areas, a photo picker and a facts summary with **Fix in work record** links. On the right, a live A4 preview with a DRAFT watermark. Signatures are listed at the bottom with a status. The version selector shows Draft / Final / Superseded. While finalizing, the editor is read-only and the Finalize button shows progress; a failed finalize returns to Draft with a warning banner and **Try again**. | Sign → Finalize (lead) · Download PDF (final) |
+| Visit page | `/visits/:id` | Header: visit number, status chip, dates (station local time), attending staff by name (lead marked with a star; clients see names only, no contact details), **Ready offline** chip. Below are station sections, each with its owner's name (“Owner: Devon Brown”), arrival/departure times and the station's **board** (sticky notes with filter chips). Lead and admins get a **Change owner** text button per station. | Prepare for field · Start visit · Continue visit (by state) |
+| Visit report | `/visit-reports/:id` | Two panes on lg screens. On the left, the editor: narrative fields as auto-saving text areas, a photo picker and a facts summary with **Fix on the board** links. On the right, a live A4 preview with a DRAFT watermark. Signatures are listed at the bottom with a status. The version selector shows Draft / Final / Superseded. While finalizing, the editor is read-only and the Finalize button shows progress; a failed finalize returns to Draft with a warning banner and **Try again**. | Sign → Finalize (lead) · Download PDF (final) |
 | Summary reports | `/reports` | On the left, a list of report types with one-line descriptions. On the right, filters and **Generate**. Below is a table of generated reports with a status (Building with progress, Ready, Failed) and download buttons. | Generate |
 | Notifications | `/notifications` | A list grouped by Today, Yesterday and Earlier. Unread rows have a primary-50 background and a dot. Each row has an icon by type, one line of text, and a time. | Mark all as read |
 | My profile | `/profile` | Sections for Details, Password, Time zone, Appearance (Light · Dark · System) and Email preferences (a switch per notification type; account emails locked on); the pane lists the sections and jumps to each | Save |
@@ -511,7 +523,6 @@ Tiles with a count above zero that need action (pending registrations, overdue c
 | Calibration due | `/calibration` | A segmented filter (Overdue · Due in 30 days · All) and a table sorted by due date, with overdue rows first and their date in red | Export CSV |
 | Registrations | `/admin/registrations/:id?` | The pane lists pending accounts (name, organization they typed, when). Choosing one opens it in the view: details, the organization match and approve or reject. With none chosen, the view shows how many are waiting. | Approve |
 | Users / Organizations | `/admin/users`, `/admin/organizations` | Standard tables with role tags and status chips. Edit happens in a side drawer. | Invite user / New organization |
-| Checklist templates | `/admin/checklists` | List of templates on the left. On the right, an editor where items can be dragged into order, with a version number and “Published” chip. | Publish version |
 | QR labels and station import | `/admin/stations-tools` | Two cards. **Labels** has a station picker and a preview of the A4 sheet layout. **Import** is a 3-step wizard: upload, map columns, review errors. | Print labels / Import |
 | Settings | `/admin/settings/:part?` | The pane lists the parts: **Appearance** (the admin's own Light / Dark / System, and Animations on or off on this device) and **Brand colours** (for everyone). Brand colours shows the theme in use as a small app shell in light and dark, then an editor with three tabs: From one colour (a colour picker that makes both themes), Colour by colour (the main roles of each scheme, or all 49) and JSON. Upload a Material Theme Builder file or download the current one. Edits preview on the admin's screen only; a sticky bar saves for everyone or discards; contrast problems show as a warning first. | Save for everyone |
 | Audit log | `/admin/audit` | Dense full-width table (40 px rows, 13 px text): time, actor, action, resource, organization. Filters sit above. A row opens a drawer with a before/after diff in mono (removed lines on red-50, added on green-50). | Export CSV |
@@ -520,7 +531,7 @@ Tiles with a count above zero that need action (pending registrations, overdue c
 
 | Page | Route | Layout and look | Primary action |
 | --- | --- | --- | --- |
-| Field visit | `/visits/:id/field` | List of the visit’s stations, each a large card showing progress (“Before ✓ · Work … · After –”) and its owner; the user's own stations come first. A station owned by someone else opens with an info banner (“Owned by Devon Brown. You can add photos and videos.”), its work record read-only and the media capture tile still active. Inside a station is the 4-step stepper. **Before** and **After** are the media grid with a large capture tile. **Work** is the checklist as big OK / Fixed / Issue / N/A segmented buttons per item, then sensor actions as cards. **Review** is a summary with any missing photos flagged. | Arrive → Next → Depart station → End visit (sticky action bar) |
+| Field visit | `/visits/:id/field` | List of the visit’s stations, each a large card showing its board's counts (“3 tasks, 1 incomplete · 2 notes”) and its owner; the user's own stations come first. Inside a station is its **board** in one column with filter chips and the floating Add button; an element opens as a full-screen sheet. A station owned by someone else opens with an info banner (“Owned by Devon Brown. You can add your own notes, tasks and files.”). | Arrive → Depart station → End visit (bottom bar) |
 | QR scanner | `/scan` | Full-screen camera with a 240 px square guide and a torch toggle. “Enter code manually” text link at the bottom. | — |
 | Sync status | `/sync` | A big status line at the top (“5 changes and 18 files waiting”, or “All synced” with a green check). Then a storage bar and a per-item list with progress bars; paused items show “Will resume”. Items the server couldn't apply (owner changed, visit cancelled, report final) sit in a “Needs attention” group at the top with the reason in plain words and an **Export** button. An Appearance switch (Light · Dark · System) sits at the bottom of the page. | Sync now |
 | Not found | (any) | Centred `mdi-magnify` icon, “We can’t find that page”, and a link to the dashboard. The wording is the same for missing and forbidden records (AFD §5.2). | Go to dashboard |
@@ -541,18 +552,18 @@ Every core screen meets **WCAG 2.2 AA** (NFR-11). Field mode goes further on tou
 | Colour alone | Never the only signal (1.4.1) | Chips pair an icon with a word. Map markers differ by shape. Chart series have direct labels. Errors pair an icon with text. |
 | Focus | Visible and not hidden (2.4.7, 2.4.11) | A 2 px primary-600 ring with a 2 px white offset on every focusable element. Sticky bars never cover the focused field, because pages scroll it into view with padding. |
 | Target size | 24 px minimum (2.5.8) | 40 px on desktop and 48 px in field mode, with at least 8 px between adjacent targets |
-| Dragging | Single-pointer alternative (2.5.7) | Checklist template reordering also has up/down buttons. The signature pad is exempt, because the drawing is the content, but it has a typed-name equivalent. |
+| Dragging | Single-pointer alternative (2.5.7) | Task items reorder with up and down buttons; there is no drag. The signature pad is exempt, because the drawing is the content, but it has a typed-name equivalent. |
 | Keyboard | Everything operable (2.1.1) | Vuetify's built-in keyboard support for tables, tabs, menus and dialogs, checked by hand on each new screen. A skip link goes to main content. Dialogs trap focus and return it on close. |
 | Forms | Labels, errors, help (3.3.1–3.3.3, 3.3.7) | Visible labels (never placeholder-only). The error summary links to fields. Entered data is never cleared on an error. Data already given is not asked for again (for example the station is pre-filled from QR). |
 | Authentication | No cognitive test (3.3.8) | Password managers and paste are allowed, there is no CAPTCHA puzzle, and a show/hide toggle is provided |
 | Status updates | Announced (4.1.3) | Toasts, sync progress and live status changes use `aria-live="polite"`. Errors use `assertive`. |
 | Zoom and reflow | 200% zoom, 320 px reflow (1.4.4, 1.4.10) | rem-based type, and tables reflow to cards below 640 px, so there is no horizontal scroll except inside wide data tables |
 | Motion | Respects user setting (2.3.3) | All transitions and GSAP tweens are off under `prefers-reduced-motion` or with Settings › Animations off, and nothing auto-plays. Videos start paused. Rail tooltips appear on hover and keyboard focus, stay while hovered and close with Escape (1.4.13). |
-| Media | Alternatives | Every visit photo has its caption (or “Before photo, Station WXR-012, 14:05 AST”) as alt text. Video thumbnails state their duration. |
+| Media | Alternatives | Every visit photo has its caption (or “Before photo, Replace RH sensor, 14:05 AST”) as alt text. Video thumbnails state their duration. |
 
 ### Interaction patterns
 
-- **Saving:** Text that is long or can be lost (report narrative, client report form, work record) saves automatically, with “Saved · 14:05” shown next to the title. Short forms save on the button.
+- **Saving:** Text that is long or can be lost (report narrative, client report form, board elements) saves automatically, with “Saved · 14:05” shown next to the title. Short forms save on the button.
 - **Offline:** Online-only actions (approve, sign, create request, admin) stay visible but are disabled, with a “Needs a connection” tooltip and a page banner. Field actions never wait for the network.
 - **Destructive actions:** Two steps every time: the button, then a dialog naming the record with a required reason where the PRD needs one. There is no undo, so the dialog wording says what can’t be reversed.
 - **Feedback timing:** Clicks respond within 100 ms (pressed state). Loads over 300 ms show a skeleton. Long jobs (summary reports, PDF render, sync) show progress, not a spinner.

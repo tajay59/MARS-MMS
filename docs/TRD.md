@@ -3,8 +3,8 @@
 
 | | |
 |---|---|
-| **Version** | 2.15 |
-| **Date** | 2026-10-19 |
+| **Version** | 2.16 |
+| **Date** | 2026-10-22 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
 | **Supersedes** | TRD 1.3 and all drafts in [drafts/](drafts/) |
@@ -19,6 +19,7 @@
 | **Changes in 2.6** | The stations module as built (IP Phase 2 W5, 2026-10-18, decisions W5-1 to W5-7). Sensor units are installed and removed by **actions**, `POST /api/v1/sensor-units/{id}/install` and `/remove`; `installed` is reached only through them (§3.2). `GET /api/v1/stations/facets` for the list's filters; the list pages by code (§3.2). New events `sensor_model.created` / `.updated`; a unit's events are keyed by its station while installed and by the unit while in stock (§8.1, §8.4). operations keeps a copy of the organizations from `org.*` events and auth's snapshot, read at every start with its own service secret (§3.2, §5.2, §8.6). The station import format (§3.2). `upsert_if_newer` reads before writing so a consumer's transaction is never aborted by a duplicate key (§8.6) |
 | **Changes in 2.7** | The station export (T4, decision W5-8, 2026-10-18): the organization's existing system is a MongoDB with `entities` and `sites` collections, brought in once from `mongoexport` files. Organizations gain `short_name` and `external_id` (unique where set) and carry them in `org.*` events and the snapshot (§5.1, §8.4); auth's `python -m app.cli import-orgs`. Stations gain `external_id` (unique where set; the list's search matches it), and the station import reads the `sites` export, one station per device (§3.2, §5.2). In the import, the country defaults to the organization's. Parameter codes may have up to 32 characters (was 16) and a station up to 40 of them, the API's limit, in the import too: the real export has codes of 18 characters and a device with 22 parameters |
 | **Changes in 2.8** | The documents path as built (IP Phase 2 W6, 2026-10-19, decisions W6-1 to W6-6). The **media service** exists: `POST /api/v1/uploads` is idempotent by `media_id` and joins an open upload of the same file by the same person (size and SHA-256); `complete` takes **no part list** because media lists the parts itself and checks them against the announced size; the file is then checked in `media-worker` in one pass (SHA-256, magic bytes, ClamAV) and is never `ready` without a scan result. `MEDIA_SCAN_MODE=clamd|off`, and `off` is refused in production (T8: staging). Operations gains **documents** (`GET/POST /api/v1/documents`, `PATCH /{id}`, `/{id}/download`, `GET /stations/{id}/documents`), **configuration versions** (`POST` only files that are `ready`, `GET`, `/{version}`, `/{version}/diff`), a calibration's `certificate_media_id`, `GET /internal/attachable` for the owner check, and a consumer for `media.processed` / `media.failed`. New events `document.uploaded`, `document.updated`, `config.version_created`, `media.visibility_requested` (operations) and the four `media.*` (§8.4). **Background jobs are a small Redis queue** (`mms_common.jobs`, a sorted set with a lease) instead of arq, which pins `redis<6` (§9). SeaweedFS runs `-volume.max=0` with 256 MB volumes: the default 8 slots ran out on the second bucket (§10.1, R6) |
+| **Changes in 2.16** | The visit board replaces the work record (2026-10-22, decisions W11-16 to W11-35). Each station on a visit has a board of elements in `visit_elements` (`note`, `task`, `recommendation`, `config`), each saved on its own with `base_version` and a tombstone on delete (§3.2.3). Removed: `WorkRecord`, `sensor_applications`, `checklist_templates`, media phases, the VIS-6 rule and `needs_review`; visits no longer change the sensor inventory. Config elements' After files become configuration versions at `end`; a Recommendation can start a request. Sync ops `element.*` replace `work.save` (§7.2, §7.4); events `visit.element_added`, `visit.element_updated`, `visit.element_deleted` replace `visit.work_updated` (§8.4). The field stepper is replaced by the board (§13.2) |
 | **Changes in 2.15** | The visits module as built (IP Phase 4 W10 slice 1, 2026-10-21, decisions W10-1 to W10-10). A visit is a `site_visits` document numbered `VR-YYYY-NNNN-NN`; its state table is one table (`domain/visits/state.py`). Every change to a visit takes the request's lock (`visit_seq`), writes the visit and its events, and derives the request's status (`domain/requests/recompute.py`) in one transaction (ADR-17). A station is in one live visit of a request at a time. Cancelling a request cancels its planned visits; **release is refused while a visit is live** (409 `has_visits`). New routes `POST /visits/{id}/stations/{sid}/arrive` and `/depart` (owner or admin); `POST /visits/{id}/end` takes `additional_visit_required`, `follow_up_notes` and `overrides[]` (VIS-6 is enforced in W12 with media). The lifecycle moves are idempotent and take the device's `at` time (at most 5 minutes ahead, 30 days back) so `/sync` can reuse them. Events: `visit.scheduled`, `.rescheduled`, `.cancelled`, `.restored`, `.started`, `.ended`, `.station_owner_changed` (`from_staff_id`, `to_staff_id`) and the new audit-only `.station_arrived` and `.station_departed`; every one carries the visit facts and never the notes. The request detail gains `visits` and the action `schedule_visit`. Clients see their organization's visits without `notes`. `GET /internal/snapshot/visits`. |
 | **Changes in 2.14** | Email, preferences and the weekly digest as built (IP Phase 3 W9 slice 4, 2026-10-21, decisions W9-13, W9-14). `email_queue` also carries the email that follows a notification and the digest (`kind: notification|digest`); the sender checks the person's choice when it sends. `GET/PUT /notifications/preferences` list only the types a role can be emailed about. The digest runs from platform's hourly tick, once per ISO week, from operations' new `GET /internal/calibrations/due`. Settings `PLATFORM_OPERATIONS_URL`, `PLATFORM_DIGEST_HOUR`, `PLATFORM_DIGEST_TZ`, `PLATFORM_DIGEST_WITHIN_DAYS`. |
 | **Changes in 2.13** | Notifications as built (IP Phase 3 W9 slice 3, 2026-10-21, decisions W9-9 to W9-12). The notification consumer also reads `mms.operations.events`; `user_directory` is built from `user.*` events and auth's snapshot. `GET /notifications` carries the unread count and takes `after`, `before`, `unread` and `group`; marking as read is self service. The WebSocket sends `ready` after it has subscribed, re-checks the token every 25 s (4401 on expiry or revocation) and accepts a new `auth` message to renew. `entity.updated` carries `kind` (`status`, `staff`, `comment`). Request events carry `assigned_staff_ids`. `platform` joins the OpenAPI export. |
@@ -76,7 +77,7 @@ AWS-MMS is built as **five FastAPI services**, split by business capability. Ngi
 | ADR-15 | All times are stored in UTC. Each station carries an IANA time zone used for display | Stations span several countries and time zones |
 | ADR-16 | A resource outside the user's scope returns **404**, not 403 | Doesn't reveal that other organizations' records exist |
 | ADR-17 | *New.* Once a request is assigned, its status is **derived** from its visits and visit reports and recomputed in the same transaction as every change (§3.2.2). A request may have several visits open at once | Supports parallel teams without status drift, and makes every transition idempotent |
-| ADR-18 | *New.* **One owner per station on a visit.** Only the owner edits that station's work record; any attending staff can add media | No offline merge is needed, so no edit is ever silently overwritten (PRD OFF-11 v1.1) |
+| ADR-18 | *New.* **One owner per station on a visit.** Only the owner records arrival and departure; any attending staff can add board elements, each edited by its author, the owner or an admin (amended 2026-10-22, W11-22) | No offline merge is needed, so no edit is ever silently overwritten (PRD OFF-11 v1.5) |
 | ADR-19 | *New.* **Files start staff-only.** The owning service makes a file client-visible with an outbox event in the same transaction that attaches it | Fail closed: a missed or late update hides a file rather than leaking it |
 | ADR-20 | *New.* **Offline field session:** a cached profile unlocked by a device PIN. Tokens are never stored on the device | Staff can reopen their work after a restart with no signal (OFF-3) without long-lived credentials on the phone |
 
@@ -128,7 +129,7 @@ Two host names point at the server, for example `mms.example.org` (the app) and 
 |---|---|---|
 | `/` | Static SPA build | `try_files … /index.html`; `sw.js`, `index.html`, `theme-init.js` and `manifest.webmanifest` served `no-cache` (F10); hashed assets cached for 1 year. The `web` image keeps the `/assets/` of every release replaced in the last 7 days, so open tabs and installed apps on an older build still load their chunks (F9, `infra/scripts/carry_assets.py`); the router turns a chunk-load error into the update prompt |
 | `/api/v1/auth`, `/api/v1/users`, `/api/v1/organizations` | `auth:8000` | Login, register and password-reset paths use the `auth` rate-limit zone |
-| `/api/v1/stations`, `/api/v1/sensor-models`, `/api/v1/sensor-units`, `/api/v1/calibrations`, `/api/v1/documents`, `/api/v1/qr`, `/api/v1/requests`, `/api/v1/queue`, `/api/v1/client-reports`, `/api/v1/my-work`, `/api/v1/visits`, `/api/v1/checklist-templates`, `/api/v1/sync` | `operations:8000` | |
+| `/api/v1/stations`, `/api/v1/sensor-models`, `/api/v1/sensor-units`, `/api/v1/calibrations`, `/api/v1/documents`, `/api/v1/qr`, `/api/v1/requests`, `/api/v1/queue`, `/api/v1/client-reports`, `/api/v1/my-work`, `/api/v1/visits`, `/api/v1/sync` | `operations:8000` | |
 | `/api/v1/media`, `/api/v1/uploads` | `media:8000` | |
 | `/api/v1/reports`, `/api/v1/dashboard` | `report:8000` | `/api/v1/reports/verify` uses the `auth` zone (public endpoint) |
 | `/api/v1/notifications`, `/api/v1/audit` | `platform:8000` | |
@@ -215,7 +216,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 
 ### 3.2 operations
 
-**Owns:** stations, sensor models, sensor units, installation history, calibrations, document metadata (per model and per station), configuration versions, QR tokens, map GeoJSON; maintenance requests and their state, queue and assignment, comments, attachments, client reports, client verification (with signature), auto-close; site visits, station owners, work records, checklist templates, field bundles and the sync endpoint.
+**Owns:** stations, sensor models, sensor units, installation history, calibrations, document metadata (per model and per station), configuration versions, QR tokens, map GeoJSON; maintenance requests and their state, queue and assignment, comments, attachments, client reports, client verification (with signature), auto-close; site visits, station owners, visit boards (`visit_elements`), field bundles and the sync endpoint.
 
 **Stations module**
 
@@ -234,7 +235,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | GET | `/api/v1/qr/{token}` | any (scoped) | Resolve a QR token → `{station_id, code, name, view: staff\|client}` (as built 2.9). A replaced token: 410 `qr_revoked` if the caller may see the station, else 404 (QR-4, rule 4) |
 | POST | `/api/v1/stations/{id}/qr/regenerate` | admin | New token; the old one is revoked into `qr_revoked` in the same transaction; emits `qr.regenerated` (no token in the event or the audit record). Returns the station (as built 2.9) |
 | GET / POST / PATCH | `/api/v1/sensor-models[/{id}]` | staff (write: technician, admin) | Sensor model catalogue |
-| GET / POST / PATCH | `/api/v1/sensor-units[/{id}]` | staff (write: technician, admin) | Units by serial; status (not `installed`); interval override; serial and model corrections; `needs_review` |
+| GET / POST / PATCH | `/api/v1/sensor-units[/{id}]` | staff (write: technician, admin) | Units by serial; status (not `installed`); interval override; serial and model corrections |
 | POST | `/api/v1/sensor-units/{id}/install` | technician, admin | Install a unit in stock at a station for a parameter; opens an installation (as built 2.6) |
 | POST | `/api/v1/sensor-units/{id}/remove` | technician, admin | Remove it with a reason into stock, repair or retirement; closes the installation (as built 2.6) |
 | GET | `/api/v1/calibrations/due?within_days=30` | staff | Units due or overdue (CAL-4) |
@@ -285,18 +286,18 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/visits` | assigned staff, admin | Schedule a visit: planned dates, staff, lead, `stations: [{station_id, owner_staff_id}]` (owner defaults to the lead) |
 | GET | `/api/v1/visits/mine` | staff | My upcoming and active visits |
 | GET | `/api/v1/visits?request_id=&staff_id=&from=&to=` | scoped | List |
-| GET | `/api/v1/visits/{id}` | scoped | Visit with stations, owners, work records and media links |
+| GET | `/api/v1/visits/{id}` | scoped | Visit with stations, owners and each station's board summary (`stations[].board`: counts by kind, incomplete tasks, latest thumbnail) |
 | PATCH | `/api/v1/visits/{id}` | assigned staff, admin | Planned: reschedule; change staff, lead, stations, owners, notes. Started: change station owners only (lead or admin; §7.4) |
 | POST | `/api/v1/visits/{id}/cancel` | assigned staff, admin | Planned → Cancelled. Warns when the visit is prepared on a device |
 | POST | `/api/v1/visits/{id}/restore` | admin | Cancelled → Planned, when work was recorded offline on a cancelled visit (§7.4) |
 | POST | `/api/v1/visits/{id}/start` | attending staff | Planned → Started |
-| PUT | `/api/v1/visits/{id}/stations/{sid}/work` | station owner | Save a work record (`base_version`; rejected when locked) |
-| POST | `/api/v1/visits/{id}/stations/{sid}/media` | attending staff | Link `media_id` with phase and caption |
-| POST | `/api/v1/visits/{id}/end` | attending staff | `{additional_visit_required, follow_up_notes, overrides[]}` |
+| GET / POST | `/api/v1/visits/{id}/stations/{sid}/elements` | scoped (client: shared, ended) / attending staff, admin | The station's board; create an element (idempotent by `id`; §3.2.3) |
+| GET / PUT / DELETE | `/api/v1/visits/{id}/stations/{sid}/elements/{element_id}` | scoped / author, station owner, admin | Read, replace (`base_version`), delete (tombstone) |
+| POST / PATCH / DELETE | `/api/v1/visits/{id}/stations/{sid}/elements/{element_id}/media[/{media_id}]` | author, station owner, admin | Link a file to a section (`main`, `before`, `after`) with caption and `captured_at`; change the caption or hide; unlink |
+| POST | `/api/v1/visits/{id}/end` | attending staff | `{additional_visit_required, follow_up_notes}`; shares the media of shared elements and creates Config versions |
 | GET | `/api/v1/visits/{id}/field-bundle` | attending staff | Offline package; records `prepared_by` device and user |
 | POST | `/api/v1/sync` | staff | Apply a batch of offline operations (§7) |
-| GET / POST / PATCH | `/api/v1/checklist-templates[/{id}]` | admin (read: staff) | Templates, versioned |
-| POST | `/internal/visits/{id}/lock` | service (report) | Lock work records; idempotent per `{report_id, report_version}`; returns the final snapshot version |
+| POST | `/internal/visits/{id}/lock` | service (report) | Lock the visit's boards; idempotent per `{report_id, report_version}`; returns the final snapshot version |
 | POST | `/internal/visits/{id}/unlock` | service (report) | Unlock for correction or after a failed finalize; idempotent |
 | GET | `/internal/visits/{id}` | service | Full visit for report rendering |
 | GET | `/internal/attachable?owner_ref=&user=` | service (media) | May this user attach a file here? Returns `org_id` |
@@ -305,9 +306,9 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 
 #### 3.2.1 Visit rules
 
-- **VIS-6** is enforced in the domain layer on depart and on `end`: each station needs ≥1 Before and ≥1 After image, or an override reason.
-- **Station owner (ADR-18).** Each station on a visit has `owner_staff_id`, one of the visit's staff (default: the lead). Only the owner records arrival, departure, the work record and the media override. Any attending staff can add media to any station. Admins can edit any station.
-- Work edits after `end` are allowed until the visit is locked; they re-run the sensor reconciliation (§3.2.3) and emit `visit.work_updated`.
+- **Station owner (ADR-18).** Each station on a visit has `owner_staff_id`, one of the visit's staff (default: the lead). Only the owner records arrival and departure. Any attending staff member adds elements to any station's board; an element is edited by its author, the station's owner or an admin (§3.2.3).
+- Board edits after `end` are allowed until the visit is locked; they emit `visit.element_*` and, for a Config element whose After files changed, a new configuration version.
+- VIS-6 (a Before and an After image per station) was dropped on 2026-10-22 (W11-34).
 
 #### 3.2.2 Request status (ADR-17)
 
@@ -341,15 +342,27 @@ def derive_status(req, visits) -> Status:
 
 Every status change appends `status_history` and emits `request.status_changed` (plus the specific event, for example `request.client_review_started`) through the outbox.
 
-#### 3.2.3 Applying and correcting sensor actions
+#### 3.2.3 The visit board (decisions W11-16 to W11-35)
 
-When a visit ends, and on every later work save until the visit is locked, the domain reconciles the inventory with the visit's `sensor_actions` in the same transaction:
+Each station on a visit has a **board**: a list of elements in `visit_elements` (§5.2), each saved on its own. The rules live in `domain/visits/elements.py` (no I/O); the same functions give `/sync` its codes (§7.4).
 
-1. Each applied action has a `sensor_applications` record (`_id` = action ID) listing its effects: installations opened or closed, unit status before and after, calibration created, unit created for an unknown serial.
-2. A **new** action is applied and recorded. An **unchanged** action is skipped (idempotent). A **changed** action is reversed (its effects undone exactly) and re-applied. A **removed** action is reversed.
-3. Reversal is refused with `409 sensor_changed_later` when a later visit or a manual inventory change has touched the same unit or the same station parameter since. The correction is then made on the later visit or by an admin in the inventory.
-4. Unknown serials are created once (keyed by action ID) and flagged `needs_review` (SEN-5).
-5. Configuration versions captured in a visit are created at `end` with their device IDs. A created version never changes (CFG-2); a correction adds a new version.
+| Kind | Colour token | Holds | Media sections | Shared by default |
+|---|---|---|---|---|
+| `note` | `sticky-note` (yellow) | title, description | `main` | no |
+| `task` | `sticky-task` (green) | title, description, `items[]` | `before`, `after` | yes |
+| `recommendation` | `sticky-recommendation` (red) | title, description, `priority`, `request_ref` | `main` | yes |
+| `config` | `sticky-config` (purple) | title, description, `config_version_ids[]` | `before`, `after` | no |
+
+1. **Bounds** (rule 12): title 1 to 80 characters, description up to 4000, up to 50 task items of up to 200 characters with device-made IDs, up to 200 elements per station on a visit. No cap on media; the per-file limits of §10.2 apply. Config sections take any file the `config` kind accepts (any extension except executables, scripts, HTML and SVG); the other sections take images and video.
+2. **Who:** any attending staff member or an admin creates. The author, the station's owner or an admin edits, deletes, ticks items, changes media and sharing. Other staff and viewers read. A client reads shared elements of an ended visit only, through the repository's scope (`org_id`, `shared`, the visit `ended`); anything else is 404.
+3. **When:** from `started` until `locked`. Planned → 409 `not_started`, cancelled → `visit_cancelled`, locked → `locked`.
+4. **Saves:** `POST` creates with the device-made `id` (the same content again → 200; other content → 409 `duplicate_id`). `PUT` replaces the editable fields with `base_version` (stale → 409 `element_changed` with the current element; a retry whose content equals the current element is success). `DELETE` takes `base_version` and leaves a tombstone (`deleted_at`); a later save of that element → 409 `element_deleted`. Media is linked through its own routes, idempotent by `media_id`, and does not change the element's `version`.
+5. **Tasks:** complete when there is at least one item and every item is done; the server sets and clears `completed_at`. The End dialog warns about incomplete tasks; the server never refuses `end` for them.
+6. **Sharing:** at `end`, media of shared elements is shared (`media.visibility_requested`, `org`) in the same transaction; a change of `shared` after `end`, or deleting a shared element, emits the matching change. A single item can still be hidden (W11-13).
+7. **Config → configuration versions:** at `end`, each Config element with After files becomes a station version (`config_versions`, W6) whose ID is derived from the element's ID and `version`, with the title as its note; a file that is not `ready` → 409 `config_files_not_ready`. After `end`, a save that changes the After files adds another version (CFG-2: versions never change). Deleting the element keeps its versions.
+8. **Recommendation → request:** `POST /api/v1/requests` with `source: {visit_id, element_id}` (staff who can edit the element) writes `request_ref` on the element in the same transaction. Online only (OFF-10).
+9. **Media owner reference:** `visit:{visit_id}:station:{station_id}:element:{element_id}:{section}`; `GET /internal/attachable` answers with the station's organization.
+10. Visits no longer change the sensor inventory (W11-17): swaps and calibrations are recorded on the Sensors page and the station's Calibration tab.
 
 **Consumes:**
 
@@ -408,7 +421,7 @@ When a visit ends, and on every later work save until the visit is locked, the d
 | Event | Effect |
 |---|---|
 | `visit.ended` | Create a draft visit report (waits up to 5 min for `media.processed` on that visit, then renders with what is ready) |
-| `visit.work_updated` | Refresh the draft's facts snapshot (draft only; clears signatures, §11.2) |
+| `visit.element_added` / `visit.element_updated` / `visit.element_deleted` | Refresh the draft's facts snapshot (draft only; clears signatures, §11.2) |
 | `media.processed` | Refresh the thumbnails in the draft |
 | `request.closed` | Render the close-out report |
 | `client_report.submitted` (form) | Render the client report PDF → `report.generated` |
@@ -456,7 +469,7 @@ sequenceDiagram
     Note over OP: Admin approves, assigns / technician claims
     T->>OP: POST /visits (dates, staff, station owners)
     Note over OP: visit planned + request Scheduled (one transaction)
-    T->>OP: start / work / media (online or via /sync)
+    T->>OP: start / board elements / media (online or via /sync)
     Note over OP: visit started + request In progress
     T->>OP: end (no further visit)
     Note over OP: sensor inventory + configs + request status (one transaction)
@@ -536,7 +549,7 @@ sensor_units {
   current_parameter,
   calibration_interval_days /*override, nullable*/,
   last_calibrated_at, calibration_due_at, last_calibration_result,
-  needs_review: bool, flags: ["calibration_failed", ...], notes
+  flags: ["calibration_failed", ...], notes
 }
 installations {
   _id, sensor_unit_id, station_id, org_id /*copied from the station*/, parameter,
@@ -549,11 +562,6 @@ calibrations {
   reference_instrument: { model, serial, certificate_due },
   readings: [{ reference, before, after, unit }],
   result: "pass"|"adjusted"|"fail", certificate_media_id, performed_by, notes
-}
-sensor_applications {
-  _id /*= sensor action id*/, visit_id, station_id, action_hash,
-  effects: { installations_opened: [], installations_closed: [], unit_status: [{unit_id, before, after}],
-             calibration_id, unit_created }
 }
 documents {
   _id, scope: "model"|"station", scope_id,
@@ -605,33 +613,24 @@ site_visits {
   stations: [{
     station_id, station_code, station_name, time_zone,
     owner_staff_id,
-    arrived_at, departed_at,
-    media: [{ media_id, phase: "before"|"during"|"after", caption, captured_at, added_by }],
-    media_override_reason,
-    work: WorkRecord
+    arrived_at, departed_at
   }]
 }
-WorkRecord {
-  checklist_template: { id, version, items: [...] } /*copied*/,
-  condition_on_arrival: { status, notes },
-  checklist: [{ item_id, label, result: "ok"|"fixed"|"issue"|"na", note, ad_hoc: bool }],
-  sensor_actions: [{ id, action: "replace"|"calibrate"|"clean"|"repair"|"remove"|"install",
-                     parameter, sensor_model_id, old_serial, new_serial, removal_reason,
-                     calibration: { method, reference_instrument, readings: [], result } | null,
-                     note }],
-  config_versions: [{ id, files: [media_id], notes }],
-  parts_used: [{ id, description, quantity }],
-  issues_found: [{ id, description, severity }],
-  data_downloaded: { done, from, to },
-  condition_on_departure: { status, notes }, notes,
-  version, updated_by, updated_at, device_id
+visit_elements {
+  _id /*UUIDv7 from the device*/, visit_id, request_id, station_id, org_id /*station's owner_org_id*/,
+  kind: "note"|"task"|"recommendation"|"config", title, description,
+  items: [{ id, text, done, done_by, done_at }] /*task*/,
+  priority: "low"|"medium"|"high" /*recommendation*/, request_ref: { id, ref } /*recommendation*/,
+  config_version_ids: [] /*config*/,
+  media: { main|before|after: [{ media_id, kind, filename, caption, captured_at, added_by, hidden }] },
+  shared: bool, completed_at /*task, set by the server*/,
+  created_by, created_at, version, updated_by, updated_at, device_id, deleted_at /*tombstone*/
 }
-checklist_templates { _id, name, station_type, sensor_model_id, version, items: [{ id, label, help }], active }
 sync_operations { _id /*client op id*/, user_id, device_id, type, result, applied_at /*TTL 90d*/ }
 counters { _id /*"MR-2026" or "VR-2026-0042"*/, seq }
 ```
 
-Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `request_id`; `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `checklist_templates` on `(station_type, active)`.
+Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `request_id`; `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `visit_elements` on `(visit_id, station_id, created_at)` and `org_id`.
 
 ### 5.3 media
 
@@ -662,7 +661,7 @@ reports {
     facts: { ... },          // snapshot from operations and media, refreshed while draft
     narrative: { summary, stations: [{ station_id, work_performed }],
                  recommendations, follow_up },
-    media_selection: [{ station_id, media_id, phase, caption, in_body: bool }]
+    media_selection: [{ station_id, element_id, section, media_id, caption, in_body: bool }]
   },
   content_version, content_hash /*sha256 of canonical JSON, final only*/,
   template_version, pdf_key, pdf_sha256, finalize_attempts, finalize_error,
@@ -678,7 +677,7 @@ request_facts { _id /*request_id*/, org_id, country, station_ids, category, prio
                 submitted_at, approved_at, assigned_at, first_visit_at, review_started_at,
                 closed_at, auto_closed, reopen_count, visit_count, aggregate_version }
 visit_facts { _id /*visit_id*/, request_id, org_id, staff_ids, station_ids, started_at, ended_at,
-              sensor_action_count, report_finalized_at, aggregate_version }
+              element_counts: { note, task, recommendation, config }, report_finalized_at, aggregate_version }
 sensor_events { _id, sensor_model_id, serial, station_id, org_id, action, at }
 calibration_facts { _id, sensor_unit_id, station_id, org_id, at, result, due_at }
 station_facts { _id /*station_id*/, org_id, country, type, status, code, name, aggregate_version }
@@ -839,7 +838,7 @@ async def approve(id: str, user: User = Depends(require_roles("admin"))): ...
 
 - **Role groups:** `STAFF = {technician, admin, viewer}`; `STAFF_WRITE = {technician, admin}`. Viewers pass `require_staff()` for reads only. Every mutating route uses `require_roles(...)` without `viewer`. A test asserts that no mutating route accepts `viewer`.
 - **Organization scoping** is applied in the repository layer. For a `client`, every query is merged with `{"org_id": user.org_id}`, or `owner_org_id` for stations and `current_org_id` for sensor units. Endpoint code cannot bypass it. Installations and calibrations carry their own `org_id`, so no join is needed.
-- **Visit edit rights:** media by users in `site_visits.staff_ids`; a station's work record, arrival, departure and override by its `owner_staff_id`; admins may edit any of them.
+- **Visit edit rights:** board elements are created by users in `site_visits.staff_ids` and edited by their author or the station's `owner_staff_id`; arrival and departure by the `owner_staff_id`; admins may edit any of them (§3.2.3).
 - **Internal comments, draft reports, staff-only documents and config versions** are filtered out for clients in the repository layer.
 - **Staff names for clients** (DBD D4): request and visit responses include assigned and attending staff, and station owners, as `{id, name}` for clients too. Staff email and phone are never sent to client users.
 - A resource outside the user's scope returns **404**.
@@ -858,7 +857,7 @@ Services obtain a service token from `auth /internal/service-token` using a per-
 |---|---|
 | `bundles` | Prepared visits and station bundles (JSON), per user |
 | `files` | Manuals, documents and the latest configuration files downloaded during prepare, as blobs (presigned URLs expire, so offline files are never stored as URLs) |
-| `visits` | Local working copy of visits and the work records this user owns |
+| `visits` | Local working copy of visits and their boards' elements |
 | `outbox` | Ordered operations `{op_id, user_id, visit_id, type, payload, created_at, attempts, status}` |
 | `blobs` | Captured media and config files `{media_id, owner_ref, file, size, sha256, upload_id, parts_done[], state}` |
 | `meta` | Device ID, offline profile, PIN verifier, `offline_until`, failed PIN count, last sync time, storage estimate |
@@ -871,12 +870,15 @@ The app calls `navigator.storage.persist()` on first field use, shows the remain
 |---|---|---|
 | `visit.start` | attending staff | `{visit_id, started_at, device_id}` |
 | `station.arrive` | station owner | `{visit_id, station_id, arrived_at}` |
-| `work.save` | station owner | `{visit_id, station_id, work_record, base_version}` |
-| `media.attach` | attending staff | `{visit_id, station_id, phase, media_id, caption, captured_at}` (queued after the upload completes) |
-| `station.depart` | station owner | `{visit_id, station_id, departed_at, media_override_reason?}` |
+| `element.create` | attending staff | `{visit_id, station_id, element}` (the device-made `element.id`) |
+| `element.update` | author, station owner | `{visit_id, station_id, element, base_version}` |
+| `element.delete` | author, station owner | `{visit_id, station_id, element_id, base_version}` |
+| `element.media_add` | author, station owner | `{visit_id, station_id, element_id, section, media_id, caption, captured_at}` (queued after the upload completes) |
+| `element.media_remove` | author, station owner | `{visit_id, station_id, element_id, media_id}` |
+| `station.depart` | station owner | `{visit_id, station_id, departed_at}` |
 | `visit.end` | attending staff | `{visit_id, ended_at, additional_visit_required, follow_up_notes}` |
 
-Sensor swaps, calibrations and configuration versions travel inside `work.save` (`sensor_actions[]`, `config_versions[]`). Their IDs are generated on the device, so applying them is idempotent.
+Every payload carries `payload_version` so ops queued by an older app still apply after an update. Element and item IDs are generated on the device, so applying an op twice changes nothing. Configuration versions are made by the server from Config elements at `end` (§3.2.3).
 
 ### 7.3 Sync protocol
 
@@ -913,8 +915,10 @@ There is no merge (ADR-18). Each conflict has a reason code, and in every case *
 
 | Situation | Server response | What happens next |
 |---|---|---|
-| `work.save`, `station.arrive` or `station.depart` from someone who isn't the station's owner (owner changed while they were offline) | `conflict: not_owner` | Device keeps the work for export. Lead and admins notified. The new owner re-enters it |
-| `work.save` with an older `base_version` (the owner edited on another device) | `conflict: stale_version` | Server copy shown; device keeps its copy for export |
+| `station.arrive` or `station.depart` from someone who isn't the station's owner (owner changed while they were offline) | `conflict: not_owner` | Device keeps the times for export. Lead and admins notified |
+| `element.update`, `element.delete` or element media from someone who is neither the author nor the station's owner (owner changed while they were offline) | `conflict: not_editor` | Device keeps its copy for export. Lead and admins notified |
+| `element.update` or `element.delete` with an older `base_version` (edited on another device or by an admin) | `conflict: element_changed` | Server copy shown; device keeps its copy for export |
+| `element.update` on an element deleted elsewhere | `conflict: element_deleted` | Device keeps its copy for export; nothing is recreated |
 | Any op on a **locked** visit | `conflict: locked` | Device keeps its copy for export |
 | `visit.start` or later ops on a visit that was **cancelled** while the device was offline | `conflict: visit_cancelled` | Admins notified ("Work recorded on a cancelled visit"). An admin may **restore** the visit (`POST /visits/{id}/restore`), and the next sync applies the queued ops |
 | Work for a station that was **removed** from the visit while offline | `applied` | The station is added back (it must be one of the request's stations), and the change is logged |
@@ -1008,7 +1012,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
 | `sensor_model.created` / `sensor_model.updated` | operations | platform (audit) | model_id, kind, manufacturer, model, parameters, default_calibration_interval_days (as built 2.6) |
-| `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review, current_station_id, calibration_due_at |
+| `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, current_station_id, calibration_due_at |
 | `sensor.installed` / `sensor.removed` / `sensor.application_reversed` | operations | report, platform (audit) | unit_id, serial, model_id, station_id, parameter, visit_id, action_id |
 | `calibration.recorded` / `calibration.voided` | operations | report, platform (audit) | calibration_id, unit_id, station_id, result, due_at |
 | `calibration.due_digest` | operations | platform (notification) | units: [{unit_id, serial, station_id, due_at}] |
@@ -1030,8 +1034,10 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `visit.scheduled` / `visit.rescheduled` | operations | platform, report | visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners |
 | `visit.cancelled` / `visit.restored` | operations | platform, report | visit_id, request_id |
 | `visit.started` | operations | report, platform (audit) | visit_id, request_id, started_at |
-| `visit.ended` | operations | report, platform | visit_id, request_id, station_ids, sensor_actions[], config_versions[], additional_visit_required, overrides[] |
-| `visit.work_updated` | operations | report, platform (audit) | visit_id, station_id, sensor_actions[], config_versions[] |
+| `visit.ended` | operations | report, platform | visit_id, request_id, station_ids, config_version_ids[], additional_visit_required |
+| `visit.element_added` / `visit.element_updated` / `visit.element_deleted` | operations | report, platform (audit) | visit_id, request_id, station_id, element_id, kind, shared, completed?, priority? (never the title, description or item text) |
+| `visit.media_changed` | operations | report, platform (audit) | visit_id, station_id, element_id, section, media_id, change |
+| `visit.work_updated` | operations | — | *Retired 2026-10-22 (W11-16)*: no longer emitted; the schema stays registered so earlier audit records parse |
 | `visit.station_owner_changed` | operations | platform | visit_id, station_id, from, to |
 | `visit.sync_conflict` | operations | platform (notification) | visit_id, user_id, reason |
 | `visit.locked` / `visit.unlocked` | operations | platform (audit) | visit_id, report_id |
@@ -1125,12 +1131,12 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 
 ### 11.2 Visit report lifecycle
 
-1. **Draft created** on `visit.ended`. `content.facts` is snapshotted through internal reads (operations, media). `content.narrative` is pre-filled from the work-record notes and follow-up notes. `media_selection` defaults to the first Before and After images per station.
-2. **Editing:** `PATCH /content` with `content_version`. A `visit.work_updated` event refreshes `facts` only and never overwrites `narrative`.
-3. **Signing:** `POST /sign` stores a signature against the current `content_version` and `content_hash`. **Any later content change**, including a facts refresh from a corrected work record, clears the signatures, which must be given again.
+1. **Draft created** on `visit.ended`. `content.facts` is snapshotted through internal reads (operations, media). `content.narrative` is pre-filled from the board's Notes and Recommendations and the follow-up notes. `media_selection` defaults to the first Before and After images of each Task.
+2. **Editing:** `PATCH /content` with `content_version`. A `visit.element_*` event refreshes `facts` only and never overwrites `narrative`.
+3. **Signing:** `POST /sign` stores a signature against the current `content_version` and `content_hash`. **Any later content change**, including a facts refresh from a corrected board, clears the signatures, which must be given again.
 4. **Finalizing** is a saga that the report service drives and can resume:
    1. Check the lead's signature; set `status = finalizing`, which blocks content edits.
-   2. `POST /internal/visits/{id}/lock` (idempotent per report version) → visit locked; returns the final work version.
+   2. `POST /internal/visits/{id}/lock` (idempotent per report version) → visit locked; returns the final board version.
    3. Re-snapshot `facts`. If they changed, the signatures no longer match: unlock, return to `draft` and ask for signatures again. Otherwise compute `content_hash` = SHA-256 of the canonical JSON (sorted keys, UTF-8) of `content` plus the signature metadata.
    4. Render the PDF (the footer shows the first 16 hex characters of `content_hash`). Store it, compute `pdf_sha256`, then set `status = final` and insert `report.finalized` in the outbox, in one transaction.
    5. If rendering fails, retry 3 times with backoff. After the last failure: `status = draft`, unlock the visit, keep the signatures (the content didn't change), store `finalize_error`, and emit `report.finalize_failed` so the signer can try again. A cron resumes any report left in `finalizing` for more than 15 minutes.
@@ -1191,7 +1197,7 @@ frontend/src/
 - **Charts:** ApexCharts through `vue3-apexcharts`, with shared options in `charts/presets.ts` (Roboto Flex, tabular figures, toolbar off, palette per theme). Charts switch `theme.mode` with the app theme and turn animation off under `prefers-reduced-motion`.
 - API types are generated with `openapi-typescript` from each service's OpenAPI schema in CI. A failed generation fails the build.
 - **Route guards** check roles from the access token when online, or from the unlocked offline profile when offline (§6.1). The server still enforces every rule. Viewers see read-only views; action buttons are hidden, not just disabled.
-- **Field mode layout** (phones): stepper per station (Before → Work → After → Review), bottom navigation, large touch targets, a persistent sync badge. A station owned by someone else opens read-only with media capture available.
+- **Field mode layout** (phones): the station's board in one column with a floating Add button (Note, Task, Recommendation, Config); an element opens as a full-screen sheet; arrive, depart and end in the bottom navigation; large touch targets, a persistent sync badge. Elements someone else wrote open read only (W11-32).
 - Camera capture: `<input type="file" accept="image/*,video/*" capture="environment">`.
 - QR route `/s/:token` resolves online via `/api/v1/qr/{token}`, or offline from cached bundles after PIN unlock.
 - Time display: user time zone by default. Visit and station screens show station local time with the zone label.
@@ -1322,7 +1328,7 @@ The full plan, with fixtures, seed users, CI stages, tests by phase and traceabi
 
 | Level | Tooling | Scope |
 |---|---|---|
-| Unit | pytest, Hypothesis | Domain logic: request status derivation (every combination of visit and report states), visit end rules, owner rules, sensor reconciliation and reversal, report lifecycle, finalize saga and signature invalidation, audit hash chain, permissions (including "viewer can never mutate") |
+| Unit | pytest, Hypothesis | Domain logic: request status derivation (every combination of visit and report states), visit end rules, owner and element edit rules, task completion, element tombstones, report lifecycle, finalize saga and signature invalidation, audit hash chain, permissions (including "viewer can never mutate") |
 | API | pytest + httpx `AsyncClient` + testcontainers (Mongo, Redis, Kafka) | Each endpoint, including org scoping, 404-for-out-of-scope and role checks; the authorization matrix generated from OpenAPI |
 | Contract | pytest | Each consumer validates fixtures against producer schemas in `mms_common.events`; every AUD-1 action maps to an event |
 | Integration | pytest against the Compose stack | Event flows: request → visit → report → client review → close; outbox leader failover and consumer faults; backfill; time-based jobs with a clock override |
