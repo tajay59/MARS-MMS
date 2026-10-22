@@ -3,9 +3,10 @@
 
 | | |
 |---|---|
-| **Version** | 1.1 (draft) |
-| **Date** | 2026-10-16 |
+| **Version** | 1.2 (draft) |
+| **Date** | 2026-10-22 |
 | **Status** | Draft for review |
+| **Changes in 1.2** | Phase 4: the visit board replaces work records, sensor reconciliation and checklist templates (decisions W11-16 to W11-35, 2026-10-22; plan in `docs/plans/visit-board-plan.md`). W12 becomes the board on a phone and the client's view; Q5 is closed |
 | **Changes in 1.1** | Follows TRD 2.0: five services (operations replaces station, maintenance and visit; platform replaces notification and audit; no integration stub), Nginx instead of Kong, SeaweedFS instead of MinIO. Phase 2 grows to 3 weeks, so go-live moves to the end of **week 25**. Label PDFs come from the report service, whose skeleton moves to Phase 2. New work: offline PIN session, station owners, request status derivation, sensor-action correction, finalize saga and read-model backfill. The definition of done adds the design review |
 | **Builds on** | [PRD.md](PRD.md) v1.1, [TRD.md](TRD.md) v2.0, [AFD.md](AFD.md) v1.1 (App Flow), [DBD.md](DBD.md) v1.2 (Design Brief), [BSD.md](BSD.md) v1.1 (Background Schema), [TP.md](TP.md) v1.1 (Test Plan) |
 | **Replaces** | PRD §8 Release plan and TRD §20 Implementation phases |
@@ -96,7 +97,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 | 1 · Foundations | 3 | 3 | Fewer services, but infrastructure debugging does not compress |
 | 2 · Stations | 3 | 3 | The largest domain, plus the report service skeleton for label sheets |
 | 3 · Requests | 3 | 2 | State machine and notifications are fully specified |
-| 4 · Visits online | 3 | 3 | Media pipeline, sensor reconciliation and testing on phones |
+| 4 · Visits online | 3 | 3 | Media pipeline, the visit board and testing on phones |
 | 5 · Offline field mode | 3 | 3 | Real-device testing |
 | 6 · Reports and signatures | 3 | 3 | Several visual passes on the PDF layout |
 | 7 · Summaries and hardening | 3 | 2 | UAT moves to Phase 8 |
@@ -119,7 +120,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 | DNS | `mms.` and `files.mms.` records for production and staging | T6 |
 | Repository | GitHub repo `tajay59/MARS-MMS`. Done 2026-10-16: `main` pushed, with line-ending rules (`.gitattributes`, `.editorconfig`) and a frontend CI workflow (lint, type-check, build). Milestones P0–P8 created, with the open Phase 0 work as issues #1–#10 in P0, on the project board [AWS-MMS](https://github.com/users/tajay59/projects/2). CI now runs on every pull request, so `check` can be a required status. The repo was made public on 2026-10-16, which made branch protection available on GitHub Free: `main` now needs a pull request with a green, up-to-date `check`, linear history (squash or rebase merges only), resolved conversations, no force pushes or deletions, and admins are included. Secret scanning with push protection and Dependabot alerts are on (#6 closed). GHCR has nothing to set up until Phase 1 publishes images (the publishing workflow grants itself `packages: write`; the default workflow token stays read-only) | T2 |
 | SeaweedFS spike | **Passed 2026-10-16** (`infra/spikes/seaweedfs/`, SeaweedFS 4.48): all 15 server-side checks (7 MUST, 2 NICE, 3 INFO) and the browser checks in Chrome 155 (20 MiB in 3 parts, a 50.9 MiB video in 7 parts in 2.0 s, abandon and abort). Versioning and object lock work. A 152.8 MiB phone video uploaded from Android Chrome over Wi-Fi in 20 parts in 47.5 s, read back intact. Firefox 158 passed the same browser checks (20 MiB in 1.0 s, the 50.9 MiB video in 2.5 s, abandon and abort). All checks done; an iPhone run is optional. Results in the spike README | T7 (confirmed), R6 |
-| Requests to the organization | Sent with a due date: SMTP relay details (T3), station and sensor export (T4, Q4), branding (Q1, D1, D5), checklist templates (Q5), request categories (Q6), signature wording and jurisdictions (Q2, Q3) | Tracked in *Decision deadlines* |
+| Requests to the organization | Sent with a due date: SMTP relay details (T3), station and sensor export (T4, Q4), branding (Q1, D1, D5), request categories (Q6), signature wording and jurisdictions (Q2, Q3) | Tracked in *Decision deadlines* |
 
 **Weekly milestone**
 
@@ -215,15 +216,14 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 ## Phase 4 · Visits online (W10–W12)
 
-**Goal:** a technician records a whole visit online, and the result updates the station's sensor and calibration history, including later corrections.
+**Goal:** a technician records a whole visit online on each station's board (Notes, Tasks, Recommendations, Config), and a Config element's After files become the station's configuration version.
 
 **Deliverables**
 
 - **operations service, visits module:** scheduling, rescheduling and cancelling (including multi-day and parallel visits), attending staff with a lead and an **owner per station**, start, arrival and departure per station, end rules, "another visit needed", and the request status derived from visits in the same transaction.
-- **Checklists:** admin template editor by station type and sensor model; each visit keeps a copy of the template version it used.
-- **Work records:** condition on arrival, checklist results, sensor actions (install, remove, replace, calibrate) and configuration capture. On end and on later edits, sensor actions are applied, reversed and re-applied through `sensor_applications` in the same transaction. Unknown serials are created and flagged.
+- **The visit board:** one per station on a visit, in `visit_elements`: Notes, Tasks (typed items with checkboxes, Before and After media), Recommendations (priority, Create request) and Config (Before and After files of any kind). Each element is saved on its own with `base_version` and a tombstone on delete. *(Replaced on 2026-10-22: checklist templates, the structured work record and sensor reconciliation, built in W10 and W11, are removed; sensor swaps are recorded on the Sensors page.)*
 - **media-worker:** images to WebP with thumbnails and EXIF/GPS removed, video compressed with ffmpeg, virus scanning, resumable multipart uploads, `purge_originals` and `reconcile` crons.
-- **Frontend, field shell:** visit page with station owners and **Change owner**, per-station checklist (read-only for non-owners), Before/During/After capture, and sensor swap and calibration forms. Clients can see visits and processed media.
+- **Frontend:** visit page with station owners and **Change owner**, the board as sticky notes with an element sheet that shows every file in place (photos, video, PDF, text and code), the same board on phones in the field shell. Clients see the shared elements of ended visits.
 
 **Weekly milestones**
 
@@ -231,13 +231,14 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 |---|---|
 | W10 | Visit lifecycle, scheduling, parallel visits and station owners with tests. Request status derivation wired to visits. Checklist template editor. Scheduling step of J5. |
 | W11 | Work records and sensor reconciliation (apply, reverse, re-apply, refuse when changed later). Image and video pipeline in media-worker, tested with the TP media fixtures (iPhone and Android files, GPS EXIF, EICAR). |
-| W12 | Field-shell screens tested on phones. End rules (VIS-6). Client view of visits and media. Playwright test of an online visit. |
+| W11 (second half) | The visit board replaces the work record: back end, file viewers, board screens, Config versions and Create request (`docs/plans/visit-board-plan.md`). |
+| W12 | The board in the field shell tested on phones. Client view of shared elements. Playwright test of an online visit. |
 
-**Delivers:** VIS-1 to VIS-11, SEN-4, SEN-5, CAL-1 (field checks), CFG-4 (online), MED-1, MED-2, MED-4, MED-5, MED-7, the "Start visit" action in QR-3.
+**Delivers:** VIS-1 to VIS-5, VIS-7 to VIS-11 (VIS-6 dropped), CFG-4 (online), MED-1, MED-2, MED-4, MED-5, MED-7, the "Start visit" action in QR-3.
 
-**Depends on:** Phases 2 and 3; Q5 starter checklist template by the start of W10.
+**Depends on:** Phases 2 and 3.
 
-**Staging release 0.4:** two technicians record a mock visit on their phones at a nearby station, each owning one station, with a sensor swap, a corrected serial and a 2-minute video.
+**Staging release 0.4:** two technicians record a mock visit on their phones at a nearby station, each owning one station, each filling in its board with all four kinds, a Config file and a 2-minute video.
 
 **Exit criteria:** a visit recorded online updates the sensor installation and calibration history, and correcting a serial after the visit ends fixes the history. A 2-minute video plays in Chrome and iOS Safari after processing. Processed images carry no GPS data.
 
@@ -249,7 +250,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 - **PWA:** installable app built on the vite-plugin-pwa (`injectManifest`) worker added in Phase 1 (F5), an install prompt, `storage.persist()` (risk R4), and a service worker that caches the app shell and map tiles only.
 - **Offline session:** PIN set on first prepare, PBKDF2 verifier, `/unlock` page, five-attempt lockout, profile and bundles cleared on logout, 30-day field session (AUTH-12).
-- **Prepare for field:** downloads the request, stations, sensors, calibration status, latest configuration files, checklists and manuals to Dexie as data and blobs (OFF-1).
+- **Prepare for field:** downloads the request, stations, sensors, calibration status, latest configuration files, the stations' boards and manuals to Dexie as data and blobs (OFF-1).
 - **Offline capture:** the outbox of operations with UUIDv7 IDs and idempotency keys, owner-only work operations, and offline QR lookup.
 - **Sync:** the `/sync` endpoint, resumable media uploads, the conflict codes (`not_owner`, `stale_version`, `locked`, `visit_cancelled`, `already_ended`), visit restore for admins, and local copies cleared only after the server confirms.
 - **Sync status UI:** pending changes, pending files and storage used, the "Needs attention" group with **Export**, "Sync now" and the unprepared-visit warning.
@@ -281,7 +282,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 - **Client review:** the Client Review state, accept with a signature, reject with a reason, reminders on days 7, 21 and 28, the day-30 auto-close cron, and the return to In progress when a report is reopened.
 - **Client reports:** PDF upload, or the online form rendered to PDF.
 - **Close-out report:** generated when a request closes, and regenerated when a report of a closed request is corrected.
-- **Visit lock:** finalizing locks the visit's work records (VIS-12).
+- **Visit lock:** finalizing locks the visit's boards (VIS-12).
 
 **Weekly milestones**
 
@@ -339,7 +340,7 @@ Two weeks of slack, about 10% of the build, held at the end rather than spread a
 
 **Deliverables**
 
-- **Production data:** final import of stations, sensor units and calibration history; client organizations and staff accounts created; checklist templates and request categories loaded; final branding applied.
+- **Production data:** final import of stations, sensor units and calibration history; client organizations and staff accounts created; request categories loaded; final branding applied.
 - **Training:** one session each for admins and technicians (including the PIN unlock and station ownership), a one-page quick reference per role, and a short client guide sent with the invitation email.
 - **Pilot (UAT):** the pilot clients and technicians run real requests through J1–J10. Defects are triaged daily, and critical and high defects are fixed before go/no-go.
 - **Go-live:** go/no-go meeting, invitations to the remaining clients (AUTH-6), and an announcement.
@@ -376,7 +377,7 @@ Every phase is on the critical path. With one developer, phases run one after an
 | T4, Q4 | Station and sensor export; countries and time zones | Product owner | W5 | Phase 2 import |
 | Q7 | Default document visibility | Product owner | W5 | Phase 2 · **decided 2026-10-19: staff-only** |
 | Q6 | Request categories and priority definitions | Product owner | W8 | Phase 3 |
-| Q5 | Starter checklist templates | Product owner | W10 | Phase 4 |
+| Q5 | *Closed 2026-10-22: checklist templates removed (W11-16)* | — | — | — |
 | — | Test iPhone and Android phone; one day of two technicians for the field test | Product owner | W13 (devices), W15 (field day) | Phase 5 |
 | Q1, D1, D5 | Branding, logo, report numbering, login photo | Product owner | W16 | Phase 6 PDFs |
 | Q2, Q3 | Signature attestation wording; jurisdictions accept a simple e-signature (R5) | Product owner, legal | W16 | Phase 6 |

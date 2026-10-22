@@ -3,9 +3,10 @@
 
 | | |
 |---|---|
-| **Version** | 1.4 |
-| **Date** | 2026-10-17 |
+| **Version** | 1.5 |
+| **Date** | 2026-10-22 |
 | **Status** | Final draft for approval |
+| **Changes in 1.5** | The visit board replaces the work record (decisions W11-16 to W11-35, 2026-10-22): a station on a visit is recorded as Notes, Tasks, Recommendations and Config (VIS-5, VIS-7, VIS-8 rewritten); VIS-6 dropped; checklist templates removed; sensor swaps, unknown serials and field calibrations are recorded on the Sensors page, not through a visit (SEN-4, SEN-5, CAL-1); a Config element's After files become a configuration version (CFG-4). §6.2, §9 phase 4 and Appendix A follow |
 | **Changes in 1.4** | REQ-7: a technician can release a claim, and an admin can unassign; the request returns to the queue when nobody is left (decision W9-4, 2026-10-21). Section 5.1 shows the Assigned to Approved move |
 | **Changes in 1.3** | AUD-1 also audits brand colour changes: admins can change the organization-wide colours on Settings (decision W4-12, 2026-10-17) |
 | **Companion document** | [TRD.md](TRD.md) v2.1 (Technical Requirements Document) |
@@ -34,7 +35,7 @@ AWS-MMS is a web application for managing maintenance of **Automatic Weather Sta
 |---|---|---|
 | G1 | Every maintenance request is tracked from submission to closure | 100% of requests created in the app within 3 months of launch |
 | G2 | Clients can see request status without contacting staff | 50% fewer status-enquiry calls/emails (baseline measured before launch) |
-| G3 | Every site visit is documented consistently | 100% of visits have before and after media per station and a structured work record |
+| G3 | Every site visit is documented consistently | 100% of visits have a board per station with at least one element |
 | G4 | Visit reports are produced from structured data and signed | Draft report ready within 10 minutes of a visit syncing; 90% finalized and signed within 3 working days |
 | G5 | Full sensor and calibration history per station | Every sensor swap and calibration recorded against serial numbers |
 | G6 | Staff can work at sites with no signal | A complete visit can be recorded offline and synced later with no data loss |
@@ -68,7 +69,8 @@ AWS-MMS is a web application for managing maintenance of **Automatic Weather Sta
 | **Station (AWS)** | An automatic weather station at a fixed site |
 | **Maintenance request** | A request for work on one or more stations. Completed through one or more site visits |
 | **Site visit** | One trip, possibly over several days, to one or more stations to carry out work for one request |
-| **Work record** | The structured record of what was done at one station during one visit |
+| **Board** | What was found and done at one station during one visit, recorded as elements: Notes, Tasks, Recommendations and Config (VIS-5) |
+| **Element** | One sticky note on a board: a Note, Task, Recommendation or Config, with its own files and its own Share with client setting |
 | **Visit report** | The PDF report of one site visit. It is drafted automatically, edited by staff, then signed and finalized |
 | **Client report** | The client's own report on a request, either an uploaded PDF or an online form |
 | **Sensor model** | A make and model of sensor or component (for example Vaisala HMP155) |
@@ -80,7 +82,7 @@ AWS-MMS is a web application for managing maintenance of **Automatic Weather Sta
 |---|---|
 | **Client** | External user belonging to exactly one client organization. Sees only that organization's stations, requests and reports. Submits requests, comments, adds client reports, and accepts or rejects completed work. |
 | **Technician** | Staff who carry out maintenance. Sees all stations and requests. Claims requests from the queue, schedules and records visits, edits and signs visit reports, and maintains station, sensor, document and configuration data. |
-| **Admin** | Staff who manage the service. Everything a technician can do, plus: approve or reject client registrations, approve or deny requests, assign staff, manage users, organizations and checklist templates, view the audit log. |
+| **Admin** | Staff who manage the service. Everything a technician can do, plus: approve or reject client registrations, approve or deny requests, assign staff, manage users and organizations, view the audit log. |
 | **Viewer** | Internal read-only staff, for example management. Can view everything staff can view (including internal comments and reports) but cannot change anything. Cannot see the audit log. |
 
 - A staff user may hold several staff roles, for example Technician and Admin.
@@ -100,7 +102,7 @@ AWS-MMS is a web application for managing maintenance of **Automatic Weather Sta
 | Claim a request from the queue | — | ✅ | ✅ | — |
 | Schedule a visit | — | Assigned staff | ✅ | — |
 | Record a visit: media | — | Attending staff | Attending staff | — |
-| Record a visit: a station's work record | — | That station's owner | That station's owner; any station as admin | — |
+| Record a visit: add elements to a station's board | — | Any attending staff; edits by the element's author or the station's owner | The same; any element as admin | — |
 | Edit, sign and finalize a visit report | — | Attending staff | ✅ | — |
 | Comment on a request | Own org | ✅ | ✅ | — |
 | See internal comments | — | ✅ | ✅ | ✅ |
@@ -108,7 +110,7 @@ AWS-MMS is a web application for managing maintenance of **Automatic Weather Sta
 | Accept / reject completed work (with signature) | Own org | — | — | — |
 | Summary reports | Own org, limited types | ✅ | ✅ | ✅ |
 | Dashboard | Client dashboard | Technician dashboard | Admin dashboard | Admin dashboard (read-only) |
-| Manage users, organizations, registrations, checklist templates | — | — | ✅ | — |
+| Manage users, organizations, registrations | — | — | ✅ | — |
 | View audit log | — | — | ✅ | — |
 
 ### 2.4 Personas
@@ -135,7 +137,7 @@ AWS-MMS is a web application for managing maintenance of **Automatic Weather Sta
 | Maintenance requests (multi-station) with full workflow | ✅ |
 | Request queue, assignment, multi-staff visits, multi-day visits | ✅ |
 | Site visits with before/during/after images and videos | ✅ |
-| Structured work records with checklists | ✅ |
+| Visit board per station (Notes, Tasks, Recommendations, Config) | ✅ |
 | Offline field capture with later sync | ✅ |
 | Visit reports: automatic draft → staff edit → e-signature → final PDF | ✅ |
 | Client acceptance with e-signature; 30-day auto-close | ✅ |
@@ -202,9 +204,9 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | SEN-1 | Staff can manage a catalogue of **sensor models**: kind (sensor, logger, modem, battery, solar panel, other), manufacturer, model, parameter(s), default calibration interval. | M |
 | SEN-2 | Staff can manage individual **sensor units** by serial number with status: In stock, Installed, In repair, Retired. | M |
 | SEN-3 | The system keeps a full installation history: which serial was installed at which station, for which parameter, when, on which visit, and when and why it was removed. | M |
-| SEN-4 | Sensor swaps recorded during a visit update the inventory and history automatically. | M |
-| SEN-5 | A serial number entered in the field that is not yet in the inventory is created automatically and flagged for an admin to complete. | M |
-| CAL-1 | Calibrations can be recorded on a sensor unit, either during a visit (field check) or separately (lab calibration): date, method, reference instrument (model, serial, certificate due date), readings (reference / before / after with units), result (Pass, Adjusted, Fail), performed by. | M |
+| SEN-4 | Sensor swaps are recorded on the Sensors page (install and remove), which updates the inventory and history. A visit records what was done as board elements but does not change the inventory (W11-17). | M |
+| SEN-5 | A unit that is not yet in the inventory is added on the Sensors page before it is installed. (Superseded 2026-10-22, W11-17: visits no longer create units from serials typed in the field.) | M |
+| CAL-1 | Calibrations are recorded on a sensor unit from the station's Calibration tab, for a field check or a lab calibration (a visit no longer records them itself, W11-17): date, method, reference instrument (model, serial, certificate due date), readings (reference / before / after with units), result (Pass, Adjusted, Fail), performed by. | M |
 | CAL-2 | A calibration certificate (PDF) can be attached to a calibration record. | M |
 | CAL-3 | Each unit shows last calibrated date and **calibration due date** (last date + interval; the interval can be overridden per unit). | M |
 | CAL-4 | A **Calibration due** report and dashboard widget list units overdue or due within N days (default 30), filterable by organization, country and station. | M |
@@ -222,7 +224,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | CFG-1 | Staff can upload a **configuration version** for a station: a set of one or more files (TXT, XML, JSON, Python, CSV, logger programs, network or modem configs, related photos) with change notes. | M |
 | CFG-2 | Configuration versions are numbered (v1, v2, …), timestamped, record who uploaded them and optionally the visit they relate to. They can never be overwritten or deleted through the app. | M |
 | CFG-3 | Staff can view and download any version and see which files changed between two versions (by checksum). | M |
-| CFG-4 | Technicians can capture a new configuration version during a visit, including offline. | S |
+| CFG-4 | Technicians capture a new configuration version during a visit with a **Config** element: its After files become a version of the station when the visit ends, and again whenever they change until the visit is locked (W11-24). Including offline. | S |
 
 ### 4.6 Maintenance requests
 
@@ -253,21 +255,21 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | VIS-2 | A visit can be rescheduled or cancelled before it starts. Clients are notified of the date and any change. | M |
 | VIS-3 | Visits always belong to a request. | M |
 | VIS-4 | Starting a visit records the actual start time. Each station has its own arrival and departure times. | M |
-| VIS-5 | Staff capture media per station in three phases: **Before** (on arrival), **During** (optional) and **After** (on departure). | M |
-| VIS-6 | Ending a visit requires at least one Before and one After image per station. A technician can override this with a reason, which is recorded. | M |
-| VIS-7 | Staff record a **structured work record** per station: condition on arrival; checklist results (OK / Fixed / Issue / N/A, with notes); sensor actions (replace, calibrate, clean, repair, remove, install) with parameter, old serial, new serial and calibration readings; configuration changes (link to a new configuration version); parts used; issues found; whether data was downloaded (and the period); condition on departure; free-text notes. | M |
-| VIS-8 | Checklists come from admin-managed templates by station type and/or sensor model. A visit keeps a copy of the template version it used. Technicians can add ad-hoc checklist items. | M |
+| VIS-5 | Each station on a visit has a **board** where staff record the visit as elements of four kinds, shown as sticky notes: **Note** (yellow: title, description, photos and video), **Task** (green: title, description, a checklist of typed items, Before and After photos and video; complete when every item is checked), **Recommendation** (red: title, description, priority low / medium / high, photos and video; can be turned into a new request) and **Config** (purple: title, description, Before and After files of any kind, photos and video). Opening an element shows it in a dialog, with every file viewed in place. | M |
+| VIS-6 | *Dropped 2026-10-22 (W11-34).* Before and After now belong to Tasks and Config, so nothing is required per station to end a visit. Ending with incomplete tasks shows a warning and asks to confirm. | — |
+| VIS-7 | Any attending staff member or an admin can add an element to a station's board. The element's author, the station's owner or an admin can edit it, tick its items, add or remove its files, share it and delete it. The board can be changed from the visit's start until its report is finalized. Each element has a **Share with client** setting (on by default for Tasks and Recommendations); clients see shared elements once the visit has ended. | M |
+| VIS-8 | A Task's items are typed by the technician. *(Checklist templates were removed 2026-10-22, W11-16.)* | M |
 | VIS-9 | When ending a visit, staff state whether another visit is needed. If yes, they note the remaining work, and the request returns to be scheduled again. If no, the request waits for the visit report to be finalized (§4.10). | M |
 | VIS-10 | Up to about 50 media items per visit. Videos are typically 30 seconds to 2 minutes. | M |
 | VIS-11 | Clients can see visits, their media and finalized reports for their requests. Draft reports are staff-only. | M |
-| VIS-12 | After the visit report is finalized, the visit's work records are locked. Corrections need an admin to reopen the report (§4.10). | M |
+| VIS-12 | After the visit report is finalized, the visit's boards are locked. Corrections need an admin to reopen the report (§4.10). | M |
 
 ### 4.8 Offline field work
 
 | ID | Requirement | Priority |
 |---|---|---|
-| OFF-1 | Staff can **prepare** an assigned visit while online. This downloads the request, stations, installed sensors, calibration status, the latest configuration version, checklist templates and, optionally, manuals. | M |
-| OFF-2 | With no connection, staff can open a prepared station (including by QR scan), start the visit, capture photos and videos, complete work records, record sensor swaps and calibrations, capture configuration files, and end the visit. | M |
+| OFF-1 | Staff can **prepare** an assigned visit while online. This downloads the request, stations, installed sensors, calibration status, the latest configuration version, the stations' boards and, optionally, manuals. | M |
+| OFF-2 | With no connection, staff can open a prepared station (including by QR scan), start the visit, add and edit board elements with their photos, videos and files, tick task items, and end the visit. | M |
 | OFF-3 | Offline data is stored on the device and survives the app or phone being closed or restarted. | M |
 | OFF-4 | The app shows clearly how many changes and files are waiting to sync, and the storage used. | M |
 | OFF-5 | Data syncs automatically when a connection returns, and on demand with a "Sync now" button. | M |
@@ -276,7 +278,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | OFF-8 | Local copies are deleted only after the server confirms receipt. | M |
 | OFF-9 | The app warns before starting a visit that has not been prepared for offline use. | S |
 | OFF-10 | Offline mode covers site visits and station lookup only. Approvals, request creation, report signing and admin work need a connection. | M |
-| OFF-11 | Each station on a visit has one owner, and only the owner edits that station's work record, so offline edits never conflict. Any attending technician can add photos and videos at any station. The lead or an admin can change a station's owner while online; work the previous owner had not yet synced is kept on their phone for export and is never silently overwritten. | M |
+| OFF-11 | Each element on a board is saved on its own with a version, and only its author, the station's owner or an admin edits it, so offline edits conflict only when the same person edits one element on two devices; the device then keeps its copy for export. Any attending technician can add elements at any station. The lead or an admin can change a station's owner while online; work the previous owner had not yet synced is kept on their phone for export and is never silently overwritten. | M |
 
 ### 4.9 Media
 
@@ -295,7 +297,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | ID | Requirement | Priority |
 |---|---|---|
 | RPT-1 | When a visit ends and syncs, a **draft visit report** is generated automatically from the structured visit data using the template in Appendix A. | M |
-| RPT-2 | Attending staff can edit the draft's narrative sections (summary, work performed narrative, recommendations, follow-up) and choose which photos appear in the body and their captions. Factual data (checklist, sensor actions, readings) is corrected in the work record, and the draft refreshes. | M |
+| RPT-2 | Attending staff can edit the draft's narrative sections (summary, work performed narrative, recommendations, follow-up) and choose which photos appear in the body and their captions. Factual data (the board's elements) is corrected on the board, and the draft refreshes. | M |
 | RPT-3 | Staff can preview the draft as a PDF at any time. | M |
 | RPT-4 | **Finalizing** requires the lead technician's electronic signature. Other attending staff may also sign. | M |
 | RPT-5 | An electronic signature records: signer, role, a typed full name, a drawn signature, an attestation statement, timestamp, and the report version it applies to. The signed PDF shows the signatures and a verification hash. | M |
@@ -434,10 +436,10 @@ stateDiagram-v2
 
 **Planned → Started → Ended → Report draft → Report finalized** (or **Planned → Cancelled**)
 
-- *Started*: actual start recorded. Before media and work records captured per station; each station's work record by its owner.
-- *Ended*: After media captured, the "Another visit needed?" question answered. Sensor actions and calibrations are applied to the inventory.
+- *Started*: actual start recorded. Each station's board is filled in with Notes, Tasks, Recommendations and Config.
+- *Ended*: the "Another visit needed?" question answered. Shared elements become visible to the client, and each Config element's After files become a configuration version of the station.
 - *Report draft*: generated automatically and editable by attending staff.
-- *Report finalized*: signed by the lead technician. The work records are locked.
+- *Report finalized*: signed by the lead technician. The boards are locked.
 
 ### 5.3 Visit report versions
 
@@ -458,11 +460,11 @@ stateDiagram-v2
 ### 6.2 Technician carries out a visit with no signal
 1. At the office, Devon opens his assigned visit and taps **Prepare for field**.
 2. On site with no signal, he scans the station QR code, and the station page opens from the device.
-3. He taps **Start visit**, then takes Before photos and a short video.
-4. He completes the checklist, records an RH sensor swap (old and new serials) with the calibration readings, and uploads the updated logger program as a new configuration version.
-5. He takes After media, answers "Another visit needed?" with **No**, and ends the visit.
+3. He taps **Start visit**. On the station's board he adds a Task, "Replace RH sensor", with three items and Before photos and a short video.
+4. He ticks the items as he goes, adds After photos, and adds a Config element with the old logger program as Before and the updated one as After. A Recommendation notes that the mast's guy wires need replacing next quarter.
+5. He answers "Another visit needed?" with **No**, and ends the visit.
 6. The app shows "5 changes and 18 files waiting to sync".
-7. Back in coverage, the app syncs. The sensor inventory updates, and a draft visit report appears.
+7. Back in coverage, the app syncs. The updated logger program becomes the station's new configuration version, and a draft visit report appears. At the office he records the RH swap on the Sensors page.
 8. Next morning he edits the summary and recommendations, picks the photos, signs and finalizes. The request moves to **Client Review**, and Maria is notified.
 
 ### 6.3 Admin processes new work
@@ -505,7 +507,7 @@ stateDiagram-v2
 | 1. Foundations | Monorepo, shared library, Compose stack, gateway, auth service, registration approval, users and organizations, app shell, audit service skeleton, CI | 3 weeks |
 | 2. Stations | Stations, sensor models and units, installation history, calibration records, documents, configuration versions, map, QR codes and labels, station import | 3 weeks |
 | 3. Requests | Request workflow, queue, assignment, comments, attachments, notifications (in-app and email) | 3 weeks |
-| 4. Visits (online) | Visits, structured work records, checklists, media processing, sensor swaps and calibrations applied to inventory | 3 weeks |
+| 4. Visits (online) | Visits, the visit board (Notes, Tasks, Recommendations, Config), media processing, file viewers | 3 weeks |
 | 5. Offline field mode | PWA, prepare-for-field, offline capture, resumable sync, conflict handling, field test | 3 weeks |
 | 6. Reports and signatures | Draft visit reports, editor, e-signatures, finalization, client review and auto-close, client reports, close-out report | 3 weeks |
 | 7. Summaries and hardening | Summary reports and CSV, dashboards, audit viewer, monitoring, backups, security review, user acceptance testing | 3 weeks |
@@ -529,7 +531,7 @@ stateDiagram-v2
 
 | Item | Notes |
 |---|---|
-| Routine / preventive maintenance | Plans per station or sensor model with frequency. Due visits generated automatically. Reuses the visit, checklist and report features. |
+| Routine / preventive maintenance | Plans per station or sensor model with frequency. Due visits generated automatically. Reuses the visit, board and report features. |
 | External integrations | Integration service with scoped API keys (`stations:read`, `maintenance:read`, …), telemetry platform link and dashboards. Gateway route already reserved. |
 | SLA targets | Target resolution per priority, due dates, compliance reporting. |
 | Telemetry-driven requests | Raise requests automatically when a station stops reporting. |
@@ -547,7 +549,7 @@ stateDiagram-v2
 | Client verification | Signature on acceptance; auto-close at 30 days, reminders days 7/21/28 | A 14 days; B 30 days ✔ |
 | Cancellation | Client until Scheduled; admin any time before closure | A ✔; C until arrival |
 | Client reports | PDF upload or online form | A PDF only; B both ✔ |
-| Media phases | Before / During / After per station | A arrival/departure; B before/during/after ✔ |
+| Media phases | Before / During / After per station | A arrival/departure; B before/during/after ✔ (superseded 2026-10-22: media belongs to board elements, W11-16) |
 | SLA | Not in v1; turnaround measured only | C had SLA |
 | Integrations | Not in v1; architecture ready | B had an integration service |
 | Geography | Multi-country: country and time zone per station | B had a country field |
@@ -557,7 +559,7 @@ stateDiagram-v2
 
 | Topic | Decision |
 |---|---|
-| Two technicians on one station | One owner per station edits its work record; others add media. Replaces offline merging (OFF-11) |
+| Two technicians on one station | Everyone attending adds elements; each element is edited by its author, the station's owner or an admin. Replaces offline merging (OFF-11) |
 | Parallel visits | A request can have several visits open; its status follows them (§5.1) |
 | Report corrected during Client Review | Request returns to In progress; the client reviews again (RPT-6) |
 | Admin cancel | Allowed up to closure, including during Client Review |
@@ -571,7 +573,7 @@ stateDiagram-v2
 | Q2 | Signature attestation wording | "I confirm the information in this report is accurate and the work described was carried out." |
 | Q3 | Do any client jurisdictions need more than a simple electronic signature (for example a certificate-based digital signature)? | No. A certificate-based PDF signature can be added later. |
 | Q4 | List of countries and time zones in scope | Supplied with the station import |
-| Q5 | Initial checklist templates per station type | Admins create them before launch; a starter template is provided |
+| Q5 | *Closed 2026-10-22: checklist templates were removed (W11-16).* | — |
 | Q6 | Final list of request categories and priority definitions | As in REQ-1 |
 | Q7 | Which documents should clients see by default? | **Decided 2026-10-19: none.** Staff mark each document client-visible; the switch is off for every new document (DOC-4) |
 
@@ -583,13 +585,11 @@ stateDiagram-v2
 2. **Summary:** request reference and title, client organization, country, stations visited, attending staff (lead marked), arrival and departure times (station local time), outcome ("All work complete" or "Additional visit required"), narrative summary *(editable)*.
 3. **Per station:**
    - Station details: name, code, type, country, coordinates, elevation, parameters.
-   - Condition on arrival, with selected Before photos.
-   - Checklist results table, with issues highlighted.
-   - Sensor actions table: parameter, action, old serial, new serial, reference instrument, readings (reference / before / after), result.
-   - Configuration changes: version number, files, change notes.
-   - Parts used, issues found, data download.
+   - Tasks: title, description, items with their checks (incomplete tasks highlighted), selected Before and After photos.
+   - Notes: title, description, selected photos.
+   - Recommendations: title, priority, description, selected photos, the linked request if any.
+   - Configuration changes: the Config elements, with the version number made from each, files and description.
    - Work performed narrative *(editable)*.
-   - Condition on departure, with selected After photos.
 4. **Videos:** thumbnail, caption, duration and a QR code linking to the video in the app.
 5. **Recommendations and follow-up** *(editable)*: remaining work, recommendations, calibrations coming due.
 6. **Signatures:** for each signer: name, role, drawn signature, timestamp (UTC and station local), attestation text.
