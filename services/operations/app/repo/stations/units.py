@@ -154,3 +154,19 @@ async def update(
         col(db), unit_id, changes, now=now, by=by, expected_version=expected_version,
         session=session,
     )
+
+
+async def by_ids(db: Db, ids: list[str], session: Session = None) -> list[dict[str, Any]]:
+    cursor = col(db).find({"_id": {"$in": ids}}, session=session)
+    return [d async for d in cursor]
+
+
+async def by_serials(db: Db, serials: list[str], session: Session = None) -> list[dict[str, Any]]:
+    """Every unit with one of these serials, whatever its model (a serial is unique only within
+    its model)."""
+    cursor = col(db).find({"serial": {"$in": serials}}, session=session)
+    return [d async for d in cursor]
+
+
+async def delete(db: Db, unit_id: str, session: AsyncClientSession) -> None:
+    await col(db).delete_one({"_id": unit_id}, session=session)

@@ -8,6 +8,7 @@ the same person again returns the visit as it is (the offline sync of Phase 5 re
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -19,7 +20,7 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
 
 from app.api.context import Ctx, CtxDep
-from app.api.visits import glue
+from app.api.visits import glue, sensor_apply
 from app.api.visits.schemas import (
     AtIn,
     EndIn,
@@ -35,7 +36,7 @@ from app.domain.requests import staffing
 from app.domain.requests.state import Status
 from app.domain.visits import lifecycle, schedule, work
 from app.domain.visits.state import VStatus
-from app.events.publish import ev
+from app.events.publish import Emitter, ev
 from app.repo.checklists import resolve
 from app.repo.requests import requests as request_repo
 from app.repo.stations import stations as station_repo
@@ -49,6 +50,8 @@ StaffReader = Annotated[User, Depends(require_roles("technician", "admin", "view
 Worker = Annotated[User, Depends(require_roles("technician", "admin"))]
 Admin = Annotated[User, Depends(require_roles("admin"))]
 IdPath = Annotated[str, Path(pattern=UUID7_PATTERN)]
+
+AfterWrite = Callable[[AsyncClientSession, dict[str, Any], Emitter], Awaitable[None]]
 
 # Visits can be planned while the request is being worked on, and not before or after
 SCHEDULABLE = frozenset({Status.ASSIGNED, Status.SCHEDULED, Status.IN_PROGRESS})
@@ -216,10 +219,12 @@ async def _assigned(ctx: Ctx, visit: dict[str, Any]) -> list[str]:
 async def _write(
     ctx: Ctx, user: User, visit: dict[str, Any], fields: dict[str, Any], *,
     emit: list[tuple[Any, str, dict[str, Any]]], settle_note: str | None,
-    expected_version: int | None = None,
+    expected_version: int | None = None, after: AfterWrite | None = None,
 ) -> VisitOut:
     """One change: the visit, its events and (when its status moved) the request's status, in one
-    transaction. `emit` is `(model, type, extra)` for each event, written in that order."""
+    transaction. `emit` is `(model, type, extra)` for each event, written in that order. `after`
+    runs once the visit is written and before its events: ending a visit applies the work's
+    sensor actions there, so a refusal undoes everything."""
     now = ctx.clock.now()
     emitter = ctx.emitter(user)
     holder: dict[str, Any] = {}
@@ -230,6 +235,8 @@ async def _write(
             ctx.db, visit["_id"], fields, now=now, by=user.id, session=s,
             expected_status=visit["status"], expected_version=expected_version,
         )
+        if after is not None:
+            await after(s, updated, emitter)
         for model, type_, extra in emit:
             await emitter.visit(model, type_, updated, locked, s, before=visit, **extra)
         holder["request"] = (
@@ -427,8 +434,26 @@ async def end_visit(id: IdPath, body: EndIn, user: Worker, ctx: CtxDep) -> Visit
     )
     if result.noop:
         return await _out(ctx, visit, user)
+    # The work recorded at each station reaches the inventory in the same transaction as the end
+    # (SEN-4, CFG-4). Files are checked with media first: it is a network call.
+    todo = {
+        st["station_id"]: await sensor_apply.check_config(
+            ctx, visit, st, (st.get("work") or {}).get("config_versions", []))
+        for st in visit["stations"]
+    }
+
+    async def apply_work(s: AsyncClientSession, ended: dict[str, Any], emitter: Emitter) -> None:
+        for st in ended["stations"]:
+            record = st.get("work")
+            if record is None:
+                continue
+            await sensor_apply.reconcile_station(
+                ctx, user, ended, st["station_id"], record["sensor_actions"], s, emitter)
+            await sensor_apply.create_config(ctx, user, ended, st, todo[st["station_id"]], s,
+                                             emitter)
+
     return await _write(
-        ctx, user, visit, result.fields,
+        ctx, user, visit, result.fields, after=apply_work,
         emit=[(ev.VisitEnded, "visit.ended", {
             "ended_at": result.fields["ended_at"],
             "additional_visit_required": body.additional_visit_required,
