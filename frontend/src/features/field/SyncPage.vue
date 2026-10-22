@@ -2,7 +2,18 @@
   <PageBody>
     <div class="flex grow flex-col">
       <div class="flex grow flex-col gap-6 px-4 py-6 md:mx-auto md:w-full md:max-w-xl md:px-6">
-        <div class="flex items-center gap-4" role="status">
+        <div v-if="uploadsLabel" class="flex items-center gap-4" role="status">
+          <div class="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-800">
+            <v-icon class="text-primary" :icon="mdiCloudUploadOutline" size="32" />
+          </div>
+
+          <div>
+            <p class="m-0 text-2xl font-semibold leading-8 text-surface-900">{{ uploadsLabel }}</p>
+            <p class="m-0 text-surface-900">{{ uploadsOnTheirWay.sending > 0 ? 'Photos and video for your visits. Keep the app open until they finish.' : 'Open the visit and try again from the file.' }}</p>
+          </div>
+        </div>
+
+        <div v-else class="flex items-center gap-4" role="status">
           <div class="flex size-14 shrink-0 items-center justify-center rounded-full bg-success-container">
             <v-icon class="text-success" :icon="mdiCheck" size="32" />
           </div>
@@ -68,17 +79,19 @@
 </template>
 
 <script lang="ts" setup>
-  import { mdiCheck } from '@mdi/js'
+  import { mdiCheck, mdiCloudUploadOutline } from '@mdi/js'
   import { onMounted, ref } from 'vue'
   import { useDisplay } from 'vuetify'
   import { refreshSession } from '@/app/auth/session'
   import AppearanceToggle from '@/components/AppearanceToggle.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import PageBody from '@/components/PageBody.vue'
+  import { uploadsLabel, uploadsOnTheirWay } from '@/features/visits/uploadQueues'
 
   /*
     /sync (AFD §3, F3). Nothing is queued on a device until offline visits arrive in Phase 5, so
-    "Sync now" only checks that the server can be reached. Storage figures are real: the quota,
+    "Sync now" only checks that the server can be reached. Files going up to a visit's board
+    (held in memory by `uploadQueues`) are the one thing that can be waiting. Storage figures are real: the quota,
     the 1 GB warning (TRD §7.1, R4) and whether the browser has persisted the app’s data.
   */
   const GB = 1024 ** 3

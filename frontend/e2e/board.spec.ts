@@ -205,3 +205,42 @@ test('The board on a phone: one column, a floating Add and a sheet that fills th
   await sheet.getByRole('button', { name: 'Done' }).click()
   await expect(note(page, 'Clean the rain gauge funnel')).toContainText('Complete')
 })
+
+test('A file keeps going up when the technician leaves the Visits page, and the Sync entry says so @REQ-VIS-5 @REQ-OFF-6', async ({ watched: page, browser }) => {
+  test.setTimeout(240_000)
+  await startedVisit(page, browser, unique('Anemometer'))
+  const sheet = await titled(page, await add(page, 'Note'), 'Bearing noise')
+
+  // Hold the upload at its first call, so the file is still on its way when the page is left
+  let release!: () => void
+  const held = new Promise<void>(resolve => {
+    release = resolve
+  })
+  await page.route('**/api/v1/uploads', async route => {
+    if (route.request().method() === 'POST') {
+      await held
+    }
+    await route.continue()
+  })
+  await sheet.getByRole('region', { name: 'Photos and video' }).locator('input[type=file]').setInputFiles(await photo(page, 'Bearing'))
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await expect(note(page, 'Bearing noise')).toBeVisible()
+
+  // Another section: the page is gone, the upload is not
+  const main = page.getByRole('navigation', { name: 'Main' })
+  await main.getByRole('link', { name: 'Dashboard', exact: true }).click()
+  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(main.getByRole('link', { name: 'Sync, 1 file uploading' })).toBeVisible()
+  await main.getByRole('link', { name: 'Sync, 1 file uploading' }).click()
+  await expect(page.getByText('1 file uploading', { exact: true })).toBeVisible()
+
+  // It finishes with nobody looking, and the Sync entry settles
+  release()
+  await expect(main.getByRole('link', { name: 'Sync', exact: true })).toBeVisible({ timeout: 90_000 })
+  await expect(page.getByText('All synced')).toBeVisible()
+
+  // Back on the visit, the photo is on the note
+  await page.goBack()
+  await page.goBack()
+  await expect(note(page, 'Bearing noise')).toContainText('1 photo', { timeout: 30_000 })
+})

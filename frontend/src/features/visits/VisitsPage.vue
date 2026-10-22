@@ -269,7 +269,6 @@
   import { failureOf, replaceVisit } from './failures'
   import { forgetMediaLinks } from './mediaLinks'
   import RescheduleDialog from './RescheduleDialog.vue'
-  import { disposeQueues } from './uploadQueues'
   import VisitActions from './VisitActions.vue'
   import VisitCard from './VisitCard.vue'
   import VisitDetailView from './VisitDetailView.vue'
@@ -439,11 +438,9 @@
 
   onBeforeUnmount(() => detailAbort?.abort())
 
-  // Uploads stop and ten-minute file links are forgotten with the page; nothing of them is stored
-  onBeforeUnmount(() => {
-    disposeQueues()
-    forgetMediaLinks()
-  })
+  // Ten-minute file links are forgotten with the page. Uploads are not: they go on in
+  // `uploadQueues` while the person is elsewhere in the app, and stop when the session ends.
+  onBeforeUnmount(forgetMediaLinks)
 
   // --- Actions: the dialogs, and the moves that need no form ---------------------------------------
 
