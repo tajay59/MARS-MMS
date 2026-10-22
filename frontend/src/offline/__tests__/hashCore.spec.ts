@@ -26,10 +26,13 @@ describe('sha256Slices', () => {
   })
 
   it('gives the same digest however the file is cut', async () => {
+    const small = bytes(5003)
+    for (const slice of [1, 7, 64, 4096, 5002, 5003, 99_999]) {
+      expect(await sha256Slices(new Blob([small]), { slice })).toBe(node(small))
+    }
     const data = bytes(1_000_003)
-    const want = node(data)
-    for (const slice of [1, 7, 4096, 65_536, 999_999, 1_000_003, 5_000_000]) {
-      expect(await sha256Slices(new Blob([data]), { slice })).toBe(want)
+    for (const slice of [4096, 65_536, 999_999, 5_000_000]) {
+      expect(await sha256Slices(new Blob([data]), { slice })).toBe(node(data))
     }
   })
 
