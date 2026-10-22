@@ -250,25 +250,25 @@ def test_arriving_needs_a_started_visit(status, code):
 def test_ending_says_whether_another_visit_is_needed_and_what_remains():
     v = visit(status="started")
     done = lifecycle.end(v, ALICE, False, additional_visit_required=False, follow_up_notes=None,
-                         overrides=[], at=None, now=NOW)
+                         at=None, now=NOW)
     assert done.fields["status"] == "ended" and done.fields["additional_visit_required"] is False
     with pytest.raises(ValidationFailed) as caught:
         lifecycle.end(v, ALICE, False, additional_visit_required=True, follow_up_notes="  ",
-                      overrides=[], at=None, now=NOW)
+                      at=None, now=NOW)
     assert caught.value.extra["code"] == "notes_required"
     more = lifecycle.end(v, ALICE, False, additional_visit_required=True,
-                         follow_up_notes=" Replace the mast ", overrides=[], at=None, now=NOW)
+                         follow_up_notes=" Replace the mast ", at=None, now=NOW)
     assert more.fields["follow_up_notes"] == "Replace the mast"
     ended = {**v, "status": "ended", "additional_visit_required": True}
     assert lifecycle.end(ended, ALICE, False, additional_visit_required=True,
-                         follow_up_notes="x", overrides=[], at=None, now=NOW).noop
+                         follow_up_notes="x", at=None, now=NOW).noop
     with pytest.raises(Conflict) as caught:  # a different answer after it ended
-        lifecycle.end(ended, ALICE, False, additional_visit_required=False, follow_up_notes=None,
-                      overrides=[], at=None, now=NOW)
+        lifecycle.end(ended, ALICE, False, additional_visit_required=False,
+                      follow_up_notes=None, at=None, now=NOW)
     assert caught.value.extra["code"] == "already_ended"
     with pytest.raises(Conflict):  # not started yet
         lifecycle.end(visit(), ALICE, False, additional_visit_required=False,
-                      follow_up_notes=None, overrides=[], at=None, now=NOW)
+                      follow_up_notes=None, at=None, now=NOW)
 
 
 @pytest.mark.req("VIS-2")

@@ -358,7 +358,7 @@ flowchart TB
           <article class="card">
             <h3>report <small class="muted">+ report-worker</small></h3>
             <p>Visit-report drafts and versions, signatures, finalize saga, close-out, client-form and label PDFs, summaries, dashboard read model.</p>
-            <dl><dt>Database</dt><dd><code>report</code></dd><dt>Emits</dt><dd><code>report.*</code></dd><dt>Consumes</dt><dd><code>visit.ended</code>, <code>visit.work_updated</code>, <code>media.processed</code>, <code>request.closed</code>, read-model events</dd><dt>Cron</dt><dd>Finalize reminders; resume stuck sagas</dd><dt>Env prefix</dt><dd><code>REPORT_</code></dd><dt>Phase</dt><dd>2 (skeleton, labels), 6, 7</dd></dl>
+            <dl><dt>Database</dt><dd><code>report</code></dd><dt>Emits</dt><dd><code>report.*</code></dd><dt>Consumes</dt><dd><code>visit.ended</code>, <code>visit.element_*</code>, <code>media.processed</code>, <code>request.closed</code>, read-model events</dd><dt>Cron</dt><dd>Finalize reminders; resume stuck sagas</dd><dt>Env prefix</dt><dd><code>REPORT_</code></dd><dt>Phase</dt><dd>2 (skeleton, labels), 6, 7</dd></dl>
           </article>
           <article class="card">
             <h3>platform</h3>
@@ -456,15 +456,12 @@ flowchart TB
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/cancel</code></td><td>assigned staff, admin</td><td>Planned → Cancelled</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/restore</code></td><td>admin</td><td>Cancelled → Planned (work recorded offline)</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/start</code></td><td>attending staff</td><td>Planned → Started</td></tr>
-                <tr><td>operations</td><td>PUT</td><td><code>/api/v1/visits/{id}/stations/{sid}/work</code></td><td>station owner, admin</td><td>Save a work record (<code>base_version</code>). Built in W11 slice 1: the record whole, 409 <code>work_changed</code> when stale, the same content again is a 200 that changes nothing</td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/stations/{sid}/media</code></td><td>attending staff, admin</td><td>Put an uploaded photo or video on a station (<code>media_id</code>, <code>phase</code>, <code>caption?</code>, <code>captured_at?</code>). Built in W11 slice 4: the file must be the caller's own, uploaded for <code>visit:{id}:station:{sid}:{phase}</code>; the same <code>media_id</code> again changes nothing; 422 <code>wrong_owner</code>, <code>not_yours</code>, <code>wrong_kind</code>, <code>file_not_uploaded</code>; 409 <code>not_started</code>, <code>visit_cancelled</code>, <code>locked</code></td></tr>
-                <tr><td>operations</td><td>PATCH</td><td><code>/api/v1/visits/{id}/stations/{sid}/media/{media_id}</code></td><td>attending staff, admin</td><td>A caption, or <code>hidden</code>: keeps one item from the client even after the visit ends (W11-13)</td></tr>
-                <tr><td>operations</td><td>DELETE</td><td><code>/api/v1/visits/{id}/stations/{sid}/media/{media_id}</code></td><td>the uploader, admin</td><td>Take it off the visit and delete the file (<code>media.deletion_requested</code>) until the report locks the visit; 403 <code>not_uploader</code></td></tr>
-                <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/stations/{sid}/media</code></td><td>attending staff</td><td>Link media with phase and caption</td></tr>
+                <tr><td>operations</td><td>GET / POST</td><td><code>/api/v1/visits/{id}/stations/{sid}/elements</code></td><td>any in scope / attending staff, admin</td><td>A station's board, newest first (a client: the shared elements of an ended visit), with <code>can_add</code>; add a Note, Task, Recommendation or Config (idempotent by the device-made <code>id</code>; 409 <code>duplicate_id</code>, <code>board_full</code>). Built in the visit board's slice 1</td></tr>
+                <tr><td>operations</td><td>GET / PUT / DELETE</td><td><code>/api/v1/visits/{id}/stations/{sid}/elements/{element_id}</code></td><td>any in scope / author, station owner, admin</td><td>Read; replace the content with <code>base_version</code> (409 <code>element_changed</code> with <code>current</code>, <code>element_deleted</code>); delete with <code>?base_version=</code>, leaving a tombstone and deleting its files (204)</td></tr>
+                <tr><td>operations</td><td>POST / PATCH / DELETE</td><td><code>/api/v1/visits/{id}/stations/{sid}/elements/{element_id}/media[/{media_id}]</code></td><td>author, station owner, admin</td><td>Put an uploaded file on a section (<code>main</code>, <code>before</code>, <code>after</code>; 422 <code>bad_section</code>, <code>wrong_kind</code>, <code>wrong_owner</code>, <code>not_yours</code>, <code>file_not_uploaded</code>); caption or hide it; take it off and delete the file</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/end</code></td><td>attending staff</td><td>End; another visit needed?</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/{id}/field-bundle</code></td><td>attending staff</td><td>Offline package; records the device</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/sync</code></td><td>staff</td><td>Apply a batch of offline operations</td></tr>
-                <tr><td>operations</td><td>GET / POST / PATCH</td><td><code>/api/v1/checklist-templates[/{id}]</code></td><td>admin (read: staff)</td><td>Versioned checklist templates</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/lock</code></td><td>service (report)</td><td>Lock work records; idempotent per report version</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/unlock</code></td><td>service (report)</td><td>Unlock for correction or failed finalize</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/internal/visits/{id}</code></td><td>service</td><td>Full visit for report rendering</td></tr>
@@ -545,7 +542,7 @@ flowchart LR
               <tbody>
                 <tr><td><code>/</code></td><td>Static SPA build</td><td><code>try_files … /index.html</code>; <code>sw.js</code>, <code>index.html</code>, <code>theme-init.js</code> no-cache; hashed assets cached 1 year</td></tr>
                 <tr><td><code>/api/v1/auth</code>, <code>/api/v1/users</code>, <code>/api/v1/organizations</code></td><td><code>auth:8000</code></td><td>Login, register and reset use the <code>auth</code> rate-limit zone</td></tr>
-                <tr><td><code>/api/v1/stations</code>, <code>/sensor-models</code>, <code>/sensor-units</code>, <code>/calibrations</code>, <code>/documents</code>, <code>/qr</code>, <code>/requests</code>, <code>/queue</code>, <code>/client-reports</code>, <code>/my-work</code>, <code>/visits</code>, <code>/checklist-templates</code>, <code>/sync</code></td><td><code>operations:8000</code></td><td></td></tr>
+                <tr><td><code>/api/v1/stations</code>, <code>/sensor-models</code>, <code>/sensor-units</code>, <code>/calibrations</code>, <code>/documents</code>, <code>/qr</code>, <code>/requests</code>, <code>/queue</code>, <code>/client-reports</code>, <code>/my-work</code>, <code>/visits</code>, <code>/sync</code></td><td><code>operations:8000</code></td><td></td></tr>
                 <tr><td><code>/api/v1/media</code>, <code>/api/v1/uploads</code></td><td><code>media:8000</code></td><td></td></tr>
                 <tr><td><code>/api/v1/reports</code>, <code>/api/v1/dashboard</code></td><td><code>report:8000</code></td><td><code>/reports/verify</code> uses the <code>auth</code> zone (public)</td></tr>
                 <tr><td><code>/api/v1/notifications</code>, <code>/api/v1/audit</code></td><td><code>platform:8000</code></td><td></td></tr>
@@ -592,7 +589,7 @@ flowchart LR
               <thead><tr><th>Database</th><th>Service</th><th>Collections</th><th>Outbox</th><th>Consumes events</th></tr></thead>
               <tbody>
                 <tr><td><code>auth</code></td><td>auth</td><td><code>users</code>, <code>organizations</code>, <code>refresh_tokens</code>, <code>password_resets</code>, <code>invitations</code>, <code>signing_keys</code>, <code>settings</code></td><td>Yes</td><td>No</td></tr>
-                <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code> (built W5), <code>organizations</code> (copy from auth, W5-3), <code>sensor_applications</code>, <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>checklist_templates</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
+                <tr><td><code>operations</code></td><td>operations</td><td><code>stations</code>, <code>sensor_models</code>, <code>sensor_units</code>, <code>installations</code>, <code>calibrations</code> (built W5), <code>organizations</code> (copy from auth, W5-3), <code>documents</code>, <code>config_versions</code>, <code>requests</code>, <code>comments</code>, <code>client_reports</code>, <code>site_visits</code>, <code>visit_elements</code>, <code>sync_operations</code>, <code>counters</code></td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>media</code></td><td>media</td><td><code>media</code> (files are in S3)</td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>report</code></td><td>report</td><td><code>reports</code>, <code>signatures</code>, <code>report_jobs</code>; read model <code>request_facts</code>, <code>visit_facts</code>, <code>sensor_events</code>, <code>calibration_facts</code>, <code>station_facts</code></td><td>Yes</td><td>Yes</td></tr>
                 <tr><td><code>notification</code></td><td>platform</td><td><code>notifications</code>, <code>preferences</code>, <code>user_directory</code></td><td>No</td><td>Yes</td></tr>
@@ -686,7 +683,7 @@ sensor_units {
   _id, model_id, serial, status: "in_stock"|"installed"|"in_repair"|"retired",
   current_station_id, current_org_id /*copied from the station*/, current_parameter,
   calibration_interval_days, last_calibrated_at, calibration_due_at, last_calibration_result,
-  needs_review: bool, flags: [], notes
+  flags: [], notes
 }
 installations { _id, sensor_unit_id, station_id, org_id, parameter, installed_at, removed_at,
                 removal_reason, installed_visit_id, removed_visit_id, source_action_id }
@@ -694,8 +691,6 @@ calibrations { _id /*= sensor action id when from a visit*/, sensor_unit_id, sta
                at, method: "field_check"|"field_adjust"|"lab", reference_instrument: {...},
                readings: [{ reference, before, after, unit }], result: "pass"|"adjusted"|"fail",
                certificate_media_id, performed_by, notes }
-sensor_applications { _id /*= sensor action id*/, visit_id, station_id, action_hash,
-                      effects: { installations_opened, installations_closed, unit_status, calibration_id, unit_created } }
 documents { _id, scope: "model"|"station", scope_id, doc_type, title, version_label, language,
             description, client_visible: bool, media_id, supersedes_id, is_current: bool }
 config_versions { _id, station_id, version /*1..n*/, files: [{ media_id, filename, sha256, size_bytes }], notes, visit_id }
@@ -743,21 +738,16 @@ client_reports { _id, request_id, org_id, kind: "pdf"|"form", status: "draft"|"s
   prepared_on: [{ user_id, device_id, at }],
   started_at, ended_at, additional_visit_required, follow_up_notes,
   stations: [{ station_id, station_code, station_name, time_zone, owner_staff_id,
-               arrived_at, departed_at,
-               media: [{ media_id, phase: "before"|"during"|"after", caption, captured_at, added_by }],
-               media_override_reason, work: WorkRecord }]
+               arrived_at, departed_at }],
+  visibility_seq /*numbers its file visibility requests (W11-28)*/
 }
-WorkRecord {
-  checklist_template: { id, version, items } /*copied*/,
-  condition_on_arrival: { status, notes },
-  checklist: [{ item_id, label, result: "ok"|"fixed"|"issue"|"na", note, ad_hoc }],
-  sensor_actions: [{ id, action: "replace"|"calibrate"|"clean"|"repair"|"remove"|"install",
-                     parameter, sensor_model_id, old_serial, new_serial, removal_reason, calibration, note }],
-  config_versions: [{ id, files: [media_id], notes }],
-  parts_used, issues_found, data_downloaded, condition_on_departure, notes,
-  version, updated_by, updated_at, device_id
-}
-checklist_templates { _id, name, station_type, sensor_model_id, version, items: [{ id, label, help }], active }
+visit_elements { _id /*device-made*/, visit_id, request_id, station_id, org_id,
+  kind: "note"|"task"|"recommendation"|"config", title, description,
+  items: [{ id, text, done, done_by, done_at }], priority, request_ref, config_version_ids,
+  media: { main|before|after: [{ media_id, kind, filename, size_bytes, caption, captured_at,
+                                 added_by, added_by_name, added_at, hidden }] },
+  shared, completed_at, created_by, created_by_name, created_at, updated_by, updated_at,
+  device_id, version /*content*/, revision /*every write*/, deleted_at /*tombstone*/ }
 sync_operations { _id /*client op id*/, user_id, device_id, type, result, applied_at /*TTL 90d*/ }
 counters { _id /*"MR-2026" or "VR-2026-0042"*/, seq }</code></pre>
             </div>
@@ -1161,7 +1151,7 @@ flowchart LR
                 <tr><td><code>station.created</code> / <code>station.updated</code> (built)</td><td>operations</td><td>report, platform (audit)</td><td>station_id, code, name, org_id, country, status, type, time_zone; <code>via</code> (api, import) on created; changed_fields on update</td></tr>
                 <tr><td><code>sensor_model.created</code> / <code>sensor_model.updated</code> (built; W5-2)</td><td>operations</td><td>platform (audit)</td><td>model_id, kind, manufacturer, model, parameters, default_calibration_interval_days; key <code>model_id</code></td></tr>
                 <tr><td><code>qr.regenerated</code></td><td>operations</td><td>platform (audit)</td><td>station_id</td></tr>
-                <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code> (built)</td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, needs_review, current_station_id, calibration_due_at; key = the unit's station, or the unit itself while in stock (W5-2)</td></tr>
+                <tr><td><code>sensor_unit.created</code> / <code>sensor_unit.updated</code> (built)</td><td>operations</td><td>report, platform</td><td>unit_id, serial, model_id, status, current_station_id, calibration_due_at (<code>needs_review</code> retired, W11-17); key = the unit's station, or the unit itself while in stock (W5-2)</td></tr>
                 <tr><td><code>sensor.installed</code> / <code>sensor.removed</code> (built) / <code>sensor.application_reversed</code> (schema; Phase 4)</td><td>operations</td><td>report, platform (audit)</td><td>installation_id, unit_id, serial, model_id, station_id, parameter, at, unit_status, visit_id, action_id; reason on removal; key <code>station_id</code></td></tr>
                 <tr><td><code>calibration.recorded</code> (built) / <code>calibration.voided</code> (schema; Phase 4)</td><td>operations</td><td>report, platform (audit)</td><td>calibration_id, unit_id, station_id, method, at, result, due_at</td></tr>
                 <tr><td><code>calibration.due_digest</code></td><td>operations</td><td>platform (notification)</td><td>units[]</td></tr>
@@ -1187,8 +1177,9 @@ flowchart LR
                 <tr><td><code>visit.cancelled</code> / <code>visit.restored</code></td><td>operations</td><td>platform, report</td><td>Built (W10): the visit facts; cancelled adds reason? and by_request</td></tr>
                 <tr><td><code>visit.started</code></td><td>operations</td><td>report, platform (audit)</td><td>Built (W10): the visit facts, started_at</td></tr>
                 <tr><td><code>visit.ended</code></td><td>operations</td><td>report, platform</td><td>Built (W10): the visit facts, ended_at, additional_visit_required, follow_up_notes?, overrides[]; sensor_actions[] and config_versions[] stay empty until W11</td></tr>
-                <tr><td><code>visit.work_updated</code></td><td>operations</td><td>report, platform (audit)</td><td>Built (W11 slice 1): the visit facts, station_id, version (the work record's), sensor_actions[] as {id, action}, config_versions[] as ids. No notes, readings, serials or file names</td></tr>
-                <tr><td><code>visit.media_changed</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (W11 slice 4): the visit facts, station_id, media_id, phase, kind, change (<code>added</code>, <code>captioned</code>, <code>hidden</code>, <code>shown</code>, <code>removed</code>). No file name, no caption</td></tr>
+                <tr><td><code>visit.element_added</code> / <code>visit.element_updated</code> / <code>visit.element_deleted</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (visit board slice 1): the visit facts, station_id, element_id, kind, shared, completed (a task's), priority (a recommendation's), element_version; <code>changed_fields</code> on an update. Never the title, description or item text (the audit block keeps them). Versioned by the element's <code>revision</code></td></tr>
+                <tr><td><code>visit.media_changed</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (W11 slice 4, then the board): the visit facts, station_id, element_id, section, media_id, kind, change (<code>added</code>, <code>captioned</code>, <code>hidden</code>, <code>shown</code>, <code>removed</code>). No file name, no caption. <code>phase</code> is left empty now</td></tr>
+                <tr><td><code>visit.work_updated</code></td><td>operations</td><td>—</td><td>Retired (W11-16): no longer emitted; registered so the records already in the audit chain parse</td></tr>
                 <tr><td><code>media.deletion_requested</code></td><td>operations</td><td>media, platform (audit)</td><td>Built (W11 slice 4): media_ids, reason. Media marks the files deleted at once and says so with <code>media.deleted</code>; <code>purge_deleted</code> removes the objects</td></tr>
                 <tr><td><code>visit.station_owner_changed</code></td><td>operations</td><td>platform</td><td>Built (W10): the visit facts, station_id, from_staff_id, to_staff_id (<code>from</code> is a Python keyword), station_code? and station_name? for the notification text (slice 4, optional)</td></tr>
                 <tr><td><code>visit.station_arrived</code> / <code>visit.station_departed</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (W10, new): the visit facts, station_id, at</td></tr>
@@ -1924,8 +1915,8 @@ sequenceDiagram
      ===================================================================== -->
       <section class="doc" id="visits">
         <div class="doc-head">
-          <div class="row"><h2 id="visits-h">Visits and offline sync</h2><span class="badge progress">In progress · Phase 4 W10 built, W11 work records, sensor reconciliation and the screens for photos, video and the record built · Phase 5</span></div>
-          <p>A visit covers one or more stations; each station has one owner who records its work (ADR-18), and any attending staff can add media. In the field the phone works with no signal: operations queue in IndexedDB and sync later through <code>/sync</code>, idempotently. There is no merge; conflicts come back with a reason code and the device keeps its copy.</p>
+          <div class="row"><h2 id="visits-h">Visits and offline sync</h2><span class="badge progress">In progress · Phase 4 W10 built, W11 visit board back end built (slice 1), its screens next · Phase 5</span></div>
+          <p>A visit covers one or more stations; each station has one owner who records arrival and departure (ADR-18), and a board of Notes, Tasks, Recommendations and Config that anyone attending adds to. In the field the phone works with no signal: operations queue in IndexedDB and sync later through <code>/sync</code>, idempotently. There is no merge; conflicts come back with a reason code and the device keeps its copy.</p>
           <span class="src">Sources: <a href="TRD.md">TRD §3.2.1, §3.2.3, §7</a> · <a href="AFD.md">AFD J5, J6</a> · VIS-*, OFF-*</span>
         </div>
 
@@ -1946,9 +1937,6 @@ sequenceDiagram
                 <tr><td><code>POST /api/v1/visits/{id}/start</code></td><td>attending, admin</td><td>Planned to started; the request is In progress</td></tr>
                 <tr><td><code>POST /api/v1/visits/{id}/stations/{sid}/arrive</code>, <code>/depart</code></td><td>the station's owner, admin</td><td>One station's times (new in W10: the TRD had none). Depart needs arrive first</td></tr>
                 <tr><td><code>POST /api/v1/visits/{id}/end</code></td><td>attending, admin</td><td><code>additional_visit_required</code> (notes required when true) and <code>overrides</code> (VIS-6, accepted now and used in W12)</td></tr>
-                <tr><td><code>GET /api/v1/checklist-templates</code>, <code>/{id}</code></td><td>staff</td><td>Current templates (admins may add <code>all=true</code> for inactive ones); one by family id, or an older version with <code>?version=</code></td></tr>
-                <tr><td><code>POST /api/v1/checklist-templates</code>, <code>PATCH /{id}</code></td><td>admin</td><td>Create for a station type or a sensor model; save the next version (name, items, active; <code>version</code> required)</td></tr>
-                <tr><td><code>GET /api/v1/checklist-templates/resolve?station_id=</code></td><td>staff</td><td>The items a visit to that station is given</td></tr>
                 <tr><td><code>GET /internal/snapshot/visits</code></td><td>report, platform</td><td>Backfill, shaped like the events, no notes</td></tr>
               </tbody>
             </table>
@@ -1975,65 +1963,80 @@ sequenceDiagram
           <p>Nothing here writes to Dexie or the outbox: scheduling, rescheduling, cancelling and changing an owner are online only (OFF-10, AFD §5.2) and say "This needs a connection" with the form kept. Start, arrive, depart and end are online buttons now; the routes and rules are the ones <code>/sync</code> will call in Phase 5. Playwright <code>e2e/visits.spec.ts</code>: the whole of J5 (claim, plan with a colleague as lead and two owners, the client's view with no notes and no buttons, start, each owner arrives and leaves, end with another visit needed and the request back to Assigned), reschedule, change owner and cancel, and a phone journey; axe in light and dark on every new screen.</p>
         </div>
 
-        <div class="sub" id="visits-work">
-          <h3>Work records as built (Phase 4 W11, slice 1)</h3>
-          <p>A station's work record lives inside the station on the visit (<code>site_visits.stations[].work</code>, TRD §5.4). <code>domain/visits/work.py</code> (no I/O) holds the rules: who and when (<code>check_can_save</code>), the typed and bounded record (<code>clean_record</code>), and the whole-record save with <code>base_version</code> (<code>save</code>). The route is <code>api/visits/work_routes.py</code>; <code>repo/visits/visits.py</code> <code>set_work</code> replaces one station's record only if it is still at <code>base_version</code>, so two owners saving two stations do not collide. The record, the visit's version and <code>visit.work_updated</code> are one Mongo transaction (rule 2).</p>
+        <div class="sub" id="visits-board">
+          <h3>The visit board as built (Phase 4 W11, slice 1)</h3>
+          <p>Each station on a visit has a <b>board</b> of elements in <code>visit_elements</code>, one document each (W11-18). The rules are in <code>domain/visits/elements.py</code> (no I/O; the same functions give <code>/sync</code> its codes in Phase 5), the scoped queries in <code>repo/visits/elements.py</code>, the routes in <code>api/visits/element_routes.py</code> and the bodies in <code>element_schemas.py</code>. It replaced the work record, sensor reconciliation, the media phases and the checklist templates (W11-16).</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Kind</th><th>Holds</th><th>File sections</th><th>Shared by default</th></tr></thead>
+              <tbody>
+                <tr><td><code>note</code> (yellow)</td><td>title, description</td><td><code>main</code>: photos and video</td><td>no</td></tr>
+                <tr><td><code>task</code> (green)</td><td>title, description, <code>items[]</code> (<code>{id, text, done, done_by, done_at}</code>, up to 50); complete when every item is ticked, <code>completed_at</code> set by the server</td><td><code>before</code>, <code>after</code>: photos and video</td><td>yes</td></tr>
+                <tr><td><code>recommendation</code> (red)</td><td>title, description, <code>priority</code> (low, medium, high), <code>request_ref</code> (slice 4)</td><td><code>main</code>: photos and video</td><td>yes</td></tr>
+                <tr><td><code>config</code> (purple)</td><td>title, description, <code>config_version_ids[]</code> (slice 4)</td><td><code>before</code>, <code>after</code>: any file the <code>config</code> kind takes, photos and video</td><td>no</td></tr>
+              </tbody>
+            </table>
+          </div>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Case</th><th>Answer</th></tr></thead>
               <tbody>
-                <tr><td>The owner or an admin, visit <code>started</code>, or <code>ended</code> and not locked</td><td>200 with the visit; the record has the next <code>version</code>, <code>updated_by</code>, <code>updated_at</code>, <code>device_id</code></td></tr>
-                <tr><td>Another attending technician, a viewer</td><td>403 <code>not_owner</code> (viewers: 403 by role)</td></tr>
-                <tr><td>A client, or a visit of another organization</td><td>404 for the visit; clients never get a <code>work</code> in a visit they can read (rule 6)</td></tr>
+                <tr><td>Someone attending (or an admin) adds an element, visit <code>started</code>, or <code>ended</code> and not locked</td><td>201 with the element, <code>version</code> 1; <code>visit.element_added</code> in the same transaction</td></tr>
+                <tr><td>The same <code>id</code> and content again</td><td>200, the element as made, nothing written</td></tr>
+                <tr><td>The same <code>id</code> with other content, or by someone else</td><td>409 <code>duplicate_id</code></td></tr>
+                <tr><td>Staff not on the visit, a viewer, a client</td><td>403 <code>not_attending</code> (viewers and clients: 403 by role)</td></tr>
+                <tr><td>Another attending technician edits, ticks, shares, adds files or deletes</td><td>403 <code>not_editor</code>: only the author, the station's owner or an admin</td></tr>
                 <tr><td>Visit planned / cancelled / locked by its report</td><td>409 <code>not_started</code> / <code>visit_cancelled</code> / <code>locked</code></td></tr>
-                <tr><td>A save from a version that is not the current one</td><td>409 <code>work_changed</code>; nothing is merged (ADR-18)</td></tr>
-                <tr><td>The same content again, whatever <code>base_version</code></td><td>200, nothing written, no event: a retry after a lost answer is a success</td></tr>
-                <tr><td>An unknown checklist item, a sensor action missing what its kind needs, a duplicate id, a text or list over its bound</td><td>422 with the part named</td></tr>
+                <tr><td>A save from an older <code>base_version</code></td><td>409 <code>element_changed</code> with <code>current</code>, the element as saved; a save equal to what is saved is a 200 whatever its version</td></tr>
+                <tr><td>A save or a re-create of a deleted element</td><td>409 <code>element_deleted</code>: the tombstone stays, so a late phone cannot bring it back</td></tr>
+                <tr><td>A file put on an element</td><td>Its own route, idempotent by <code>media_id</code>; moves <code>revision</code>, never <code>version</code>, so a photo landing after a long upload never makes the next save stale</td></tr>
+                <tr><td>A client reads the board</td><td>Nothing before the visit ends; then the shared elements only, without files a staff member hid; anything else 404</td></tr>
               </tbody>
             </table>
           </div>
-          <p>The checklist templates are copied when the visit starts (<code>repo/checklists/resolve.py</code> is the shared <code>resolve</code>): the copy keeps each item's template id and version, a row of unanswered checks is made for each item, and template items cannot be removed (they come back unanswered). The technician's own items are <code>ad_hoc</code> with a device-made id. A visit started before records existed has no copy: the first save makes one. Sensor actions and configuration versions are stored and checked in this slice; applying them to the inventory is slice 2 (decisions W11-5 to W11-9).</p>
+          <p>Sharing (W11-28): at <code>end</code> the files of shared elements are shown to the client (<code>media.visibility_requested</code>, <code>org</code>) in the end's transaction. After the end, sharing or unsharing an element, deleting it, hiding or showing a file, or adding one to a shared element sends the matching request. Every request takes the next <code>visibility_seq</code> of the visit (it starts above the visit's version, which numbered them before), so media, which applies only the newest per file, always gets them in order. <code>GET /api/v1/visits/{id}</code> gives each station's <code>board</code> summary (counts by kind, incomplete tasks, the newest photo); a client's counts only what they may see. Media's owner check (<code>/internal/attachable</code>) takes <code>visit:{id}:station:{sid}:element:{eid}:{section}</code>, also before the element exists, because a phone uploads while its create op waits to sync. Migration <code>0011_visit_board</code> cleared the test visits' work records and phase media, dropped <code>sensor_applications</code> and <code>checklist_templates</code> and unset <code>needs_review</code>.</p>
         </div>
 
-        <div class="sub" id="visits-reconcile">
-          <h3>Sensor actions as built (Phase 4 W11, slice 2)</h3>
-          <p>When a visit ends, and on every save of a station's record after that, the inventory is made to agree with the record's sensor actions, in the same Mongo transaction as the save, the visit's status and the events. <code>domain/visits/reconcile.py</code> (no I/O) plans against a copy of the inventory and returns steps; <code>api/visits/sensor_apply.py</code> writes them. While the visit is only <em>started</em> the actions are a draft and touch nothing. <code>sensor_applications</code> (<code>_id</code> = the action's device-made id) remembers what each action did: the units' fields before, the version each left a unit at, the installations it opened or closed, the calibrations it made.</p>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Action</th><th>Applies</th><th>Undone by</th></tr></thead>
-              <tbody>
-                <tr><td><code>install</code></td><td>A unit from stock (or one made from an unknown serial with <code>needs_review</code>) is installed for the parameter; an installation opens with <code>source_action_id</code></td><td>The unit goes back to what it was; the installation row is deleted (the action may be applied again); a unit the action made is deleted</td></tr>
-                <tr><td><code>remove</code></td><td>The installed unit leaves; the installation closes with the visit; the unit goes to repair (<code>faulty</code>), retired (<code>retired</code>) or stock (<code>calibration</code>, <code>other</code>)</td><td>The unit and the same installation are open again</td></tr>
-                <tr><td><code>replace</code></td><td><code>remove</code> of the old serial and <code>install</code> of the new one on the same parameter, as one action</td><td>Both undone, new first</td></tr>
-                <tr><td><code>calibrate</code></td><td>A calibration for the installed unit (<code>visit_id</code>, <code>source_action_id</code>); the due date moves and a failed result flags the unit (CAL-6)</td><td>The unit's calibration fields and flags are put back; the calibration is marked <code>voided_at</code> and leaves the lists; <code>calibration.voided</code></td></tr>
-                <tr><td><code>clean</code>, <code>repair</code></td><td>Notes only; the inventory does not change</td><td>Nothing</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p>Saving again compares each action's hash (the fields that decide its effects, not the note): <b>unchanged</b> actions are skipped, <b>new</b> ones are applied after what is already applied, and a <b>changed or removed</b> action is undone together with every action applied after it, newest first, and the ones still in the record are applied again. Undoing is refused with 409 <code>sensor_changed_later</code> (naming the action and the serial) when a unit it touched has changed since for any reason other than these actions, or the parameter it freed is measured by another unit now; the transaction then writes nothing, not even the note. Other refusals: 422 <code>model_required</code> (an unknown serial needs its model), <code>serial_ambiguous</code>, <code>serial_model_mismatch</code>, <code>unit_not_at_station</code>, and the inventory's own <code>parameter_taken</code>, <code>unit_not_in_stock</code>. The work is taken to have happened when the owner arrived at the station. Configuration versions in the record are created once each at the end (a created version never changes: 409 <code>config_version_immutable</code>; a file still being checked stops the end).</p>
-        </div>
-
-        <figure class="diagram" id="visits-reconcile-code" data-title="Saving a station's sensor actions, branch by branch" data-kind="Code flowchart">
+        <figure class="diagram" id="visits-element-access" data-title="Who can see and change an element" data-kind="Decision tree diagram">
           <div class="view" data-label="Mermaid">
 <pre class="mermaid-def">
 flowchart TD
-    S["Save or end: the actions now,&lt;br/&gt;the applications so far"] --> H{"Any applied action&lt;br/&gt;changed or gone?"}
-    H -->|no| N{"Any new action?"}
-    N -->|no| Z(["Nothing to write"])
-    N -->|yes| A
-    H -->|yes| T["The suffix: that action and every one applied after it"]
-    T --> U{"Unit versions all as the&lt;br/&gt;suffix left them?"}
-    U -->|no| X(["409 sensor_changed_later:&lt;br/&gt;nothing is written"])
-    U -->|yes| R["Undo the suffix, newest first&lt;br/&gt;(restore units, reopen or delete installations, void calibrations)"]
-    R --> P{"Parameter freed is taken now?"}
-    P -->|yes| X
-    P -->|no| A["Apply, in order: the suffix actions still in the record,&lt;br/&gt;then the new ones"]
-    A --> V{"Each action valid?&lt;br/&gt;serial known or model given,&lt;br/&gt;unit at the station, parameter free"}
-    V -->|no| E(["422 or 409: nothing is written"])
-    V -->|yes| W(["Write the steps, the applications and the events&lt;br/&gt;in the visit's transaction"])
+    A{"Who is asking?"} -->|client| C{"Their organization&lt;br/&gt;and the visit ended?"}
+    C -->|no| N1["404"]
+    C -->|yes| C2{"Element shared?"}
+    C2 -->|no| N1
+    C2 -->|yes| R["Read, without hidden files"]
+    A -->|viewer| V["Read only"]
+    A -->|technician or admin| S{"Visit started or ended,&lt;br/&gt;and not locked?"}
+    S -->|no| X["Read only, writes 409"]
+    S -->|yes| W{"Changing an element&lt;br/&gt;or adding one?"}
+    W -->|adding| W1{"Attending or admin?"}
+    W1 -->|no| F1["403 not_attending"]
+    W1 -->|yes| OK1["201"]
+    W -->|changing| E{"Author, station owner&lt;br/&gt;or admin?"}
+    E -->|no| F2["403 not_editor"]
+    E -->|yes| OK2["200"]
 </pre>
           </div>
-          <figcaption>From <code>reconcile.plan</code> (decisions W11-5 to W11-8). Every refusal happens before the first write, and the writes share the transaction of the save, so a refused correction leaves the record, the inventory and the outbox exactly as they were.</figcaption>
+          <figcaption>From <code>domain/visits/elements.py</code> (<code>check_can_create</code>, <code>check_can_edit</code>, <code>visible_to_client</code>) and the client scope in <code>repo/visits/elements.py</code>.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="visits-task-state" data-title="A task's state and what moves it" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> empty : added with no items
+    [*] --> incomplete : added with items
+    empty --> incomplete : an item added
+    incomplete --> complete : the last item ticked
+    complete --> incomplete : an item unticked or added
+    incomplete --> empty : every item removed
+    complete --> [*] : deleted (tombstone)
+    incomplete --> [*] : deleted (tombstone)
+    empty --> [*] : deleted (tombstone)
+</pre>
+          </div>
+          <figcaption>Completion is derived from the items (W11-21): the server sets <code>completed_at</code> the first time every item is ticked and clears it when one is unticked or added. Ending a visit with incomplete tasks is allowed after a warning in the End dialog (W11-33).</figcaption>
         </figure>
 
         <figure class="diagram" id="visits-end-sequence" data-title="Ending a visit in one transaction" data-kind="Sequence diagram">
@@ -2043,34 +2046,29 @@ sequenceDiagram
     autonumber
     participant T as Technician
     participant O as operations
-    participant M as media (ready check)
     participant DB as MongoDB (one transaction)
     participant K as Kafka
     T->>O: POST /visits/id/end
-    O->>M: are the configuration files ready
-    M-->>O: yes
     O->>DB: lock the request
     O->>DB: visit becomes ended
-    loop each station with a record
-        O->>DB: undo and apply the sensor actions
-        O->>DB: create the configuration versions
-    end
+    O->>DB: read the board, files of shared elements
+    O->>DB: next visibility_seq of the visit
     O->>DB: derive the request status
-    O->>DB: outbox rows: sensor.*, calibration.*, config.*, visit.ended, request.status_changed
+    O->>DB: outbox rows: media.visibility_requested, visit.ended, request.status_changed
     DB-->>O: commit
     O-->>T: 200 the visit
     O->>K: the relay produces the outbox rows
 </pre>
           </div>
-          <figcaption>The media check comes first because it is a network call; everything after it is one transaction, so a refusal anywhere (an unknown serial, a correction that is refused) leaves the visit started. The request status and the visit's events are the ones W10 already wrote in this transaction.</figcaption>
+          <figcaption>As built after the visit board's slice 1 (W11-28): the end shares the files of shared elements in its own transaction, so a visit is never ended and unshared. Slice 4 adds the configuration versions made from Config elements to the same transaction.</figcaption>
         </figure>
 
         <figure class="diagram" id="inventory-unit-state" data-title="A sensor unit's status and what moves it" data-kind="State diagram">
           <div class="view" data-label="Mermaid">
 <pre class="mermaid-def">
 stateDiagram-v2
-    [*] --> in_stock : added by hand, by the import,&lt;br/&gt;or from a serial seen in the field
-    in_stock --> installed : install (by hand or a visit's action)
+    [*] --> in_stock : added by hand or by the import
+    in_stock --> installed : install
     installed --> in_stock : remove (calibration, other)
     installed --> in_repair : remove (faulty)
     installed --> retired : remove (retired)
@@ -2082,7 +2080,7 @@ stateDiagram-v2
     installed --> installed : calibrate (due date moves, a failure flags it)
 </pre>
           </div>
-          <figcaption>From <code>domain/stations/sensors.py</code>. A visit's action undone puts a unit back where it was before the action, not by one of these edits. A unit made from an unknown serial also carries <code>needs_review</code> until an admin completes it.</figcaption>
+          <figcaption>From <code>domain/stations/sensors.py</code>. Since the visit board (W11-17) a visit no longer moves a unit: installs, removals and calibrations are made on the Sensors page and the station's Calibration tab.</figcaption>
         </figure>
 
         <figure class="diagram" id="visits-state" data-title="A visit's status and what changes it" data-kind="State diagram">
@@ -2188,14 +2186,15 @@ sequenceDiagram
                 <tbody>
                   <tr><td><code>visit.start</code></td><td>attending staff</td></tr>
                   <tr><td><code>station.arrive</code></td><td>station owner</td></tr>
-                  <tr><td><code>work.save</code></td><td>station owner (<code>base_version</code>)</td></tr>
-                  <tr><td><code>media.attach</code></td><td>attending staff, after upload</td></tr>
+                  <tr><td><code>element.create</code></td><td>attending staff</td></tr>
+                  <tr><td><code>element.update</code>, <code>element.delete</code></td><td>author, station owner (<code>base_version</code>)</td></tr>
+                  <tr><td><code>element.media_add</code>, <code>element.media_remove</code></td><td>author, station owner, after upload</td></tr>
                   <tr><td><code>station.depart</code></td><td>station owner</td></tr>
                   <tr><td><code>visit.end</code></td><td>attending staff</td></tr>
                 </tbody>
               </table>
             </div>
-            <p class="small muted">Sensor swaps, calibrations and config versions travel inside <code>work.save</code> with device-generated IDs, so applying them is idempotent.</p>
+            <p class="small muted">Planned for Phase 5 (TRD §7.2, W11-26): every payload carries <code>payload_version</code>; element and item IDs are made on the device, so applying an op twice changes nothing. Configuration versions are made by the server from Config elements at <code>end</code>.</p>
           </div>
           <div class="sub" id="visits-conflicts">
             <h3>Conflict codes</h3>
@@ -2215,15 +2214,6 @@ sequenceDiagram
           </div>
         </div>
 
-        <div class="sub" id="visits-reconcile">
-          <h3>Sensor reconciliation on end and later edits</h3>
-          <ol>
-            <li>Each applied sensor action has a <code>sensor_applications</code> record (<code>_id</code> = action ID) listing its effects.</li>
-            <li>New action → applied and recorded. Unchanged → skipped. Changed → reversed exactly, then re-applied. Removed → reversed.</li>
-            <li>Reversal is refused with <code>409 sensor_changed_later</code> if a later visit or manual change touched the same unit or station parameter.</li>
-            <li>Unknown serials are created once and flagged <code>needs_review</code>. Config versions are created at <code>end</code> and never change.</li>
-          </ol>
-          <p>VIS-6 (≥1 Before and ≥1 After image per station, or an override reason) is enforced in the domain layer on depart and on end.</p>
         </div>
       </section>
 
@@ -3828,12 +3818,13 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-22</td><td>P4 · W11</td><td><b>The visit board, back end</b> (slice 1; decisions W11-16 to W11-35). Operations: <code>domain/visits/elements.py</code>, <code>repo/visits/elements.py</code>, <code>api/visits/element_routes.py</code> and <code>element_schemas.py</code>; the <code>visit_elements</code> collection; <code>visibility_seq</code> on visits; migration <code>0011_visit_board</code>; events <code>visit.element_added|updated|deleted</code>; <code>visit.media_changed</code> names the element; the owner check takes element references. Removed: the work record, sensor reconciliation, <code>sensor_applications</code>, the media phases, checklist templates and their editor, <code>needs_review</code>, VIS-6 overrides. Platform: the element events are audited and go live. Front end: <code>boardApi</code>, the upload queue and caption dialog moved to element sections, the visit page shows each station's board counts until the board screens land; Sensors lose Needs review. Charts: who can see and change an element, a task's state, the end sequence redrawn. Verified locally: operations 309 unit and 279 API tests, Vitest 437.</td></tr>
               <tr><td>2026-10-22</td><td>P4 · W11</td><td><b>Plan: the visit board replaces the work record</b> (decisions W11-16 to W11-35; <code>docs/plans/visit-board-plan.md</code>). Each station on a visit gets a board of Notes, Tasks, Recommendations and Config, shown as sticky notes; the work record, sensor reconciliation, media phases, checklist templates and VIS-6 go. Documents: PRD 1.5, TRD 2.16, AFD 1.6, DBD 1.8, BSD 1.6, TP 1.3, IP 1.2. Finding F17 (pdf.js and the precache). Nothing is built yet: the sections below still describe the W10 and W11 code until slice 1 lands.</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Pinned headers on phones.</b> On the Stations list, Sensors and Calibration due the pane (search and filters) stays at the top and the list slides up under a curved edge (<code>PaneContent pin</code>, <code>PageBody</code> corner pieces, band colour <code>surface-50</code>). An open station has a two-row header: Back, then the name with Edit on its row, then the code, status chip and place; its tab bar sits in the pinned header (<code>PageBody stacked</code>, <code>components/pageBar.ts</code>) and scrolls sideways on its own. The back arrow no longer shows the router's active highlight. Phones only: the tablet and desktop shells are unchanged. No change to the API, events or the offline code</td></tr>
               <tr><td>2026-10-20</td><td>P2 · W5</td><td><b>Station page on phones</b>, from a light Stitch mock-up checked against the DBD: the tab bar has no arrow buttons below 768 px and keeps the open tab in view; Overview shows five facts and a "More details" row; the Calibration tab opens with the next due date and the number of sensors overdue, and lists records as rows instead of a table. Reviewed against the Web Interface Guidelines; no change to the API, events or the offline code</td></tr>
               <tr><td>2026-10-21</td><td>P4 · W11</td><td><b>Screens for photos, video and the work record</b> (slice 4, second part; decision W11-15; from the approved "AWS-MMS W11 screens" boards). Visits: <code>StationMedia</code>, <code>MediaThumb</code>, <code>PendingThumb</code>, <code>AddMediaDialog</code> (the phase, then camera, video recorder or library; a computer offers only the file picker), <code>CaptionDialog</code>, <code>WorkRecordView</code>, <code>mediaLinks.ts</code>, and the two new sections of <code>VisitDetailView</code>. Sensors: <code>NeedsReviewChip</code>, <code>ReviewRow</code>, the Needs review filter and "Mark as reviewed". Tests: Vitest for the links, the checklist grouping and the review filter; Playwright <code>e2e/visitMedia.spec.ts</code> (a photo and a recorded clip through the real worker, caption, hide and show, the record written through the API, the swap in the inventory after <code>end</code>, a client who sees none of it, Needs review cleared; axe in light and dark on every new screen).</td></tr>
               <tr><td>2026-10-21</td><td>P4 · W11</td><td><b>Photos and video on a visit, back end and browser logic</b> (slice 4, first part; decisions W11-10, W11-12, W11-13). Operations: <code>domain/visits/media.py</code> (the rules), <code>api/visits/media_routes.py</code> (add, caption and hide, remove), <code>repo/visits/visits.py</code> array operations, <code>media</code> in <code>stations[]</code> on <code>VisitOut</code> (staff only for now), <code>end</code> sharing the visit's media, the <code>visit:</code> owner in <code>/internal/attachable</code>, the events <code>visit.media_changed</code> and <code>media.deletion_requested</code> (audited; <code>visit.media_changed</code> also goes live). Media: the consumer for <code>media.deletion_requested</code> and the <code>purge_deleted</code> job. Browser: <code>offline/{hashCore,hash.worker,exif,image}.ts</code>, <code>features/visits/{media,work}.ts</code>, <code>useVisitMedia</code> (prepare, upload, attach, retry from the step that failed) and the API client. No screen yet: the strip, the read-only record and the Needs review chip wait for the approved W11 boards. Tests: <code>tests/api/test_visit_media.py</code> (25), <code>tests/unit/test_visit_media_rules.py</code> (18), media <code>test_derived_media.py</code> (deletion), and Vitest for hashing against Node's SHA-256 on a file over the in-memory limit, EXIF in both byte orders, the resize, the composable and the sentences.</td></tr>
-              <tr><td>2026-10-21</td><td>P4 · W11</td><td><b>Sensor actions reach the inventory</b> (slice 2; decisions W11-5 to W11-9). Operations: <code>domain/visits/reconcile.py</code> (the planner), <code>api/visits/sensor_apply.py</code> (the writes and the configuration versions), <code>repo/visits/applications.py</code> and the <code>sensor_applications</code> collection (migration 0010, with a serial index and the <code>needs_review</code> index), history and unit repo helpers, voided calibrations leaving the lists, the emitter's <code>calibration_voided</code> and <code>application_reversed</code>, <code>end</code> and the work save running it all in their transactions. Four charts: <a href="#visits-reconcile-code">saving a station's sensor actions</a> (code flowchart), <a href="#visits-end-sequence">ending a visit in one transaction</a> (sequence), <a href="#inventory-unit-state">a sensor unit's status</a> (state) and the work record cases above. No screen yet: the Needs review chip and filter on the Sensors page wait for the approved W11 boards (the unit form already has the switch). Tests: <code>tests/unit/test_reconcile.py</code> (30, every action and every refusal), <code>tests/api/test_sensor_reconciliation.py</code> (14, on a real database: a swap, a corrected serial undone exactly, a removed action, a refused correction writing nothing, a calibration changed with its swap, a failed calibration flag, two stations in one transaction, configuration versions).</td></tr>
+              <tr><td>2026-10-21</td><td>P4 · W11</td><td><b>Sensor actions reach the inventory</b> (slice 2; decisions W11-5 to W11-9). Operations: <code>domain/visits/reconcile.py</code> (the planner), <code>api/visits/sensor_apply.py</code> (the writes and the configuration versions), <code>repo/visits/applications.py</code> and the <code>sensor_applications</code> collection (migration 0010, with a serial index and the <code>needs_review</code> index), history and unit repo helpers, voided calibrations leaving the lists, the emitter's <code>calibration_voided</code> and <code>application_reversed</code>, <code>end</code> and the work save running it all in their transactions. Four charts: saving a station's sensor actions (code flowchart, removed with the visit board), <a href="#visits-end-sequence">ending a visit in one transaction</a> (sequence), <a href="#inventory-unit-state">a sensor unit's status</a> (state) and the work record cases above. No screen yet: the Needs review chip and filter on the Sensors page wait for the approved W11 boards (the unit form already has the switch). Tests: <code>tests/unit/test_reconcile.py</code> (30, every action and every refusal), <code>tests/api/test_sensor_reconciliation.py</code> (14, on a real database: a swap, a corrected serial undone exactly, a removed action, a refused correction writing nothing, a calibration changed with its swap, a failed calibration flag, two stations in one transaction, configuration versions).</td></tr>
               <tr><td>2026-10-21</td><td>P4 · W11</td><td><b>Work records</b> (slice 1; decisions W11-1 to W11-4). Operations: <code>domain/visits/work.py</code>, <code>api/visits/{work_schemas,work_routes}.py</code>, <code>repo/visits/visits.set_work</code>, <code>repo/checklists/resolve.py</code> (the shared resolve, also behind <code>GET /checklist-templates/resolve</code>), the templates copied on start, <code>stations[].work</code> on a visit for staff (never a client), and the event <code>visit.work_updated</code> (ids and kinds only). Sensor actions and configuration versions are stored and checked; applying them is slice 2. No screen yet: the read-only record on the visit page waits for the approved W11 boards. Tests: <code>tests/unit/test_work.py</code> (23), <code>tests/api/test_work_records.py</code> (16: the copy, the save and its event, idempotence, stale saves, two owners, who and when, locked, validation, a client never seeing a record), the matrix.</td></tr>
               <tr><td>2026-10-21</td><td>P4 · W11</td><td><b>Photo and video pipeline</b> (slice 3; decisions W11-11 and W11-14). Media: <code>domain/derive.py</code>, <code>repo/render.py</code>, <code>jobs/derive.py</code> (called by <code>jobs/process.py</code> before a file is ready), names and magic bytes for the types a phone makes, <code>repo/storage</code> download and upload of files, <code>purge_originals</code> (daily cron), the URLs in <code>GET /media/{id}</code> (copy and thumbnail for everyone who may see the file, the original for staff until it is purged), <code>width</code>, <code>height</code>, <code>duration_s</code>, <code>captured_at</code> on the record and on <code>media.processed</code>. The image installs ffmpeg and the Python imaging libraries. Two charts: <a href="#media-pipeline">the pipeline</a> (system flowchart) and <a href="#media-state">a media file's status</a> (state). Tests: <code>tests/unit/test_render.py</code> (photos with GPS, rotation, HEIC, alpha, bombs; video with ffmpeg: 1080p to 720p, portrait, HEVC, poster, junk, timeout), <code>test_photo_video_rules.py</code>, and <code>tests/api/test_derived_media.py</code> on real SeaweedFS (the copy, no EXIF, who sees what, failure keeps the original, the purge). No frontend change yet: visit media is slice 4.</td></tr>
               <tr><td>2026-10-21</td><td>P4 · W10</td><td><b>Visit notifications</b> (slice 4; decisions W10-16 and W10-17). Platform: <code>domain/notifications.plan</code> handles the visit events (<code>_plan_visit</code>, <code>when_text</code>), <code>Live</code> gains <code>entity</code> and <code>request_id</code>, <code>realtime.visit_message</code> and <code>live_message</code>, the Visits group in the email catalogue (<code>visit.scheduled</code>, <code>visit.cancelled</code>) and the button "View the visit" in the notification email. Events: <code>time_zone?</code> on every visit event and <code>station_code?</code> and <code>station_name?</code> on the owner change (operations fills them). Front end: the four visit icons, <code>asEntityUpdate</code> reads <code>visit</code> messages. Tests: <code>tests/unit/test_visit_notification_plan.py</code> (every row of the visit matrix), <code>tests/api/test_visit_notifications.py</code> (real Mongo and Redis: the notices, the push after the commit, the email, the choice, another organization's client), the preference tests and Playwright <code>e2e/emailPreferences.spec.ts</code>. One chart changed: <a href="#platform-recipients">who is told, and who is not</a>.</td></tr>

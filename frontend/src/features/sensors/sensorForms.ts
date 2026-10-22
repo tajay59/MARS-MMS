@@ -225,13 +225,12 @@ export interface UnitValues {
   lastCalibrated: string
   interval: string
   notes: string
-  needsReview: boolean
 }
 
 export type UnitField = keyof UnitValues
 
 export function emptyUnit (): UnitValues {
-  return { serial: '', status: 'in_stock', lastCalibrated: '', interval: '', notes: '', needsReview: false }
+  return { serial: '', status: 'in_stock', lastCalibrated: '', interval: '', notes: '' }
 }
 
 export function unitValues (unit: SensorUnitOut): UnitValues {
@@ -241,7 +240,6 @@ export function unitValues (unit: SensorUnitOut): UnitValues {
     lastCalibrated: '',
     interval: unit.calibration_interval_days === null ? '' : String(unit.calibration_interval_days),
     notes: unit.notes ?? '',
-    needsReview: unit.needs_review,
   }
 }
 
@@ -307,10 +305,6 @@ export function unitPatchBody (v: UnitValues, was: SensorUnitOut): SensorUnitPat
     body.calibration_interval_days = days
     changed = true
   }
-  if (v.needsReview !== was.needs_review) {
-    body.needs_review = v.needsReview
-    changed = true
-  }
   if (blank(v.notes) !== (was.notes ?? null)) {
     body.notes = blank(v.notes)
     changed = true
@@ -324,7 +318,6 @@ const UNIT_API_FIELDS: Record<string, UnitField> = {
   calibration_interval_days: 'interval',
   last_calibrated_at: 'lastCalibrated',
   notes: 'notes',
-  needs_review: 'needsReview',
 }
 
 export function unitProblem (error: ApiError, typed: Pick<UnitValues, 'serial'>): SaveProblem<UnitField> {

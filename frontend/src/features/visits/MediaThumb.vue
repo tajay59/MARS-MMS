@@ -105,18 +105,18 @@
 </template>
 
 <script lang="ts" setup>
-  import type { MediaDetail, VisitMedia } from '@/api/models'
+  import type { BoardMedia, MediaDetail } from '@/api/models'
   import { mdiAlertCircleOutline, mdiDeleteOutline, mdiDotsVertical, mdiEyeOffOutline, mdiEyeOutline, mdiPencilOutline, mdiPlay } from '@mdi/js'
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { icons } from '@/app/theme/icons'
   import { clock, mediaDetail, onItsWay, openMedia } from './mediaLinks'
 
-  // One photo or video on a station of a visit: its thumbnail from a ten-minute link, or where it
-  // is in the checks (board "W11 screens" 1). The visit record holds the caption and who added it;
-  // the media service knows whether the file is ready, so this asks it, and looks again every few
-  // seconds while it is not. A click opens the picture in a new tab (the lightbox is W12).
+  // One photo or video on an element of a station's board: its thumbnail from a ten-minute link,
+  // or where it is in the checks (board "W11 screens" 1). The element holds the caption and who
+  // added it; the media service knows whether the file is ready, so this asks it, and looks again
+  // every few seconds while it is not. The board's element sheet shows the file itself (W11-29).
   const props = defineProps<{
-    item: VisitMedia
+    item: BoardMedia
     canCaption: boolean
     canRemove: boolean
     /** Seconds between looks while a file is being processed. Tests set it small. */

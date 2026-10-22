@@ -1,32 +1,40 @@
-import type { VisitMedia, VisitOut } from '@/api/models'
+import type { BoardMedia, ElementKind, ElementSection } from '@/api/models'
 import type { CaptureTime } from '@/offline/exif'
 import { ApiError } from '@/api/problem'
 import { failureOf } from './failures'
 import { zonedToUtc } from './visits'
 
 /*
-  Photos and video on a visit (PRD VIS-5; W11-10, W11-12): the rules the strip and its add button
-  share. No Vue here.
+  Files on the elements of a station's board (PRD VIS-5; W11-27, W11-12): the rules the upload
+  queue and the element sheet share. No Vue here.
 */
 
-export type Phase = VisitMedia['phase']
-export type MediaKind = VisitMedia['kind']
+export type MediaKind = BoardMedia['kind']
 
-export const PHASES: readonly Phase[] = ['before', 'during', 'after']
+/** The sections an element of each kind takes files in (TRD §3.2.3). */
+export const SECTIONS: Record<ElementKind, readonly ElementSection[]> = {
+  note: ['main'],
+  task: ['before', 'after'],
+  recommendation: ['main'],
+  config: ['before', 'after'],
+}
 
-export const PHASE_LABEL: Record<Phase, string> = {
+export const SECTION_LABEL: Record<ElementSection, string> = {
+  main: 'Photos and video',
   before: 'Before',
-  during: 'During',
   after: 'After',
 }
 
 /** The reference media files an upload under; the server checks the same string (TRD §5.3). */
-export function ownerRef (visitId: string, stationId: string, phase: Phase): string {
-  return `visit:${visitId}:station:${stationId}:${phase}`
+export function ownerRef (visitId: string, stationId: string, elementId: string, section: ElementSection): string {
+  return `visit:${visitId}:station:${stationId}:element:${elementId}:${section}`
 }
 
-/** Media's kind for a picked file, or null when it is neither a photo nor a video. */
-export function kindOf (file: Pick<File, 'type' | 'name'>): MediaKind | null {
+/**
+ * Media's kind for a picked file: a photo or a video, or, where an element takes any file (Config),
+ * `config` for everything else. Null when the element does not take it.
+ */
+export function kindOf (file: Pick<File, 'type' | 'name'>, anyFile = false): MediaKind | null {
   if (file.type.startsWith('image/')) {
     return 'image'
   }
@@ -41,7 +49,7 @@ export function kindOf (file: Pick<File, 'type' | 'name'>): MediaKind | null {
   if (['mp4', 'mov', 'm4v', 'webm', '3gp'].includes(extension)) {
     return 'video'
   }
-  return null
+  return anyFile ? 'config' : null
 }
 
 const DAY = 24 * 60 * 60 * 1000
@@ -70,47 +78,22 @@ export function capturedAt (
   return new Date(at).toISOString()
 }
 
-export interface StationMediaView {
-  phase: Phase
-  items: VisitMedia[]
-}
-
-/** A station's media grouped by phase, oldest first within a phase, every phase present. */
-export function byPhase (media: readonly VisitMedia[]): StationMediaView[] {
-  return PHASES.map(phase => ({
-    phase,
-    items: media
-      .filter(m => m.phase === phase)
-      .toSorted((a, b) => (a.captured_at ?? a.added_at).localeCompare(b.captured_at ?? b.added_at)),
-  }))
-}
-
-export function stationMedia (visit: Pick<VisitOut, 'stations'>, stationId: string): VisitMedia[] {
-  return visit.stations.find(s => s.station_id === stationId)?.media ?? []
-}
-
-/** What the person may do with the strip, from the visit and the station (the server decides again). */
-export function canAddMedia (visit: Pick<VisitOut, 'status' | 'actions' | 'staff'>, userId: string, isAdmin: boolean): boolean {
-  if (visit.status !== 'started' && visit.status !== 'ended') {
-    return false
-  }
-  return isAdmin || visit.staff.some(p => p.id === userId)
-}
-
-export function canRemoveMedia (item: Pick<VisitMedia, 'added_by'>, userId: string, isAdmin: boolean): boolean {
-  return isAdmin || item.added_by.id === userId
+/** A section's files, oldest first. */
+export function inOrder (media: readonly BoardMedia[]): BoardMedia[] {
+  return media.toSorted((a, b) => (a.captured_at ?? a.added_at).localeCompare(b.captured_at ?? b.added_at))
 }
 
 const REFUSALS: Record<string, string> = {
-  wrong_owner: 'That file was uploaded for another station or phase. Add it again from here.',
+  wrong_owner: 'That file was uploaded for something else. Add it again from here.',
   not_yours: 'That file was uploaded by someone else.',
-  wrong_kind: 'Only photos and videos can go on a visit.',
+  wrong_kind: 'Only photos and videos can go here.',
+  bad_section: 'That file can’t go in this section.',
   unknown_file: 'We can’t find that upload. Choose the file again.',
   file_not_uploaded: 'The upload didn’t finish. Choose the file again.',
   caption_too_long: 'A caption can be up to 300 characters.',
   captured_in_future: 'The photo’s time is in the future. Check the phone’s clock.',
-  not_attending: 'Only the people attending this visit can add photos.',
-  not_uploader: 'Only the person who added it, or an admin, can remove it.',
+  not_editor: 'Only the person who added this, or the station’s owner, can change it.',
+  element_deleted: 'This was deleted.',
   not_started: 'Start the visit first.',
   visit_cancelled: 'This visit was cancelled.',
   locked: 'The visit report has been finalized. Ask an admin to reopen it.',
@@ -121,7 +104,7 @@ export function mediaRefusal (code: string): string | null {
   return REFUSALS[code] ?? null
 }
 
-/** What to tell the person when a change to a station's media fails. */
+/** What to tell the person when a change to an element's files fails. */
 export function mediaFailure (error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     const known = mediaRefusal(error.code)

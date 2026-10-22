@@ -353,7 +353,8 @@ async def test_ending_with_another_visit_needed_returns_the_request_to_assigned(
 
 
 @pytest.mark.req("VIS-9")
-async def test_an_override_must_name_a_station_on_the_visit(ops):
+async def test_the_end_takes_no_overrides_any_more(ops):
+    """VIS-6 was dropped with the visit board (W11-34): nothing to override at the end."""
     visit, _, _ = await scheduled(ops)
     await move(ops, "tech1", visit["id"], "start")
     r = await move(ops, "tech1", visit["id"], "end", additional_visit_required=False,

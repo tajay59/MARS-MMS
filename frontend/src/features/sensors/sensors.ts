@@ -22,8 +22,6 @@ export const kindFilters: { value: KindFilter, label: string }[] = [
 export interface SensorFilters {
   q: string
   kind: KindFilter
-  /** Show the units that were added from the field and wait for a check (SEN-5), not the models. */
-  review: boolean
 }
 
 function one (value: LocationQuery[string]): string {
@@ -36,12 +34,11 @@ export function sensorFiltersFrom (query: LocationQuery): SensorFilters {
   return {
     q: one(query.q),
     kind: kindFilters.some(k => k.value === kind) ? kind as KindFilter : 'all',
-    review: one(query.review) === '1',
   }
 }
 
 export function sensorQueryFrom (filters: SensorFilters): Record<string, string | undefined> {
-  return { q: filters.q || undefined, kind: filters.kind === 'all' ? undefined : filters.kind, review: filters.review ? '1' : undefined }
+  return { q: filters.q || undefined, kind: filters.kind === 'all' ? undefined : filters.kind }
 }
 
 export function inKind (model: Pick<SensorModelOut, 'kind'>, kind: KindFilter): boolean {
@@ -218,19 +215,4 @@ export function calibrationSentence (
     when = `${-days} ${days === -1 ? 'day' : 'days'} overdue`
   }
   return `${last} Next due ${formatDate(unit.calibration_due_at)} (${when}).`
-}
-
-/** Search the units waiting for a check on serial, make, model, parameter and station. */
-export function matchesReviewUnit (unit: SensorUnitOut, q: string): boolean {
-  const needle = q.trim().toLowerCase()
-  if (!needle) {
-    return true
-  }
-  return [unit.serial, unit.model.manufacturer, unit.model.model, unit.parameter ?? '', unit.station?.name ?? '', unit.station?.code ?? '']
-    .some(t => t.toLowerCase().includes(needle))
-}
-
-/** The line under a serial in the review list: `Vaisala HMP155 · AT`. */
-export function reviewLine (unit: SensorUnitOut): string {
-  return [`${unit.model.manufacturer} ${unit.model.model}`, unit.parameter].filter(Boolean).join(' · ')
 }

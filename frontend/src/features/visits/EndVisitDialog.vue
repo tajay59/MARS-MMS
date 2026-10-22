@@ -62,8 +62,8 @@
   import ModalSheet from '@/components/ModalSheet.vue'
   import { failureOf } from './failures'
 
-  // End visit (PRD VIS-9): is another visit needed, and if so what remains. The Before and After
-  // image check (VIS-6) arrives with media on visits (W12); the route already takes its overrides.
+  // End visit (PRD VIS-9): is another visit needed, and if so what remains. VIS-6 was dropped with
+  // the visit board (W11-34); the warning about incomplete tasks comes with the board's screens.
   const props = defineProps<{ visit: Pick<VisitOut, 'id' | 'ref'> }>()
 
   const emit = defineEmits<{ done: [visit: VisitOut], changed: [] }>()
@@ -102,7 +102,6 @@
       const done = await visitsApi.end(props.visit.id, {
         additional_visit_required: another.value,
         follow_up_notes: another.value ? text : null,
-        overrides: [],
       })
       open.value = false
       emit('done', done)

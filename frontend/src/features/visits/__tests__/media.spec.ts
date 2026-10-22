@@ -1,19 +1,27 @@
-import type { VisitMedia } from '@/api/models'
+import type { BoardMedia } from '@/api/models'
 import { describe, expect, it } from 'vitest'
-import { byPhase, canAddMedia, canRemoveMedia, capturedAt, kindOf, mediaRefusal, ownerRef, stationMedia } from '../media'
+import { capturedAt, inOrder, kindOf, mediaRefusal, ownerRef, SECTIONS } from '../media'
 
 const NOW = new Date('2026-10-21T18:00:00Z')
 
-function item (id: string, phase: VisitMedia['phase'], at: string | null, added = '2026-10-21T15:00:00Z'): VisitMedia {
+function item (id: string, at: string | null, added = '2026-10-21T15:00:00Z'): BoardMedia {
   return {
-    media_id: id, phase, kind: 'image', filename: `${id}.jpg`, caption: null, captured_at: at,
+    media_id: id, kind: 'image', filename: `${id}.jpg`, size_bytes: 10, caption: null, captured_at: at,
     added_by: { id: 'u1', name: 'Andrea' }, added_at: added, hidden: false,
   }
 }
 
 describe('ownerRef', () => {
   it('is the reference the server checks', () => {
-    expect(ownerRef('v1', 's1', 'during')).toBe('visit:v1:station:s1:during')
+    expect(ownerRef('v1', 's1', 'e1', 'before')).toBe('visit:v1:station:s1:element:e1:before')
+  })
+})
+
+describe('SECTIONS', () => {
+  it('gives notes and recommendations one section and tasks and config a before and an after', () => {
+    expect(SECTIONS).toEqual({
+      note: ['main'], task: ['before', 'after'], recommendation: ['main'], config: ['before', 'after'],
+    })
   })
 })
 
@@ -25,6 +33,12 @@ describe('kindOf', () => {
     expect(kindOf({ type: '', name: 'clip.MP4' })).toBe('video')
     expect(kindOf({ type: 'application/pdf', name: 'a.pdf' })).toBeNull()
     expect(kindOf({ type: '', name: 'noextension' })).toBeNull()
+  })
+
+  it('takes any other file as a file where the element takes them (Config)', () => {
+    expect(kindOf({ type: 'application/pdf', name: 'a.pdf' }, true)).toBe('config')
+    expect(kindOf({ type: '', name: 'CR1000.ttx' }, true)).toBe('config')
+    expect(kindOf({ type: 'image/png', name: 'a.png' }, true)).toBe('image')
   })
 })
 
@@ -52,49 +66,21 @@ describe('capturedAt', () => {
   })
 })
 
-describe('byPhase', () => {
-  it('has every phase, oldest capture first, falling back to when it was added', () => {
-    const groups = byPhase([
-      item('c', 'after', '2026-10-21T16:00:00Z'),
-      item('b', 'before', '2026-10-21T14:00:00Z'),
-      item('a', 'before', '2026-10-21T13:00:00Z'),
-      item('d', 'before', null, '2026-10-21T13:30:00Z'),
+describe('inOrder', () => {
+  it('puts the oldest capture first, falling back to when it was added', () => {
+    const sorted = inOrder([
+      item('b', '2026-10-21T14:00:00Z'),
+      item('a', '2026-10-21T13:00:00Z'),
+      item('d', null, '2026-10-21T13:30:00Z'),
     ])
-    expect(groups.map(g => g.phase)).toEqual(['before', 'during', 'after'])
-    expect(groups[0]!.items.map(i => i.media_id)).toEqual(['a', 'd', 'b'])
-    expect(groups[1]!.items).toEqual([])
-    expect(groups[2]!.items.map(i => i.media_id)).toEqual(['c'])
-  })
-})
-
-describe('who and when', () => {
-  const visit = (status: string) => ({ status, actions: [], staff: [{ id: 'u1', name: 'A' }] }) as never
-
-  it('lets those attending add while the visit is started or ended', () => {
-    expect(canAddMedia(visit('started'), 'u1', false)).toBe(true)
-    expect(canAddMedia(visit('ended'), 'u1', false)).toBe(true)
-    expect(canAddMedia(visit('planned'), 'u1', false)).toBe(false)
-    expect(canAddMedia(visit('cancelled'), 'u1', true)).toBe(false)
-    expect(canAddMedia(visit('started'), 'u2', false)).toBe(false)
-    expect(canAddMedia(visit('started'), 'u2', true)).toBe(true)
-  })
-
-  it('lets the person who added it, or an admin, remove it', () => {
-    expect(canRemoveMedia(item('a', 'before', null), 'u1', false)).toBe(true)
-    expect(canRemoveMedia(item('a', 'before', null), 'u2', false)).toBe(false)
-    expect(canRemoveMedia(item('a', 'before', null), 'u2', true)).toBe(true)
-  })
-
-  it('finds a station’s media on the visit', () => {
-    const visitDoc = { stations: [{ station_id: 's1', media: [item('a', 'before', null)] }, { station_id: 's2', media: [] }] } as never
-    expect(stationMedia(visitDoc, 's1')).toHaveLength(1)
-    expect(stationMedia(visitDoc, 's9')).toEqual([])
+    expect(sorted.map(i => i.media_id)).toEqual(['a', 'd', 'b'])
   })
 })
 
 describe('mediaRefusal', () => {
   it('has a sentence for each reason the server gives and none for the rest', () => {
-    expect(mediaRefusal('not_uploader')).toBe('Only the person who added it, or an admin, can remove it.')
+    expect(mediaRefusal('not_editor')).toBe('Only the person who added this, or the station’s owner, can change it.')
+    expect(mediaRefusal('bad_section')).toContain('section')
     expect(mediaRefusal('locked')).toContain('finalized')
     expect(mediaRefusal('something_new')).toBeNull()
   })

@@ -87,7 +87,7 @@ class SensorUnitData(_Data):
     serial: str
     model_id: str
     status: str
-    needs_review: bool
+    needs_review: bool = False  # retired 2026-10-22 (W11-17); kept so earlier events parse
     current_station_id: str | None = None
     calibration_due_at: datetime | None = None
 
@@ -386,11 +386,14 @@ class VisitStarted(VisitFacts):
 
 @register("visit.ended")
 class VisitEnded(VisitFacts):
-    """`sensor_actions` and `config_versions` stay empty until work records arrive (W11)."""
+    """`config_version_ids` are the station versions made from the board's Config elements
+    (W11-24). `overrides`, `sensor_actions` and `config_versions` belonged to the work record
+    (retired 2026-10-22, W11-16): they stay so earlier events still parse, and are now empty."""
 
     ended_at: datetime
     additional_visit_required: bool
     follow_up_notes: str | None = None
+    config_version_ids: list[str] = Field(default_factory=list)
     overrides: list[dict[str, str]] = Field(default_factory=list)
     sensor_actions: list[dict[str, object]] = Field(default_factory=list)
     config_versions: list[dict[str, object]] = Field(default_factory=list)
@@ -420,8 +423,8 @@ class VisitStationDeparted(VisitFacts):
 
 @register("visit.work_updated")
 class VisitWorkUpdated(VisitFacts):
-    """A station's work record was saved (W11). Ids and kinds only: no notes, readings, serials
-    or file names travel (the audit chain records the actions that changed the inventory)."""
+    """A station's work record was saved (W11). Retired 2026-10-22 (W11-16): no longer emitted;
+    registered so the events already in the audit chain still parse."""
 
     station_id: str
     version: int  # the work record's, not the visit's
@@ -431,14 +434,45 @@ class VisitWorkUpdated(VisitFacts):
 
 @register("visit.media_changed")
 class VisitMediaChanged(VisitFacts):
-    """A photo or video was added to a station of the visit, captioned, hidden from or shown to
-    the client again, or removed (W11-10). Ids and kinds only: no file name, no caption."""
+    """A file was added to an element of a station's board, captioned, hidden from or shown to
+    the client again, or removed (W11-10, W11-27). Ids and kinds only: no file name, no caption.
+    `phase` belonged to the media phases (retired W11-16); `element_id` and `section` replace it."""
 
     station_id: str
     media_id: str
-    phase: str  # before | during | after
-    kind: str  # image | video
+    kind: str  # image | video | config
     change: str  # added | captioned | hidden | shown | removed
+    element_id: str | None = None
+    section: str | None = None  # main | before | after
+    phase: str | None = None
+
+
+class VisitElementFacts(VisitFacts):
+    """An element of a station's board (W11-35): ids and flags only. Its title, description and
+    items never travel; the audit record keeps them."""
+
+    station_id: str
+    element_id: str
+    kind: str  # note | task | recommendation | config
+    shared: bool
+    completed: bool | None = None  # a task's
+    priority: str | None = None  # a recommendation's
+    element_version: int
+
+
+@register("visit.element_added")
+class VisitElementAdded(VisitElementFacts):
+    pass
+
+
+@register("visit.element_updated")
+class VisitElementUpdated(VisitElementFacts):
+    changed_fields: list[str]
+
+
+@register("visit.element_deleted")
+class VisitElementDeleted(VisitElementFacts):
+    pass
 
 
 @register("media.deletion_requested")

@@ -173,13 +173,11 @@ async def list_units(
     status_: Annotated[UnitStatus | None, Query(alias="status")] = None,
     model_id: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     station_id: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
-    needs_review: bool | None = None,
     q: Annotated[str | None, Query(max_length=80)] = None,
     after: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> SensorUnitPage:
-    filters = units.Filters(status=status_, model_id=model_id, station_id=station_id,
-                            needs_review=needs_review, q=q)
+    filters = units.Filters(status=status_, model_id=model_id, station_id=station_id, q=q)
     found = await units.search(ctx.db, staff, filters, after=after, limit=limit + 1)
     more = len(found) > limit
     found = found[:limit]
@@ -201,7 +199,7 @@ async def create_unit(body: SensorUnitIn, user: Writer, ctx: CtxDep) -> SensorUn
         "current_station_id": None, "current_org_id": None, "current_parameter": None,
         "calibration_interval_days": body.calibration_interval_days,
         "last_calibrated_at": body.last_calibrated_at, "last_calibration_result": None,
-        "needs_review": False, "flags": [], "notes": body.notes,
+        "flags": [], "notes": body.notes,
     }, now, user.id)
     doc["calibration_due_at"] = rules.due_at(body.last_calibrated_at,
                                              rules.interval_days(doc, model))
@@ -229,11 +227,11 @@ async def get_unit(id: IdPath, staff: Staff, ctx: CtxDep) -> SensorUnitDetail:
 
 @unit_router.patch("/{id}")
 async def patch_unit(id: IdPath, body: SensorUnitPatch, user: Writer, ctx: CtxDep) -> SensorUnitOut:
-    """Serial and model corrections (SEN-5 review), status in or out of stock, the interval
+    """Serial and model corrections, status in or out of stock, the interval
     override (CAL-3), notes. Installing and removing have their own actions."""
     current = await units.require(ctx.db, id)
     wanted: dict[str, Any] = {f: getattr(body, f) for f in body.model_fields_set - {"version"}}
-    for field in ("model_id", "serial", "status", "needs_review"):
+    for field in ("model_id", "serial", "status"):
         if field in wanted and wanted[field] is None:
             del wanted[field]
     if "serial" in wanted:

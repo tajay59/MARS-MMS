@@ -24,7 +24,6 @@ class Filters:
     status: str | None = None
     model_id: str | None = None
     station_id: str | None = None
-    needs_review: bool | None = None
     q: str | None = None  # serial
 
 
@@ -38,8 +37,6 @@ async def search(
         query["model_id"] = f.model_id
     if f.station_id:
         query["current_station_id"] = f.station_id
-    if f.needs_review is not None:
-        query["needs_review"] = f.needs_review
     if f.q:
         query["serial"] = contains(f.q)
     if after:
