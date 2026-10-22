@@ -216,10 +216,62 @@
 
           <p v-else-if="editable" class="m-0 text-sm text-surface-600">Give it a title, then add photos{{ look.anyFile ? ' and files' : '' }}.</p>
 
-          <p v-if="kind === 'config' && editable" class="m-0 flex items-start gap-2 rounded-lg bg-surface-50 px-3 py-2.5 text-[13px] text-surface-700">
+          <!-- Config: the versions made from it, and the next one when its After files changed -->
+          <template v-if="kind === 'config' && saved">
+            <ul v-if="saved.config_versions.length > 0" aria-label="Configuration versions made from this" class="m-0 flex list-none flex-col gap-1.5 p-0">
+              <li v-for="made in saved.config_versions" :key="made.id" class="flex items-center gap-2 rounded-lg bg-primary-100 px-3 py-2 text-sm text-primary-700 dark:bg-primary-800 dark:text-primary-100">
+                <v-icon :icon="mdiCheck" size="16" />
+                <span>The After files are <router-link class="font-semibold text-inherit" :to="{ name: 'stations', params: { id: stationId }, query: { tab: 'configurations' } }">configuration version {{ made.version }}</router-link> of {{ station?.station_name }}.</span>
+              </li>
+            </ul>
+
+            <div v-if="visit.status === 'ended' && saved.version_due && editable" class="flex flex-wrap items-center gap-3">
+              <v-btn color="primary" :loading="versioning" variant="tonal" @click="saveVersion">Save as a new configuration version</v-btn>
+              <span class="text-xs text-surface-600">The After files changed since the last version.</span>
+            </div>
+          </template>
+
+          <p v-if="kind === 'config' && editable && visit.status !== 'ended'" class="m-0 flex items-start gap-2 rounded-lg bg-surface-50 px-3 py-2.5 text-[13px] text-surface-700">
             <v-icon class="mt-px text-primary" :icon="mdiInformationOutline" size="16" />
             When the visit ends, the After files become the station’s next configuration version. Changing them later adds another version; a version never changes.
           </p>
+
+          <!-- Recommendation: a request made from it (W11-38) -->
+          <section v-if="kind === 'recommendation' && saved && !isClient" :aria-labelledby="`${headingId}-follow`" class="flex flex-col gap-2">
+            <h3 :id="`${headingId}-follow`" class="m-0 text-sm font-semibold text-surface-900">Follow-up</h3>
+
+            <p v-if="saved.request_ref" class="m-0 text-sm">
+              <router-link class="font-mono font-semibold text-primary" :to="{ name: 'requests', params: { id: saved.request_ref.id } }" translate="no">Request {{ saved.request_ref.ref }}</router-link>
+              <span class="text-surface-600"> was made from this.</span>
+            </p>
+
+            <template v-else-if="editable">
+              <form v-if="requesting" class="flex flex-col gap-2" @submit.prevent="makeRequest">
+                <v-select
+                  v-model="category"
+                  :items="categoryItems"
+                  label="What kind of work"
+                  name="category"
+                />
+
+                <p class="m-0 text-xs text-surface-600">{{ requestHint }}</p>
+
+                <div class="flex gap-2">
+                  <v-btn color="primary" :loading="makingRequest" type="submit">Make the request</v-btn>
+                  <v-btn variant="text" @click="requesting = false">Cancel</v-btn>
+                </div>
+              </form>
+
+              <v-btn
+                v-else
+                class="self-start"
+                color="primary"
+                :prepend-icon="mdiPlus"
+                variant="tonal"
+                @click="requesting = true"
+              >Create a request from this</v-btn>
+            </template>
+          </section>
 
           <!-- Sharing -->
           <div v-if="!isClient" class="flex items-start gap-3 border-t border-surface-200 pt-3">
@@ -270,7 +322,7 @@
   import type { Draft } from '../board'
   import type { BoardElement, BoardMedia, ElementKind, ElementSection, VisitOut } from '@/api/models'
   import type { PendingMedia } from '@/app/composables/useVisitMedia'
-  import { mdiCheck, mdiCheckCircleOutline, mdiChevronDown, mdiChevronUp, mdiClose, mdiDeleteOutline, mdiInformationOutline } from '@mdi/js'
+  import { mdiCheck, mdiCheckCircleOutline, mdiChevronDown, mdiChevronUp, mdiClose, mdiDeleteOutline, mdiInformationOutline, mdiPlus } from '@mdi/js'
   import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
   import { useDisplay } from 'vuetify'
   import { boardApi } from '@/api/operations'
@@ -278,6 +330,8 @@
   import { newId } from '@/app/ids'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
+  import { CATEGORIES } from '@/features/requests/requests'
+  import { useSessionStore } from '@/stores/session'
   import { boardFailure, changed, createBody, currentOf, draftOf, KIND, MAX_DESCRIPTION, MAX_ITEM, MAX_ITEMS, MAX_TITLE, moved, PRIORITY_LABEL, progress, putBody, sectionsOf, titleProblem } from '../board'
   import { boardQueue, onElementSaved } from '../uploadQueues'
   import FileViewer from '../viewers/FileViewer.vue'
@@ -328,6 +382,16 @@
   const removing = ref(false)
   const closing = ref(false)
   const viewing = ref<{ file: BoardMedia, files: BoardMedia[] } | null>(null)
+  const versioning = ref(false)
+  const requesting = ref(false)
+  const makingRequest = ref(false)
+  const category = ref<(typeof CATEGORIES)[number]['value']>('inspection')
+  const categoryItems = CATEGORIES.map(c => ({ title: c.label, value: c.value }))
+  const requestId = newId()
+  const session = useSessionStore()
+  const requestHint = computed(() => session.hasAnyRole(['admin'])
+    ? 'It starts Approved, for this station, with the title and description above. It needs a connection.'
+    : 'It starts Submitted for an admin to approve, for this station, with the title and description above. It needs a connection.')
   const id = ref<string>(props.element?.id ?? newId())
 
   const editable = computed(() => {
@@ -475,6 +539,40 @@
 
   function openFile (section: ElementSection, file: BoardMedia): void {
     viewing.value = { file, files: saved.value?.media[section] ?? [file] }
+  }
+
+  /** After the end: the changed After files become the next configuration version (W11-37). */
+  async function saveVersion (): Promise<void> {
+    if (!saved.value) {
+      return
+    }
+    versioning.value = true
+    problem.value = null
+    try {
+      adopt(await boardApi.saveConfigVersion(props.visit.id, props.stationId, saved.value.id))
+    } catch (error) {
+      problem.value = boardFailure(error, 'We couldn’t save the version. Try again in a moment.')
+    } finally {
+      versioning.value = false
+    }
+  }
+
+  /** A request from the recommendation; the same request id again changes nothing (W11-38). */
+  async function makeRequest (): Promise<void> {
+    if (!saved.value) {
+      return
+    }
+    await save()
+    makingRequest.value = true
+    problem.value = null
+    try {
+      adopt(await boardApi.requestFrom(props.visit.id, props.stationId, saved.value.id, { id: requestId, category: category.value }))
+      requesting.value = false
+    } catch (error) {
+      problem.value = boardFailure(error, 'We couldn’t make the request. Try again in a moment.')
+    } finally {
+      makingRequest.value = false
+    }
   }
 
   async function removeElement (): Promise<void> {

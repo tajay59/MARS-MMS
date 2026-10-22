@@ -128,12 +128,21 @@ test('A technician fills in a station’s board and the client sees what was sha
   await sheet.getByRole('button', { name: 'Logger program 4.2' }).click()
   await sheet.getByRole('button', { name: 'Done' }).click()
 
+  // A recommendation becomes a request for the station (W11-38)
+  sheet = await titled(page, await add(page, 'Recommendation'), 'Replace the guy wires next quarter')
+  await sheet.getByRole('button', { name: 'High' }).click()
+  await sheet.getByRole('button', { name: 'Create a request from this' }).click()
+  await sheet.getByRole('button', { name: 'Make the request' }).click()
+  await expect(sheet.getByRole('link', { name: /^Request MR-\d{4}-\d{4}$/ })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await expect(note(page, 'Replace the guy wires next quarter')).toContainText('High')
+
   // The filters count each kind
   await expect(page.getByRole('button', { name: 'Tasks 2' })).toBeVisible()
   await page.getByRole('button', { name: 'Config 1' }).click()
   await expect(note(page, 'Water inside the enclosure')).toHaveCount(0)
   await expect(note(page, 'Logger program 4.2')).toBeVisible()
-  await page.getByRole('button', { name: 'All 4' }).click()
+  await page.getByRole('button', { name: 'All 5' }).click()
   await checkA11y(page, '/visits/:id (board)')
 
   // Ending warns about the open task, and goes ahead anyway
@@ -144,11 +153,18 @@ test('A technician fills in a station’s board and the client sees what was sha
   await end.getByRole('button', { name: 'End anyway' }).click()
   await expect(page.getByText(/ended/i).first()).toBeVisible()
 
+  // The end made the Config element's After files the station's configuration version (W11-24)
+  await page.getByRole('button', { name: 'Logger program 4.2', exact: true }).click()
+  sheet = page.getByRole('dialog', { name: 'Logger program 4.2' })
+  await expect(sheet.getByRole('link', { name: /^configuration version \d+$/ })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+
   // The client sees the shared tasks, not the note or the configuration files
   const client = await staffPage(browser, 'client.a1@example.org')
   await client.goto(visitPath)
   await expect(note(client, 'Replace the RH sensor')).toContainText('Complete')
   await expect(note(client, 'Check the solar charge controller')).toContainText('0 of 1')
+  await expect(note(client, 'Replace the guy wires next quarter')).toContainText('High')
   await expect(note(client, 'Water inside the enclosure')).toHaveCount(0)
   await expect(note(client, 'Logger program 4.2')).toHaveCount(0)
   await expect(client.getByRole('button', { name: 'Add', exact: true })).toHaveCount(0)

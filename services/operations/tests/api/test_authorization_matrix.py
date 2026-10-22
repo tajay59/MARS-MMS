@@ -107,6 +107,9 @@ TABLE: dict[Route, Expect] = {
         WRITE,
     ("DELETE", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}"):
         WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/config-version"):
+        WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/request"): WRITE,
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),

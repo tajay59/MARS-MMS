@@ -1066,6 +1066,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/config-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Config Version
+         * @description After the end, the Config element's changed After files become the station's next
+         *     configuration version (CFG-2: a version never changes). Nothing changed: nothing is made,
+         *     so pressing it twice makes one version.
+         */
+        post: operations["save_config_version_api_v1_visits__id__stations__station_id__elements__element_id__config_version_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media": {
         parameters: {
             query?: never;
@@ -1108,6 +1130,29 @@ export interface paths {
          * @description A caption, or hide a file from the client (W11-13) and show it again.
          */
         patch: operations["change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request From Recommendation
+         * @description A new maintenance request for this station, from the recommendation: a technician's
+         *     starts Submitted for an admin to approve, an admin's Approved, as any request. The request
+         *     and the link on the element are one transaction; the same request `id` again changes
+         *     nothing. Online only (OFF-10).
+         */
+        post: operations["request_from_recommendation_api_v1_visits__id__stations__station_id__elements__element_id__request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/internal/attachable": {
@@ -1498,6 +1543,13 @@ export interface components {
             /** Visit Id */
             visit_id: string | null;
         };
+        /** ConfigVersionRef */
+        ConfigVersionRef: {
+            /** Id */
+            id: string;
+            /** Version */
+            version: number;
+        };
         /** DenyIn */
         DenyIn: {
             /** Reason */
@@ -1768,6 +1820,8 @@ export interface components {
             completed_at: string | null;
             /** Config Version Ids */
             config_version_ids: string[];
+            /** Config Versions */
+            config_versions: components["schemas"]["ConfigVersionRef"][];
             /**
              * Created At
              * Format: date-time
@@ -1805,6 +1859,8 @@ export interface components {
             updated_at: string;
             /** Version */
             version: number;
+            /** Version Due */
+            version_due: boolean;
             /** Visit Id */
             visit_id: string;
         };
@@ -1827,6 +1883,24 @@ export interface components {
             shared: boolean;
             /** Title */
             title: string;
+        };
+        /**
+         * ElementRequestIn
+         * @description Make a request from a recommendation (W11-23, W11-38). `id` is the request's, made on the
+         *     device: sending it again returns the element with the request already made.
+         */
+        ElementRequestIn: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "fault" | "communications" | "power" | "calibration" | "relocation" | "inspection" | "other";
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Title */
+            title?: string | null;
         };
         /** EndIn */
         EndIn: {
@@ -5230,6 +5304,39 @@ export interface operations {
             };
         };
     };
+    save_config_version_api_v1_visits__id__stations__station_id__elements__element_id__config_version_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post: {
         parameters: {
             query?: never;
@@ -5316,6 +5423,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ElementMediaPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_from_recommendation_api_v1_visits__id__stations__station_id__elements__element_id__request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementRequestIn"];
             };
         };
         responses: {

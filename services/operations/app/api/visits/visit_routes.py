@@ -20,7 +20,7 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
 
 from app.api.context import Ctx, CtxDep
-from app.api.visits import glue
+from app.api.visits import board_versions, glue
 from app.api.visits.schemas import (
     AtIn,
     EndIn,
@@ -449,8 +449,16 @@ async def end_visit(id: IdPath, body: EndIn, user: Worker, ctx: CtxDep) -> Visit
     )
     if result.noop:
         return await _out(ctx, visit, user)
+    # Config elements whose After files are not yet a version: their files are checked with
+    # media first (a network call), and one still being checked refuses the end (W11-24)
+    due = [e for e in await element_repo.for_visits(ctx.db, [visit["_id"]])
+           if element_rules.config_version_due(e)]
+    versions = [(e, await board_versions.checked_files(ctx, e), new_id()) for e in due]
 
     async def share(s: AsyncClientSession, ended: dict[str, Any], emitter: Emitter) -> None:
+        for element, checked, version_id in versions:
+            await board_versions.make_version(ctx, user, ended, element, checked, version_id, s,
+                                              emitter)
         # The client sees the shared elements' files from now on, except what was hidden
         # (W11-28). The same transaction as the end, so a visit is never ended and unshared.
         board = await element_repo.for_visits(ctx.db, [ended["_id"]], None, s)
@@ -466,6 +474,7 @@ async def end_visit(id: IdPath, body: EndIn, user: Worker, ctx: CtxDep) -> Visit
             "ended_at": result.fields["ended_at"],
             "additional_visit_required": body.additional_visit_required,
             "follow_up_notes": result.fields["follow_up_notes"],
+            "config_version_ids": [version_id for _, _, version_id in versions],
         })],
         settle_note=f"Visit {visit['ref']} ended",
     )

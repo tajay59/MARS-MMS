@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
+import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, BoardRequestIn, CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -200,4 +200,10 @@ export const boardApi = {
     api.patch<BoardElement>(`${board(id, stationId)}/${elementId}/media/${mediaId}`, body),
   removeMedia: (id: string, stationId: string, elementId: string, mediaId: string) =>
     api.delete<BoardElement>(`${board(id, stationId)}/${elementId}/media/${mediaId}`),
+  /** After the end: a Config element's changed After files become the next version (W11-37). */
+  saveConfigVersion: (id: string, stationId: string, elementId: string) =>
+    api.post<BoardElement>(`${board(id, stationId)}/${elementId}/config-version`),
+  /** A new request from a recommendation; `body.id` is the request's, made on the device (W11-38). */
+  requestFrom: (id: string, stationId: string, elementId: string, body: BoardRequestIn) =>
+    api.post<BoardElement>(`${board(id, stationId)}/${elementId}/request`, body),
 }

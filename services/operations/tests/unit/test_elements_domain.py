@@ -327,3 +327,61 @@ def test_a_board_is_summarized_with_its_newest_photo():
     assert summary.incomplete_tasks == 1
     assert summary.cover == (m_new, "video")  # a logger file is never the cover
     assert rules.summarize([]).cover is None
+
+
+# --- Config → configuration versions, Recommendation → request -----------------------------------
+
+
+def config_with(
+    *entries: dict[str, Any], made: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    return element("config", media={"before": [], "after": list(entries)},
+                   config_versions=made or [])
+
+
+@pytest.mark.req("CFG-4")
+def test_a_config_version_holds_the_after_files_that_are_not_photos():
+    m1, m2, photo = new_id(), new_id(), new_id()
+    doc = config_with(entry(m2, kind="config", at=NOW + timedelta(minutes=1)),
+                      entry(photo), entry(m1, kind="config", at=NOW))
+    assert [e["media_id"] for e in rules.config_files(doc)] == [m1, m2]
+    assert rules.config_files(element("note")) == []
+
+
+@pytest.mark.req("CFG-4")
+def test_a_version_is_due_when_the_after_files_changed():
+    m1, m2 = new_id(), new_id()
+    assert not rules.config_version_due(config_with())  # nothing to version
+    fresh = config_with(entry(m1, kind="config"))
+    assert rules.config_version_due(fresh)
+    made = config_with(entry(m1, kind="config"),
+                       made=[{"id": "v", "version": 5, "media_ids": [m1]}])
+    assert not rules.config_version_due(made)
+    grown = config_with(entry(m1, kind="config"), entry(m2, kind="config"),
+                        made=[{"id": "v", "version": 5, "media_ids": [m1]}])
+    assert rules.config_version_due(grown)
+
+
+def test_versions_after_the_end_need_an_ended_visit_that_is_not_locked():
+    rules.check_ended_for_version(visit(status="ended"))
+    for fields, expected in (({"status": "started"}, "not_ended"),
+                             ({"status": "ended", "locked": True}, "locked")):
+        with pytest.raises(Conflict) as caught:
+            rules.check_ended_for_version(visit(**fields))
+        assert code(caught) == expected
+
+
+@pytest.mark.req("VIS-7")
+def test_a_recommendation_makes_one_request():
+    rid = new_id()
+    rec = element("recommendation")
+    assert rules.check_can_request(rec, rid) is True
+    made = {**rec, "request_ref": {"id": rid, "ref": "MR-2026-0051"}}
+    assert rules.check_can_request(made, rid) is False  # a retry
+    with pytest.raises(Conflict) as caught:
+        rules.check_can_request(made, new_id())
+    assert code(caught) == "already_requested"
+    with pytest.raises(ValidationFailed) as caught:
+        rules.check_can_request(element("note"), rid)
+    assert code(caught) == "not_recommendation"
+    assert rules.REQUEST_PRIORITY == {"low": "low", "medium": "normal", "high": "high"}

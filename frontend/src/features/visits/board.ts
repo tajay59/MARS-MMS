@@ -200,6 +200,8 @@ const REFUSALS: Record<string, string> = {
   visit_cancelled: 'This visit was cancelled.',
   locked: 'The visit report has been finalized. Ask an admin to reopen it.',
   board_full: 'This board is full. Delete something you no longer need first.',
+  already_requested: 'A request was already made from this.',
+  not_ended: 'The end of the visit makes the first configuration version.',
   title_required: 'Give it a title.',
 }
 

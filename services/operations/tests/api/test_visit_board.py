@@ -490,3 +490,130 @@ async def test_media_may_upload_for_an_element_even_before_it_exists(ops):
     assert (await attachable(ops, elsewhere, "tech1")).status_code == 404
     old_phase = f"visit:{visit['id']}:station:{one['id']}:before"
     assert (await attachable(ops, old_phase, "tech1")).status_code == 404
+
+
+# --- Config → configuration versions (W11-24, W11-37) --------------------------------------------
+
+
+async def config_element(ops, visit, station, *names: str, status: str = "ready"):
+    """A Config element with these files in After, uploaded and put on it by tech1."""
+    config = await added(ops, "tech1", visit, station, "config", title="Logger program 4.2")
+    for name in names:
+        media_id = upload(ops, visit, station, config, "after", kind="config", filename=name,
+                          status=status)
+        r = await attach(ops, "tech1", visit, station, config, media_id, "after")
+        assert r.status_code == 200, r.text
+        config = r.json()
+    return config
+
+
+async def versions_of(ops, station) -> list[dict[str, Any]]:
+    r = await ops.http.get(f"/api/v1/stations/{station['id']}/config-versions",
+                           headers=ops.bearer("tech1"))
+    assert r.status_code == 200, r.text
+    out: list[dict[str, Any]] = r.json()
+    return out
+
+
+@pytest.mark.req("CFG-4")
+async def test_the_end_makes_a_configuration_version_from_each_config_element(ops):
+    visit, _, [one, _] = await two_techs(ops)
+    config = await config_element(ops, visit, one, "KIN_main_v4.2.CR1", "rh_offset.py")
+    assert config["version_due"] is True
+    ended = await move(ops, "tech1", visit["id"], "end", additional_visit_required=False)
+    assert ended.status_code == 200, ended.text
+    [made] = await versions_of(ops, one)
+    assert [f["filename"] for f in made["files"]] == ["KIN_main_v4.2.CR1", "rh_offset.py"]
+    assert made["notes"] == "Logger program 4.2"
+    [event] = await ops.outbox("visit.ended")
+    assert event.data["config_version_ids"] == [made["id"]]
+    after = (await listed(ops, "tech1", visit, one))["items"][0]
+    assert after["config_versions"] == [{"id": made["id"], "version": made["version"]}]
+    assert after["version_due"] is False
+
+
+@pytest.mark.req("CFG-4")
+async def test_a_file_still_being_checked_holds_the_end(ops):
+    visit, _, [one, _] = await two_techs(ops)
+    await config_element(ops, visit, one, "rh_offset.py", status="processing")
+    r = await move(ops, "tech1", visit["id"], "end", additional_visit_required=False)
+    assert r.status_code == 409 and r.json()["code"] == "config_files_not_ready"
+    assert r.json()["files"] == ["rh_offset.py"]
+    assert (await move_get(ops, "tech1", visit))["status"] == "started"  # nothing was written
+    assert await versions_of(ops, one) == []
+
+
+@pytest.mark.req("CFG-4")
+async def test_after_the_end_changed_files_make_the_next_version_once(ops):
+    visit, _, [one, _] = await two_techs(ops)
+    config = await config_element(ops, visit, one, "KIN_main_v4.2.CR1")
+    path = f"{board(visit, one)}/{config['id']}/config-version"
+    early = await ops.http.post(path, headers=ops.bearer("tech1"))
+    assert early.status_code == 409 and early.json()["code"] == "not_ended"
+    assert (await move(ops, "tech1", visit["id"], "end",
+                       additional_visit_required=False)).status_code == 200
+    nothing = await ops.http.post(path, headers=ops.bearer("tech1"))
+    assert nothing.status_code == 200 and len(nothing.json()["config_versions"]) == 1
+
+    fix = upload(ops, visit, one, config, "after", kind="config", filename="rh_offset.py")
+    r = await attach(ops, "tech1", visit, one, config, fix, "after")
+    assert r.status_code == 200 and r.json()["version_due"] is True
+    first = await ops.http.post(path, headers=ops.bearer("tech1"))
+    again = await ops.http.post(path, headers=ops.bearer("tech1"))
+    assert first.status_code == again.status_code == 200, first.text
+    assert [v["version"] for v in again.json()["config_versions"]] == [1, 2]
+    v1, v2 = sorted(await versions_of(ops, one), key=lambda v: v["version"])
+    assert [f["filename"] for f in v2["files"]] == ["KIN_main_v4.2.CR1", "rh_offset.py"]
+    assert v1["files"][0]["media_id"] == v2["files"][0]["media_id"]  # an unchanged file repeats
+    denied = await ops.http.post(path, headers=ops.bearer("tech2"))
+    assert denied.status_code == 403 and denied.json()["code"] == "not_editor"
+
+
+# --- Recommendation → request (W11-23, W11-38) ---------------------------------------------------
+
+
+@pytest.mark.req("VIS-7")
+async def test_a_recommendation_makes_a_request_once_linked_both_ways(ops):
+    visit, _, [one, _] = await two_techs(ops)
+    rec = await added(ops, "tech1", visit, one, "recommendation", priority="high",
+                      title="Replace the guy wires next quarter",
+                      description="Corrosion on all three anchors.")
+    path = f"{board(visit, one)}/{rec['id']}/request"
+    request_id = new_id()
+    r = await ops.http.post(path, json={"id": request_id, "category": "inspection"},
+                            headers=ops.bearer("tech1"))
+    assert r.status_code == 200, r.text
+    ref = r.json()["request_ref"]
+    assert ref["id"] == request_id and ref["ref"].startswith("MR-")
+    made = await ops.http.get(f"/api/v1/requests/{request_id}", headers=ops.bearer("admin"))
+    assert made.status_code == 200, made.text
+    body = made.json()
+    assert body["status"] == "submitted"  # a technician's waits for an admin (W11-38)
+    assert body["title"] == "Replace the guy wires next quarter" and body["priority"] == "high"
+    seen = await ops.http.get(f"/api/v1/requests/{request_id}", headers=ops.bearer("client_a1"))
+    assert seen.status_code == 200  # a request of the client's own organization
+
+    again = await ops.http.post(path, json={"id": request_id, "category": "inspection"},
+                                headers=ops.bearer("tech1"))
+    assert again.status_code == 200 and again.json()["request_ref"] == ref
+    other = await ops.http.post(path, json={"id": new_id(), "category": "inspection"},
+                                headers=ops.bearer("tech1"))
+    assert other.status_code == 409 and other.json()["code"] == "already_requested"
+    made_events = [e for e in await ops.outbox("request.submitted") if e.resource.id == request_id]
+    assert len(made_events) == 1
+    [linked] = [e for e in await ops.outbox("visit.element_updated")
+                if e.data["element_id"] == rec["id"]]
+    assert linked.data["changed_fields"] == ["request_ref"]
+
+
+async def test_only_a_recommendation_makes_a_request_and_only_an_editor_asks(ops):
+    visit, _, [one, _] = await two_techs(ops)
+    note = await added(ops, "tech1", visit, one)
+    r = await ops.http.post(f"{board(visit, one)}/{note['id']}/request",
+                            json={"id": new_id(), "category": "other"}, headers=ops.bearer("tech1"))
+    assert r.status_code == 422 and r.json()["code"] == "not_recommendation"
+    rec = await added(ops, "tech1", visit, one, "recommendation")
+    denied = await ops.http.post(f"{board(visit, one)}/{rec['id']}/request",
+                                 json={"id": new_id(), "category": "other"},
+                                 headers=ops.bearer("tech2"))
+    assert denied.status_code == 403 and denied.json()["code"] == "not_editor"
