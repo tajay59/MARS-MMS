@@ -1,4 +1,5 @@
-import type { BrowserContext, Page } from '@playwright/test'
+import type { Browser, BrowserContext, Page } from '@playwright/test'
+import { claimedRequest } from './requestFlows'
 import { expect } from './support'
 
 // Steps the offline journeys share (unlock.spec.ts, prepare.spec.ts).
@@ -27,4 +28,16 @@ export async function goInApp (page: Page, path: string): Promise<void> {
     const root = document.querySelector('#app') as unknown as { __vue_app__: { config: { globalProperties: { $router: { push: (to: string) => Promise<unknown> } } } } }
     await root.__vue_app__.config.globalProperties.$router.push(target)
   }, path)
+}
+
+/** A planned visit to both stations, owned by Tech 1. Returns its path. */
+export async function plannedVisit (page: Page, browser: Browser, title: string): Promise<string> {
+  const path = await claimedRequest(browser, title)
+  await page.goto(path)
+  await page.getByRole('button', { name: 'Schedule visit' }).click()
+  await page.getByRole('dialog', { name: 'Schedule visit' }).getByRole('button', { name: 'Schedule visit' }).click()
+  await expect(page.getByText(/VR-\d{4}-\d{4}-01 is planned\./)).toBeVisible()
+  await page.getByRole('row', { name: /VR-\d{4}-\d{4}-01/ }).getByRole('link', { name: /VR-/ }).click()
+  await expect(page).toHaveURL(/\/visits\/[\da-f-]{36}$/)
+  return new URL(page.url()).pathname
 }

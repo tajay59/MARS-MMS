@@ -267,6 +267,7 @@
   import ChangeOwnerDialog from './ChangeOwnerDialog.vue'
   import EndVisitDialog from './EndVisitDialog.vue'
   import { replaceVisit } from './failures'
+  import { visitGate } from './local/gateway'
   import { forgetMediaLinks } from './mediaLinks'
   import RescheduleDialog from './RescheduleDialog.vue'
   import { useVisitMoves } from './useVisitMoves'
@@ -398,7 +399,7 @@
     const abort = new AbortController()
     detailAbort = abort
     try {
-      detail.value = await visitsApi.get(id, abort.signal)
+      detail.value = await visitGate.get(id, abort.signal)
     } catch (error) {
       if (abort.signal.aborted) {
         return

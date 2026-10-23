@@ -4,7 +4,10 @@ import type { MediaKind } from '@/features/visits/media'
 import { reactive } from 'vue'
 import { boardApi } from '@/api/operations'
 import { ApiError, NetworkError } from '@/api/problem'
+import { newId } from '@/app/ids'
+import { captureFile, isLocal } from '@/features/visits/local/gateway'
 import { capturedAt, kindOf, mediaRefusal, ownerRef } from '@/features/visits/media'
+import { sha256Hex } from '@/offline/hash'
 import { prepareImage } from '@/offline/image'
 import { createUpload } from './useUpload'
 
@@ -36,6 +39,10 @@ export interface VisitMediaDeps {
   prepare: typeof prepareImage
   upload: (file: File, options: UploadOptions) => Upload
   addMedia: typeof boardApi.addMedia
+  /** Whether the visit is kept on this phone: then a file is stored here and sent by the runner. */
+  isLocal?: (visitId: string) => Promise<boolean>
+  capture?: typeof captureFile
+  hash?: (file: Blob) => Promise<string>
 }
 
 export interface VisitMediaOptions {
@@ -76,10 +83,13 @@ function wording (error: unknown): string {
 }
 
 export function useVisitMedia (options: VisitMediaOptions) {
-  const deps: VisitMediaDeps = {
+  const deps: Required<VisitMediaDeps> = {
     prepare: prepareImage,
     upload: createUpload,
     addMedia: boardApi.addMedia,
+    isLocal,
+    capture: captureFile,
+    hash: sha256Hex,
     ...options.deps,
   }
   const limit = options.concurrency ?? 2
@@ -141,6 +151,21 @@ export function useVisitMedia (options: VisitMediaOptions) {
     job.item.error = null
     try {
       await prepare(job)
+      if (await deps.isLocal(options.visit().id)) {
+        // Kept on the phone and queued: the runner uploads it and puts it on the element
+        job.item.state = 'saving'
+        const element = await deps.capture(options.visit().id, job.item.stationId, job.item.elementId, job.item.section, {
+          mediaId: newId(), file: job.file!, name: job.file!.name, kind: job.item.kind,
+          sha256: await deps.hash(job.file!), capturedAt: job.captured,
+        })
+        options.onElement(element)
+        work.delete(job.item.key)
+        const at = items.indexOf(job.item)
+        if (at !== -1) {
+          items.splice(at, 1)
+        }
+        return
+      }
       if (!(await send(job))) {
         job.item.state = 'failed'
         return

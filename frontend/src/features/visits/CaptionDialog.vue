@@ -32,12 +32,12 @@
 <script lang="ts" setup>
   import type { BoardElement, BoardMedia } from '@/api/models'
   import { computed, ref, watch } from 'vue'
-  import { boardApi } from '@/api/operations'
   import { useFormDialog } from '@/app/composables/useFormDialog'
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
+  import { board } from './local/gateway'
   import { mediaFailure } from './media'
 
   // The caption of one photo or video on an element of a station's board (PRD VIS-5). Empty clears it.
@@ -79,7 +79,7 @@
     busy.value = true
     problem.value = null
     try {
-      const element = await boardApi.changeMedia(props.visitId, props.stationId, props.elementId, props.item.media_id, { caption: text || null })
+      const element = await board.changeMedia(props.visitId, props.stationId, props.elementId, props.item.media_id, { caption: text || null })
       open.value = false
       emit('done', element)
     } catch (error_) {

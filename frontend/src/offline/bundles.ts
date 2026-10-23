@@ -58,6 +58,8 @@ export interface Request {
   documents: ReadonlySet<string>
   signal?: AbortSignal
   onProgress?: (progress: Progress) => void
+  /** Runs once the bundle is stored (not yet ready): the boards go into the working copy. */
+  onBundle?: (bundle: FieldBundle, store: MmsDb) => Promise<void>
   store?: MmsDb
 }
 
@@ -126,6 +128,7 @@ export async function prepareVisit (source: Source, request: Request): Promise<O
     documents: [...request.documents],
     data: bundle,
   })
+  await request.onBundle?.(bundle, store)
   report()
 
   const missing: BundleFile[] = []

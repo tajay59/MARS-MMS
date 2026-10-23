@@ -93,8 +93,8 @@
   import type { PendingMedia } from '@/app/composables/useVisitMedia'
   import { mdiDeleteOutline, mdiPlus } from '@mdi/js'
   import { computed, ref } from 'vue'
-  import { boardApi } from '@/api/operations'
   import CaptionDialog from '../CaptionDialog.vue'
+  import { board } from '../local/gateway'
   import { inOrder, mediaFailure, SECTION_LABEL } from '../media'
   import { forgetMedia } from '../mediaLinks'
   import MediaThumb from '../MediaThumb.vue'
@@ -159,7 +159,7 @@
   async function hide (file: BoardMedia, hidden: boolean): Promise<void> {
     problem.value = null
     try {
-      emit('changed', await boardApi.changeMedia(props.visitId, props.stationId, props.element.id, file.media_id, { hidden }))
+      emit('changed', await board.changeMedia(props.visitId, props.stationId, props.element.id, file.media_id, { hidden }))
     } catch (error) {
       problem.value = mediaFailure(error, 'We couldn’t change that. Try again in a moment.')
     }
@@ -168,7 +168,7 @@
   async function remove (file: BoardMedia): Promise<void> {
     problem.value = null
     try {
-      const element = await boardApi.removeMedia(props.visitId, props.stationId, props.element.id, file.media_id)
+      const element = await board.removeMedia(props.visitId, props.stationId, props.element.id, file.media_id)
       forgetMedia(file.media_id)
       emit('changed', element)
     } catch (error) {

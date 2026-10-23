@@ -325,7 +325,6 @@
   import { mdiCheck, mdiCheckCircleOutline, mdiChevronDown, mdiChevronUp, mdiClose, mdiDeleteOutline, mdiInformationOutline, mdiPlus } from '@mdi/js'
   import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
   import { useDisplay } from 'vuetify'
-  import { boardApi } from '@/api/operations'
   import { formatDateTime, formatListTime } from '@/app/format'
   import { newId } from '@/app/ids'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
@@ -333,6 +332,7 @@
   import { CATEGORIES } from '@/features/requests/requests'
   import { useSessionStore } from '@/stores/session'
   import { boardFailure, changed, createBody, currentOf, draftOf, KIND, MAX_DESCRIPTION, MAX_ITEM, MAX_ITEMS, MAX_TITLE, moved, PRIORITY_LABEL, progress, putBody, sectionsOf, titleProblem } from '../board'
+  import { board } from '../local/gateway'
   import { boardQueue, onElementSaved } from '../uploadQueues'
   import FileViewer from '../viewers/FileViewer.vue'
   import MediaSection from './MediaSection.vue'
@@ -472,8 +472,8 @@
     inFlight = (async () => {
       try {
         const element = saved.value
-          ? await boardApi.save(props.visit.id, props.stationId, saved.value.id, putBody(draft, saved.value.version))
-          : await boardApi.create(props.visit.id, props.stationId, createBody(id.value, kind.value, draft))
+          ? await board.save(props.visit.id, props.stationId, saved.value.id, putBody(draft, saved.value.version))
+          : await board.create(props.visit.id, props.stationId, createBody(id.value, kind.value, draft))
         adopt(element)
         savedAt.value = formatListTime(element.updated_at, zone.value)
       } catch (error) {
@@ -549,7 +549,7 @@
     versioning.value = true
     problem.value = null
     try {
-      adopt(await boardApi.saveConfigVersion(props.visit.id, props.stationId, saved.value.id))
+      adopt(await board.saveConfigVersion(props.visit.id, props.stationId, saved.value.id))
     } catch (error) {
       problem.value = boardFailure(error, 'We couldn’t save the version. Try again in a moment.')
     } finally {
@@ -566,7 +566,7 @@
     makingRequest.value = true
     problem.value = null
     try {
-      adopt(await boardApi.requestFrom(props.visit.id, props.stationId, saved.value.id, { id: requestId, category: category.value }))
+      adopt(await board.requestFrom(props.visit.id, props.stationId, saved.value.id, { id: requestId, category: category.value }))
       requesting.value = false
     } catch (error) {
       problem.value = boardFailure(error, 'We couldn’t make the request. Try again in a moment.')
@@ -582,7 +582,7 @@
     removing.value = true
     problem.value = null
     try {
-      await boardApi.remove(props.visit.id, props.stationId, saved.value.id, saved.value.version)
+      await board.remove(props.visit.id, props.stationId, saved.value.id, saved.value.version)
       emit('deleted', saved.value.id)
       open.value = false
     } catch (error) {
