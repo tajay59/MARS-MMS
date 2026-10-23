@@ -64,6 +64,10 @@
             <p class="m-0 text-sm text-surface-600">{{ formatRange(detail.planned_start, detail.planned_end, zone) }}</p>
           </section>
 
+          <FeedbackBanner v-if="detail.status === 'started' && !kept" type="warning">
+            This visit is not prepared. Every change needs a connection. <strong>Prepare it</strong> to keep working if you lose signal.
+          </FeedbackBanner>
+
           <PreparePanel :key="detail.id" :visit="detail" />
 
           <section aria-labelledby="vf-stations-h" class="flex flex-col gap-2">
@@ -113,7 +117,7 @@
             color="primary"
             :height="48"
             :loading="busy === 'start'"
-            @click="startMove"
+            @click="requestStart"
           >Start visit</v-btn>
         </div>
 
@@ -133,6 +137,7 @@
     />
 
     <v-snackbar v-model="toast.show" location="top" :timeout="6000">{{ toast.text }}</v-snackbar>
+    <StartUnpreparedDialog v-model="startCheck.asking.value" @anyway="startCheck.startAnyway" @prepare="startCheck.prepareNow" />
   </PageBody>
 </template>
 
@@ -154,6 +159,8 @@
   import { isLocal, visitGate } from '../local/gateway'
   import { forgetMediaLinks } from '../mediaLinks'
   import PreparePanel from '../prepare/PreparePanel.vue'
+  import StartUnpreparedDialog from '../prepare/StartUnpreparedDialog.vue'
+  import { useStartCheck } from '../prepare/useStartCheck'
   import { useVisitMoves } from '../useVisitMoves'
   import { canDo, formatRange, stationTimes, visitZone } from '../visits'
 
@@ -267,6 +274,8 @@
   }
 
   const { busy, station: moveStation, start: startMove } = useVisitMoves({ visit: () => detail.value, changed, say, reload })
+  const startCheck = useStartCheck(startMove, () => detail.value?.id)
+  const requestStart = startCheck.request
 
   /** Arriving opens the station's board (J6 step 3). */
   async function arrive (stationId: string): Promise<void> {

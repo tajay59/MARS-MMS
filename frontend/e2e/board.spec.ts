@@ -1,5 +1,5 @@
 import type { Browser, Locator, Page } from '@playwright/test'
-import { claimedRequest, logIn, pdf, staffPage, unique } from './requestFlows'
+import { claimedRequest, logIn, pdf, staffPage, startVisit, unique } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
 /*
@@ -43,7 +43,7 @@ async function startedVisit (page: Page, browser: Parameters<typeof claimedReque
   await expect(page.getByText(/VR-\d{4}-\d{4}-01 is planned\./)).toBeVisible()
   await page.getByRole('row', { name: /VR-\d{4}-\d{4}-01/ }).getByRole('link', { name: /VR-/ }).click()
   await expect(page).toHaveURL(/\/visits\/[\da-f-]{36}$/)
-  await page.getByRole('button', { name: 'Start visit' }).click()
+  await startVisit(page)
   await expect(page.getByText('Visit started. The request is In progress.')).toBeVisible()
   return new URL(page.url()).pathname
 }
@@ -189,7 +189,7 @@ test('A visit on a phone: stations, arrive, a board, depart and end in the field
   await expect(page.getByText(/is planned\./)).toBeVisible()
   await page.goto('/visits')
   await page.getByRole('list', { name: 'Visits' }).getByRole('link', { name: new RegExp(title) }).click()
-  await page.getByRole('button', { name: 'Start visit' }).click()
+  await startVisit(page)
 
   // Starting carries the phone into the field shell: the stations, with the visit's one big action
   await expect(page).toHaveURL(/\/visits\/[\da-f-]{36}\/field$/)
@@ -267,7 +267,7 @@ test('On a phone, a station someone else owns offers no Arrive, only your own ad
   await dialog.getByRole('button', { name: 'Schedule visit' }).click()
   await expect(lead.getByText(/VR-\d{4}-\d{4}-01 is planned\./)).toBeVisible()
   await lead.getByRole('row', { name: /VR-\d{4}-\d{4}-01/ }).getByRole('link', { name: /VR-/ }).click()
-  await lead.getByRole('button', { name: 'Start visit' }).click()
+  await startVisit(lead)
   await expect(lead.getByText('Visit started. The request is In progress.')).toBeVisible()
   const visitPath = new URL(lead.url()).pathname
   await lead.context().close()

@@ -18,6 +18,8 @@
         />
       </FormField>
 
+      <PreparedNotice :prepared-on="visit.prepared_on" />
+
       <p class="m-0 text-sm text-surface-600">
         <template v-if="station && owner !== station.owner.id">{{ station.owner.name }} and {{ nameOf(owner) }} are both told. </template>Needs a connection.
       </p>
@@ -38,6 +40,7 @@
   import FormField from '@/components/FormField.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
   import { failureOf } from './failures'
+  import PreparedNotice from './PreparedNotice.vue'
 
   // Change owner (PRD VIS-3; AFD J5 step 5b; ADR-18): who writes a station's work record on this
   // visit. Planned: any of the people attending. Started: the lead or an admin changes it. One owner

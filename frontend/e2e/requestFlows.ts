@@ -74,3 +74,10 @@ export async function submitRequest (page: Page, title: string, options: { categ
 export function pdf (text: string): Buffer {
   return Buffer.from(`%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n% ${text}\ntrailer<</Root 1 0 R>>\n%%EOF\n`)
 }
+
+/** Start the visit shown on the page. A visit that is not prepared asks first (OFF-9): go ahead online. */
+export async function startVisit (page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Start visit' }).click()
+  const ask = page.getByRole('button', { name: 'Start anyway' })
+  await ask.click({ timeout: 5000 })
+}

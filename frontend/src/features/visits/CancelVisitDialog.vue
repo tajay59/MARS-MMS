@@ -16,6 +16,8 @@
         />
       </FormField>
 
+      <PreparedNotice :prepared-on="visit.prepared_on" />
+
       <p class="m-0 text-sm text-surface-600">
         The client and everyone attending are told. If no other visit is planned, the request goes back to Assigned.
       </p>
@@ -40,9 +42,10 @@
   import FormField from '@/components/FormField.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
   import { failureOf } from './failures'
+  import PreparedNotice from './PreparedNotice.vue'
 
   // Cancel visit (PRD VIS-2): a planned visit, with a reason if there is one.
-  const props = defineProps<{ visit: Pick<VisitOut, 'id' | 'ref'> }>()
+  const props = defineProps<{ visit: Pick<VisitOut, 'id' | 'ref' | 'prepared_on'> }>()
 
   const emit = defineEmits<{ done: [visit: VisitOut], changed: [] }>()
   const open = defineModel<boolean>({ required: true })

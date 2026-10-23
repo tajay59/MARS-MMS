@@ -99,8 +99,8 @@
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { icons } from '@/app/theme/icons'
+  import { useSyncLabel } from '@/features/field/useSyncOverview'
   import { badgeText } from '@/features/notifications/notifications'
-  import { uploadsLabel } from '@/features/visits/uploadQueues'
   import { useNotificationsStore } from '@/stores/notifications'
   import { useSessionStore } from '@/stores/session'
   import { tabDot, tabDown, tabIcon, tabItem, tabKey, tabLabel, tabUp } from './tabBar'
@@ -113,6 +113,7 @@
 
   const session = useSessionStore()
   const { user, isClient } = storeToRefs(session)
+  const syncLabel = useSyncLabel()
   const router = useRouter()
 
   // Four sections fit beside Me; Admin moves into the Me menu on phones.
@@ -122,13 +123,13 @@
   const meBadge = computed(() => {
     const waiting = admin.value ? props.badges[admin.value.key] : null
     const unread = notifications.unread > 0 ? `${badgeText(notifications.unread)} unread` : null
-    return [waiting, unread, isClient.value ? null : uploadsLabel.value].filter(Boolean).join(', ') || null
+    return [waiting, unread, isClient.value ? null : syncLabel.value].filter(Boolean).join(', ') || null
   })
 
   const meItems = computed<MenuItem[]>(() => [
     { label: 'My profile', to: 'profile', icon: mdiAccountOutline },
     { label: notifications.unread > 0 ? `Notifications (${badgeText(notifications.unread)})` : 'Notifications', to: 'notifications', icon: icons.notifications },
-    ...(isClient.value ? [] : [{ label: uploadsLabel.value ? `Sync (${uploadsLabel.value})` : 'Sync', to: 'sync', icon: uploadsLabel.value ? mdiCloudUploadOutline : mdiCloudCheckOutline }]),
+    ...(isClient.value ? [] : [{ label: syncLabel.value ? `Sync (${syncLabel.value})` : 'Sync', to: 'sync', icon: syncLabel.value ? mdiCloudUploadOutline : mdiCloudCheckOutline }]),
     ...(admin.value ? [{ label: props.badges[admin.value.key] ? `Admin (${props.badges[admin.value.key]})` : 'Admin', to: admin.value.items[0]!.to, icon: admin.value.icon }] : []),
   ])
   const inMe = computed(() => !shown.value.some(s => s.key === props.current?.key))
