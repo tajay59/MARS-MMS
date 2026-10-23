@@ -409,6 +409,15 @@ class VisitStationOwnerChanged(VisitFacts):
     station_name: str | None = None
 
 
+@register("visit.prepared")
+class VisitPrepared(VisitFacts):
+    """A staff member prepared the visit on a phone for work with no signal (OFF-1, W13-9). Ids
+    only: who and which phone, never what was downloaded."""
+
+    user_id: str
+    device_id: str
+
+
 @register("visit.station_arrived")
 class VisitStationArrived(VisitFacts):
     station_id: str

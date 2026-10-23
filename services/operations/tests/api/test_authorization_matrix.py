@@ -95,6 +95,7 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/visits/{id}/stations/{station_id}/arrive"): WRITE,
     ("POST", "/api/v1/visits/{id}/stations/{station_id}/depart"): WRITE,
     ("POST", "/api/v1/visits/{id}/end"): WRITE,
+    ("GET", "/api/v1/visits/{id}/field-bundle"): WRITE,  # OFF-1: the people attending prepare
     # A station's board (VIS-5, VIS-7, W11-22): everyone in scope reads (a client the shared
     # elements of an ended visit); technicians and admins write.
     ("GET", "/api/v1/visits/{id}/stations/{station_id}/elements"): Expect(ANY),
