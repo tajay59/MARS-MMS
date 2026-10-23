@@ -52,9 +52,15 @@ export interface LocalFile {
 }
 
 export interface LocalVisit {
+  /** An element's ID, or `visit:<id>` for the visit's own state (started, arrived, ended). */
   id: string
   user_id: string
+  visit_id?: string
+  station_id?: string
+  /** The element as the board shows it, or the visit's moves; the server's copy once applied. */
   data: unknown
+  /** Changed on the phone and not yet confirmed by the server. */
+  dirty?: boolean
 }
 
 export type OutboxStatus = 'pending' | 'failed' | 'conflict'
@@ -71,9 +77,19 @@ export interface OutboxOp {
   created_at: string
   attempts: number
   status: OutboxStatus
+  /** The blob a `media_add` waits for: it is uploaded before the op is sent. */
+  blob_id?: string
+  /** Not before this time (ms): the backoff after a retryable error. */
+  next_at?: number
+  /** Why the server did not apply it, for Needs attention. */
+  code?: string
+  message?: string
+  /** The server's copy of an element that changed under the phone. */
+  current?: unknown
 }
 
-export type BlobState = 'pending' | 'uploading' | 'done' | 'diagnostic'
+/** `uploaded`: whole on the server, waiting for its `media_add`; `done` is not used before W14. */
+export type BlobState = 'pending' | 'uploading' | 'uploaded' | 'done' | 'diagnostic'
 
 export interface LocalBlob {
   media_id: string
@@ -85,6 +101,10 @@ export interface LocalBlob {
   upload_id?: string
   parts_done?: { part: number, etag: string }[]
   state: BlobState
+  visit_id?: string
+  name?: string
+  /** Media's kind for it: `image`, `video` or `config`. */
+  kind?: string
 }
 
 export interface MetaRow {
@@ -110,6 +130,12 @@ export class MmsDb extends Dexie {
       outbox: '++seq, &op_id, user_id, [user_id+visit_id], status',
       blobs: 'media_id, user_id, state',
       meta: 'key',
+    })
+    // Version 2 (W14-8): indexes for the board's working copy and the outbox's counts. Additive:
+    // no row of `outbox` or `blobs` is touched, so work queued under version 1 survives
+    this.version(2).stores({
+      visits: 'id, user_id, [visit_id+station_id]',
+      outbox: '++seq, &op_id, user_id, [user_id+visit_id], [user_id+status], status',
     })
   }
 }

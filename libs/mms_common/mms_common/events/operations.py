@@ -409,6 +409,15 @@ class VisitStationOwnerChanged(VisitFacts):
     station_name: str | None = None
 
 
+@register("visit.prepared")
+class VisitPrepared(VisitFacts):
+    """A staff member prepared the visit on a phone for work with no signal (OFF-1, W13-9). Ids
+    only: who and which phone, never what was downloaded."""
+
+    user_id: str
+    device_id: str
+
+
 @register("visit.sync_conflict")
 class VisitSyncConflict(VisitFacts):
     """A phone's work for this visit came back from `/sync` as a conflict (W14-5, TRD §7.4): the
