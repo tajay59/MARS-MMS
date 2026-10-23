@@ -49,6 +49,10 @@
         <span>{{ files }}</span>
       </template>
 
+      <span v-if="unsaved" class="inline-flex items-center gap-1 rounded-md bg-warning-container px-2 py-0.5 font-medium text-on-warning-container">
+        <v-icon :icon="mdiCloudOffOutline" size="14" />Not saved yet
+      </span>
+
       <span v-if="showSharing" class="rounded-md bg-surface-100 px-2 py-0.5 font-medium text-surface-700">{{ element.shared ? 'Shared' : 'Staff only' }}</span>
 
       <span :aria-label="`By ${element.created_by.name}`" class="ml-auto grid size-6 flex-none place-items-center rounded-full bg-linear-135 from-primary to-[#5aa9c4] text-[10px] font-bold text-white" role="img" :title="element.created_by.name">{{ initials(element.created_by.name) }}</span>
@@ -58,9 +62,11 @@
 
 <script lang="ts" setup>
   import type { BoardElement } from '@/api/models'
-  import { mdiArrowUp, mdiCheckCircleOutline } from '@mdi/js'
+  import { mdiArrowUp, mdiCheckCircleOutline, mdiCloudOffOutline } from '@mdi/js'
   import { computed } from 'vue'
+  import { useLiveQuery } from '@/app/composables/useLiveQuery'
   import { icons } from '@/app/theme/icons'
+  import { db } from '@/offline/db'
   import { cover, filesText, initials, KIND, progress } from '../board'
 
   // One element of a station's board (DBD 1.8 "Sticky note", the approved Stitch board): a white card
@@ -81,4 +87,8 @@
   const files = computed(() => filesText(props.element))
   const picture = computed(() => cover(props.element))
   const uploading = computed(() => props.uploading ?? 0)
+
+  // Kept on this phone and not yet confirmed by the server (W14-6)
+  const { value: row } = useLiveQuery(async () => (await db.visits.get(props.element.id)) ?? null)
+  const unsaved = computed(() => row.value?.dirty === true)
 </script>

@@ -1,8 +1,23 @@
 <template>
   <li class="relative flex flex-col overflow-hidden rounded-lg border bg-surface-50" :class="[state === 'failed' ? 'border-error' : 'border-surface-200', fluid ? 'w-full min-w-0' : 'w-33 flex-none max-md:w-28']">
     <div class="relative aspect-4/3 bg-surface-100">
+      <!-- Still on this phone: the picture is the file kept here, and it has not gone up yet -->
+      <div v-if="local" class="relative flex size-full items-center justify-center bg-surface-100 text-surface-500">
+        <img
+          v-if="localUrl"
+          alt=""
+          class="size-full object-cover"
+          decoding="async"
+          :src="localUrl"
+        >
+
+        <v-icon v-else :icon="item.kind === 'video' ? icons.video : icons.photo" size="28" />
+
+        <span class="absolute bottom-1.5 left-1.5 rounded bg-warning-container px-1.5 text-[11px] font-semibold text-on-warning-container">On phone</span>
+      </div>
+
       <button
-        v-if="state === 'ready'"
+        v-else-if="state === 'ready'"
         :aria-label="openLabel"
         class="group relative block size-full cursor-pointer border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
         type="button"
@@ -86,7 +101,7 @@
       </v-menu>
     </div>
 
-    <div v-if="state === 'ready'" class="min-h-8.5 px-2 pb-2 pt-1.5 text-xs leading-snug text-surface-700">
+    <div v-if="local || state === 'ready'" class="min-h-8.5 px-2 pb-2 pt-1.5 text-xs leading-snug text-surface-700">
       <span v-if="item.caption" class="line-clamp-2">{{ item.caption }}</span>
       <span v-else class="font-mono text-surface-600" translate="no">{{ item.filename }}</span>
     </div>
@@ -106,8 +121,10 @@
 <script lang="ts" setup>
   import type { BoardMedia, MediaDetail } from '@/api/models'
   import { mdiAlertCircleOutline, mdiDeleteOutline, mdiDotsVertical, mdiEyeOffOutline, mdiEyeOutline, mdiPencilOutline, mdiPlay } from '@mdi/js'
-  import { computed, onBeforeUnmount, ref, watch } from 'vue'
+  import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+  import { useLiveQuery } from '@/app/composables/useLiveQuery'
   import { icons } from '@/app/theme/icons'
+  import { db } from '@/offline/db'
   import { clock, mediaDetail, onItsWay } from './mediaLinks'
 
   // One photo or video on an element of a station's board: its thumbnail from a ten-minute link,
@@ -152,6 +169,24 @@
   const label = computed(() => props.item.caption || props.item.filename)
   const openLabel = computed(() => `Open ${props.item.kind === 'video' ? 'video' : 'photo'}: ${label.value}`)
 
+  // A file kept on the phone until the runner has put it on the element (W14-12)
+  const { value: kept } = useLiveQuery(async () => (await db.blobs.get(props.item.media_id)) ?? null)
+  const local = computed(() => Boolean(kept.value))
+  const localUrl = shallowRef<string | null>(null)
+  watch(kept, row => {
+    if (localUrl.value) {
+      URL.revokeObjectURL(localUrl.value)
+      localUrl.value = null
+    }
+    if (row) {
+      if (props.item.kind === 'image' && row.file instanceof Blob && row.file.size > 0) {
+        localUrl.value = URL.createObjectURL(row.file)
+      }
+    } else if (row === null) {
+      void look() // not here (any more): the server's thumbnail
+    }
+  }, { immediate: true })
+
   async function look (): Promise<void> {
     clearTimeout(timer)
     try {
@@ -171,10 +206,15 @@
 
   watch(() => props.item.media_id, () => {
     detail.value = null
-    void look()
-  }, { immediate: true })
+    if (kept.value === null) {
+      void look()
+    }
+  })
 
   onBeforeUnmount(() => {
+    if (localUrl.value) {
+      URL.revokeObjectURL(localUrl.value)
+    }
     gone = true
     clearTimeout(timer)
   })

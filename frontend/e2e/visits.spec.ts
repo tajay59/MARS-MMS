@@ -71,8 +71,7 @@ test('A technician plans a visit with a colleague as lead, and the lead runs it 
 
   // Only the lead's people may start: Tech 2 starts it, and the request is In progress
   const lead = await staffPage(browser, 'tech2@example.org')
-  await lead.goto('/visits')
-  await lead.getByRole('link', { name: /VR-\d{4}-\d{4}-01/ }).first().click()
+  await lead.goto(visitPath)
   await lead.getByRole('button', { name: 'Start visit' }).click()
   await expect(lead.getByText('Visit started. The request is In progress.')).toBeVisible()
   const stations = lead.getByRole('table', { name: /Stations on this visit/ })

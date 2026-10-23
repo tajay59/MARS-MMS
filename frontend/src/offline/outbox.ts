@@ -105,10 +105,15 @@ export async function applyAnswers (
 ): Promise<void> {
   const store = options.store ?? db
   const byId = new Map(answers.map(a => [a.op_id, a]))
-  await store.transaction('rw', [store.outbox, store.visits, store.blobs], async () => {
+  // `onApplied` may let a finished visit go: its bundle and files are in the transaction too
+  await store.transaction('rw', [store.outbox, store.visits, store.blobs, store.bundles, store.files], async () => {
     for (const op of sent) {
       const answer = byId.get(op.op_id)
-      if (!answer || !op.seq) {
+      if (!op.seq) {
+        continue
+      }
+      if (!answer) {
+        await store.outbox.update(op.seq, { inflight: false })
         continue
       }
       switch (answer.status) {
@@ -121,7 +126,7 @@ export async function applyAnswers (
         case 'conflict': {
           await store.outbox.update(op.seq, {
             status: 'conflict', code: answer.code ?? undefined, message: answer.message ?? undefined,
-            current: answer.current ?? undefined,
+            current: answer.current ?? undefined, inflight: false,
           })
           break
         }
@@ -129,21 +134,32 @@ export async function applyAnswers (
           if (answer.retryable) {
             const attempts = op.attempts + 1
             await store.outbox.update(op.seq, {
-              attempts, next_at: now + backoffMs(attempts, options.random),
+              attempts, next_at: now + backoffMs(attempts, options.random), inflight: false,
               code: answer.code ?? undefined, message: answer.message ?? undefined,
             })
           } else {
             await store.outbox.update(op.seq, {
-              status: 'failed', code: answer.code ?? undefined, message: answer.message ?? undefined,
+              status: 'failed', code: answer.code ?? undefined, message: answer.message ?? undefined, inflight: false,
             })
           }
           break
         }
         default: {
           // skipped: an earlier change for the visit did not apply; this one is sent again later
+          await store.outbox.update(op.seq, { inflight: false })
           break
         }
       }
+    }
+  })
+}
+
+/** At the start of a run (the only runner holds the lock): nothing is in flight from a run that died. */
+export async function clearInflight (userId: string, store: MmsDb = db): Promise<void> {
+  await store.transaction('rw', store.outbox, async () => {
+    const stale = await store.outbox.where('user_id').equals(userId).filter(op => op.inflight === true).toArray()
+    for (const op of stale) {
+      await store.outbox.update(op.seq!, { inflight: false })
     }
   })
 }

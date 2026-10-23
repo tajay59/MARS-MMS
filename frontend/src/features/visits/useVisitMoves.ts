@@ -2,6 +2,7 @@ import type { VisitOut } from '@/api/models'
 import { ref } from 'vue'
 import { visitsApi } from '@/api/operations'
 import { failureOf } from './failures'
+import { visitGate } from './local/gateway'
 
 /*
   The visit moves that need no form (start, restore, arrive, depart), shared by the visit page and
@@ -39,7 +40,7 @@ export function useVisitMoves (hooks: {
   async function start (): Promise<void> {
     const id = hooks.visit()?.id
     if (id) {
-      await move('start', () => visitsApi.start(id), 'Visit started. The request is In progress.')
+      await move('start', () => visitGate.start(id), 'Visit started. The request is In progress.')
     }
   }
 
@@ -53,7 +54,7 @@ export function useVisitMoves (hooks: {
   async function station (kind: 'arrive' | 'depart', stationId: string): Promise<void> {
     const id = hooks.visit()?.id
     if (id) {
-      await move(`${kind}-${stationId}`, () => visitsApi[kind](id, stationId), kind === 'arrive' ? 'Arrival recorded.' : 'Departure recorded.')
+      await move(`${kind}-${stationId}`, () => visitGate[kind](id, stationId), kind === 'arrive' ? 'Arrival recorded.' : 'Departure recorded.')
     }
   }
 

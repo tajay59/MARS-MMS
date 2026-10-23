@@ -155,11 +155,11 @@
   import { computed, onBeforeUnmount, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
-  import { boardApi } from '@/api/operations'
   import { isVisitUpdate, settled, useLive } from '@/app/composables/useLive'
   import { icons } from '@/app/theme/icons'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { boardFailure, counts, FILTER_LABEL, KIND, KINDS, shown, summaryText } from '../board'
+  import { board } from '../local/gateway'
   import { boardQueue, onElementSaved } from '../uploadQueues'
   import ElementDialog from './ElementDialog.vue'
   import StickyNote from './StickyNote.vue'
@@ -242,7 +242,7 @@
       error.value = null
     }
     try {
-      const page = await boardApi.list(props.visit.id, sid, controller.signal)
+      const page = await board.list(props.visit.id, sid, controller.signal)
       if (controller.signal.aborted) {
         return
       }

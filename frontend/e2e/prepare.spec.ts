@@ -1,6 +1,6 @@
-import type { Browser, Locator, Page } from '@playwright/test'
-import { goInApp, restartOffline, typePin } from './offlineFlows'
-import { claimedRequest, logIn, unique } from './requestFlows'
+import type { Locator, Page } from '@playwright/test'
+import { goInApp, plannedVisit, restartOffline, typePin } from './offlineFlows'
+import { logIn, unique } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
 /*
@@ -43,18 +43,6 @@ async function stationFiles (page: Page, run: string): Promise<void> {
   await upload.getByLabel('Title').fill(`Logger manual ${run}`)
   await upload.getByRole('button', { name: 'Upload', exact: true }).click()
   await expect(upload).toBeHidden()
-}
-
-/** A planned visit to both stations, owned by Tech 1. Returns its path. */
-async function plannedVisit (page: Page, browser: Browser, title: string): Promise<string> {
-  const path = await claimedRequest(browser, title)
-  await page.goto(path)
-  await page.getByRole('button', { name: 'Schedule visit' }).click()
-  await page.getByRole('dialog', { name: 'Schedule visit' }).getByRole('button', { name: 'Schedule visit' }).click()
-  await expect(page.getByText(/VR-\d{4}-\d{4}-01 is planned\./)).toBeVisible()
-  await page.getByRole('row', { name: /VR-\d{4}-\d{4}-01/ }).getByRole('link', { name: /VR-/ }).click()
-  await expect(page).toHaveURL(/\/visits\/[\da-f-]{36}$/)
-  return new URL(page.url()).pathname
 }
 
 /** The demo station collects documents from every run: keep only this run's manual, so the download stays short. */
@@ -159,7 +147,6 @@ test('A technician prepares a visit, then reads it with no signal @OFF-1 @AUTH-1
   // Restart with no signal, unlock, then scan the label
   await restartOffline(page, context, path)
   await typePin(page, '4729')
-  await expect(page.getByText('No connection. You can read this visit.')).toBeVisible()
   await expect(page.getByText('Ready offline')).toBeVisible()
   await checkA11y(page, '/visits/:id (offline)')
 

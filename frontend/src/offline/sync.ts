@@ -3,7 +3,7 @@ import type { Answer } from './outbox'
 import { NetworkError } from '@/api/problem'
 import { db, setMeta } from './db'
 import { wire } from './ops'
-import { applyAnswers, sendable } from './outbox'
+import { applyAnswers, clearInflight, sendable } from './outbox'
 
 /*
   The sync runner (TRD §7.3; PRD OFF-5 to OFF-8; W14-10, W14-11). It takes what is waiting in the
@@ -98,6 +98,7 @@ export async function runSync (userId: string, deps: Deps, options: Options = {}
 async function work (userId: string, deps: Deps, options: Options, result: Result): Promise<void> {
   const store = deps.store ?? db
   const now = deps.now ?? Date.now
+  await clearInflight(userId, store)
   const visits = await sendable(userId, now(), options.force, store)
   if (visits.size === 0) {
     return
@@ -118,10 +119,12 @@ async function work (userId: string, deps: Deps, options: Options, result: Resul
         return
       }
       if (chunk.ops.length > 0) {
+        await markInflight(chunk.ops, true, store)
         let reply: { answers: Answer[] }
         try {
           reply = await deps.send({ device_id: deviceId, ops: chunk.ops.map(op => wire(op)) })
         } catch (error) {
+          await markInflight(chunk.ops, false, store)
           if (error instanceof NetworkError) {
             result.outcome = 'offline'
             return
@@ -149,6 +152,14 @@ async function work (userId: string, deps: Deps, options: Options, result: Resul
     }
   }
   await setMeta('sync-last', now(), store)
+}
+
+async function markInflight (ops: readonly OutboxOp[], on: boolean, store: MmsDb): Promise<void> {
+  await store.transaction('rw', store.outbox, async () => {
+    for (const op of ops) {
+      await store.outbox.update(op.seq!, { inflight: on })
+    }
+  })
 }
 
 /**

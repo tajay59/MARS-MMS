@@ -15,6 +15,7 @@ import { BundleTooNew, prepareVisit, readBlob } from '@/offline/bundles'
 import { db, deviceId } from '@/offline/db'
 import { requestPersistence } from '@/offline/storage'
 import { useSessionStore } from '@/stores/session'
+import { seed } from '../local/store'
 
 /*
   Prepare for field on the visit page (OFF-1, AFD J5 step 4, W13-9 to W13-14). The engine is
@@ -233,6 +234,7 @@ export function usePrepare (visit: Ref<VisitOut>) {
         deviceId: await deviceId(),
         documents: ticked.value,
         signal: controller.signal,
+        onBundle: bundle => seed(me.id, bundle),
         onProgress: p => {
           progress.value = p
         },

@@ -106,8 +106,19 @@
           </section>
         </div>
 
+        <!-- A prepared visit is started from here (at the station, with no signal) -->
+        <div v-if="canDo(detail, 'start')" class="sticky bottom-0 mt-auto bg-surface px-4 py-3 shadow-[0_-8px_24px_rgb(15_23_42/0.12)]">
+          <v-btn
+            block
+            color="primary"
+            :height="48"
+            :loading="busy === 'start'"
+            @click="startMove"
+          >Start visit</v-btn>
+        </div>
+
         <!-- Sticky action bar above the bottom navigation (DBD field shell) -->
-        <div v-if="canDo(detail, 'end')" class="sticky bottom-0 mt-auto bg-surface px-4 py-3 shadow-[0_-8px_24px_rgb(15_23_42/0.12)]">
+        <div v-else-if="canDo(detail, 'end')" class="sticky bottom-0 mt-auto bg-surface px-4 py-3 shadow-[0_-8px_24px_rgb(15_23_42/0.12)]">
           <v-btn block color="primary" :height="48" @click="endOpen = true">End visit</v-btn>
         </div>
       </template>
@@ -130,7 +141,6 @@
   import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
-  import { visitsApi } from '@/api/operations'
   import { ApiError, NetworkError } from '@/api/problem'
   import { isVisitUpdate, settled, useLive } from '@/app/composables/useLive'
   import { useFieldBar } from '@/app/shells/fieldBar'
@@ -141,6 +151,7 @@
   import { summaryText } from '../board'
   import VisitBoard from '../board/VisitBoard.vue'
   import EndVisitDialog from '../EndVisitDialog.vue'
+  import { isLocal, visitGate } from '../local/gateway'
   import { forgetMediaLinks } from '../mediaLinks'
   import PreparePanel from '../prepare/PreparePanel.vue'
   import { useVisitMoves } from '../useVisitMoves'
@@ -175,6 +186,8 @@
   })
   const toast = reactive({ show: false, text: '' })
   const endOpen = ref(false)
+  /** Prepared on this phone: the page works from it, with or without signal, and stays on wide screens. */
+  const kept = ref(false)
   let leaving = false
 
   const zone = computed(() => detail.value ? visitZone(detail.value) : null)
@@ -211,7 +224,11 @@
     abort = controller
     detailError.value = null
     try {
-      detail.value = await visitsApi.get(visitId.value, controller.signal)
+      // Whether it is kept here first: the redirect below must not run before it is known
+      const local = await isLocal(visitId.value)
+      const found = await visitGate.get(visitId.value, controller.signal)
+      kept.value = local
+      detail.value = found
     } catch (error) {
       if (controller.signal.aborted) {
         return
@@ -236,8 +253,8 @@
   onBeforeUnmount(forgetMediaLinks)
 
   // Not a phone, or the visit is not under way: the visit page is the place for it
-  watch([detail, mdAndUp], ([visit, wide]) => {
-    if (!leaving && visit && (wide || visit.status !== 'started')) {
+  watch([detail, mdAndUp, kept], ([visit, wide, local]) => {
+    if (!leaving && visit && !local && (wide || visit.status !== 'started')) {
       void router.replace({ name: 'visits', params: { id: visit.id } })
     }
   })
@@ -249,7 +266,7 @@
     say(text)
   }
 
-  const { busy, station: moveStation } = useVisitMoves({ visit: () => detail.value, changed, say, reload })
+  const { busy, station: moveStation, start: startMove } = useVisitMoves({ visit: () => detail.value, changed, say, reload })
 
   /** Arriving opens the station's board (J6 step 3). */
   async function arrive (stationId: string): Promise<void> {

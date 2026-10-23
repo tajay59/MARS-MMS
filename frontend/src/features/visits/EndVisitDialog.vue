@@ -69,7 +69,6 @@
 <script lang="ts" setup>
   import type { VisitOut } from '@/api/models'
   import { ref, watch } from 'vue'
-  import { boardApi, visitsApi } from '@/api/operations'
   import { useFormDialog } from '@/app/composables/useFormDialog'
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
@@ -77,6 +76,7 @@
   import ModalSheet from '@/components/ModalSheet.vue'
   import { progress } from './board'
   import { failureOf } from './failures'
+  import { board, visitGate } from './local/gateway'
 
   // End visit (PRD VIS-9): is another visit needed, and if so what remains. VIS-6 was dropped with
   // the visit board (W11-34). Tasks not yet complete are listed as a warning (W11-33): the server
@@ -98,7 +98,7 @@
     incomplete.value = []
     const found = await Promise.all(props.visit.stations.map(async station => {
       try {
-        const page = await boardApi.list(props.visit.id, station.station_id)
+        const page = await board.list(props.visit.id, station.station_id)
         return page.items
           .filter(e => e.kind === 'task' && !e.complete)
           .map(e => ({ id: e.id, title: e.title, station: station.station_name ?? '', ...progress(e.items) }))
@@ -136,7 +136,7 @@
     }
     busy.value = true
     try {
-      const done = await visitsApi.end(props.visit.id, {
+      const done = await visitGate.end(props.visit.id, {
         additional_visit_required: another.value,
         follow_up_notes: another.value ? text : null,
       })

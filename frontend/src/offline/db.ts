@@ -79,6 +79,8 @@ export interface OutboxOp {
   status: OutboxStatus
   /** The blob a `media_add` waits for: it is uploaded before the op is sent. */
   blob_id?: string
+  /** In the runner's hands right now: the phone must not change it (a save folds into an op only before it is sent). */
+  inflight?: boolean
   /** Not before this time (ms): the backoff after a retryable error. */
   next_at?: number
   /** Why the server did not apply it, for Needs attention. */
@@ -134,7 +136,7 @@ export class MmsDb extends Dexie {
     // Version 2 (W14-8): indexes for the board's working copy and the outbox's counts. Additive:
     // no row of `outbox` or `blobs` is touched, so work queued under version 1 survives
     this.version(2).stores({
-      visits: 'id, user_id, [visit_id+station_id]',
+      visits: 'id, user_id, visit_id, [visit_id+station_id]',
       outbox: '++seq, &op_id, user_id, [user_id+visit_id], [user_id+status], status',
     })
   }
