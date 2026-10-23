@@ -3,13 +3,14 @@
 
 | | |
 |---|---|
-| **Version** | 1.6 |
-| **Date** | 2026-10-22 |
+| **Version** | 1.7 |
+| **Date** | 2026-10-23 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows PRD 1.1 and TRD 2.0: a new **Unlock** page (offline PIN), station owners on visits (J5, J6), J6 checks preparation before the visit starts, reopened reports return the request to In progress (J7, J8), and new routing and edge states for offline sessions and sync conflicts. 37 pages |
 | **Changes in 1.2** | J1 step 2: the client types their organization's name (no public list of organizations); PRD 1.2 AUTH-1 |
 | **Changes in 1.3** | §5.1: staff and clients use the app shell (rail sections, pane tabs, view; DBD 1.4, decision W4-9). `/admin/registrations/:id` opens one registration (J1 step 4) |
 | **Changes in 1.4** | New admin page **Settings** (`/admin/settings/:part?`, decision W4-11): Appearance (the admin's own theme and, on this device, animations) and Brand colours (the Material 3 theme everyone sees, W4-12). Admin section tab after Audit log |
+| **Changes in 1.7** | W14 as built: `/sync` shows what waits by visit (counted from the phone, so right with no signal), progress while sending, "Keep MARS-MMS open" with a wake lock, and **Needs attention** with Export, Try again and Done with this; the start question for an unprepared visit says **Prepare now** or **Start anyway**; Reschedule, Cancel and Change owner warn when a phone holds the visit. |
 | **Changes in 1.6** | J6: the field stepper (Before → Work → After → Review) is replaced by the station's **board** of Notes, Tasks, Recommendations and Config, with the photo gate at departure removed (PRD 1.5 VIS-5 to VIS-8, VIS-6 dropped; decisions W11-16 to W11-35, 2026-10-22). The Checklist templates admin page is removed. J7 fixes facts on the board |
 | **Changes in 1.5** | §5.1: below 1024 px (phones and tablets) the rail is a bottom bar with four sections and **Me** (DBD 1.6, decision W4-14) |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements) |
@@ -439,12 +440,14 @@ Most errors keep the user on the same page with a message; only lost access or a
 | `/reset-password/:token`, `/invite/:token` | Link expired (1 hour / 7 days) or already used | "This link has expired" with **Send a new link** | `/forgot-password` |
 | `/requests/:id` | Client opens a request after it is Scheduled | **Edit** and **Cancel** are hidden; a note says to comment instead | Same page |
 | `/requests/:id`, Comments | Comment older than 15 minutes | **Edit** is hidden | Same page |
-| Station page | **Start visit** on a visit not prepared for offline | Warning with **Prepare now** or **Continue anyway** | Stays, or `/visits/:id/field` |
+| Visit page, field page | **Start visit** on a visit not prepared for offline, with signal | "This visit is not on your phone": **Prepare now** (to the Prepare for field panel) or **Start anyway** (works from the server; a standing note says so) | Stays, or the started visit |
 | `/visits/:id/field` | Phone storage below 1 GB free | Warning banner with storage used | Same page |
 | End visit dialog | Some tasks are incomplete | The dialog lists them with **End anyway** and **Go back** | The board, or the visit ended |
 | Element sheet | **Create request** or a PDF opened with no signal | "This needs a connection" | Same sheet |
 | Element sheet | Saved on another device first (`element_changed`) | "This was changed on another device." Shows the saved copy; this phone keeps its copy for export | Same sheet |
 | `/sync` | Upload interrupted | Item shows "Paused, will resume"; picks up from the last part | Same page |
+| `/sync` | The server refused work (owner changed, changed on another device, deleted elsewhere, report final, visit cancelled, already ended) | **Needs attention**: a card with the reason, the phone's copy and the server's where there is one; **Export**, **Try again** (cancelled or already ended) and **Done with this** (asked once more) | Same page; the sync goes on with what waited |
+| Reschedule, Cancel visit, Change owner | A phone holds the visit (`prepared_on`) | "This visit is prepared on Devon Brown's phone. Work not yet synced from it may come back as a conflict." It warns and never blocks | Same dialog |
 | `/sync` | Login needed to sync | "Log in to finish syncing. Your work is saved on this phone." | `/login`, then `/sync` |
 | `/sync` | Station owner changed while offline | "Devon Brown now owns WXR-012. Your work on it is saved on this phone; export it and pass it on." with **Export** | Same page |
 | `/sync` | Visit cancelled while offline | "This visit was cancelled while you were offline. Your work is saved on this phone and an admin has been told." | Same page; syncs after an admin restores the visit |

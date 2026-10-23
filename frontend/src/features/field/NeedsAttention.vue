@@ -15,9 +15,29 @@
       <p class="m-0 text-surface-900">{{ item.text }}</p>
 
       <div class="flex flex-wrap gap-2">
-        <v-btn v-if="item.canExport" size="small" variant="outlined" @click="show(item, 'export')">Export</v-btn>
-        <v-btn v-if="item.canRetry" size="small" variant="outlined" @click="retry(item)">Try again</v-btn>
-        <v-btn class="text-primary" size="small" variant="text" @click="show(item, 'confirm')">Done with this</v-btn>
+        <v-btn
+          v-if="item.canExport"
+          :aria-label="`Export your work for ${label(item)}`"
+          size="small"
+          variant="outlined"
+          @click="show(item, 'export')"
+        >Export</v-btn>
+
+        <v-btn
+          v-if="item.canRetry"
+          :aria-label="`Try again for ${label(item)}`"
+          size="small"
+          variant="outlined"
+          @click="retry(item)"
+        >Try again</v-btn>
+
+        <v-btn
+          :aria-label="`Done with this, ${label(item)}`"
+          class="text-primary"
+          size="small"
+          variant="text"
+          @click="show(item, 'confirm')"
+        >Done with this</v-btn>
 
         <v-btn
           v-if="item.element || item.current"
@@ -47,6 +67,11 @@
   const sheet = ref(false)
   const chosen = ref<Concern | null>(null)
   const start = ref<'detail' | 'export' | 'confirm'>('detail')
+
+  /** What a button's spoken name points at: the visit and station, then the element if there is one. */
+  function label (item: Concern): string {
+    return [item.ref, item.station?.code, item.element?.title].filter(Boolean).join(', ')
+  }
 
   function show (item: Concern, how: 'detail' | 'export' | 'confirm'): void {
     chosen.value = item

@@ -165,7 +165,7 @@
           <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page, station form) · W6 built (media service, documents, configurations, sensor catalogue, calibration due; waiting for staging and an iPhone) · W7 built (QR resolve and regenerate, the report service with label sheets, the scanner, the scanned-label page, the map, the label tool and the station QR card; waiting for staging and the label check on real phones)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3 · W8 built (the requests module: create, list, read, edit, approve, deny, cancel; the screens); W9 built and merged in four slices (assign, claim, release and the queue; comments and PDF attachments; notifications and the WebSocket; email, preferences and the weekly digest), with its six charts; still to do: the staging checks (email through the Gmail interim, live updates between two browsers, the phone check)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4 · W10 built in four slices (the visits module and the request status from visits, the visit screens, the visit notifications; its checklist templates were removed with the board) · W11 built (the photo and video pipeline, media on visits, then the visit board of Notes, Tasks, Recommendations and Config with its file viewers, Config versions and Create request) · W12 built (a started visit on a phone in the field shell, from the stations to each board) · still to do: the staging exit checks on an Android phone, and the release 0.4 version bump</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5 · W13 built in four slices (the device store and PIN session, <code>/unlock</code> and the offline start, Prepare for field with the field bundle, offline station lookup with the install prompt, diagnostics and the storage check); W14 (outbox, <code>/sync</code>, conflicts) and W15 (field test) next · the Android and iPhone checks are still to do</div></div><span class="badge progress">In progress</span></div>
+          <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5 · W13 built in four slices (the device store and PIN session, <code>/unlock</code> and the offline start, Prepare for field with the field bundle, offline station lookup with the install prompt, diagnostics and the storage check); W14 built in four slices (<code>POST /api/v1/sync</code>, the outbox and the runner, the local-first board for prepared visits, the <code>/sync</code> screens with Needs attention and Export); W15 (field test) next · the Android and iPhone checks are still to do</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P7</span><div><div class="phase-name">Summaries and hardening</div><div class="phase-meta">W19–W20 · summary reports, dashboards, audit viewer, production stack, backups, security review · release 0.7</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge planned">Planned</span></div>
@@ -461,6 +461,7 @@ flowchart TB
                 <tr><td>operations</td><td>POST / PATCH / DELETE</td><td><code>/api/v1/visits/{id}/stations/{sid}/elements/{element_id}/media[/{media_id}]</code></td><td>author, station owner, admin</td><td>Put an uploaded file on a section (<code>main</code>, <code>before</code>, <code>after</code>; 422 <code>bad_section</code>, <code>wrong_kind</code>, <code>wrong_owner</code>, <code>not_yours</code>, <code>file_not_uploaded</code>); caption or hide it; take it off and delete the file</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/end</code></td><td>attending staff</td><td>End; another visit needed?</td></tr>
                 <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/{id}/field-bundle</code></td><td>attending staff</td><td>Built (W13): the request, each station with sensors, calibration, latest configuration version, documents and board, and a flat <code>files[]</code>; <code>?device_id=</code> required; records <code>prepared_on</code> and emits <code>visit.prepared</code>; 409 <code>visit_not_preparable</code> unless planned or started</td></tr>
+                <tr><td>operations</td><td>POST</td><td><code>/api/v1/sync</code></td><td>technician, admin</td><td>Built (W14): body <code>{device_id, ops[]}</code>, at most 100 ops (422 above), each <code>{op_id, v, type, visit_id, payload}</code>; a dispatcher over the existing route functions, so scoping, roles, validation, events and the outbox are the same code as online. One answer per op: <code>applied</code>, <code>duplicate</code>, <code>conflict</code> (with <code>code</code>, a message and the server's copy where there is one), <code>error</code> (retryable or not) or <code>skipped</code> (an earlier op of the same visit did not apply). Stored in <code>sync_operations</code> in the op's own transaction; a conflict is never stored. Types: <code>visit.start</code>, <code>station.arrive</code>, <code>station.depart</code>, <code>element.create|update|delete</code>, <code>element.media_add|media_remove</code>, <code>visit.end</code></td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/sync</code></td><td>staff</td><td>Apply a batch of offline operations</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/lock</code></td><td>service (report)</td><td>Lock work records; idempotent per report version</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/unlock</code></td><td>service (report)</td><td>Unlock for correction or failed finalize</td></tr>
@@ -1178,6 +1179,7 @@ flowchart LR
                 <tr><td><code>visit.started</code></td><td>operations</td><td>report, platform (audit)</td><td>Built (W10): the visit facts, started_at</td></tr>
                 <tr><td><code>visit.ended</code></td><td>operations</td><td>report, platform</td><td>Built (W10): the visit facts, ended_at, additional_visit_required, follow_up_notes?, overrides[]; sensor_actions[] and config_versions[] stay empty until W11</td></tr>
                 <tr><td><code>visit.prepared</code></td><td>operations</td><td>platform (audit)</td><td>Built (W13): the visit facts, <code>user_id</code>, <code>device_id</code>; ids only, never what was downloaded. Does not bump the visit's <code>version</code></td></tr>
+                <tr><td><code>visit.sync_conflict</code></td><td>operations</td><td>platform (audit, notification)</td><td>Built (W14): the visit facts, <code>reason</code> (<code>not_owner</code>, <code>not_editor</code>, <code>visit_cancelled</code>, …), <code>user_id</code>, <code>op_types[]</code>; never the content. At most once a day for a visit, person and reason (<code>sync_conflicts</code>). Platform tells the lead and every admin in the app; no email</td></tr>
                 <tr><td><code>visit.element_added</code> / <code>visit.element_updated</code> / <code>visit.element_deleted</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (visit board slice 1): the visit facts, station_id, element_id, kind, shared, completed (a task's), priority (a recommendation's), element_version; <code>changed_fields</code> on an update. Never the title, description or item text (the audit block keeps them). Versioned by the element's <code>revision</code></td></tr>
                 <tr><td><code>visit.media_changed</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (W11 slice 4, then the board): the visit facts, station_id, element_id, section, media_id, kind, change (<code>added</code>, <code>captioned</code>, <code>hidden</code>, <code>shown</code>, <code>removed</code>). No file name, no caption. <code>phase</code> is left empty now</td></tr>
                 <tr><td><code>visit.work_updated</code></td><td>operations</td><td>—</td><td>Retired (W11-16): no longer emitted; registered so the records already in the audit chain parse</td></tr>
@@ -2093,7 +2095,107 @@ flowchart LR
     OB & BL2 -->|stay, tagged with user_id| K["Kept until that user syncs"]
 </pre>
           </div>
-          <figcaption>From <code>offline/db.ts</code>, <code>cleanup.ts</code> and <code>account.ts</code>. The dotted paths arrive in W14. Nothing here holds a token, an email or a phone number.</figcaption>
+          <figcaption>From <code>offline/db.ts</code>, <code>cleanup.ts</code> and <code>account.ts</code>. The dotted paths are W14 and are built. Nothing here holds a token, an email or a phone number.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-op-state" data-title="One operation, from queued to gone or kept" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> pending: the person acts (change and op in one transaction)
+    pending --> inflight: the runner takes it
+    inflight --> pending: network error
+    inflight --> removed: applied or duplicate
+    inflight --> backoff: retryable error
+    backoff --> pending: after 2 s up to 5 min, or Sync now
+    inflight --> conflict: conflict answer
+    inflight --> failed: permanent error
+    pending --> pending: skipped, an earlier op of the visit did not apply
+    conflict --> pending: Try again
+    failed --> pending: Try again
+    conflict --> removed: Done with this
+    failed --> removed: Done with this
+    removed --> [*]
+</pre>
+          </div>
+          <figcaption>From <code>offline/outbox.ts</code> (<code>applyAnswers</code>, <code>retryStuck</code>) and <code>attention.ts</code>. <code>conflict</code> and <code>failed</code> are the two statuses Needs attention lists; a visit holding one sends nothing more until the person deals with it.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-conflict-decision" data-title="What each refusal means for the person" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["Answer for an op"] --> B{"status"}
+    B -->|applied or duplicate| OK["Op removed, element clean"]
+    B -->|skipped| SK["Stays pending, sent again later"]
+    B -->|error, retryable| RT["Backoff, ask again"]
+    B -->|error, permanent| PF["Failed: Needs attention, Try again or Done"]
+    B -->|conflict| C{"code"}
+    C -->|not_owner or not_editor| E1["Owner changed: Export, then Done with this"]
+    C -->|element_changed| E2["Changed on another device: both copies shown, Export"]
+    C -->|element_deleted| E3["Deleted elsewhere: Export"]
+    C -->|locked| E4["Report is final: Export, ask an admin to reopen"]
+    C -->|visit_cancelled| E5["Visit cancelled: Try again after an admin restores it"]
+    C -->|already_ended| E6["Already ended: Try again, other changes still apply"]
+    E1 & E2 & E3 & E4 --> X["Phone keeps its copy until Done with this"]
+</pre>
+          </div>
+          <figcaption>From TRD §7.4 and <code>features/visits/local/attention.ts</code> (<code>wordsFor</code>). A code the table does not know still reads as "Could not be saved" with Export and Try again.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-sync-sequence" data-title="From the phone's outbox to the server and back" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    participant U as Person
+    participant D as Dexie
+    participant R as Runner
+    participant F as Files host
+    participant S as POST /sync
+    U->>D: change plus its op (one transaction)
+    D-->>R: requestSync after 300 ms
+    R->>R: Web Lock mms-sync, clear stale inflight
+    R->>R: session ok, or offline or login and stop
+    R->>F: upload the file an op needs (resumable parts)
+    R->>S: up to 100 ops of one visit, in order
+    S-->>R: one answer per op
+    R->>D: apply answers (one transaction), adoptApplied
+    D-->>U: counts and Needs attention update live
+    Note over R,D: after visit.end applied with nothing left, bundle, files and rows go (OFF-8)
+</pre>
+          </div>
+          <figcaption>From <code>offline/sync.ts</code>, <code>syncDeps.ts</code>, <code>features/visits/local/syncApp.ts</code> and <code>services/operations/app/api/sync_routes.py</code>. The server writes each answer to <code>sync_operations</code> in the op's own transaction.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-runner-code" data-title="The sync runner, branch by branch" data-kind="Code flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    S["runSync"] --> L{"lock mms-sync free"}
+    L -->|no| BZ["busy"]
+    L -->|yes| CI["clearInflight"]
+    CI --> Q{"sendable ops for any visit"}
+    Q -->|none| N["nothing"]
+    Q -->|some| SE{"session"}
+    SE -->|offline| OF["offline"]
+    SE -->|login| LG["login"]
+    SE -->|ok| V["next visit"]
+    V --> UP["upload the files its ops need"]
+    UP -->|network error| OF
+    UP -->|file refused| ST["op failed, stop this visit"]
+    UP -->|ok| SN["POST /sync, mark inflight"]
+    SN -->|network error| OF
+    SN --> AP["applyAnswers"]
+    AP --> ALL{"all applied"}
+    ALL -->|yes| MORE{"more ops or visits"}
+    ALL -->|no| NV["stop this visit, go to the next"]
+    MORE -->|yes| V
+    MORE -->|no| D["done, sync-last saved"]
+    NV --> V
+    ST --> V
+</pre>
+          </div>
+          <figcaption>From <code>runSync</code> and <code>work</code> in <code>offline/sync.ts</code>. One test per branch is in <code>offline/__tests__/sync.spec.ts</code>.</figcaption>
         </figure>
 
         <figure class="diagram" id="visits-element-access" data-title="Who can see and change an element" data-kind="Decision tree diagram">
@@ -3790,6 +3892,20 @@ flowchart TD
                 <tr><td>W13-12</td><td><b>An iPhone in a Safari tab does not prepare (finding F2).</b> It shows the install steps; the Home Screen app has its own storage. Android and desktop Chrome get an Install card (<code>beforeinstallprompt</code>, hidden 14 days after Not now) and an Install row on My profile. <i>Decided 2026-10-22.</i></td></tr>
                 <tr><td>W13-13</td><td><b>Offline station lookup (QR-5):</b> <code>/s/:token</code> looks the token up among this user's prepared stations; a match opens <code>/stations/:id</code> from the bundle (gates choose the stored copy when offline). A relabelled station still opens from an old bundle: only the server knows. Files open through the phone's own viewer, so no PDF viewer enters the precache (F17). <i>Decided 2026-10-22.</i></td></tr>
                 <tr><td>W13-14</td><td><b>Diagnostics and the storage check on <code>/sync</code>.</b> "This phone" shows install, worker, persisted state, prepared visits, PIN validity, phone and device ID. The Storage check keeps up to 60 test photos and videos in <code>blobs</code> (state <code>diagnostic</code>) and verifies their SHA-256 after a restart: the W13 iOS check (R4, F3). W14's sync must skip that state. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W14-1</td><td><b><code>POST /api/v1/sync</code> is a dispatcher, not a second implementation.</b> Each op calls the route function that already does the work with the caller's <code>User</code> and <code>Ctx</code>, so rules 2 to 6 hold unchanged. Technicians and admins; viewers get 403</td><td>2026-10-23</td></tr>
+                <tr><td>W14-2</td><td><b>One answer per op</b> (<code>applied</code>, <code>duplicate</code>, <code>conflict</code>, <code>error</code>, <code>skipped</code>). A failed op stops the later ops of its own visit, never another visit's (TRD §7.3)</td><td>2026-10-23</td></tr>
+                <tr><td>W14-3</td><td><b><code>sync_operations</code> is written in the op's own transaction</b> (<code>Ctx.tx_hooks</code>), TTL 90 days. A conflict is never stored, so a restored visit can apply the same op later. A different person using a known <code>op_id</code> is refused</td><td>2026-10-23</td></tr>
+                <tr><td>W14-4</td><td><b>Payloads are the route bodies plus <code>station_id</code> and <code>element_id</code>,</b> and every op carries <code>v</code> (F8): the current and previous version are accepted, a newer one answers <code>update_required</code></td><td>2026-10-23</td></tr>
+                <tr><td>W14-5</td><td><b><code>visit.sync_conflict</code></b> carries facts only, once a day per visit, person and reason; platform notifies the lead and admins in the app</td><td>2026-10-23</td></tr>
+                <tr><td>W14-6</td><td><b>Local-first for a prepared visit.</b> When the visit is prepared on this phone by this person, every board write and move goes to Dexie first with its outbox op in one transaction, and the runner sends it at once when there is signal. A visit that is not prepared keeps the direct calls</td><td>2026-10-23</td></tr>
+                <tr><td>W14-7</td><td><b>The working copy is element-shaped:</b> one <code>visits</code> row per element (plus <code>visit:&lt;id&gt;</code> for the visit's moves), built by pure rules that mirror the server's well enough for the screen; the server stays the judge. A save folds into an unsent create or update, never into one the runner holds (<code>inflight</code>)</td><td>2026-10-23</td></tr>
+                <tr><td>W14-8</td><td><b>Dexie version 2</b> adds indexes to <code>visits</code> and <code>outbox</code>; the upgrade touches no row of <code>outbox</code> or <code>blobs</code> and is tested from a version 1 database holding both</td><td>2026-10-23</td></tr>
+                <tr><td>W14-9</td><td><b>One transaction for a person's action:</b> the element or move, its op and, for a file, its blob. Hashing, resizing and the storage check come before it. A phone without room for the file and 20 MB to spare refuses it with the free space shown</td><td>2026-10-23</td></tr>
+                <tr><td>W14-10</td><td><b>The runner</b> (<code>offline/sync.ts</code>, no Vue) runs under the Web Lock <code>mms-sync</code> with <code>ifAvailable</code>: files go up before the op that needs them, batches of 100, answers applied in one Dexie transaction; backoff from 2 s to 5 minutes, reset by success or Sync now; a failed request is "offline" whatever <code>navigator.onLine</code> says</td><td>2026-10-23</td></tr>
+                <tr><td>W14-11</td><td><b>Triggers:</b> app start (1.5 s later), the <code>online</code> event, the app coming to the front, every 5 minutes, a local change (300 ms later) and Sync now. No Background Sync (answered 2026-10-22): the runner is free of Vue so it can be added</td><td>2026-10-23</td></tr>
+                <tr><td>W14-12</td><td><b>Uploads resume from the phone and local copies go only after the server confirms (OFF-8):</b> a blob after its <code>media_add</code> is applied, a visit's bundle, files and rows after <code>visit.end</code> is applied with nothing left for it</td><td>2026-10-23</td></tr>
+                <tr><td>W14-13</td><td><b>A conflict keeps the phone's copy.</b> Needs attention names the reason in AFD §6 words; Export writes one JSON file for the work and the photos and videos as they were taken, through the share sheet where the browser has one and as downloads where it does not; Done with this asks once more, removes that work and its files, and the sync goes on with what waited behind it. Try again is offered where an admin can make the same ops succeed (a cancelled visit)</td><td>2026-10-23</td></tr>
+                <tr><td>W14-14</td><td><b>People who plan are warned.</b> Reschedule, Cancel and Change owner show "This visit is prepared on Devon Brown's phone. Work not yet synced from it may come back as a conflict." from <code>prepared_on</code>; it warns, it never blocks. Starting a visit that is not prepared asks once, with signal: Prepare now takes the person to the Prepare for field panel, Start anyway works from the server and leaves a standing note (OFF-9)</td><td>2026-10-23</td></tr>
                 <tr><td>W9-1</td><td><b>Claim, assign and release share the state table.</b> Claim and assign are the one <code>Approved &rarr; Assigned</code> row (<code>Action.ASSIGN</code>); a technician's claim takes no body and always means themselves, an admin's assign takes 1 to 10 <code>staff_ids</code>. The new row <code>Assigned &rarr; Approved</code> is <code>Action.RELEASE</code>. Which staffing buttons a person sees (<code>claim</code>, <code>assign</code>, <code>release</code> in <code>actions</code>) comes from <code>staffing.actions_for</code>, since it depends on who is on the request</td><td>2026-10-21</td></tr>
                 <tr><td>W9-2</td><td><b>Only active technicians and admins can be assigned</b>, checked with auth (<code>POST /internal/users/lookup</code>), not from a copy: operations keeps no user table. Viewers, clients, disabled and unknown people give 422 <code>not_assignable</code></td><td>2026-10-21</td></tr>
                 <tr><td>W9-3</td><td><b>A claim race has one winner.</b> The update names the status it decided from (W8-5), so of two claims at the same moment one gets 200 and the other 409 <code>already_assigned</code> with the winner's name, which the page shows ("Tech 2 claimed it first")</td><td>2026-10-21</td></tr>
@@ -3937,7 +4053,7 @@ flowchart TD
                 <tr><td>P2 · Stations</td><td><strong>Chosen 2026-10-18 (the four in CLAUDE.md):</strong> Product flowchart: sensor inventory · State: sensor unit status (<a href="#stations-unit-state">added W5</a>) · Sequence: document upload and a client's model-document download · Process flow: station import with dry run (<a href="#stations-import">added W5</a>). Also suggested, not chosen: ER: stations module as built</td></tr>
                 <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
                 <tr><td>P4 · Visits online</td><td>State: visit status · Decision tree: who can see and change an element (built) · State: a task (built) · Sequence: ending a visit in one transaction (built) · Website flowchart: which page a visit opens on (built, W12) · System flowchart: media processing pipeline (built) · State: media status</td></tr>
-                <tr><td>P5 · Offline</td><td>Built in W13: <a href="#offline-prepare-sequence">Sequence: prepare for field</a> · <a href="#offline-pin-state">State: the offline session</a> · <a href="#offline-start-decision">Decision tree: what the app shows when it starts</a> · <a href="#offline-device-storage">Data flow: device storage and what logout clears</a>. Still to come: State: offline operation lifecycle · Decision tree: conflict handling. Earlier plan: Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
+                <tr><td>P5 · Offline</td><td>Built in W13: <a href="#offline-prepare-sequence">Sequence: prepare for field</a> · <a href="#offline-pin-state">State: the offline session</a> · <a href="#offline-start-decision">Decision tree: what the app shows when it starts</a> · <a href="#offline-device-storage">Data flow: device storage and what logout clears</a>. Built in W14: <a href="#offline-op-state">State: one operation</a> · <a href="#offline-conflict-decision">Decision tree: what each refusal means</a> · <a href="#offline-sync-sequence">Sequence: from the outbox to the server</a> · <a href="#offline-runner-code">Code flowchart: the sync runner</a>. Earlier plan: Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
                 <tr><td>P6 · Reports</td><td>Document flowchart: visit report signatures → final → client sign-off · Sequence: finalize saga (as built) · Customer journey: client review (J8) · State: client-review reminders and auto-close</td></tr>
                 <tr><td>P7 · Hardening</td><td>Logical model: summary reports and dashboards · Data flow: backup and restore · System flowchart: metrics, logs and alerts · Architecture: production hosts, networks and ports</td></tr>
                 <tr><td>P8 · Go-live</td><td>Workflow: hypercare triage · Customer journey: client onboarding from invitation · Gantt: go-live checklist</td></tr>
@@ -3959,6 +4075,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-23</td><td>P5 · W14</td><td><b>Outbox, <code>/sync</code>, conflicts</b> (decisions W14-1 to W14-14; plan <code>docs/plans/W14-plan.md</code>; boards approved). Server: <code>POST /api/v1/sync</code> (<code>api/sync_routes.py</code>, <code>domain/sync.py</code>, <code>repo/sync.py</code>, migration 0013 for <code>sync_operations</code> and <code>sync_conflicts</code>), the event <code>visit.sync_conflict</code> and platform's in-app notification. Phone: Dexie version 2, <code>offline/{ops,outbox,sync,syncDeps,pending,exportConflict}.ts</code>, the local-first board in <code>features/visits/local/</code> (<code>localVisit</code>, <code>localBoard</code>, <code>store</code>, <code>gateway</code>, <code>syncApp</code>, <code>attention</code>), photos and files kept as blobs with an On phone badge and Not saved yet on notes. Screens: <code>/sync</code> with waiting changes and files by visit, progress, Keep the app open and a wake lock (<code>app/pwa/wakeLock.ts</code>), Needs attention with Export and Done with this (<code>ConflictSheet</code>), counts on the badge and rail from IndexedDB, the Start-visit question for an unprepared visit, and the prepared-phone sentence in Reschedule, Cancel and Change owner. Tests: Vitest 643, Playwright J6 offline (<code>offlineVisit.spec.ts</code>), the conflict, Export and Done journey (<code>syncConflict.spec.ts</code>), WebKit primitives (<code>webkitPrimitives.spec.ts</code>, F6). Four charts added. Still open: the Android check and the iPhone check (W15 field test)</td></tr>
               <tr><td>2026-10-22</td><td>P5 · W13</td><td><b>Offline foundations: the device store, the PIN session, Prepare for field, offline station lookup</b> (decisions W13-1 to W13-14; plan <code>docs/plans/W13-plan.md</code>; boards approved). <code>frontend/src/offline/{db,session,cleanup,account,storage,bundles,prepared,storageCheck}.ts</code>: Dexie <code>aws-mms</code> with the six TRD §7.1 tables, the PBKDF2 PIN verifier with a five-try lockout counted before the check, logout and user-change cleanup that never touches <code>outbox</code> or <code>blobs</code>, the resumable Prepare engine, reads of the prepared copy. Session store: <code>locked</code>, <code>unlockState</code>, <code>offline</code>; <code>/unlock</code>, <code>/needs-connection</code>, route meta <code>offline</code>, the PIN dialog and an Offline PIN section on My profile. Back end: <code>GET /visits/{id}/field-bundle</code>, <code>prepared_on</code> on the visit (staff only), <code>visit.prepared</code>. Screens: the Prepare panel (visit page and field page), the iPhone install steps, the Install card and row, the station and visit read from the phone (<code>features/offline/</code>, with gates on the <code>stations</code>, <code>visits</code> and <code>visit-field</code> routes), <code>/sync</code> "This phone" and <code>/sync/storage-check</code>. Verified locally: Vitest 564, Playwright <code>unlock</code>, <code>prepare</code> (real files from the SeaweedFS host, a files host that is blocked and then back, the label scan and station with no signal) and <code>storageCheck</code> journeys with axe in light and dark, operations 392 plus 20 new, precache unchanged at 29 files. Finding F2 decided; F3 shows on <code>/sync</code>. Charts: Prepare sequence, the offline session states, the start-up decision tree, device storage data flow. Still open: the Android check (install, prepare, airplane mode, restart, unlock, scan; the storage check with 50 photos and 3 videos), the iPhone check (postponed by choice; before W15), and W14.</td></tr>
               <tr><td>2026-10-22</td><td>P4 · W12</td><td><b>The visit in the field shell</b> (decisions W12-1 to W12-3). <code>/visits/:id/field</code> (<code>features/visits/field/VisitFieldPage.vue</code>): the stations, Arrive and Depart, each station's board (<code>VisitBoard</code> with <code>field</code>: no tabs), a sticky End visit; the field shell's top bar can name the page and carry Back (<code>app/shells/fieldBar.ts</code>). <code>VisitsPage</code> sends a started visit on a phone there; <code>useVisitMoves</code> is shared. The client's view of shared elements was built with the board (slice 3). Verified locally: Vitest 463, Playwright <code>e2e/board.spec.ts</code> (the phone run now goes start → stations → arrive → board → depart → end → Sync; axe on each screen), visits journeys; precache unchanged at 29 files. Review pass: Arrive and Depart carry the station in their label, a station row has a hover state, the not-found message says what to do. Two more phone journeys: a station someone else owns (no Arrive or Depart, your own additions allowed) and a client on a phone reading the shared part of an ended visit. Chart: which page a visit opens on. Still open: the staging exit checks on an Android phone.</td></tr>
               <tr><td>2026-10-22</td><td>P4 · W11</td><td><b>Board uploads outlive the Visits page.</b> <code>uploadQueues.ts</code> no longer stops when <code>VisitsPage</code> unmounts: a photo or video keeps going up while the person is in another section, and the queues stop only when the session ends (<code>onSessionChange</code>: logout, expired or revoked), so a shared phone never passes a file to the next person. <code>uploadsOnTheirWay</code> and <code>uploadsLabel</code> count files on their way across visits; the rail's Sync entry (badge and tooltip), the field shell's <code>SyncBadge</code>, the Me menu on phones and the Sync page say "1 file uploading" (or "did not upload") instead of "All synced". Still memory only until Phase 5 (OFF-10): a reload or a lost connection still loses a pending file; storing it in Dexie's <code>blobs</code> and sending it from the outbox runner is the Phase 5 slice. Tests: Vitest <code>uploadQueues.spec.ts</code>, Playwright <code>e2e/board.spec.ts</code> (leave the page mid-upload; fails with the old behaviour).</td></tr>
