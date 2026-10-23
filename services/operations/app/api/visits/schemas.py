@@ -119,6 +119,13 @@ class VisitBrief(BaseModel):
         )
 
 
+class PreparedOn(BaseModel):
+    """A phone this visit is prepared on (W13-9): who, and when. Staff only."""
+
+    user: VisitPersonOut
+    at: datetime
+
+
 class VisitOut(VisitBrief):
     request_id: str
     request_ref: str | None
@@ -132,6 +139,7 @@ class VisitOut(VisitBrief):
     staff: list[VisitPersonOut]
     stations: list[VisitStationOut]
     actions: list[VisitAction]
+    prepared_on: list[PreparedOn]  # staff only; empty for a client
     version: int
 
     @classmethod
@@ -168,6 +176,11 @@ class VisitOut(VisitBrief):
                 for s in doc["stations"]
             ],
             actions=cast(list[VisitAction], acts),
+            prepared_on=[] if viewer.is_client else [
+                PreparedOn(user=VisitPersonOut(id=p["user_id"], name=p.get("user_name", "")),
+                           at=p["at"])
+                for p in doc.get("prepared_on", [])
+            ],
             version=doc["version"],
         )
 
