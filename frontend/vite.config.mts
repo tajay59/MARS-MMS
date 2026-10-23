@@ -11,7 +11,7 @@ import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 const { version } = JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8')) as { version: string }
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
@@ -33,6 +33,10 @@ export default defineConfig({
       srcDir: 'src/sw',
       filename: 'sw.ts', // emitted as /sw.js; never rename it
       registerType: 'prompt', // updates wait for the user (stores/update.ts)
+      // The kill switch (W15-3; runbook in the docs site, Infrastructure › Releases): `npm run
+      // build:kill` emits a sw.js that unregisters itself and clears the caches. It is
+      // never deployed by a release; an operator ships it by hand if a broken worker reaches phones.
+      selfDestroying: mode === 'kill',
       injectRegister: false, // registered from Vue (app/pwa/usePwa.ts): no inline script under the CSP
       manifest: {
         id: '/',
@@ -101,4 +105,4 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-})
+}))

@@ -30,15 +30,15 @@ function signedIn (): string | null {
   return session.user && !session.offline ? session.user.id : null
 }
 
-/** Run now. `force` ignores the backoff ("Sync now"). */
-export async function syncNow (force = true): Promise<Result | null> {
+/** Run now. `force` ignores the backoff ("Sync now"). `trigger` is what the sync log records. */
+export async function syncNow (force = true, trigger = force ? 'manual' : 'auto'): Promise<Result | null> {
   const userId = signedIn()
   if (!userId || !navigator.onLine) {
     return null
   }
   syncStatus.running = true
   try {
-    const result = await runSync(userId, { ...appDeps, onApplied: (op, answer) => adoptApplied(op, answer) }, { force })
+    const result = await runSync(userId, { ...appDeps, onApplied: (op, answer) => adoptApplied(op, answer) }, { force, trigger })
     syncStatus.last = result
     syncStatus.at = Date.now()
     return result
@@ -50,7 +50,7 @@ export async function syncNow (force = true): Promise<Result | null> {
 /** A change was just made: send it in a moment, together with whatever else is waiting. */
 export function requestSync (): void {
   clearTimeout(soon)
-  soon = setTimeout(() => void syncNow(false).catch(() => undefined), SOON_MS)
+  soon = setTimeout(() => void syncNow(false, 'change').catch(() => undefined), SOON_MS)
 }
 
 /** Start the triggers. Safe to call more than once. */
@@ -59,18 +59,18 @@ export function startSyncTriggers (): void {
     return
   }
   started = true
-  const kick = () => void syncNow(false).catch(() => undefined)
-  globalThis.addEventListener('online', kick)
+  const kick = (trigger: string) => () => void syncNow(false, trigger).catch(() => undefined)
+  globalThis.addEventListener('online', kick('online'))
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      kick()
+      kick('visible')()
     }
   })
   onSessionChange(session => {
     if (session) {
-      kick()
+      kick('login')()
     }
   })
-  setInterval(kick, FIVE_MINUTES)
-  setTimeout(kick, 1500) // the app has just started: the session is usually ready by now
+  setInterval(kick('timer'), FIVE_MINUTES)
+  setTimeout(kick('start'), 1500) // the app has just started: the session is usually ready by now
 }
