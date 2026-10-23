@@ -1284,6 +1284,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/visits/{visit_id}/report-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Visit Report Facts
+         * @description The visit, its request, its stations and their boards, for the report service's draft
+         *     (TRD 11.2, W16-2). Staff-side facts: the report service decides who may read a report.
+         */
+        get: operations["visit_report_facts_internal_visits__visit_id__report_facts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5840,6 +5861,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SnapshotPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    visit_report_facts_internal_visits__visit_id__report_facts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                visit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -18,6 +18,7 @@ from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.tokens import KeySource
 from mms_common.consumer import EventProcessor, SendToDlq
+from mms_common.cron import run_periodic
 from mms_common.ids import new_id
 from mms_common.jobs import JobQueue
 from mms_common.kafka import consume_forever, producer_factory
@@ -28,11 +29,12 @@ from mms_common.web import ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
-from app.api import reports
+from app.api import report_routes, reports
 from app.config import Settings
 from app.events import consumer
-from app.jobs import backfill
-from app.repo.operations import LabelSource
+from app.jobs import backfill, drafts
+from app.repo.media import MediaSource
+from app.repo.operations import FactsSource, LabelSource
 from app.repo.render import Renderer
 from app.repo.storage import Storage
 from app.services import (
@@ -40,6 +42,7 @@ from app.services import (
     Jobs,
     QueueJobs,
     Services,
+    make_media,
     make_renderer,
     make_stations,
     make_storage,
@@ -56,6 +59,8 @@ def create_app(
     stations: LabelSource | None = None,
     renderer: Renderer | None = None,
     jobs: Jobs | None = None,
+    facts: FactsSource | None = None,
+    media: MediaSource | None = None,
 ) -> FastAPI:
     """App factory. Tests pass their own settings, readiness checks, clock, token keys and
     stand-ins for the store, operations, the PDF renderer and the job queue."""
@@ -92,6 +97,7 @@ def create_app(
             stations=stations or operations,
             renderer=renderer or make_renderer(),
             jobs=jobs or QueueJobs(JobQueue(redis, QUEUE)),
+            facts=facts or operations, media=media or make_media(settings, clock, http),
         )
 
         stop = asyncio.Event()
@@ -124,6 +130,11 @@ def create_app(
                 # The read model covers everything entered since Phase 2, and the consumer group
                 # starts at the oldest event Kafka still holds (TRD §8.6)
                 asyncio.create_task(backfill.run(db, operations, stop)),
+                # Reads draft reports' facts, watches their files and queues first PDFs
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "drafts", settings.draft_tick_s,
+                    lambda: drafts.tick(app.state.services), stop, first_delay_s=10.0,
+                )),
             ]
         try:
             yield
@@ -158,6 +169,7 @@ def create_app(
 
     # Literal paths before /{id} (TRD §3.0). Every route goes in the authorization matrix.
     app.include_router(reports.router)
+    app.include_router(report_routes.router)
     return app
 
 

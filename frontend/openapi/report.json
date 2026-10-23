@@ -1,6 +1,35 @@
 {
   "components": {
     "schemas": {
+      "DownloadOut": {
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_at",
+          "filename",
+          "current"
+        ],
+        "title": "DownloadOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -183,6 +212,267 @@
         "title": "LabelsIn",
         "type": "object"
       },
+      "PdfState": {
+        "description": "Where the draft PDF stands. `current` is false when the report has changed since it was\ndrawn: a preview draws it again.",
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "rendered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendered At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "current"
+        ],
+        "title": "PdfState",
+        "type": "object"
+      },
+      "PreviewOut": {
+        "description": "`ready`: the PDF for the report as it is now exists. `rendering`: poll the report.",
+        "properties": {
+          "pdf": {
+            "$ref": "#/components/schemas/PdfState"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "pdf"
+        ],
+        "title": "PreviewOut",
+        "type": "object"
+      },
+      "ReportOut": {
+        "properties": {
+          "awaiting_media": {
+            "title": "Awaiting Media",
+            "type": "integer"
+          },
+          "content": {
+            "additionalProperties": true,
+            "title": "Content",
+            "type": "object"
+          },
+          "content_version": {
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "drafted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted At"
+          },
+          "facts_version": {
+            "title": "Facts Version",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "pdf": {
+            "$ref": "#/components/schemas/PdfState"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject_ref": {
+            "title": "Subject Ref",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Id"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "subject_ref",
+          "request_id",
+          "number",
+          "version",
+          "status",
+          "pdf",
+          "awaiting_media",
+          "created_at",
+          "updated_at",
+          "content_version",
+          "facts_version",
+          "content"
+        ],
+        "title": "ReportOut",
+        "type": "object"
+      },
+      "ReportSummary": {
+        "properties": {
+          "awaiting_media": {
+            "title": "Awaiting Media",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "drafted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "pdf": {
+            "$ref": "#/components/schemas/PdfState"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject_ref": {
+            "title": "Subject Ref",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Id"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "subject_ref",
+          "request_id",
+          "number",
+          "version",
+          "status",
+          "pdf",
+          "awaiting_media",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ReportSummary",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -238,6 +528,83 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/reports": {
+      "get": {
+        "description": "Reports and their versions, newest version first. Clients: final ones of their own\norganization.",
+        "operationId": "list_reports_api_v1_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "subject_ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Ref"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(visit|closeout|client_form)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportSummary"
+                  },
+                  "title": "Response List Reports Api V1 Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Reports",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/reports/jobs/{job_id}": {
       "get": {
         "description": "The job's state and, once it is done, a ten-minute download link. Only the person who\nasked can see it; anyone else gets 404 (rule 4).",
@@ -329,6 +696,152 @@
           }
         ],
         "summary": "Start Labels",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/download": {
+      "get": {
+        "description": "A ten-minute link to the draft PDF (never cached: it acts as a password). If the report\nchanged since the PDF was drawn, `current` is false and the link is to the older one.",
+        "operationId": "download_api_v1_reports__report_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/preview": {
+      "post": {
+        "description": "RPT-3: draw the draft as it is now. Answers `ready` when that PDF already exists, else\nqueues one render (asking again while it runs queues nothing more) and answers `rendering`.",
+        "operationId": "preview_api_v1_reports__report_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview",
         "tags": [
           "reports"
         ]

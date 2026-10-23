@@ -90,3 +90,229 @@ h1 {
   font-size: 7.5pt;
   margin-top: 3mm;
 }
+
+
+/* --- Visit report (TRD 11.1, PRD Appendix A): its own page with margins, a running footer and
+   a DRAFT watermark. Brand colours only; status colours are never decoration. */
+@page report {
+  size: A4;
+  margin: 16mm 15mm 20mm;
+
+  @bottom-left {
+    content: element(footer);
+    font-size: 8pt;
+    color: #555;
+  }
+
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 8pt;
+    color: #555;
+  }
+}
+
+.report {
+  page: report;
+  line-height: 1.4;
+}
+
+.report .running-footer {
+  position: running(footer);
+}
+
+.report .watermark {
+  position: fixed;
+  top: 42%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 120pt;
+  font-weight: 700;
+  color: rgba(10, 103, 128, 0.07);
+  transform: rotate(-28deg);
+  z-index: -1;
+}
+
+.report .mono {
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 0.92em;
+}
+
+.report .muted {
+  color: #555;
+}
+
+.report h1 {
+  font-size: 18pt;
+  color: #0a6780;
+}
+
+.report h2 {
+  font-size: 13pt;
+  margin: 8mm 0 3mm;
+  padding-bottom: 1mm;
+  border-bottom: 0.3mm solid #0a6780;
+  break-after: avoid;
+}
+
+.report h3 {
+  font-size: 10.5pt;
+  margin: 5mm 0 2mm;
+  break-after: avoid;
+}
+
+.report h4 {
+  font-size: 10pt;
+  margin: 0 0 1mm;
+}
+
+.report .brand {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #0a6780;
+}
+
+.report .masthead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 8mm;
+  padding-bottom: 4mm;
+  border-bottom: 0.6mm solid #0a6780;
+}
+
+.report .masthead h1 {
+  white-space: nowrap;
+}
+
+.report .meta dt {
+  width: 16mm;
+}
+
+.report .meta,
+.report .facts {
+  margin: 0;
+}
+
+.report .meta div,
+.report .facts div {
+  display: flex;
+  gap: 4mm;
+  padding: 0.6mm 0;
+}
+
+.report dt {
+  flex: none;
+  width: 30mm;
+  color: #555;
+}
+
+.report dd {
+  margin: 0;
+}
+
+.report .compact dt {
+  width: 24mm;
+}
+
+.report .story {
+  white-space: pre-line;
+  margin: 3mm 0;
+}
+
+.report .element {
+  break-inside: avoid;
+  margin: 0 0 3mm;
+  padding: 2mm 3mm;
+  border-left: 0.8mm solid #0a6780;
+  background: #f4f8fa;
+}
+
+.report .element.incomplete {
+  border-left-color: #b45309;
+}
+
+.report .flag,
+.report .chip {
+  font-size: 7.5pt;
+  font-weight: 600;
+  padding: 0.3mm 1.6mm;
+  border: 0.2mm solid #555;
+  border-radius: 1mm;
+}
+
+.report .sublabel {
+  margin: 2mm 0 1mm;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+}
+
+.report .checks {
+  list-style: none;
+  margin: 1mm 0;
+  padding: 0;
+}
+
+.report .checks .box {
+  display: inline-block;
+  width: 3.4mm;
+  height: 3.4mm;
+  margin-right: 1.5mm;
+  border: 0.25mm solid #333;
+  text-align: center;
+  line-height: 3.4mm;
+  font-size: 8pt;
+}
+
+.report .checks .open {
+  font-weight: 600;
+}
+
+.report .photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3mm;
+  margin: 1.5mm 0;
+}
+
+.report .photos figure {
+  margin: 0;
+  width: 56mm;
+  break-inside: avoid;
+}
+
+.report .photos img,
+.report .photo-missing {
+  display: block;
+  width: 56mm;
+  height: 38mm;
+  object-fit: cover;
+  background: #e3e8eb;
+}
+
+.report .photo-missing {
+  text-align: center;
+  line-height: 38mm;
+  color: #555;
+  font-size: 8pt;
+}
+
+.report figcaption {
+  font-size: 8pt;
+  margin-top: 0.8mm;
+}
+
+.report .videos li {
+  margin-bottom: 2mm;
+}
+
+.report .appendix {
+  break-before: page;
+}
+
+.report .generated {
+  margin-top: 8mm;
+  font-size: 8pt;
+}

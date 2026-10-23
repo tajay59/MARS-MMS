@@ -8,12 +8,15 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 import segno
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from PIL import Image
 
 from app.domain.labels import TEMPLATE_VERSION, Label, paginate
 
@@ -36,6 +39,8 @@ class Rendered:
 class Renderer(Protocol):
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered: ...
 
+    async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
 
 def qr_data_uri(url: str) -> str:
     """The QR code as an SVG data URI, black on white with the standard quiet zone. Level M
@@ -55,6 +60,27 @@ def render_html(labels: list[Label], phone: str | None) -> str:
     return template.render(pages=pages, phone=phone, template_version=TEMPLATE_VERSION)
 
 
+PAGE_PICTURE_PX = 1024  # TRD 11.1: pictures are embedded at a page-friendly size
+PAGE_PICTURE_QUALITY = 82
+
+
+def jpeg_data_uri(raw: bytes) -> str:
+    """A photo's display copy (WebP, up to 2048 px) as a JPEG data URI at most
+    `PAGE_PICTURE_PX` on the long side: smaller than the original, and something WeasyPrint
+    always reads (TRD 11.1)."""
+    with Image.open(io.BytesIO(raw)) as image:
+        picture = image.convert("RGB")
+    picture.thumbnail((PAGE_PICTURE_PX, PAGE_PICTURE_PX))
+    out = io.BytesIO()
+    picture.save(out, "JPEG", quality=PAGE_PICTURE_QUALITY, optimize=True)
+    return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode("ascii")
+
+
+def render_visit_html(view: dict[str, Any], template_version: str) -> str:
+    """The visit report as HTML (TRD 11.1). `view` is `domain/visit_view.build`."""
+    return _env.get_template("visit.html.j2").render(v=view, template_version=template_version)
+
+
 def to_pdf(html: str) -> Rendered:
     from weasyprint import HTML  # noqa: PLC0415 - imports Pango; keep it out of API start-up
 
@@ -65,4 +91,8 @@ def to_pdf(html: str) -> Rendered:
 class WeasyRenderer:
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
         html = render_html(labels, phone)
+        return await asyncio.to_thread(to_pdf, html)
+
+    async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
+        html = render_visit_html(view, template_version)
         return await asyncio.to_thread(to_pdf, html)

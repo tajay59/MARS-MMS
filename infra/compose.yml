@@ -310,6 +310,7 @@ services:
       REPORT_AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
       REPORT_AUTH_URL: http://auth:8000
       REPORT_OPS_URL: http://operations:8000
+      REPORT_MEDIA_URL: http://media:8000
       REPORT_SERVICE_SECRET: ${REPORT_SERVICE_SECRET:?}
       # The address a QR label points at, and the host the browser downloads PDFs from.
       REPORT_APP_URL: https://${MMS_HOST}

@@ -1,4 +1,5 @@
-"""The report-worker: takes jobs from the Redis queue and draws their PDFs (TRD §3.4, §9).
+"""The report-worker: takes jobs from the Redis queue and draws their PDFs (TRD §3.4, §9):
+label sheets and visit report drafts.
 
     python -m app.worker
 
@@ -20,9 +21,18 @@ from redis.asyncio import Redis
 
 from app.config import Settings
 from app.jobs.labels import Retry, render_labels
-from app.services import QUEUE, Services, make_renderer, make_stations, make_storage
+from app.jobs.render_draft import render_draft
+from app.services import (
+    QUEUE,
+    Services,
+    make_media,
+    make_renderer,
+    make_stations,
+    make_storage,
+)
 
 RETRY_DEFER_S = 30
+DRAFT_PREFIX = "draft:"  # a visit report draft's job is `draft:<report id>`
 CONCURRENCY = 2  # TRD §9: two report jobs at a time
 
 
@@ -40,15 +50,19 @@ async def main() -> None:
     client = mongo.connect(settings.mongo_uri)
     redis = Redis.from_url(settings.redis_url)
     http = httpx.AsyncClient()
+    operations = make_stations(settings, clock, http)
     svc = Services(
         settings=settings, clock=clock, client=client, db=client[settings.mongo_db],
-        storage=make_storage(settings), stations=make_stations(settings, clock, http),
-        renderer=make_renderer(), jobs=NoJobs(),
+        storage=make_storage(settings), stations=operations, renderer=make_renderer(),
+        jobs=NoJobs(), facts=operations, media=make_media(settings, clock, http),
     )
 
     async def handle(job_id: str) -> None:
         try:
-            await render_labels(svc, job_id)
+            if job_id.startswith(DRAFT_PREFIX):
+                await render_draft(svc, job_id[len(DRAFT_PREFIX):])
+            else:
+                await render_labels(svc, job_id)
         except Retry as e:
             raise DeferJob(RETRY_DEFER_S) from e
 

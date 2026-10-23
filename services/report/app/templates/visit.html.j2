@@ -1,0 +1,133 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ v.number }} · Site Visit Report{% endblock %}
+{% macro photos(list) %}
+  {% if list %}
+  <div class="photos">
+    {% for p in list %}
+    <figure>
+      {% if p.uri %}<img src="{{ p.uri }}" alt="{{ p.caption or p.filename }}">{% else %}<div class="photo-missing">Photo not available</div>{% endif %}
+      <figcaption>{{ p.caption or p.filename }}{% if p.taken and p.taken != "-" %} <span class="muted">· {{ p.taken }}</span>{% endif %}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endmacro %}
+{% block body %}
+<main class="report">
+  {% if v.draft %}<div class="watermark" aria-hidden="true">DRAFT</div>{% endif %}
+  <div class="running-footer"><span class="mono">{{ v.number }}</span> · v{{ v.version }} · {{ v.status_word }}</div>
+
+  <header class="masthead">
+    <div>
+      <p class="brand">MARS-MMS</p>
+      <h1>Site Visit Report</h1>
+      <p class="muted">{{ v.org_name }}</p>
+    </div>
+    <dl class="meta">
+      <div><dt>Report</dt><dd class="mono">{{ v.number }}</dd></div>
+      <div><dt>Version</dt><dd>v{{ v.version }} · {{ v.status_word }}</dd></div>
+      <div><dt>Visit</dt><dd>{{ v.started }} to {{ v.ended }}</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <dl class="facts">
+      <div><dt>Request</dt><dd><span class="mono">{{ v.request_ref }}</span>{% if v.request_title %} · {{ v.request_title }}{% endif %}</dd></div>
+      <div><dt>Client</dt><dd>{{ v.org_name }}</dd></div>
+      <div><dt>Stations visited</dt><dd>{% for s in v.stations %}<span class="mono">{{ s.code }}</span> {{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}</dd></div>
+      <div><dt>Attending</dt><dd>{% for p in v.staff %}{{ p.name }}{% if p.lead %} (lead){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</dd></div>
+      <div><dt>Outcome</dt><dd>{{ v.outcome }}</dd></div>
+    </dl>
+    {% if v.summary %}<p class="story">{{ v.summary }}</p>{% endif %}
+    {% if v.no_work %}<p class="muted">No work was recorded on the board for this visit.</p>{% endif %}
+  </section>
+
+  {% for s in v.stations %}
+  <section class="station">
+    <h2><span class="mono">{{ s.code }}</span> {{ s.name }}</h2>
+    <dl class="facts compact">
+      <div><dt>Type</dt><dd>{{ s.type or "-" }}</dd></div>
+      <div><dt>Country</dt><dd>{{ s.country or "-" }}</dd></div>
+      {% if s.coordinates %}<div><dt>Position</dt><dd class="mono">{{ s.coordinates }}{% if s.elevation_m is not none %} · {{ s.elevation_m }} m{% endif %}</dd></div>{% endif %}
+      {% if s.parameters %}<div><dt>Parameters</dt><dd>{{ s.parameters | join(", ") }}</dd></div>{% endif %}
+      <div><dt>Arrived</dt><dd>{{ s.arrived }}</dd></div>
+      <div><dt>Departed</dt><dd>{{ s.departed }}</dd></div>
+      {% if s.owner %}<div><dt>Recorded by</dt><dd>{{ s.owner }}</dd></div>{% endif %}
+    </dl>
+
+    {% if s.tasks %}
+    <h3>Tasks</h3>
+    {% for t in s.tasks %}
+    <article class="element{% if t.incomplete %} incomplete{% endif %}">
+      <h4>{{ t.title }}{% if t.incomplete %} <span class="flag">Not finished</span>{% endif %}</h4>
+      {% if t.description %}<p>{{ t.description }}</p>{% endif %}
+      {% if t["items"] %}<ul class="checks">{% for i in t["items"] %}<li class="{{ 'done' if i.done else 'open' }}"><span class="box">{{ "✓" if i.done else "" }}</span> {{ i.text }}</li>{% endfor %}</ul>{% endif %}
+      {% if t.before %}<p class="sublabel">Before</p>{{ photos(t.before) }}{% endif %}
+      {% if t.after %}<p class="sublabel">After</p>{{ photos(t.after) }}{% endif %}
+    </article>
+    {% endfor %}
+    {% endif %}
+
+    {% if s.notes %}
+    <h3>Notes</h3>
+    {% for n in s.notes %}
+    <article class="element"><h4>{{ n.title }}</h4>{% if n.description %}<p>{{ n.description }}</p>{% endif %}{{ photos(n.images) }}</article>
+    {% endfor %}
+    {% endif %}
+
+    {% if s.recommendations %}
+    <h3>Recommendations</h3>
+    {% for r in s.recommendations %}
+    <article class="element"><h4>{{ r.title }}{% if r.priority %} <span class="chip">{{ r.priority }}</span>{% endif %}{% if r.request_ref %} <span class="mono muted">{{ r.request_ref }}</span>{% endif %}</h4>{% if r.description %}<p>{{ r.description }}</p>{% endif %}{{ photos(r.images) }}</article>
+    {% endfor %}
+    {% endif %}
+
+    {% if s.configs %}
+    <h3>Configuration changes</h3>
+    {% for c in s.configs %}
+    <article class="element"><h4>{{ c.title }}</h4>{% if c.description %}<p>{{ c.description }}</p>{% endif %}
+      {% if c.versions %}<p>{% for ver in c.versions %}Version <span class="mono">{{ ver.version }}</span>{% if ver.files %} ({{ ver.files | map(attribute="filename") | join(", ") }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+      {{ photos(c.before) }}{{ photos(c.after) }}
+    </article>
+    {% endfor %}
+    {% endif %}
+
+    {% if s.work_performed %}<h3>Work performed</h3><p class="story">{{ s.work_performed }}</p>{% endif %}
+    {% if s.empty %}<p class="muted">Nothing was recorded for this station.</p>{% endif %}
+  </section>
+  {% endfor %}
+
+  {% if v.videos %}
+  <section>
+    <h2>Videos</h2>
+    <ul class="videos">{% for vid in v.videos %}<li>{{ vid.caption or vid.filename }}<br><span class="mono muted">{{ vid.link }}</span></li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>Recommendations and follow-up</h2>
+    {% if v.recommendations %}<h3>Recommendations</h3><p class="story">{{ v.recommendations }}</p>{% endif %}
+    {% if v.follow_up %}<h3>Follow-up</h3><p class="story">{{ v.follow_up }}</p>{% endif %}
+    {% if v.calibrations_due %}<h3>Calibrations coming due</h3><ul>{% for c in v.calibrations_due %}<li><span class="mono">{{ c.code }}</span> · {{ c.due }}</li>{% endfor %}</ul>{% endif %}
+    {% if not (v.recommendations or v.follow_up or v.calibrations_due) %}<p class="muted">None.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Signatures</h2>
+    {% if v.signatures %}
+    {% for sig in v.signatures %}<div class="signature"></div>{% endfor %}
+    {% else %}
+    <p class="muted">Not yet signed.</p>
+    {% endif %}
+  </section>
+
+  {% if v.appendix %}
+  <section class="appendix">
+    <h2>Appendix: other photos</h2>
+    {{ photos(v.appendix) }}
+  </section>
+  {% endif %}
+  <p class="generated muted">Generated {{ v.generated }}</p>
+</main>
+{% endblock %}

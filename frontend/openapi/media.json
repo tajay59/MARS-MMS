@@ -1068,6 +1068,53 @@
         ]
       }
     },
+    "/internal/media/{media_id}/rendition": {
+      "get": {
+        "description": "The display copy of a photo (the `view.webp` beside the original, up to 2048 px on the\nlong side; the report service shrinks it for the page) as bytes, for a visit report's PDF\n(TRD 11.1, W16-7). The report service has no rights on media's buckets, and the files host is\nnot reachable from its network by its public name. Only a processed photo has one.",
+        "operationId": "media_rendition_internal_media__media_id__rendition_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Media Rendition",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
     "/internal/media/{media_id}/url": {
       "post": {
         "description": "A download link for a caller that has done its own access check (model documents,\nTRD \u00a73.2). Only a file that passed its checks gets one.",
