@@ -13,6 +13,7 @@ import {
 } from '@/app/auth/session'
 import { clearRuntimeCaches } from '@/app/pwa/runtimeCaches'
 import { forgetLogout, rememberLogin } from '@/offline/account'
+import { type OfflineProfile, offlineState } from '@/offline/session'
 import { useThemeStore } from './theme'
 
 const STAFF_ROLES: ReadonlySet<Role> = new Set(['technician', 'admin', 'viewer'])
@@ -27,12 +28,24 @@ export const useSessionStore = defineStore('session', () => {
   /** Why the last session ended, for the /login banner; cleared by the next login. */
   const endedReason = ref<EndReason | null>(null)
   const ready = ref(false)
+  /*
+    The app started with no signal and this phone has an offline session: the PIN comes first
+    (AUTH-12). `unlockState` says what /unlock shows: the keypad (`ready`), or that offline unlock
+    is turned off (`disabled`) or has ended (`expired`).
+  */
+  const locked = ref(false)
+  const unlockState = ref<'ready' | 'disabled' | 'expired' | null>(null)
+  const lockedProfile = ref<OfflineProfile | null>(null)
+  /** Unlocked with the PIN: the cached profile is signed in, but there is no access token. */
+  const offline = ref(false)
   let booting: Promise<void> | null = null
 
   onSessionChange((session, reason) => {
     const before = user.value?.id
     user.value = session?.user ?? null
+    offline.value = false
     if (session) {
+      locked.value = false
       endedReason.value = null
       void rememberLogin(session)
       if (session.user.id !== before) {
@@ -63,12 +76,73 @@ export const useSessionStore = defineStore('session', () => {
   function bootstrap (): Promise<void> {
     booting ??= (async () => {
       if (!currentSession()) {
-        // No cookie, a dead one, or no network: the guards treat all three as signed out.
-        await refreshSession()
+        // No cookie, a dead one, or no network: the guards treat all three as signed out, except
+        // that no network with an offline session on this phone asks for the PIN
+        const result = await refreshSession()
+        if (result.kind === 'offline') {
+          await lockIfOfflineSession()
+        }
       }
       ready.value = true
     })()
     return booting
+  }
+
+  async function lockIfOfflineSession (): Promise<void> {
+    try {
+      const state = await offlineState()
+      if (state.kind === 'none') {
+        return
+      }
+      locked.value = true
+      unlockState.value = state.kind
+      lockedProfile.value = state.kind === 'ready' ? state.profile : null
+    } catch {
+      // No device store (a private window): signed out, as before
+    }
+  }
+
+  /** The PIN was right: the cached profile is signed in, and the app watches for signal. */
+  function unlockOffline (profile: OfflineProfile): void {
+    user.value = {
+      id: profile.user_id,
+      name: profile.name,
+      roles: profile.roles,
+      org_id: profile.org_id,
+      theme: profile.theme ?? 'system',
+      email: '',
+    } as Me
+    locked.value = false
+    offline.value = true
+    useThemeStore().adopt(profile.theme ?? 'system')
+    void reconnect()
+  }
+
+  /** The fifth wrong PIN: offline unlock is turned off until the next login with signal. */
+  function disableUnlock (): void {
+    unlockState.value = 'disabled'
+    lockedProfile.value = null
+  }
+
+  /**
+   * Signal came back (or the app came to the front) while waiting for the PIN or working
+   * unlocked: sign in with the refresh cookie, so the token arrives without a screen change. A
+   * refresh the server refuses ends the session as usual; a failure to reach it changes nothing.
+   */
+  async function reconnect (): Promise<void> {
+    if ((!offline.value && !locked.value) || !navigator.onLine) {
+      return
+    }
+    await refreshSession()
+  }
+
+  if (typeof globalThis.addEventListener === 'function') {
+    globalThis.addEventListener('online', () => void reconnect())
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void reconnect()
+      }
+    })
   }
 
   async function login (email: string, password: string): Promise<Me> {
@@ -98,6 +172,10 @@ export const useSessionStore = defineStore('session', () => {
     user,
     endedReason,
     ready,
+    locked,
+    unlockState,
+    lockedProfile,
+    offline,
     roles,
     isClient,
     isAdmin,
@@ -105,6 +183,9 @@ export const useSessionStore = defineStore('session', () => {
     canAct,
     hasAnyRole,
     bootstrap,
+    unlockOffline,
+    disableUnlock,
+    reconnect,
     login,
     acceptInvitation,
     logout,
