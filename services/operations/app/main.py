@@ -29,7 +29,7 @@ from mms_common.web import ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
-from app.api import internal_routes
+from app.api import internal_routes, sync_routes
 from app.api.requests import comment_routes, queue_routes, request_routes
 from app.api.stations import (
     calibration_routes,
@@ -39,7 +39,7 @@ from app.api.stations import (
     sensor_routes,
     station_routes,
 )
-from app.api.visits import bundle_routes, element_routes, visit_routes
+from app.api.visits import element_routes, visit_routes
 from app.config import Settings
 from app.events import consumer
 from app.jobs import org_backfill
@@ -162,7 +162,7 @@ def create_app(
     app.include_router(comment_routes.router)
     app.include_router(visit_routes.router)
     app.include_router(element_routes.router)
-    app.include_router(bundle_routes.router)
+    app.include_router(sync_routes.router)
     app.include_router(internal_routes.router)
     return app
 

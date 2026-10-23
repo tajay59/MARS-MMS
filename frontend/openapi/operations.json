@@ -1,6 +1,82 @@
 {
   "components": {
     "schemas": {
+      "AnswerOut": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "op_id": {
+            "title": "Op Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "duplicate",
+              "conflict",
+              "error",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op_id",
+          "status"
+        ],
+        "title": "AnswerOut",
+        "type": "object"
+      },
       "AssignIn": {
         "additionalProperties": false,
         "description": "REQ-7. The people the request is put with; `version` guards a change of staff on a request\nthat is already Assigned against a second admin doing the same.",
@@ -2986,6 +3062,45 @@
         "title": "ModelSummary",
         "type": "object"
       },
+      "OpIn": {
+        "additionalProperties": false,
+        "properties": {
+          "op_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Op Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "type": {
+            "maxLength": 40,
+            "title": "Type",
+            "type": "string"
+          },
+          "v": {
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "V",
+            "type": "integer"
+          },
+          "visit_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op_id",
+          "v",
+          "type",
+          "visit_id"
+        ],
+        "title": "OpIn",
+        "type": "object"
+      },
       "OrgOption": {
         "properties": {
           "id": {
@@ -5830,6 +5945,47 @@
           "longitude"
         ],
         "title": "StationSummary",
+        "type": "object"
+      },
+      "SyncIn": {
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "ops": {
+            "items": {
+              "$ref": "#/components/schemas/OpIn"
+            },
+            "maxItems": 100,
+            "title": "Ops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "device_id",
+          "ops"
+        ],
+        "title": "SyncIn",
+        "type": "object"
+      },
+      "SyncOut": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerOut"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "SyncOut",
         "type": "object"
       },
       "ValidationError": {
@@ -9814,6 +9970,53 @@
         "summary": "Regenerate",
         "tags": [
           "qr"
+        ]
+      }
+    },
+    "/api/v1/sync": {
+      "post": {
+        "description": "OFF-5: apply a batch of offline operations in order. Always 200 for a well-formed batch:\neach operation has its own answer (`applied`, `duplicate`, `conflict`, `error`, `skipped`).",
+        "operationId": "sync_api_v1_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync",
+        "tags": [
+          "sync"
         ]
       }
     },

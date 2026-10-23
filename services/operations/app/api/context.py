@@ -29,6 +29,9 @@ class Ctx:
     db: AsyncDatabase[dict[str, Any]]
     media: MediaApi
     staff: StaffApi
+    # Run inside every transaction `tx` opens, after its body: `/sync` records an operation here,
+    # so an operation and its record are one commit (TRD §7.3). Each hook must be safe to repeat.
+    tx_hooks: tuple[Callable[[AsyncClientSession], Awaitable[None]], ...] = ()
 
     @property
     def request_id(self) -> str | None:
@@ -38,7 +41,16 @@ class Ctx:
         return Emitter(self.db, self.clock, actor_for(self.request, user), self.request_id)
 
     async def tx[T](self, body: Callable[[AsyncClientSession], Awaitable[T]]) -> T:
-        return await in_transaction(self.client, body)
+        if not self.tx_hooks:
+            return await in_transaction(self.client, body)
+
+        async def with_hooks(s: AsyncClientSession) -> T:
+            result = await body(s)
+            for hook in self.tx_hooks:
+                await hook(s)
+            return result
+
+        return await in_transaction(self.client, with_hooks)
 
 
 def get_ctx(request: Request) -> Ctx:
