@@ -106,6 +106,30 @@ jobs:
           python infra/scripts/export_openapi.py ${{ matrix.service }}
           git diff --exit-code -- frontend/openapi
 
+  # The visit report drawn in the report image's own fonts and compared with the committed pictures
+  # (W16 slice 3). A deliberate template change updates services/report/visual/baselines in the
+  # same commit (see the Dockerfile's header).
+  report-visual:
+    name: report visual
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the check image
+        run: docker build -f services/report/visual/Dockerfile -t mms-report-visual .
+
+      - name: Compare the report with its baseline
+        run: docker run --rm -v "$PWD/visual-out:/out" mms-report-visual
+
+      - name: The pages as drawn now
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: report-visual
+          path: visual-out
+          if-no-files-found: ignore
+
   service-template:
     name: service template
     runs-on: ubuntu-24.04

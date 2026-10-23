@@ -17,7 +17,7 @@ from mms_common.logging import get_logger
 from mms_common.mongo import in_transaction
 from pymongo.asynchronous.client_session import AsyncClientSession
 
-from app.domain import visit_view
+from app.domain import drafts, visit_view
 from app.events import publish
 from app.jobs.labels import Retry
 from app.repo import reports
@@ -40,20 +40,25 @@ async def _pictures(svc: Services, report: dict[str, Any]) -> dict[str, str | No
     """Each selected photo's display copy as a page-sized JPEG; None when it cannot be had (the
     page prints a grey box and its caption)."""
     ids = list(dict.fromkeys(s["media_id"] for s in report["content"]["media_selection"]))
+    # A video's poster frame, kept under `poster:<media id>` (the page shows it beside the QR code)
+    posters = [r["media_id"] for r in drafts.media_refs(report["content"]["facts"])
+               if r["kind"] == "video"]
     gate = asyncio.Semaphore(PICTURES_AT_ONCE)
 
-    async def one(media_id: str) -> tuple[str, str | None]:
+    async def one(media_id: str, poster: bool = False) -> tuple[str, str | None]:
+        key = f"poster:{media_id}" if poster else media_id
         async with gate:
-            raw = await svc.media.rendition(media_id)
+            raw = await svc.media.rendition(media_id, thumbnail=poster)
             if raw is None:
-                return media_id, None
+                return key, None
             try:
-                return media_id, await asyncio.to_thread(jpeg_data_uri, raw)
+                return key, await asyncio.to_thread(jpeg_data_uri, raw)
             except Exception:  # noqa: BLE001 - one unreadable picture must not stop the report
                 log.warning("picture_unreadable", media_id=media_id)
-                return media_id, None
+                return key, None
 
-    return dict(await asyncio.gather(*(one(i) for i in ids)))
+    found = await asyncio.gather(*(one(i) for i in ids), *(one(i, True) for i in posters))
+    return dict(found)
 
 
 async def render_draft(svc: Services, report_id: str) -> None:

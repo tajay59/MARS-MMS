@@ -311,3 +311,31 @@ async def test_the_report_service_reads_a_photos_display_copy_as_bytes(media):
                                  headers=media.service("platform"))).status_code in (401, 403)
     assert (await media.http.get(f"/internal/media/{new_id()}/rendition",
                                  headers=media.service("report"))).status_code == 404
+
+
+@pytest.mark.req("MED-1")
+async def test_the_report_service_can_ask_for_a_photos_thumbnail(media):
+    media_id, _ = await photo(media)
+    assert await process_media(media.svc, media_id) == "ready"
+    r = await media.http.get(
+        f"/internal/media/{media_id}/rendition?variant=thumbnail", headers=media.service("report"))
+    assert r.status_code == 200 and r.headers["content-type"] == "image/webp"
+    assert max(Image.open(io.BytesIO(r.content)).size) < 600
+    bad = await media.http.get(
+        f"/internal/media/{media_id}/rendition?variant=original", headers=media.service("report"))
+    assert bad.status_code == 422
+
+
+@needs_ffmpeg
+@pytest.mark.req("MED-2")
+async def test_a_videos_poster_is_its_thumbnail_and_it_has_no_picture_view(media, tmp_path):
+    data = video(tmp_path / "VID_2.mp4", seconds=2, size="640x360").read_bytes()
+    out = await media.upload(data, kind="video", filename="VID_2.MP4")
+    assert await process_media(media.svc, out["media_id"]) == "ready"
+    poster = await media.http.get(
+        f"/internal/media/{out['media_id']}/rendition?variant=thumbnail",
+        headers=media.service("report"))
+    assert poster.status_code == 200 and Image.open(io.BytesIO(poster.content)).format == "WEBP"
+    as_view = await media.http.get(
+        f"/internal/media/{out['media_id']}/rendition", headers=media.service("report"))
+    assert as_view.status_code == 404  # the display copy of a video is the MP4, not a picture

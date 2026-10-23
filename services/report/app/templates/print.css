@@ -299,13 +299,72 @@ h1 {
   font-size: 8pt;
 }
 
+/* Before and After side by side: two columns of two photos each */
+.report .pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4mm;
+  break-inside: avoid;
+}
+
+.report .pair .photos figure,
+.report .pair .photos img,
+.report .pair .photo-missing {
+  width: 41mm;
+}
+
+.report .pair .photos img,
+.report .pair .photo-missing {
+  height: 28mm;
+  line-height: 28mm;
+}
+
+.report .facts.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8mm;
+}
+
 .report figcaption {
   font-size: 8pt;
   margin-top: 0.8mm;
 }
 
-.report .videos li {
-  margin-bottom: 2mm;
+.report .video {
+  display: grid;
+  grid-template-columns: 38mm 1fr 22mm;
+  align-items: center;
+  gap: 4mm;
+  margin-bottom: 3mm;
+  padding: 2mm;
+  background: #f4f8fa;
+  break-inside: avoid;
+}
+
+.report .video .poster {
+  width: 38mm;
+  height: 22mm;
+  line-height: 22mm;
+  object-fit: cover;
+}
+
+.report .video p {
+  margin: 0 0 0.8mm;
+}
+
+.report .qr-small {
+  width: 22mm;
+  height: 22mm;
+}
+
+.report .unsigned {
+  padding: 6mm;
+  border: 0.3mm dashed #888;
+  color: #555;
+}
+
+.report .signatures {
+  break-inside: avoid;
 }
 
 .report .appendix {

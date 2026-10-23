@@ -78,7 +78,10 @@ def jpeg_data_uri(raw: bytes) -> str:
 
 def render_visit_html(view: dict[str, Any], template_version: str) -> str:
     """The visit report as HTML (TRD 11.1). `view` is `domain/visit_view.build`."""
-    return _env.get_template("visit.html.j2").render(v=view, template_version=template_version)
+    # The QR code beside each video links to it in the app (TRD 11.1)
+    videos = [{**v, "qr": qr_data_uri(v["link"])} for v in view["videos"]]
+    return _env.get_template("visit.html.j2").render(
+        v={**view, "videos": videos}, template_version=template_version)
 
 
 def to_pdf(html: str) -> Rendered:

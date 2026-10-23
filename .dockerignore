@@ -4,6 +4,10 @@
 !libs/mms_common/
 !services/*/pyproject.toml
 !services/*/app/
+# The report's visual regression check (services/report/visual/Dockerfile)
+!services/report/visual/
+!services/report/tests/__init__.py
+!services/report/tests/visit_facts.py
 # The web image (infra/nginx/Dockerfile): gateway config, the SPA build, carried assets.
 !infra/nginx/nginx.conf
 !infra/nginx/snippets/

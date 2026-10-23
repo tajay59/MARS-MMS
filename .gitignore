@@ -51,3 +51,4 @@ desktop.ini
 
 # Local self-signed certificates (infra/nginx/dev-certs.sh)
 infra/nginx/certs/
+visual-out/

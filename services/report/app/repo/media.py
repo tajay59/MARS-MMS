@@ -16,8 +16,9 @@ class MediaSource(Protocol):
         """`pending`, `uploaded`, `processing`, `ready`, `failed` or `deleted`; None if unknown."""
         ...
 
-    async def rendition(self, media_id: str) -> bytes | None:
-        """The photo's display copy (WebP), or None when it has none (not ready, not a photo)."""
+    async def rendition(self, media_id: str, *, thumbnail: bool = False) -> bytes | None:
+        """The photo's display copy (WebP), or with `thumbnail` the small picture of a photo or
+        a video's poster frame; None when it has none (not ready, not a picture)."""
         ...
 
 
@@ -42,8 +43,9 @@ class MediaClient:
         status: str = response.json()["status"]
         return status
 
-    async def rendition(self, media_id: str) -> bytes | None:
-        response = await self._get(f"/internal/media/{media_id}/rendition")
+    async def rendition(self, media_id: str, *, thumbnail: bool = False) -> bytes | None:
+        variant = "?variant=thumbnail" if thumbnail else ""
+        response = await self._get(f"/internal/media/{media_id}/rendition{variant}")
         if response.status_code in (404, 409):
             return None
         if response.status_code != 200:
