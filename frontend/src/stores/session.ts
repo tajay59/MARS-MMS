@@ -12,6 +12,7 @@ import {
   updateUser,
 } from '@/app/auth/session'
 import { clearRuntimeCaches } from '@/app/pwa/runtimeCaches'
+import { forgetLogout, rememberLogin } from '@/offline/account'
 import { useThemeStore } from './theme'
 
 const STAFF_ROLES: ReadonlySet<Role> = new Set(['technician', 'admin', 'viewer'])
@@ -33,6 +34,7 @@ export const useSessionStore = defineStore('session', () => {
     user.value = session?.user ?? null
     if (session) {
       endedReason.value = null
+      void rememberLogin(session)
       if (session.user.id !== before) {
         // The account's appearance setting wins over this device's (DBD D2).
         useThemeStore().adopt(session.user.theme)
@@ -40,6 +42,10 @@ export const useSessionStore = defineStore('session', () => {
     } else {
       endedReason.value = reason ?? null
       void clearRuntimeCaches()
+      if (reason === 'logged_out' && before) {
+        // Only a logout clears the phone: an expired or revoked session keeps the prepared data
+        void forgetLogout(before)
+      }
     }
   })
 
