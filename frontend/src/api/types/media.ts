@@ -145,10 +145,11 @@ export interface paths {
         };
         /**
          * Media Rendition
-         * @description The display copy of a photo (the `view.webp` beside the original, up to 2048 px on the
-         *     long side; the report service shrinks it for the page) as bytes, for a visit report's PDF
-         *     (TRD 11.1, W16-7). The report service has no rights on media's buckets, and the files host is
-         *     not reachable from its network by its public name. Only a processed photo has one.
+         * @description A processed file's picture as bytes, for a visit report's PDF (TRD 11.1, W16-7). `view`:
+         *     the display copy of a photo (up to 2048 px on the long side; the report service shrinks it
+         *     for the page). `thumbnail`: the small WebP of a photo or a video's poster frame. The report
+         *     service has no rights on media's buckets, and the files host is not reachable from its
+         *     network by its public name.
          */
         get: operations["media_rendition_internal_media__media_id__rendition_get"];
         put?: never;
@@ -668,7 +669,9 @@ export interface operations {
     };
     media_rendition_internal_media__media_id__rendition_get: {
         parameters: {
-            query?: never;
+            query?: {
+                variant?: string;
+            };
             header?: never;
             path: {
                 media_id: string;
