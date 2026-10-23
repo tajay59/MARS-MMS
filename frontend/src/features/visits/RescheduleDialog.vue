@@ -31,10 +31,7 @@
 
       <p class="m-0 -mt-2 text-sm text-surface-600">Times are in {{ zoneName }} time ({{ zone }}).</p>
 
-      <!-- Filled in when a visit can be prepared on a phone (Phase 5): who has it, so the warning names them -->
-      <p v-if="preparedOn" class="m-0 rounded-lg bg-surface-50 px-3.5 py-3 text-sm text-surface-900 shadow-[inset_3px_0_0_var(--v-theme-primary)]">
-        This visit is prepared on {{ preparedOn }}’s phone. Work recorded there before it syncs may come back as a conflict.
-      </p>
+      <PreparedNotice :prepared-on="visit.prepared_on" />
 
       <p class="m-0 text-sm text-surface-600">Everyone attending and the client are told the new dates.</p>
 
@@ -58,11 +55,12 @@
   import FormField from '@/components/FormField.vue'
   import ModalSheet from '@/components/ModalSheet.vue'
   import { failureOf } from './failures'
+  import PreparedNotice from './PreparedNotice.vue'
   import { utcToZoned, validateSchedule, visitZone, zonedToUtc, zoneLabel } from './visits'
 
   // Reschedule (PRD VIS-2; AFD J5 step 5): new dates for a planned visit, in the zone of its first
   // station. The people and stations stay; use Change owner for those.
-  const props = defineProps<{ visit: VisitOut, preparedOn?: string }>()
+  const props = defineProps<{ visit: VisitOut }>()
 
   const emit = defineEmits<{ done: [visit: VisitOut], changed: [] }>()
   const open = defineModel<boolean>({ required: true })

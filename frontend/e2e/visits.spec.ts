@@ -1,4 +1,4 @@
-import { claimedRequest, logIn, staffPage, unique } from './requestFlows'
+import { claimedRequest, logIn, staffPage, startVisit, unique } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
 /*
@@ -72,7 +72,7 @@ test('A technician plans a visit with a colleague as lead, and the lead runs it 
   // Only the lead's people may start: Tech 2 starts it, and the request is In progress
   const lead = await staffPage(browser, 'tech2@example.org')
   await lead.goto(visitPath)
-  await lead.getByRole('button', { name: 'Start visit' }).click()
+  await startVisit(lead)
   await expect(lead.getByText('Visit started. The request is In progress.')).toBeVisible()
   const stations = lead.getByRole('table', { name: /Stations on this visit/ })
   await expect(stations.getByRole('row', { name: /Kingston Harbour/ }).getByText(/Only they can arrive here/)).toBeVisible()

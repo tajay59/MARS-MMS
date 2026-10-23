@@ -29,7 +29,7 @@
         @end="dialog = 'end'"
         @reschedule="dialog = 'reschedule'"
         @restore="restore"
-        @start="start"
+        @start="requestStart"
       />
     </template>
 
@@ -117,7 +117,7 @@
             @end="dialog = 'end'"
             @reschedule="dialog = 'reschedule'"
             @restore="restore"
-            @start="start"
+            @start="requestStart"
           />
         </div>
 
@@ -241,6 +241,8 @@
       @done="changed('Owner changed. Both people are told.', $event)"
     />
 
+    <StartUnpreparedDialog v-model="startCheck.asking.value" @anyway="startCheck.startAnyway" @prepare="startCheck.prepareNow" />
+
     <v-snackbar v-model="toast.show" location="bottom" :timeout="6000">{{ toast.text }}</v-snackbar>
   </PageBody>
 </template>
@@ -269,6 +271,8 @@
   import { replaceVisit } from './failures'
   import { visitGate } from './local/gateway'
   import { forgetMediaLinks } from './mediaLinks'
+  import StartUnpreparedDialog from './prepare/StartUnpreparedDialog.vue'
+  import { useStartCheck } from './prepare/useStartCheck'
   import RescheduleDialog from './RescheduleDialog.vue'
   import { useVisitMoves } from './useVisitMoves'
   import VisitActions from './VisitActions.vue'
@@ -481,6 +485,8 @@
     say,
     reload: reloadDetail,
   })
+  const startCheck = useStartCheck(start, () => detail.value?.id)
+  const requestStart = startCheck.request
 
   // Staff on a phone work a started visit in the field shell (W12; AFD J6): stations, then boards.
   // The check is on what the page holds, so starting the visit here carries the person across.
