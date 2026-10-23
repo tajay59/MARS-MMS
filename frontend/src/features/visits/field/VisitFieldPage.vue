@@ -64,6 +64,8 @@
             <p class="m-0 text-sm text-surface-600">{{ formatRange(detail.planned_start, detail.planned_end, zone) }}</p>
           </section>
 
+          <PreparePanel :key="detail.id" :visit="detail" />
+
           <section aria-labelledby="vf-stations-h" class="flex flex-col gap-2">
             <h2 id="vf-stations-h" class="m-0 text-h3 text-surface-900">Stations</h2>
 
@@ -140,6 +142,7 @@
   import VisitBoard from '../board/VisitBoard.vue'
   import EndVisitDialog from '../EndVisitDialog.vue'
   import { forgetMediaLinks } from '../mediaLinks'
+  import PreparePanel from '../prepare/PreparePanel.vue'
   import { useVisitMoves } from '../useVisitMoves'
   import { canDo, formatRange, stationTimes, visitZone } from '../visits'
 

@@ -37,6 +37,8 @@
       </dd>
     </dl>
 
+    <PreparePanel :key="visit.id" :visit="visit" />
+
     <section aria-labelledby="vs-h" class="flex flex-col gap-2">
       <div class="flex items-baseline justify-between gap-3">
         <h2 id="vs-h" class="m-0 text-h3 text-surface-900">Stations</h2>
@@ -155,6 +157,7 @@
   import { useDisplay } from 'vuetify'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import VisitBoard from './board/VisitBoard.vue'
+  import PreparePanel from './prepare/PreparePanel.vue'
   import { canDo, formatRange, formatWhen, names, stationTimes, visitZone, zoneLabel } from './visits'
 
   // The body of /visits/:id (AFD J5, J6 step 3; DBD "Request page" layout). Dates are in the zone

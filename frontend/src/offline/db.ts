@@ -32,6 +32,8 @@ export interface BundleRow {
   ready: boolean
   files_total: number
   files_done: number
+  /** Media IDs of the optional files chosen when preparing; the required ones always come. */
+  documents: string[]
   /** The JSON the server sent (`GET /visits/{id}/field-bundle`). */
   data: unknown
 }
