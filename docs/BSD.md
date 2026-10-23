@@ -256,8 +256,8 @@ A station's board is a set of `visit_elements` documents rather than one embedde
 
 | Table | Holds | Personal or client data | Cleared |
 | --- | --- | --- | --- |
-| `bundles`, `files` | Prepared visits, stations, sensors, manuals and config files | Station and client data for prepared visits | On logout or change of user; after the visit syncs and ends |
-| `visits`, `outbox`, `blobs` | Board elements, queued operations, captured photos, videos and config files | Client station data; photos | After the server confirms each item (OFF-8). Kept through logout, tied to `user_id` |
+| `bundles`, `files` | Prepared visits (key `visit_id`, index `user_id`; `ready`, `files_total`, `files_done`, `documents`, `data` = the bundle) and their files as blobs (key `[visit_id+media_id]`, indexes `media_id`, `user_id`) | Station and client data for prepared visits | On logout or change of user; after the visit syncs and ends |
+| `visits`, `outbox`, `blobs` (indexes: `outbox` `++seq`, unique `op_id`, `user_id`, `[user_id+visit_id]`, `status`; `blobs` `media_id`, `user_id`, `state`; state `diagnostic` = the storage check's test files) | Board elements, queued operations, captured photos, videos and config files | Client station data; photos | After the server confirms each item (OFF-8). Kept through logout, tied to `user_id` |
 | `meta` | Device ID, offline profile (`id`, `name`, `roles`, `org_id`), PIN verifier (PBKDF2 hash and salt), `offline_until`, failed PIN count | Staff name and roles | Profile and verifier removed on logout |
 
 ## Access control

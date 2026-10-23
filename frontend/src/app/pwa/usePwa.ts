@@ -1,6 +1,7 @@
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { watch } from 'vue'
 import { useUpdateStore } from '@/stores/update'
+import { captureInstallPrompt } from './install'
 
 const HOUR = 60 * 60 * 1000
 const SW_URL = `${import.meta.env.BASE_URL}sw.js`
@@ -33,6 +34,7 @@ export function usePwa (): void {
     return
   }
   const updates = useUpdateStore()
+  captureInstallPrompt()
 
   window.addEventListener('online', () => void ensureWorker())
   document.addEventListener('visibilitychange', () => {

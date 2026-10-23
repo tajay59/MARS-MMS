@@ -116,7 +116,7 @@ export const routes: RouteRecordRaw[] = [
     // the forms and the server refuses them anyway.
     path: '/stations/:id?/:mode(edit)?',
     name: 'stations',
-    component: () => import('@/features/stations/StationsPage.vue'),
+    component: () => import('@/features/offline/StationsGate.vue'),
     meta: { title: 'Stations', layout: 'app', offline: 'record' },
   },
   {
@@ -144,7 +144,7 @@ export const routes: RouteRecordRaw[] = [
     // their organization's visits, read only.
     path: '/visits/:id?',
     name: 'visits',
-    component: () => import('@/features/visits/VisitsPage.vue'),
+    component: () => import('@/features/offline/VisitsGate.vue'),
     meta: { title: 'Visits', layout: 'app', offline: 'record' },
   },
   {
@@ -152,7 +152,7 @@ export const routes: RouteRecordRaw[] = [
     // sent here from /visits/:id once the visit has started; the page sends other screens back.
     path: '/visits/:id/field',
     name: 'visit-field',
-    component: () => import('@/features/visits/field/VisitFieldPage.vue'),
+    component: () => import('@/features/offline/VisitFieldGate.vue'),
     meta: { title: 'Visit', layout: 'field', roles: STAFF, offline: true },
   },
   later('/reports', 'reports', 'Reports', 7),
@@ -200,6 +200,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/scan/ScanLandingPage.vue'),
     props: true,
     meta: { title: 'Scan', layout: 'field', offline: true },
+  },
+  {
+    // The W13 iOS check (risk R4): test files kept on the phone and read back after a restart
+    path: '/sync/storage-check',
+    name: 'storage-check',
+    component: () => import('@/features/field/StorageCheckPage.vue'),
+    meta: { title: 'Storage check', layout: 'field', roles: STAFF, offline: true },
   },
   {
     path: '/sync',

@@ -161,9 +161,6 @@ export function usePrepare (visit: Ref<VisitOut>) {
       }
       choices.value = [...found.values()]
       configFiles.value = config
-      if (ticked.value.size === 0) {
-        ticked.value = new Set(choices.value.filter(c => c.size <= TICKED_UP_TO).map(c => c.media_id))
-      }
     } catch {
       // The panel works without the list; Prepare still downloads the configuration files
     } finally {
@@ -171,7 +168,25 @@ export function usePrepare (visit: Ref<VisitOut>) {
     }
   }
 
+  /*
+    What starts ticked: the documents chosen last time when the visit is already prepared (so
+    "Update offline copy" does not bring back what was left out), else the small ones. Until the
+    person ticks something themselves.
+  */
+  let touched = false
+  function startingTicks (): Set<string> {
+    return mine.value
+      ? new Set(mine.value.documents)
+      : new Set(choices.value.filter(c => c.size <= TICKED_UP_TO).map(c => c.media_id))
+  }
+  watch([mine, choices, loading], () => {
+    if (!touched && !loading.value) {
+      ticked.value = startingTicks()
+    }
+  }, { immediate: true })
+
   function toggle (mediaId: string, on: boolean): void {
+    touched = true
     const next = new Set(ticked.value)
     if (on) {
       next.add(mediaId)

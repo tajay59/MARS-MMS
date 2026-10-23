@@ -105,6 +105,12 @@
           <p class="m-0 text-sm text-surface-600">System follows your device’s setting. Your choice is saved to your account.</p>
         </section>
 
+        <section v-if="canInstall" aria-labelledby="inst-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
+          <h2 id="inst-h" class="m-0 text-h3 text-surface-900">Install the app</h2>
+          <p class="m-0 text-surface-900">Opens from your home screen and works with no signal.</p>
+          <div><v-btn variant="outlined" @click="promptInstall()">Install</v-btn></div>
+        </section>
+
         <section v-if="canSetPin" aria-labelledby="pin-sec-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <h2 id="pin-sec-h" class="m-0 text-h3 text-surface-900">Offline PIN</h2>
 
@@ -167,6 +173,7 @@
   import { focusFirstError } from '@/app/composables/focusFirstError'
   import { useLeaveGuard } from '@/app/composables/useLeaveGuard'
   import { MIN_PASSWORD, usePasswordRule } from '@/app/composables/usePasswordRule'
+  import { canInstall, promptInstall } from '@/app/pwa/install'
   import AppearanceToggle from '@/components/AppearanceToggle.vue'
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
@@ -195,6 +202,9 @@
     { id: 'ap-h', label: 'Appearance' },
     { id: 'em-h', label: 'Email preferences' },
   ]
+  if (canInstall.value) {
+    parts.splice(4, 0, { id: 'inst-h', label: 'Install the app' })
+  }
   if (canSetPin.value) {
     parts.splice(4, 0, { id: 'pin-sec-h', label: 'Offline PIN' })
   }

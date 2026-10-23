@@ -165,7 +165,7 @@
           <div class="phase"><span class="phase-no">P2</span><div><div class="phase-name">Stations</div><div class="phase-meta">W5–W7 · operations stations module, media documents path, report skeleton, labels · release 0.2 · W5 built (backend, real export on staging, station list and page, station form) · W6 built (media service, documents, configurations, sensor catalogue, calibration due; waiting for staging and an iPhone) · W7 built (QR resolve and regenerate, the report service with label sheets, the scanner, the scanned-label page, the map, the label tool and the station QR card; waiting for staging and the label check on real phones)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P3</span><div><div class="phase-name">Requests</div><div class="phase-meta">W8–W9 · request state machine, queue, comments, notifications and WebSocket · release 0.3 · W8 built (the requests module: create, list, read, edit, approve, deny, cancel; the screens); W9 built and merged in four slices (assign, claim, release and the queue; comments and PDF attachments; notifications and the WebSocket; email, preferences and the weekly digest), with its six charts; still to do: the staging checks (email through the Gmail interim, live updates between two browsers, the phone check)</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P4</span><div><div class="phase-name">Visits online</div><div class="phase-meta">W10–W12 · visits, station owners, work records, sensor reconciliation, media-worker · release 0.4 · W10 built in four slices (the visits module and the request status from visits, the visit screens, the visit notifications; its checklist templates were removed with the board) · W11 built (the photo and video pipeline, media on visits, then the visit board of Notes, Tasks, Recommendations and Config with its file viewers, Config versions and Create request) · W12 built (a started visit on a phone in the field shell, from the stations to each board) · still to do: the staging exit checks on an Android phone, and the release 0.4 version bump</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5 · W13 built in four slices (the device store and PIN session, <code>/unlock</code> and the offline start, Prepare for field with the field bundle, offline station lookup with the install prompt, diagnostics and the storage check); W14 (outbox, <code>/sync</code>, conflicts) and W15 (field test) next · the Android and iPhone checks are still to do</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P7</span><div><div class="phase-name">Summaries and hardening</div><div class="phase-meta">W19–W20 · summary reports, dashboards, audit viewer, production stack, backups, security review · release 0.7</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge planned">Planned</span></div>
@@ -460,7 +460,7 @@ flowchart TB
                 <tr><td>operations</td><td>GET / PUT / DELETE</td><td><code>/api/v1/visits/{id}/stations/{sid}/elements/{element_id}</code></td><td>any in scope / author, station owner, admin</td><td>Read; replace the content with <code>base_version</code> (409 <code>element_changed</code> with <code>current</code>, <code>element_deleted</code>); delete with <code>?base_version=</code>, leaving a tombstone and deleting its files (204)</td></tr>
                 <tr><td>operations</td><td>POST / PATCH / DELETE</td><td><code>/api/v1/visits/{id}/stations/{sid}/elements/{element_id}/media[/{media_id}]</code></td><td>author, station owner, admin</td><td>Put an uploaded file on a section (<code>main</code>, <code>before</code>, <code>after</code>; 422 <code>bad_section</code>, <code>wrong_kind</code>, <code>wrong_owner</code>, <code>not_yours</code>, <code>file_not_uploaded</code>); caption or hide it; take it off and delete the file</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/visits/{id}/end</code></td><td>attending staff</td><td>End; another visit needed?</td></tr>
-                <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/{id}/field-bundle</code></td><td>attending staff</td><td>Offline package; records the device</td></tr>
+                <tr><td>operations</td><td>GET</td><td><code>/api/v1/visits/{id}/field-bundle</code></td><td>attending staff</td><td>Built (W13): the request, each station with sensors, calibration, latest configuration version, documents and board, and a flat <code>files[]</code>; <code>?device_id=</code> required; records <code>prepared_on</code> and emits <code>visit.prepared</code>; 409 <code>visit_not_preparable</code> unless planned or started</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/api/v1/sync</code></td><td>staff</td><td>Apply a batch of offline operations</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/lock</code></td><td>service (report)</td><td>Lock work records; idempotent per report version</td></tr>
                 <tr><td>operations</td><td>POST</td><td><code>/internal/visits/{id}/unlock</code></td><td>service (report)</td><td>Unlock for correction or failed finalize</td></tr>
@@ -1177,6 +1177,7 @@ flowchart LR
                 <tr><td><code>visit.cancelled</code> / <code>visit.restored</code></td><td>operations</td><td>platform, report</td><td>Built (W10): the visit facts; cancelled adds reason? and by_request</td></tr>
                 <tr><td><code>visit.started</code></td><td>operations</td><td>report, platform (audit)</td><td>Built (W10): the visit facts, started_at</td></tr>
                 <tr><td><code>visit.ended</code></td><td>operations</td><td>report, platform</td><td>Built (W10): the visit facts, ended_at, additional_visit_required, follow_up_notes?, overrides[]; sensor_actions[] and config_versions[] stay empty until W11</td></tr>
+                <tr><td><code>visit.prepared</code></td><td>operations</td><td>platform (audit)</td><td>Built (W13): the visit facts, <code>user_id</code>, <code>device_id</code>; ids only, never what was downloaded. Does not bump the visit's <code>version</code></td></tr>
                 <tr><td><code>visit.element_added</code> / <code>visit.element_updated</code> / <code>visit.element_deleted</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (visit board slice 1): the visit facts, station_id, element_id, kind, shared, completed (a task's), priority (a recommendation's), element_version; <code>changed_fields</code> on an update. Never the title, description or item text (the audit block keeps them). Versioned by the element's <code>revision</code></td></tr>
                 <tr><td><code>visit.media_changed</code></td><td>operations</td><td>platform (audit, live)</td><td>Built (W11 slice 4, then the board): the visit facts, station_id, element_id, section, media_id, kind, change (<code>added</code>, <code>captioned</code>, <code>hidden</code>, <code>shown</code>, <code>removed</code>). No file name, no caption. <code>phase</code> is left empty now</td></tr>
                 <tr><td><code>visit.work_updated</code></td><td>operations</td><td>—</td><td>Retired (W11-16): no longer emitted; registered so the records already in the audit chain parse</td></tr>
@@ -1997,6 +1998,103 @@ sequenceDiagram
           </div>
           <p>Sharing (W11-28): at <code>end</code> the files of shared elements are shown to the client (<code>media.visibility_requested</code>, <code>org</code>) in the end's transaction. After the end, sharing or unsharing an element, deleting it, hiding or showing a file, or adding one to a shared element sends the matching request. Every request takes the next <code>visibility_seq</code> of the visit (it starts above the visit's version, which numbered them before), so media, which applies only the newest per file, always gets them in order. <code>GET /api/v1/visits/{id}</code> gives each station's <code>board</code> summary (counts by kind, incomplete tasks, the newest photo); a client's counts only what they may see. Media's owner check (<code>/internal/attachable</code>) takes <code>visit:{id}:station:{sid}:element:{eid}:{section}</code>, also before the element exists, because a phone uploads while its create op waits to sync. Migration <code>0011_visit_board</code> cleared the test visits' work records and phase media, dropped <code>sensor_applications</code> and <code>checklist_templates</code> and unset <code>needs_review</code>.</p>
         </div>
+
+        <figure class="diagram" id="offline-prepare-sequence" data-title="Prepare for field: the bundle, then the files" data-kind="Sequence diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    participant T as Technician
+    participant P as PWA (PreparePanel)
+    participant O as operations
+    participant M as media and documents
+    participant F as files host
+    participant D as Dexie
+    T->>P: Prepare for field
+    P->>D: PIN set for this user?
+    alt no PIN
+        P->>T: Set a PIN (two steps)
+        T->>P: PIN
+        P->>D: verifier, profile, offline_until
+    end
+    P->>P: storage.persist(), keep the screen awake
+    P->>O: GET /visits/{id}/field-bundle?device_id
+    O->>O: prepared_on and visit.prepared (one transaction)
+    O-->>P: bundle and files list
+    P->>D: bundle (ready: false)
+    loop each file not stored with the right size
+        P->>M: ten-minute link (waits out 429)
+        M-->>P: URL
+        P->>F: GET URL
+        F-->>P: bytes
+        P->>D: blob and count (one transaction)
+    end
+    P->>D: ready once every configuration file is stored
+    P-->>T: Ready offline (or Try again for the gaps)
+</pre>
+          </div>
+          <figcaption>From <code>offline/bundles.ts</code> and <code>usePrepare.ts</code>. A dropped connection leaves the bundle stored and not ready; running it again fetches only what is missing.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-pin-state" data-title="The offline session on a phone" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> NoPIN
+    NoPIN --> Ready: PIN set (first Prepare or My profile)
+    Ready --> Ready: online login or refresh (profile, end date, tries reset)
+    Ready --> Unlocked: right PIN with no signal
+    Ready --> Ready: wrong PIN (tries left, count saved first)
+    Ready --> TurnedOff: fifth wrong PIN
+    Ready --> Ended: end date passes (30 days from the last refresh)
+    TurnedOff --> Ready: online login by the same user
+    Ended --> Ready: online login by the same user
+    Unlocked --> Ready: signal returns and the refresh succeeds
+    Ready --> NoPIN: logout, or another user logs in
+    Unlocked --> NoPIN: logout
+</pre>
+          </div>
+          <figcaption>From <code>offline/session.ts</code> and the session store. Turned off and Ended keep the data; only logout or another user's login removes the prepared visits and the PIN. Queued work is never removed.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-start-decision" data-title="What the app shows when it starts" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["App starts"] --> B{"Refresh with the cookie"}
+    B -->|session| D["Normal start: no PIN asked"]
+    B -->|refused 401| L["/login with the reason"]
+    B -->|server unreachable| C{"Offline profile on this phone?"}
+    C -->|none| L
+    C -->|ended or turned off| U0["/unlock without a keypad:&lt;br/&gt;log in with signal"]
+    C -->|ready| U["/unlock with the keypad"]
+    U -->|right PIN| O["Unlocked: roles from the profile, no token"]
+    U -->|wrong PIN| U
+    U -->|fifth wrong PIN| U0
+    O --> P{"Page opens offline?"}
+    P -->|yes| R["Read the prepared copy"]
+    P -->|no| N["/needs-connection"]
+    O -->|signal returns| D
+</pre>
+          </div>
+          <figcaption>From the <code>stores/session.ts</code> bootstrap and the router guard. "Opens offline" is route meta <code>offline</code>; a <code>record</code> page needs its <code>:id</code>.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="offline-device-storage" data-title="What the phone keeps, and what logout removes" data-kind="Data flow diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    S["Server"] -->|field bundle JSON| BU[("bundles")]
+    S -->|ten-minute links, then bytes| FI[("files")]
+    LG["Login or refresh"] -->|profile, PIN verifier, end date| ME[("meta")]
+    WK["Storage check"] -->|test files| BL[("blobs: diagnostic")]
+    W14["W14: capture and edits"] -.->|ops| OB[("outbox")]
+    W14 -.->|media| BL2[("blobs: pending")]
+    BU & FI & ME -->|logout, or another user logs in| X["Deleted"]
+    OB & BL2 -->|stay, tagged with user_id| K["Kept until that user syncs"]
+</pre>
+          </div>
+          <figcaption>From <code>offline/db.ts</code>, <code>cleanup.ts</code> and <code>account.ts</code>. The dotted paths arrive in W14. Nothing here holds a token, an email or a phone number.</figcaption>
+        </figure>
 
         <figure class="diagram" id="visits-element-access" data-title="Who can see and change an element" data-kind="Decision tree diagram">
           <div class="view" data-label="Mermaid">
@@ -3678,6 +3776,20 @@ flowchart TD
                 <tr><td>W12-1</td><td><b>A started visit on a phone is its own page in the field shell.</b> <code>/visits/:id/field</code> (<code>visit-field</code>, layout <code>field</code>) lists the visit's stations (owner, times, what the board holds, Arrive or Depart for the stations the server offers them for) and opens a station's board at <code>?station=</code>; the end action is a sticky bar above the bottom navigation. Arriving opens the board and departing returns to the list (AFD J6 steps 3 and 7); ending goes to <code>/sync</code> (step 9). The top bar names the page and carries Back (<code>app/shells/fieldBar.ts</code>). The rules and the buttons still come from the server's <code>actions</code>. <i>Decided 2026-10-22.</i></td></tr>
                 <tr><td>W12-2</td><td><b>Phones are sent to the field page once the visit has started.</b> <code>/visits/:id</code> replaces itself with <code>/visits/:id/field</code> for a technician or admin on a phone (under 768 px) when the visit is <code>started</code>, so Start visit carries the person across; planned, ended and cancelled visits, desktop, tablets, clients and viewers keep the visit page. The field page sends the others back. <i>Decided 2026-10-22.</i></td></tr>
                 <tr><td>W12-3</td><td><b>The moves that need no form are shared.</b> <code>useVisitMoves</code> (start, restore, arrive, depart; one at a time, a refusal that means the visit changed reloads it) serves the visit page and the field page. No mock-up was drawn: the screens reuse the board, the station rows and the sync page's action bar (decision of the user). <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-1</td><td><b>One Dexie database, <code>aws-mms</code>, the six tables of TRD §7.1.</b> Every row except the device's own carries <code>user_id</code>. <code>files</code> is keyed by <code>[visit_id+media_id]</code> (one document can sit in two prepared visits). <code>outbox</code> exists from the first version so W14 adds no schema version. Upgrades never touch <code>outbox</code> or <code>blobs</code>. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-2</td><td><b>The device has an ID</b> (UUIDv7 in <code>meta</code>), sent with the bundle so <code>prepared_on</code> can say where a visit is prepared. It names a browser profile, not a person. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-3</td><td><b>The PIN is 4 to 6 digits</b> (not all the same, not a run), set the first time a technician or admin prepares, and changeable on My profile. PBKDF2-SHA-256, 310,000 iterations, a random salt; stored with the profile and <code>offline_until</code>. Never the PIN, never a token. It is an access gate, not encryption: the phone's passcode protects data at rest. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-4</td><td><b>The failure is counted before the check.</b> The fifth wrong PIN turns offline unlock off until the next online login by the same user; data stays. Checks run one at a time. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-5</td><td><b>One offline profile per device.</b> Logout deletes that user's prepared visits, files, working copies and PIN; a second user's login does the same for the first. <code>outbox</code> and <code>blobs</code> are never touched and sync only for their user. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-6</td><td><b><code>/unlock</code> shows only when the refresh cannot reach the server and an offline profile exists.</b> With signal and a valid cookie no PIN is asked. A dead cookie goes to <code>/login</code>. A turned-off or ended session shows the same page without the keypad. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-7</td><td><b>Unlocked is not signed in.</b> The cached profile is in the session store with <code>offline: true</code> and no token; signal (<code>online</code>, or the app coming to the front) triggers a refresh that brings the real session with no screen change. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-8</td><td><b>Route meta <code>offline: true | 'record'</code></b> says which pages work with no signal (<code>/scan</code>, <code>/s/:token</code>, <code>/sync</code>, <code>/sync/storage-check</code>, <code>/visits/:id/field</code>, and a station or visit with its <code>:id</code>). The rest go to <code>/needs-connection</code>. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-9</td><td><b>The field bundle is one JSON document</b> (<code>GET /visits/{id}/field-bundle</code>) plus a flat <code>files[]</code>; the files are fetched by the browser, so no presigned URL is stored. Preparing writes <code>prepared_on</code> (one entry per person and phone, ten at most) and <code>visit.prepared</code> in one transaction, without a version bump. <code>bundle_version</code> lets a newer app read an older bundle and refuses a newer one. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-10</td><td><b>Files come one at a time as blobs,</b> size and checksum checked, a file already stored skipped on the next run. A failed document does not fail the visit; a failed configuration file does. Link requests wait out the gateway's 429. A full phone stops the run with its own message. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-11</td><td><b>Ready offline is a state of <code>bundles</code>,</b> shown on the visit with "Prepared 2 days ago" and "Changed since you prepared" (the visit's <code>version</code> moved on). Nothing refreshes a bundle by itself. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-12</td><td><b>An iPhone in a Safari tab does not prepare (finding F2).</b> It shows the install steps; the Home Screen app has its own storage. Android and desktop Chrome get an Install card (<code>beforeinstallprompt</code>, hidden 14 days after Not now) and an Install row on My profile. <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-13</td><td><b>Offline station lookup (QR-5):</b> <code>/s/:token</code> looks the token up among this user's prepared stations; a match opens <code>/stations/:id</code> from the bundle (gates choose the stored copy when offline). A relabelled station still opens from an old bundle: only the server knows. Files open through the phone's own viewer, so no PDF viewer enters the precache (F17). <i>Decided 2026-10-22.</i></td></tr>
+                <tr><td>W13-14</td><td><b>Diagnostics and the storage check on <code>/sync</code>.</b> "This phone" shows install, worker, persisted state, prepared visits, PIN validity, phone and device ID. The Storage check keeps up to 60 test photos and videos in <code>blobs</code> (state <code>diagnostic</code>) and verifies their SHA-256 after a restart: the W13 iOS check (R4, F3). W14's sync must skip that state. <i>Decided 2026-10-22.</i></td></tr>
                 <tr><td>W9-1</td><td><b>Claim, assign and release share the state table.</b> Claim and assign are the one <code>Approved &rarr; Assigned</code> row (<code>Action.ASSIGN</code>); a technician's claim takes no body and always means themselves, an admin's assign takes 1 to 10 <code>staff_ids</code>. The new row <code>Assigned &rarr; Approved</code> is <code>Action.RELEASE</code>. Which staffing buttons a person sees (<code>claim</code>, <code>assign</code>, <code>release</code> in <code>actions</code>) comes from <code>staffing.actions_for</code>, since it depends on who is on the request</td><td>2026-10-21</td></tr>
                 <tr><td>W9-2</td><td><b>Only active technicians and admins can be assigned</b>, checked with auth (<code>POST /internal/users/lookup</code>), not from a copy: operations keeps no user table. Viewers, clients, disabled and unknown people give 422 <code>not_assignable</code></td><td>2026-10-21</td></tr>
                 <tr><td>W9-3</td><td><b>A claim race has one winner.</b> The update names the status it decided from (W8-5), so of two claims at the same moment one gets 200 and the other 409 <code>already_assigned</code> with the winner's name, which the page shows ("Tech 2 claimed it first")</td><td>2026-10-21</td></tr>
@@ -3825,7 +3937,7 @@ flowchart TD
                 <tr><td>P2 · Stations</td><td><strong>Chosen 2026-10-18 (the four in CLAUDE.md):</strong> Product flowchart: sensor inventory · State: sensor unit status (<a href="#stations-unit-state">added W5</a>) · Sequence: document upload and a client's model-document download · Process flow: station import with dry run (<a href="#stations-import">added W5</a>). Also suggested, not chosen: ER: stations module as built</td></tr>
                 <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
                 <tr><td>P4 · Visits online</td><td>State: visit status · Decision tree: who can see and change an element (built) · State: a task (built) · Sequence: ending a visit in one transaction (built) · Website flowchart: which page a visit opens on (built, W12) · System flowchart: media processing pipeline (built) · State: media status</td></tr>
-                <tr><td>P5 · Offline</td><td>Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
+                <tr><td>P5 · Offline</td><td>Built in W13: <a href="#offline-prepare-sequence">Sequence: prepare for field</a> · <a href="#offline-pin-state">State: the offline session</a> · <a href="#offline-start-decision">Decision tree: what the app shows when it starts</a> · <a href="#offline-device-storage">Data flow: device storage and what logout clears</a>. Still to come: State: offline operation lifecycle · Decision tree: conflict handling. Earlier plan: Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
                 <tr><td>P6 · Reports</td><td>Document flowchart: visit report signatures → final → client sign-off · Sequence: finalize saga (as built) · Customer journey: client review (J8) · State: client-review reminders and auto-close</td></tr>
                 <tr><td>P7 · Hardening</td><td>Logical model: summary reports and dashboards · Data flow: backup and restore · System flowchart: metrics, logs and alerts · Architecture: production hosts, networks and ports</td></tr>
                 <tr><td>P8 · Go-live</td><td>Workflow: hypercare triage · Customer journey: client onboarding from invitation · Gantt: go-live checklist</td></tr>
@@ -3847,6 +3959,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-22</td><td>P5 · W13</td><td><b>Offline foundations: the device store, the PIN session, Prepare for field, offline station lookup</b> (decisions W13-1 to W13-14; plan <code>docs/plans/W13-plan.md</code>; boards approved). <code>frontend/src/offline/{db,session,cleanup,account,storage,bundles,prepared,storageCheck}.ts</code>: Dexie <code>aws-mms</code> with the six TRD §7.1 tables, the PBKDF2 PIN verifier with a five-try lockout counted before the check, logout and user-change cleanup that never touches <code>outbox</code> or <code>blobs</code>, the resumable Prepare engine, reads of the prepared copy. Session store: <code>locked</code>, <code>unlockState</code>, <code>offline</code>; <code>/unlock</code>, <code>/needs-connection</code>, route meta <code>offline</code>, the PIN dialog and an Offline PIN section on My profile. Back end: <code>GET /visits/{id}/field-bundle</code>, <code>prepared_on</code> on the visit (staff only), <code>visit.prepared</code>. Screens: the Prepare panel (visit page and field page), the iPhone install steps, the Install card and row, the station and visit read from the phone (<code>features/offline/</code>, with gates on the <code>stations</code>, <code>visits</code> and <code>visit-field</code> routes), <code>/sync</code> "This phone" and <code>/sync/storage-check</code>. Verified locally: Vitest 564, Playwright <code>unlock</code>, <code>prepare</code> (real files from the SeaweedFS host, a files host that is blocked and then back, the label scan and station with no signal) and <code>storageCheck</code> journeys with axe in light and dark, operations 392 plus 20 new, precache unchanged at 29 files. Finding F2 decided; F3 shows on <code>/sync</code>. Charts: Prepare sequence, the offline session states, the start-up decision tree, device storage data flow. Still open: the Android check (install, prepare, airplane mode, restart, unlock, scan; the storage check with 50 photos and 3 videos), the iPhone check (postponed by choice; before W15), and W14.</td></tr>
               <tr><td>2026-10-22</td><td>P4 · W12</td><td><b>The visit in the field shell</b> (decisions W12-1 to W12-3). <code>/visits/:id/field</code> (<code>features/visits/field/VisitFieldPage.vue</code>): the stations, Arrive and Depart, each station's board (<code>VisitBoard</code> with <code>field</code>: no tabs), a sticky End visit; the field shell's top bar can name the page and carry Back (<code>app/shells/fieldBar.ts</code>). <code>VisitsPage</code> sends a started visit on a phone there; <code>useVisitMoves</code> is shared. The client's view of shared elements was built with the board (slice 3). Verified locally: Vitest 463, Playwright <code>e2e/board.spec.ts</code> (the phone run now goes start → stations → arrive → board → depart → end → Sync; axe on each screen), visits journeys; precache unchanged at 29 files. Review pass: Arrive and Depart carry the station in their label, a station row has a hover state, the not-found message says what to do. Two more phone journeys: a station someone else owns (no Arrive or Depart, your own additions allowed) and a client on a phone reading the shared part of an ended visit. Chart: which page a visit opens on. Still open: the staging exit checks on an Android phone.</td></tr>
               <tr><td>2026-10-22</td><td>P4 · W11</td><td><b>Board uploads outlive the Visits page.</b> <code>uploadQueues.ts</code> no longer stops when <code>VisitsPage</code> unmounts: a photo or video keeps going up while the person is in another section, and the queues stop only when the session ends (<code>onSessionChange</code>: logout, expired or revoked), so a shared phone never passes a file to the next person. <code>uploadsOnTheirWay</code> and <code>uploadsLabel</code> count files on their way across visits; the rail's Sync entry (badge and tooltip), the field shell's <code>SyncBadge</code>, the Me menu on phones and the Sync page say "1 file uploading" (or "did not upload") instead of "All synced". Still memory only until Phase 5 (OFF-10): a reload or a lost connection still loses a pending file; storing it in Dexie's <code>blobs</code> and sending it from the outbox runner is the Phase 5 slice. Tests: Vitest <code>uploadQueues.spec.ts</code>, Playwright <code>e2e/board.spec.ts</code> (leave the page mid-upload; fails with the old behaviour).</td></tr>
               <tr><td>2026-10-22</td><td>P4 · W11</td><td><b>Config versions and Create request</b> (slice 4; decisions W11-24, W11-37, W11-38). The end of a visit makes a configuration version from each Config element whose After files are not yet one (<code>api/visits/board_versions.py</code>; 409 <code>config_files_not_ready</code> while media checks a file); after the end, <code>POST .../config-version</code> saves changed files as the next. Migration <code>0012</code>: board versions are <code>from_board</code> and may repeat a file. <code>POST .../request</code> makes a request from a recommendation (<code>insert_request</code> shared with <code>POST /requests</code>; <code>source</code> on the request). <code>ElementOut</code> gains <code>config_versions</code> and <code>version_due</code>. The sheet lists the versions made and offers the next; a recommendation asks for the kind of work and links its request. The board reloads when the visit changes.</td></tr>

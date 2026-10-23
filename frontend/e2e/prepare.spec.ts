@@ -1,4 +1,5 @@
-import type { Browser, Page } from '@playwright/test'
+import type { Browser, Locator, Page } from '@playwright/test'
+import { goInApp, restartOffline, typePin } from './offlineFlows'
 import { claimedRequest, logIn, unique } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
@@ -56,6 +57,19 @@ async function plannedVisit (page: Page, browser: Browser, title: string): Promi
   return new URL(page.url()).pathname
 }
 
+/** The demo station collects documents from every run: keep only this run's manual, so the download stays short. */
+async function onlyThisManual (panel: Locator, run: string): Promise<void> {
+  const boxes = panel.getByRole('checkbox')
+  const count = await boxes.count()
+  for (let i = 0; i < count; i++) {
+    const box = boxes.nth(i)
+    const name = await box.evaluate(el => el.closest('label')?.textContent ?? '')
+    if (!name.includes(`manual-${run}.pdf`) && await box.isChecked()) {
+      await box.uncheck()
+    }
+  }
+}
+
 /** What the phone holds, read straight from IndexedDB. */
 async function onPhone (page: Page): Promise<{ bundles: { visit_id: string, ready: boolean, files_done: number, files_total: number }[], files: { name: string, size: number, required: boolean, blobSize: number }[] }> {
   return page.evaluate(async () => {
@@ -76,7 +90,9 @@ async function onPhone (page: Page): Promise<{ bundles: { visit_id: string, read
   })
 }
 
-test('A technician prepares a visit: the PIN, the files, then Ready offline @OFF-1 @AUTH-12 @J5', async ({ watched: page, browser }) => {
+test('A technician prepares a visit, then reads it with no signal @OFF-1 @AUTH-12 @J5 @QR-5 @CFG-4 @OFF-2', async ({ watched: page, browser, context }) => {
+  // Several sign-ins and a download: the gateway's login limit makes the pacing long after other journeys
+  test.setTimeout(240_000)
   const run = Date.now().toString(36)
   await logIn(page, 'tech1@example.org')
   await stationFiles(page, run)
@@ -90,6 +106,7 @@ test('A technician prepares a visit: the PIN, the files, then Ready offline @OFF
   await checkA11y(page, '/visits/:id (prepare)')
 
   // The first time, the phone asks for a PIN, then goes on to download
+  await onlyThisManual(panel, run)
   await panel.getByRole('button', { name: 'Prepare for field' }).click()
   const pin = page.getByRole('dialog', { name: 'Set a PIN for this phone' })
   await pin.getByLabel('PIN', { exact: true }).fill('4729')
@@ -120,7 +137,51 @@ test('A technician prepares a visit: the PIN, the files, then Ready offline @OFF
   await page.getByRole('button', { name: 'Update offline copy' }).click()
   await expect(page.getByRole('button', { name: 'Update offline copy' })).toBeEnabled({ timeout: 60_000 })
   expect((await onPhone(page)).files).toHaveLength(held.files.length)
-  expect(path).toMatch(/\/visits\//)
+
+  // The label's token as the phone holds it
+  const token = await page.evaluate(async () => {
+    const open = indexedDB.open('aws-mms')
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      open.addEventListener('success', () => resolve(open.result))
+      open.addEventListener('error', () => reject(open.error))
+    })
+    const rows = await new Promise<any[]>((resolve, reject) => {
+      const request = db.transaction('bundles').objectStore('bundles').getAll()
+      request.addEventListener('success', () => resolve(request.result))
+      request.addEventListener('error', () => reject(request.error))
+    })
+    db.close()
+    const station = rows[0].data.stations.find((s: any) => s.station.code === 'JM-KIN-001')
+    return station.station.qr_token as string
+  })
+  expect(token).toBeTruthy()
+
+  // Restart with no signal, unlock, then scan the label
+  await restartOffline(page, context, path)
+  await typePin(page, '4729')
+  await expect(page.getByText('No connection. You can read this visit.')).toBeVisible()
+  await expect(page.getByText('Ready offline')).toBeVisible()
+  await checkA11y(page, '/visits/:id (offline)')
+
+  await goInApp(page, `/s/${token}`)
+  await expect(page).toHaveURL(/\/stations\/[\da-f-]{36}$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'JM-KIN-001' })).toBeVisible()
+  await expect(page.getByText(/No connection\. Showing the copy prepared/)).toBeVisible()
+  const config = page.getByRole('region', { name: 'Configuration' })
+  await expect(config.getByText(`logger-${run}.cfg`)).toBeVisible()
+  await expect(config.getByText(/saved on this phone/).first()).toBeVisible()
+  await expect(config.getByRole('button', { name: 'Open' }).first()).toBeVisible()
+  await checkA11y(page, '/stations/:id (offline)')
+
+  // A label that is not on the phone says so
+  await goInApp(page, '/s/not-a-prepared-label')
+  await expect(page.getByRole('heading', { name: 'This station is not on your phone' })).toBeVisible()
+  await checkA11y(page, '/s/:token (not prepared)')
+
+  // The visit's page reads from the phone too
+  await goInApp(page, path)
+  await expect(page.getByRole('heading', { name: 'Stations' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Kingston Harbour/ })).toBeVisible()
 })
 
 test('Files that cannot be fetched leave the visit not ready, and Try again finishes it @OFF-1', async ({ watched: page, browser }) => {
@@ -132,6 +193,7 @@ test('Files that cannot be fetched leave the visit not ready, and Try again fini
   // The files host is out of reach; the server is not
   await page.route('https://files.mms.localhost/**', route => route.abort())
   const panel = page.getByRole('region', { name: 'Prepare for field' })
+  await onlyThisManual(panel, run)
   await panel.getByRole('button', { name: 'Prepare for field' }).click()
   const pin = page.getByRole('dialog', { name: 'Set a PIN for this phone' })
   await pin.getByLabel('PIN', { exact: true }).fill('4729')
