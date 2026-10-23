@@ -16,5 +16,6 @@ export default defineConfig({
     // The colour library's ESM build has extensionless imports: let Vite resolve them
     server: { deps: { inline: ['vuetify', '@material/material-color-utilities'] } },
     css: false,
+    setupFiles: ['src/test/setup.ts'],
   },
 })
