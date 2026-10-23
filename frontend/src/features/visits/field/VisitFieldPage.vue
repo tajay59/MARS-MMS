@@ -22,6 +22,7 @@
 
           <v-btn
             v-if="current.actions.includes('arrive')"
+            :aria-label="`Arrive at ${label(current)}`"
             block
             class="mt-2"
             color="primary"
@@ -31,6 +32,7 @@
 
           <v-btn
             v-if="current.actions.includes('depart')"
+            :aria-label="`Depart from ${label(current)}`"
             block
             class="mt-2"
             color="primary"
@@ -68,7 +70,7 @@
             <ul aria-label="Stations" class="m-0 flex list-none flex-col gap-2 p-0">
               <li v-for="station in detail.stations" :key="station.station_id" class="flex flex-col rounded-card bg-surface-50">
                 <router-link
-                  class="flex min-h-16 flex-col gap-0.5 rounded-card px-3.5 py-3 text-surface-900 no-underline active:bg-surface-100"
+                  class="flex min-h-16 flex-col gap-0.5 rounded-card px-3.5 py-3 text-surface-900 no-underline hover:bg-surface-100 active:bg-surface-100"
                   :to="{ name: 'visit-field', params: { id: detail.id }, query: { station: station.station_id } }"
                 >
                   <span class="font-medium">{{ station.station_name }}</span>
@@ -80,6 +82,7 @@
                 <div v-if="station.actions.length > 0" class="px-3.5 pb-3">
                   <v-btn
                     v-if="station.actions.includes('arrive')"
+                    :aria-label="`Arrive at ${label(station)}`"
                     block
                     color="primary"
                     :loading="busy === `arrive-${station.station_id}`"
@@ -88,6 +91,7 @@
 
                   <v-btn
                     v-if="station.actions.includes('depart')"
+                    :aria-label="`Depart from ${label(station)}`"
                     block
                     color="primary"
                     :loading="busy === `depart-${station.station_id}`"
@@ -156,7 +160,7 @@
   const detailMessage = computed(() => {
     switch (detailError.value) {
       case 'missing': {
-        return 'We can’t find this visit. It may have been removed, or the link may be wrong.'
+        return 'We can’t find this visit. It may have been removed, or the link may be wrong. Use the back arrow to return to your visits.'
       }
       case 'offline': {
         return 'This needs a connection. It will load when you have signal.'
@@ -183,6 +187,11 @@
   function say (text: string): void {
     toast.text = text
     toast.show = true
+  }
+
+  /** What a screen reader says for a station's button: its name, else its code. */
+  function label (station: VisitStation): string {
+    return station.station_name ?? station.station_code ?? 'the station'
   }
 
   function ownedBy (station: VisitStation): string {

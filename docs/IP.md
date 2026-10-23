@@ -240,7 +240,7 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 **Staging release 0.4:** two technicians record a mock visit on their phones at a nearby station, each owning one station, each filling in its board with all four kinds, a Config file and a 2-minute video.
 
-**Exit criteria:** a visit recorded online updates the sensor installation and calibration history, and correcting a serial after the visit ends fixes the history. A 2-minute video plays in Chrome and iOS Safari after processing. Processed images carry no GPS data.
+**Exit criteria:** a visit recorded online fills a board for each station, and a Config element's After files become the station's configuration version at the end of the visit. A technician sees only their own stations' Arrive and Depart, and a client sees only the shared elements of an ended visit. A 2-minute video plays in Chrome and iOS Safari after processing. Processed images carry no GPS data. (Changed 2026-10-22: visits no longer change the sensor inventory, decision W11-17.)
 
 ## Phase 5 · Offline field mode (W13–W15)
 

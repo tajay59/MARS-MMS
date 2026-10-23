@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test'
+import type { Browser, Locator, Page } from '@playwright/test'
 import { claimedRequest, logIn, pdf, staffPage, unique } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
@@ -25,6 +25,12 @@ async function photo (page: Page, text: string): Promise<{ name: string, mimeTyp
     return canvas.toDataURL('image/jpeg', 0.9).split(',', 2)[1]
   }, text)
   return { name: `${text.toLowerCase().replaceAll(' ', '-')}.jpg`, mimeType: 'image/jpeg', buffer: Buffer.from(base64, 'base64') }
+}
+
+/** A page at desktop size, even in the phone project: the planning steps use the tables of the wide layout. */
+async function deskPage (browser: Browser): Promise<Page> {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false })
+  return context.newPage()
 }
 
 /** Tech 1 plans a visit to both stations (leading, owning both), and starts it. Returns its path. */
@@ -240,6 +246,78 @@ test('A visit on a phone: stations, arrive, a board, depart and end in the field
   await page.getByRole('button', { name: 'End visit' }).click()
   await page.getByRole('dialog', { name: 'End visit' }).getByRole('button', { name: 'End visit' }).click()
   await expect(page).toHaveURL(/\/sync$/)
+})
+
+test('On a phone, a station someone else owns offers no Arrive, only your own additions @REQ-VIS-3 @J6 @phone', async ({ watched: page, browser }) => {
+  test.setTimeout(240_000)
+  const title = unique('Wind vane')
+  const path = await claimedRequest(browser, title)
+
+  // Tech 1 plans it, owning Kingston Harbour while Tech 2 owns Montego Bay Airport, and starts it
+  const lead = await deskPage(browser)
+  await logIn(lead, 'tech1@example.org')
+  await lead.goto(path)
+  await lead.getByRole('button', { name: 'Schedule visit' }).click()
+  const dialog = lead.getByRole('dialog', { name: 'Schedule visit' })
+  await dialog.getByRole('button', { name: 'Add person' }).click()
+  await lead.getByRole('menuitem', { name: /Tech 2/ }).click()
+  await lead.keyboard.press('Escape')
+  await dialog.getByRole('combobox', { name: 'Owner of Montego Bay Airport' }).click({ force: true })
+  await lead.getByRole('option', { name: /^Tech 2/ }).click()
+  await dialog.getByRole('button', { name: 'Schedule visit' }).click()
+  await expect(lead.getByText(/VR-\d{4}-\d{4}-01 is planned\./)).toBeVisible()
+  await lead.getByRole('row', { name: /VR-\d{4}-\d{4}-01/ }).getByRole('link', { name: /VR-/ }).click()
+  await lead.getByRole('button', { name: 'Start visit' }).click()
+  await expect(lead.getByText('Visit started. The request is In progress.')).toBeVisible()
+  const visitPath = new URL(lead.url()).pathname
+  await lead.context().close()
+
+  // Tech 2, on a phone, lands on the stations
+  await logIn(page, 'tech2@example.org')
+  await page.goto(visitPath)
+  await expect(page).toHaveURL(/\/field$/)
+  const stations = page.getByRole('list', { name: 'Stations' })
+  const kingston = stations.getByRole('listitem').filter({ hasText: 'Kingston Harbour' })
+  const montego = stations.getByRole('listitem').filter({ hasText: 'Montego Bay Airport' })
+  await expect(kingston).toContainText('Owned by Tech 1')
+  await expect(kingston.getByRole('button')).toHaveCount(0)
+  await expect(montego.getByRole('button', { name: 'Arrive at Montego Bay Airport' })).toBeVisible()
+  await checkA11y(page, '/visits/:id/field (another person’s station, phone)')
+
+  // Someone else's station says so, can still be added to, and cannot be arrived at or left
+  await kingston.getByRole('link').click()
+  await expect(page.getByText('Owned by Tech 1. You can add your own notes, tasks and files.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Arrive|^Depart/ })).toHaveCount(0)
+  await checkA11y(page, '/visits/:id/field (board of another person’s station, phone)')
+})
+
+test('A client on a phone reads the shared part of an ended visit and cannot change it @REQ-VIS-11 @J8 @phone', async ({ watched: page, browser }) => {
+  test.setTimeout(240_000)
+  const staff = await deskPage(browser)
+  const visitPath = await startedVisit(staff, browser, unique('Pressure sensor'))
+
+  // A shared recommendation, and a note that stays with staff
+  let sheet = await titled(staff, await add(staff, 'Recommendation'), 'Replace the guy wires next quarter')
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  sheet = await titled(staff, await add(staff, 'Note'), 'Gate code is on the fence post')
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await staff.getByRole('button', { name: 'End visit' }).click()
+  await staff.getByRole('dialog', { name: 'End visit' }).getByRole('button', { name: 'End visit' }).click()
+  await expect(staff.getByText(/ended/i).first()).toBeVisible()
+  await staff.context().close()
+
+  // The client's phone: the visit page, its board read only, never the field page
+  await logIn(page, 'client.a1@example.org')
+  await page.goto(visitPath)
+  await expect(note(page, 'Replace the guy wires next quarter')).toContainText('Recommendation')
+  await expect(note(page, 'Gate code is on the fence post')).toHaveCount(0)
+  await expect(page).not.toHaveURL(/\/field/)
+  await expect(page.getByRole('navigation', { name: 'Field' })).toHaveCount(0)
+  for (const name of ['Add', 'End visit', 'Arrive', 'Depart', 'Start visit']) {
+    await expect(page.getByRole('button', { name })).toHaveCount(0)
+  }
+  await checkA11y(page, '/visits/:id (client board, phone)')
 })
 
 test('A file keeps going up when the technician leaves the Visits page, and the Sync entry says so @REQ-VIS-5 @REQ-OFF-6', async ({ watched: page, browser }) => {
