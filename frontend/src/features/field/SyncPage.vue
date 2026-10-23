@@ -57,6 +57,8 @@
           <p v-else class="m-0 text-sm text-surface-600">This browser doesn’t say how much space is left.</p>
         </section>
 
+        <DiagnosticsCard v-if="isStaff" />
+
         <section aria-labelledby="appearance-h" class="mt-auto flex flex-col gap-3">
           <h2 id="appearance-h" class="m-0 text-h3 text-surface-900">Appearance</h2>
           <AppearanceToggle labelledby="appearance-h" :large="mobile" />
@@ -87,6 +89,8 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import PageBody from '@/components/PageBody.vue'
   import { uploadsLabel, uploadsOnTheirWay } from '@/features/visits/uploadQueues'
+  import { useSessionStore } from '@/stores/session'
+  import DiagnosticsCard from './DiagnosticsCard.vue'
 
   /*
     /sync (AFD §3, F3). Nothing is queued on a device until offline visits arrive in Phase 5, so
@@ -96,6 +100,7 @@
   */
   const GB = 1024 ** 3
   const { mobile } = useDisplay()
+  const { isStaff } = useSessionStore()
 
   const storage = ref<{ used: number, free: number, percent: number, persisted: boolean } | null>(null)
   const lowSpace = ref(false)

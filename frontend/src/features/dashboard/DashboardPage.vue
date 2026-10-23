@@ -27,6 +27,8 @@
     </PaneContent>
 
     <div class="flex flex-col gap-8">
+      <InstallCard />
+
       <MyVisits v-if="canAttend" />
 
       <section class="flex max-w-2xl flex-col gap-2">
@@ -41,6 +43,7 @@
   import { mdiPlus } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { computed, onMounted } from 'vue'
+  import InstallCard from '@/app/pwa/InstallCard.vue'
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import MyVisits from '@/features/visits/MyVisits.vue'

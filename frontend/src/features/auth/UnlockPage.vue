@@ -41,7 +41,7 @@
       Connect to the internet and log in to continue. Your work is saved on this phone.
     </FeedbackBanner>
 
-    <ul class="m-0 flex list-none flex-col gap-3 p-0 text-surface-900">
+    <ul class="m-0 flex list-none flex-col gap-3 p-0 text-surface-900" role="list">
       <li class="flex items-start gap-3">
         <v-icon class="mt-0.5 text-success" :icon="mdiCheck" size="20" />
         Nothing was deleted. Visits you prepared and anything you recorded are still here.

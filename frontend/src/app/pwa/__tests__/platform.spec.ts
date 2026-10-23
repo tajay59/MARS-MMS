@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isIos, isStandalone, mustInstallToPrepare } from '../platform'
+import { describePhone, isIos, isStandalone, mustInstallToPrepare } from '../platform'
 
 // An iPhone prepares only from the installed app (finding F2, W13-12).
 
@@ -42,5 +42,14 @@ describe('mustInstallToPrepare', () => {
     expect(mustInstallToPrepare(nav({ userAgent: IPHONE }), browser)).toBe(true)
     expect(mustInstallToPrepare(nav({ userAgent: IPHONE, standalone: true }), browser)).toBe(false)
     expect(mustInstallToPrepare(nav({ userAgent: ANDROID }), browser)).toBe(false)
+  })
+})
+
+describe('describePhone', () => {
+  it('names the system and the browser', () => {
+    expect(describePhone(nav({ userAgent: IPHONE }))).toBe('iPhone, iOS 18.0, Safari')
+    expect(describePhone(nav({ userAgent: ANDROID }))).toBe('Android 15, Chrome')
+    expect(describePhone(nav({ userAgent: 'Mozilla/5.0 (Windows NT 10.0) Gecko Firefox/140.0' }))).toBe('Computer, Firefox')
+    expect(describePhone(nav({ userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/140 Safari/537 Edg/140' }))).toBe('Computer, Edge')
   })
 })

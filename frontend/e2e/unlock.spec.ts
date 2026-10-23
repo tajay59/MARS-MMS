@@ -1,4 +1,5 @@
-import type { BrowserContext, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { goInApp, restartOffline, typePin } from './offlineFlows'
 import { logIn } from './requestFlows'
 import { checkA11y, expect, test } from './support'
 
@@ -20,32 +21,6 @@ async function setPin (page: Page, pin: string): Promise<void> {
   await page.getByLabel('Repeat the PIN').fill(pin)
   await page.getByRole('button', { name: 'Save PIN' }).click()
   await expect(page.getByRole('button', { name: 'Change PIN' })).toBeVisible()
-}
-
-/** Offline, restarted on /sync: the app asks for the PIN. */
-async function restartOffline (page: Page, context: BrowserContext, path = '/sync'): Promise<void> {
-  await page.goto(path)
-  await page.evaluate(async () => {
-    await navigator.serviceWorker.ready
-  })
-  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
-  await context.setOffline(true)
-  await page.reload()
-}
-
-async function typePin (page: Page, pin: string): Promise<void> {
-  for (const digit of pin) {
-    await page.getByRole('button', { name: digit, exact: true }).click()
-  }
-  await page.getByRole('button', { name: 'Unlock', exact: true }).click()
-}
-
-/** Moves inside the running app, without a page load (a load would ask for the PIN again). */
-async function goInApp (page: Page, path: string): Promise<void> {
-  await page.evaluate(async target => {
-    const root = document.querySelector('#app') as unknown as { __vue_app__: { config: { globalProperties: { $router: { push: (to: string) => Promise<unknown> } } } } }
-    await root.__vue_app__.config.globalProperties.$router.push(target)
-  }, path)
 }
 
 test('The PIN opens the field pages with no signal, and other pages say they need a connection @AUTH-12 @OFF-3', async ({ watched: page, context }) => {

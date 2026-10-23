@@ -6,7 +6,7 @@
       On an iPhone, the app on your Home Screen keeps its own saved visits, separate from Safari. A visit prepared here would not be there. Install first, then prepare.
     </p>
 
-    <ol class="m-0 flex list-none flex-col gap-3 p-0">
+    <ol class="m-0 flex list-none flex-col gap-3 p-0" role="list">
       <li v-for="(step, index) in steps" :key="step" class="flex items-start gap-3">
         <span aria-hidden="true" class="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-on-primary">{{ index + 1 }}</span>
         <span class="text-surface-900">{{ step }}</span>

@@ -17,8 +17,8 @@
     <FeedbackBanner v-if="prep.failure.value" type="error">{{ prep.failure.value }}</FeedbackBanner>
 
     <!-- Downloading -->
-    <div v-if="prep.running.value && prep.progress.value" class="flex flex-col gap-3" role="status">
-      <p class="m-0 font-semibold text-surface-900">Downloading {{ Math.min(prep.progress.value.filesDone + 1, prep.progress.value.filesTotal) }} of {{ prep.progress.value.filesTotal || '…' }} files</p>
+    <div v-if="prep.running.value && prep.progress.value" class="flex flex-col gap-3">
+      <p class="m-0 font-semibold text-surface-900" role="status">Downloading {{ Math.min(prep.progress.value.filesDone + 1, prep.progress.value.filesTotal) }} of {{ prep.progress.value.filesTotal || '…' }} files</p>
 
       <v-progress-linear
         aria-label="Download progress"
@@ -45,7 +45,7 @@
 
     <!-- Ready (or ready with gaps) -->
     <div v-else-if="prep.state.value === 'ready' && prep.row.value" class="flex flex-col gap-3">
-      <p class="m-0 text-surface-900">Prepared {{ preparedAgo }}.</p>
+      <p class="m-0 text-surface-900">Prepared {{ ago }}.</p>
 
       <dl class="m-0 grid grid-cols-3 gap-2 text-center">
         <div class="rounded-card bg-surface-100 px-1 py-2.5"><dd class="m-0 text-xl font-semibold text-surface-900">{{ visit.stations.length }}</dd><dt class="text-xs text-surface-700">stations</dt></div>
@@ -61,7 +61,7 @@
       <template v-if="prep.gaps.value.length > 0">
         <p class="m-0 text-surface-900">These documents did not download:</p>
 
-        <ul class="m-0 flex list-none flex-col gap-2 p-0">
+        <ul class="m-0 flex list-none flex-col gap-2 p-0" role="list">
           <li v-for="file in prep.gaps.value" :key="file.media_id" class="rounded-card bg-surface-100 px-3 py-2.5 text-sm">
             <span class="font-mono" translate="no">{{ file.name }}</span>
             <span class="text-surface-700"> · {{ prep.bytes(file.size) }}</span>
@@ -139,6 +139,7 @@
   import { mustInstallToPrepare } from '@/app/pwa/platform'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import PinDialog from '@/features/field/PinDialog.vue'
+  import { preparedAgo } from '@/features/offline/preparedAgo'
   import { useSessionStore } from '@/stores/session'
   import InstallSteps from './InstallSteps.vue'
   import { usePrepare } from './usePrepare'
@@ -169,15 +170,5 @@
     return p && p.bytesTotal > 0 ? Math.min(100, Math.round((p.bytesDone / p.bytesTotal) * 100)) : 0
   })
 
-  const preparedAgo = computed(() => {
-    const at = prep.row.value?.prepared_at
-    if (!at) {
-      return ''
-    }
-    const days = Math.floor((Date.now() - Date.parse(at)) / 86_400_000)
-    if (days < 1) {
-      return 'today'
-    }
-    return days === 1 ? 'yesterday' : `${days} days ago`
-  })
+  const ago = computed(() => (prep.row.value ? preparedAgo(prep.row.value.prepared_at) : ''))
 </script>
