@@ -19,6 +19,12 @@ declare module 'vue-router' {
     roles?: readonly Role[]
     /** For pages not built yet: the IP phase that delivers them. */
     phase?: number
+    /**
+     * Opens with no signal for someone unlocked with the device PIN (OFF-10). `record` means only
+     * with an :id in the address, because the list needs the server. Everything else shows
+     * "This needs a connection".
+     */
+    offline?: true | 'record'
   }
 }
 
@@ -74,7 +80,23 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'Accept invitation', layout: 'public' },
   },
 
+  {
+    // The device PIN opens the field work when the app starts with no signal (AUTH-12). Public
+    // shell, but not guestOnly: the guard sends it where it belongs.
+    path: '/unlock',
+    name: 'unlock',
+    component: () => import('@/features/auth/UnlockPage.vue'),
+    meta: { title: 'Unlock', layout: 'public' },
+  },
+
   // Shared
+  {
+    // Where a page that needs the server sends someone unlocked with no signal (AFD §5.2)
+    path: '/needs-connection',
+    name: 'needs-connection',
+    component: () => import('@/app/pages/NeedsConnectionPage.vue'),
+    meta: { title: 'Needs a connection', layout: 'field', offline: true },
+  },
   {
     path: '/dashboard',
     name: 'dashboard',
@@ -94,8 +116,8 @@ export const routes: RouteRecordRaw[] = [
     // the forms and the server refuses them anyway.
     path: '/stations/:id?/:mode(edit)?',
     name: 'stations',
-    component: () => import('@/features/stations/StationsPage.vue'),
-    meta: { title: 'Stations', layout: 'app' },
+    component: () => import('@/features/offline/StationsGate.vue'),
+    meta: { title: 'Stations', layout: 'app', offline: 'record' },
   },
   {
     // Stations on a map (PRD MAP-1 to MAP-3); clients see their own organization's
@@ -122,16 +144,16 @@ export const routes: RouteRecordRaw[] = [
     // their organization's visits, read only.
     path: '/visits/:id?',
     name: 'visits',
-    component: () => import('@/features/visits/VisitsPage.vue'),
-    meta: { title: 'Visits', layout: 'app' },
+    component: () => import('@/features/offline/VisitsGate.vue'),
+    meta: { title: 'Visits', layout: 'app', offline: 'record' },
   },
   {
     // A started visit on a phone (AFD J6, W12): its stations, and each station's board. Phones are
     // sent here from /visits/:id once the visit has started; the page sends other screens back.
     path: '/visits/:id/field',
     name: 'visit-field',
-    component: () => import('@/features/visits/field/VisitFieldPage.vue'),
-    meta: { title: 'Visit', layout: 'field', roles: STAFF },
+    component: () => import('@/features/offline/VisitFieldGate.vue'),
+    meta: { title: 'Visit', layout: 'field', roles: STAFF, offline: true },
   },
   later('/reports', 'reports', 'Reports', 7),
   {
@@ -168,7 +190,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/scan',
     name: 'scan',
     component: () => import('@/features/scan/ScanPage.vue'),
-    meta: { title: 'Scan', layout: 'field', roles: STAFF },
+    meta: { title: 'Scan', layout: 'field', roles: STAFF, offline: true },
   },
   {
     // The address on every station label (PRD QR-2). Clients open it too: their camera app scans a
@@ -177,13 +199,20 @@ export const routes: RouteRecordRaw[] = [
     name: 'scan-result',
     component: () => import('@/features/scan/ScanLandingPage.vue'),
     props: true,
-    meta: { title: 'Scan', layout: 'field' },
+    meta: { title: 'Scan', layout: 'field', offline: true },
+  },
+  {
+    // The W13 iOS check (risk R4): test files kept on the phone and read back after a restart
+    path: '/sync/storage-check',
+    name: 'storage-check',
+    component: () => import('@/features/field/StorageCheckPage.vue'),
+    meta: { title: 'Storage check', layout: 'field', roles: STAFF, offline: true },
   },
   {
     path: '/sync',
     name: 'sync',
     component: () => import('@/features/field/SyncPage.vue'),
-    meta: { title: 'Sync', layout: 'field', roles: STAFF },
+    meta: { title: 'Sync', layout: 'field', roles: STAFF, offline: true },
   },
 
   // Admin

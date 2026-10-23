@@ -954,6 +954,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visits/{id}/field-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Field Bundle
+         * @description OFF-1: the request, the visit's stations with their sensors, calibration status, latest
+         *     configuration version, documents and boards. Everyone attending (and an admin) may prepare a
+         *     planned or started visit; asking again from the same phone refreshes the record of it.
+         */
+        get: operations["field_bundle_api_v1_visits__id__field_bundle_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/visits/{id}/restore": {
         parameters: {
             query?: never;
@@ -1365,6 +1387,50 @@ export interface components {
              * @description XLSX workbook, stations CSV, or the existing system's site export (JSON)
              */
             stations: string;
+        };
+        /**
+         * BundleFile
+         * @description A file the phone can store as a blob. The phone asks for a ten-minute link when it
+         *     downloads (`media_id` for a configuration file, `document_id` for a document) and never keeps
+         *     the link (TRD §7.1). `required` files (the latest configuration version's) must be stored
+         *     before the visit counts as ready.
+         */
+        BundleFile: {
+            /** Document Id */
+            document_id: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "config" | "document";
+            /** Media Id */
+            media_id: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Sha256 */
+            sha256: string | null;
+            /** Size */
+            size: number;
+            /** Station Id */
+            station_id: string;
+        };
+        /**
+         * BundleStation
+         * @description One station of the visit: its record with the sensors installed, the calibration history,
+         *     the latest configuration version, its documents and the visit's board for it.
+         */
+        BundleStation: {
+            /** Board */
+            board: components["schemas"]["ElementOut"][];
+            /** Calibrations */
+            calibrations: components["schemas"]["CalibrationOut"][];
+            /** Can Add */
+            can_add: boolean;
+            config_version: components["schemas"]["ConfigVersionOut"] | null;
+            documents: components["schemas"]["StationDocuments"];
+            station: components["schemas"]["StationDetail"];
         };
         /**
          * CalibrationIn
@@ -1959,6 +2025,22 @@ export interface components {
             /** Follow Up Notes */
             follow_up_notes?: string | null;
         };
+        /** FieldBundle */
+        FieldBundle: {
+            /** Bundle Version */
+            bundle_version: number;
+            /** Files */
+            files: components["schemas"]["BundleFile"][];
+            /**
+             * Prepared At
+             * Format: date-time
+             */
+            prepared_at: string;
+            request: components["schemas"]["RequestDetail"];
+            /** Stations */
+            stations: components["schemas"]["BundleStation"][];
+            visit: components["schemas"]["VisitOut"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2221,6 +2303,18 @@ export interface components {
             controller?: string | null;
             /** Panel W */
             panel_w?: number | null;
+        };
+        /**
+         * PreparedOn
+         * @description A phone this visit is prepared on (W13-9): who, and when. Staff only.
+         */
+        PreparedOn: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            user: components["schemas"]["VisitPersonOut"];
         };
         /**
          * QrResolved
@@ -3082,6 +3176,8 @@ export interface components {
              * Format: date-time
              */
             planned_start: string;
+            /** Prepared On */
+            prepared_on: components["schemas"]["PreparedOn"][];
             /** Ref */
             ref: string;
             /** Request Id */
@@ -5090,6 +5186,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    field_bundle_api_v1_visits__id__field_bundle_get: {
+        parameters: {
+            query: {
+                device_id: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldBundle"];
                 };
             };
             /** @description Validation Error */

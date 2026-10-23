@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, BoardRequestIn, CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
+import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, BoardRequestIn, CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, FieldBundle, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -174,6 +174,9 @@ export const visitsApi = {
   arrive: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/arrive`, {}),
   depart: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/depart`, {}),
   end: (id: string, body: EndVisitIn) => api.post<VisitOut>(`/visits/${id}/end`, body),
+  /** Everything a phone needs to carry the visit out with no signal; records where it is prepared (OFF-1). */
+  fieldBundle: (id: string, deviceId: string, signal?: AbortSignal) =>
+    api.get<FieldBundle>(`/visits/${id}/field-bundle`, { query: { device_id: deviceId }, signal }),
 }
 
 const board = (id: string, stationId: string) => `/visits/${id}/stations/${stationId}/elements`

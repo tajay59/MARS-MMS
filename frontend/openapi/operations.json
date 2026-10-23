@@ -268,6 +268,122 @@
         "title": "Body_import_stations_api_v1_stations_import_post",
         "type": "object"
       },
+      "BundleFile": {
+        "description": "A file the phone can store as a blob. The phone asks for a ten-minute link when it\ndownloads (`media_id` for a configuration file, `document_id` for a document) and never keeps\nthe link (TRD \u00a77.1). `required` files (the latest configuration version's) must be stored\nbefore the visit counts as ready.",
+        "properties": {
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "kind": {
+            "enum": [
+              "config",
+              "document"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "media_id",
+          "document_id",
+          "station_id",
+          "name",
+          "size",
+          "sha256",
+          "required"
+        ],
+        "title": "BundleFile",
+        "type": "object"
+      },
+      "BundleStation": {
+        "description": "One station of the visit: its record with the sensors installed, the calibration history,\nthe latest configuration version, its documents and the visit's board for it.",
+        "properties": {
+          "board": {
+            "items": {
+              "$ref": "#/components/schemas/ElementOut"
+            },
+            "title": "Board",
+            "type": "array"
+          },
+          "calibrations": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationOut"
+            },
+            "title": "Calibrations",
+            "type": "array"
+          },
+          "can_add": {
+            "title": "Can Add",
+            "type": "boolean"
+          },
+          "config_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfigVersionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documents": {
+            "$ref": "#/components/schemas/StationDocuments"
+          },
+          "station": {
+            "$ref": "#/components/schemas/StationDetail"
+          }
+        },
+        "required": [
+          "station",
+          "calibrations",
+          "config_version",
+          "documents",
+          "board",
+          "can_add"
+        ],
+        "title": "BundleStation",
+        "type": "object"
+      },
       "CalibrationIn": {
         "additionalProperties": false,
         "description": "A calibration recorded outside a visit (CAL-1); field checks come with visits.",
@@ -2167,6 +2283,49 @@
         "title": "EndIn",
         "type": "object"
       },
+      "FieldBundle": {
+        "properties": {
+          "bundle_version": {
+            "title": "Bundle Version",
+            "type": "integer"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BundleFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "prepared_at": {
+            "format": "date-time",
+            "title": "Prepared At",
+            "type": "string"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestDetail"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/BundleStation"
+            },
+            "title": "Stations",
+            "type": "array"
+          },
+          "visit": {
+            "$ref": "#/components/schemas/VisitOut"
+          }
+        },
+        "required": [
+          "bundle_version",
+          "prepared_at",
+          "visit",
+          "request",
+          "stations",
+          "files"
+        ],
+        "title": "FieldBundle",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3059,6 +3218,25 @@
           }
         },
         "title": "Power",
+        "type": "object"
+      },
+      "PreparedOn": {
+        "description": "A phone this visit is prepared on (W13-9): who, and when. Staff only.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/VisitPersonOut"
+          }
+        },
+        "required": [
+          "user",
+          "at"
+        ],
+        "title": "PreparedOn",
         "type": "object"
       },
       "QrResolved": {
@@ -6083,6 +6261,13 @@
             "title": "Planned Start",
             "type": "string"
           },
+          "prepared_on": {
+            "items": {
+              "$ref": "#/components/schemas/PreparedOn"
+            },
+            "title": "Prepared On",
+            "type": "array"
+          },
           "ref": {
             "title": "Ref",
             "type": "string"
@@ -6173,6 +6358,7 @@
           "staff",
           "stations",
           "actions",
+          "prepared_on",
           "version"
         ],
         "title": "VisitOut",
@@ -10307,6 +10493,65 @@
           }
         ],
         "summary": "End Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/field-bundle": {
+      "get": {
+        "description": "OFF-1: the request, the visit's stations with their sensors, calibration status, latest\nconfiguration version, documents and boards. Everyone attending (and an admin) may prepare a\nplanned or started visit; asking again from the same phone refreshes the record of it.",
+        "operationId": "field_bundle_api_v1_visits__id__field_bundle_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldBundle"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Field Bundle",
         "tags": [
           "visits"
         ]

@@ -193,3 +193,18 @@ async def next_visibility_seq(db: Db, visit_id: str, session: AsyncClientSession
     if doc is None:
         raise NotFound()
     return int(doc["visibility_seq"])
+
+
+async def set_prepared_on(
+    db: Db, visit_id: str, entries: list[dict[str, Any]], session: AsyncClientSession
+) -> dict[str, Any]:
+    """Where the visit is prepared (W13-9). Not a change to the visit: `version` stays, so a
+    person editing the visit is not told their copy is stale because a phone was prepared."""
+    doc: dict[str, Any] | None = await col(db).find_one_and_update(
+        {"_id": visit_id}, {"$set": {"prepared_on": entries}},
+        return_document=ReturnDocument.AFTER, session=session,
+    )
+    if doc is None:
+        raise NotFound()
+    return doc
+
