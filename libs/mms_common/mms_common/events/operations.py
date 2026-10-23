@@ -409,6 +409,17 @@ class VisitStationOwnerChanged(VisitFacts):
     station_name: str | None = None
 
 
+@register("visit.sync_conflict")
+class VisitSyncConflict(VisitFacts):
+    """A phone's work for this visit came back from `/sync` as a conflict (W14-5, TRD §7.4): the
+    reason code (`not_owner`, `visit_cancelled`, ...) and the kinds of operation, never their
+    content. It only drives notifications and is not audited."""
+
+    user_id: str  # whose phone
+    reason: str
+    op_types: list[str]
+
+
 @register("visit.station_arrived")
 class VisitStationArrived(VisitFacts):
     station_id: str

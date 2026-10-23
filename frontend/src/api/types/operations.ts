@@ -795,6 +795,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync
+         * @description OFF-5: apply a batch of offline operations in order. Always 200 for a well-formed batch:
+         *     each operation has its own answer (`applied`, `duplicate`, `conflict`, `error`, `skipped`).
+         */
+        post: operations["sync_api_v1_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/visits": {
         parameters: {
             query?: never;
@@ -1245,6 +1266,33 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnswerOut */
+        AnswerOut: {
+            /** Code */
+            code?: string | null;
+            /** Current */
+            current?: {
+                [key: string]: unknown;
+            } | null;
+            /** Message */
+            message?: string | null;
+            /** Op Id */
+            op_id: string;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "applied" | "duplicate" | "conflict" | "error" | "skipped";
+        };
         /**
          * AssignIn
          * @description REQ-7. The people the request is put with; `version` guards a change of staff on a request
@@ -2119,6 +2167,21 @@ export interface components {
             /** Model */
             model: string;
         };
+        /** OpIn */
+        OpIn: {
+            /** Op Id */
+            op_id: string;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+            /** Type */
+            type: string;
+            /** V */
+            v: number;
+            /** Visit Id */
+            visit_id: string;
+        };
         /** OrgOption */
         OrgOption: {
             /** Id */
@@ -2906,6 +2969,18 @@ export interface components {
             time_zone: string;
             /** Type */
             type: string | null;
+        };
+        /** SyncIn */
+        SyncIn: {
+            /** Device Id */
+            device_id: string;
+            /** Ops */
+            ops: components["schemas"]["OpIn"][];
+        };
+        /** SyncOut */
+        SyncOut: {
+            /** Answers */
+            answers: components["schemas"]["AnswerOut"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -4736,6 +4811,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_api_v1_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOut"];
                 };
             };
             /** @description Validation Error */
