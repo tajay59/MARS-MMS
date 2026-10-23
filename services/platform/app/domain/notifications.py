@@ -25,7 +25,7 @@ NOTIFY_EVENTS = frozenset({
     "request.assigned", "request.staff_changed", "request.released", "request.cancelled",
     "comment.added",
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.ended",
-    "visit.station_owner_changed",
+    "visit.station_owner_changed", "visit.sync_conflict",
 })
 VISIT_LIVE_EVENTS = frozenset({
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored", "visit.started",
@@ -37,6 +37,18 @@ LIVE_EVENTS = frozenset({
     "request.updated", "request.status_changed", "request.assigned", "request.staff_changed",
     "request.released", "comment.added", "comment.updated",
 }) | VISIT_LIVE_EVENTS
+
+
+# Why a phone's work came back, for the lead and the admins (TRD §7.4): title, then what to do
+SYNC_CONFLICT_TEXT: dict[str, tuple[str, str]] = {
+    "not_owner": ("Work came back: the owner changed",
+                  "arrival or departure times were not saved because another person owns the "
+                  "station now. They are kept on the phone"),
+    "not_editor": ("Work came back: someone else owns it now",
+                   "changes to a board were not saved. They are kept on the phone"),
+    "visit_cancelled": ("Work recorded on a cancelled visit",
+                        "restore the visit to let it save, or ask them to export it"),
+}
 
 
 @dataclass(frozen=True)
@@ -251,6 +263,13 @@ def _plan_visit(
                  f"{data['ref']} · changed by {who}")
             tell([data["from_staff_id"]], "visit.owner_changed", f"You no longer own {where}",
                  f"{data['ref']} · changed by {who}")
+        case "visit.sync_conflict":
+            # A phone's work came back unapplied (W14-5): the lead and the admins decide what to do
+            reason = SYNC_CONFLICT_TEXT.get(data["reason"])
+            if reason is not None:
+                who = actor_name or "A technician"
+                tell([data["lead_staff_id"], *audience.admins], "visit.sync_conflict", reason[0],
+                     f"{data['ref']} · {who}: {reason[1]}")
         case _:
             pass
 

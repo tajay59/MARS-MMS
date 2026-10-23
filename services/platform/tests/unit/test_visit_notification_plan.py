@@ -156,3 +156,31 @@ def test_the_day_is_written_in_the_zone_of_the_visit():
     assert when_text({"planned_start": START, "time_zone": "Mars/Olympus"}) == (
         "Thu 22 Oct, 13:00 UTC")
     assert when_text({"planned_start": START.isoformat()}) == "Thu 22 Oct, 13:00 UTC"
+
+
+@pytest.mark.req("OFF-11")
+def test_a_phones_work_that_came_back_tells_the_lead_and_the_admins_not_the_clients():
+    assert "visit.sync_conflict" in NOTIFY_EVENTS
+    made = run("visit.sync_conflict", TECH, {
+        "user_id": TECH, "reason": "not_owner", "op_types": ["station.arrive"],
+    })
+    assert who(made.drafts) == sorted([ADMIN, TECH2])  # the lead (TECH2) and the admin
+    assert all(d.type == "visit.sync_conflict" and not d.email for d in made.drafts)
+    assert made.drafts[0].title == "Work came back: the owner changed"
+    assert made.drafts[0].body.startswith("VR-2026-0042-01 · Andrea Clarke: ")
+    assert made.drafts[0].link == "/visits/v1"
+    # the technician whose phone it was is not told by the platform, and the client never is
+    assert TECH not in who(made.drafts) and CLIENT not in who(made.drafts)
+
+
+def test_a_conflict_that_needs_nobody_is_not_announced():
+    for reason in ("locked", "element_changed", "element_deleted", "already_ended"):
+        assert run("visit.sync_conflict", TECH, {"user_id": TECH, "reason": reason,
+                                                 "op_types": ["element.update"]}).drafts == []
+
+
+def test_a_cancelled_visit_asks_for_a_restore():
+    made = run("visit.sync_conflict", TECH, {"user_id": TECH, "reason": "visit_cancelled",
+                                             "op_types": ["visit.start"]}, status="cancelled")
+    assert made.drafts[0].title == "Work recorded on a cancelled visit"
+    assert "restore the visit" in made.drafts[0].body
