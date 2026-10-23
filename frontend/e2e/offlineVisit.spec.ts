@@ -97,16 +97,16 @@ test('A visit is recorded with no signal and goes up once when the signal return
 
   // Leave the station and end the visit
   await page.getByRole('button', { name: /^Depart from Kingston Harbour/ }).click()
-  const left = await held(page)
-  expect(left.outbox).toBeGreaterThanOrEqual(5) // start, arrive, create, media, depart
-  expect(left.blobs).toBe(1)
+  // start, arrive, create, media, depart (the last is written a moment after the click)
+  await expect.poll(async () => (await held(page)).outbox).toBeGreaterThanOrEqual(5)
+  expect((await held(page)).blobs).toBe(1)
   await page.getByRole('button', { name: 'End visit' }).click()
   const end = page.getByRole('dialog', { name: 'End visit' })
   await end.getByRole('button', { name: 'End visit' }).click()
   await expect(page).toHaveURL(/\/sync$/)
 
   // Nothing left the phone yet
-  expect((await held(page)).outbox).toBeGreaterThanOrEqual(6)
+  await expect.poll(async () => (await held(page)).outbox).toBeGreaterThanOrEqual(6)
 
   // The signal returns: it all goes up by itself, and the phone lets the visit go
   await context.setOffline(false)
