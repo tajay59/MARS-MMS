@@ -416,6 +416,8 @@ class VisitPrepared(VisitFacts):
 
     user_id: str
     device_id: str
+
+
 @register("visit.sync_conflict")
 class VisitSyncConflict(VisitFacts):
     """A phone's work for this visit came back from `/sync` as a conflict (W14-5, TRD §7.4): the
