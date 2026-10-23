@@ -105,6 +105,22 @@
           <p class="m-0 text-sm text-surface-600">System follows your device’s setting. Your choice is saved to your account.</p>
         </section>
 
+        <section v-if="canSetPin" aria-labelledby="pin-sec-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
+          <h2 id="pin-sec-h" class="m-0 text-h3 text-surface-900">Offline PIN</h2>
+
+          <p class="m-0 text-surface-900">
+            {{ pinSet
+              ? 'A PIN is set on this phone. It opens your field work when the app starts with no signal.'
+              : 'Set a PIN to open your field work on this phone when you have no signal.' }}
+          </p>
+
+          <div>
+            <v-btn variant="outlined" @click="pinOpen = true">{{ pinSet ? 'Change PIN' : 'Set a PIN' }}</v-btn>
+          </div>
+
+          <p class="m-0 text-sm text-surface-600">The PIN stays on this phone. Your phone’s passcode still protects what is stored on it.</p>
+        </section>
+
         <section aria-labelledby="em-h" class="flex scroll-mt-4 flex-col gap-4 border-t border-surface-200 pt-6 first:border-t-0 first:pt-0">
           <h2 id="em-h" class="m-0 text-h3 text-surface-900">Email preferences</h2>
 
@@ -136,6 +152,8 @@
     </form>
 
     <DiscardConfirm v-model="askLeave" message="Your changes to your profile will be lost." @leave="leave" />
+
+    <PinDialog v-model="pinOpen" @saved="pinSet = true" />
   </PageBody>
 </template>
 
@@ -156,12 +174,19 @@
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import PasswordField from '@/components/PasswordField.vue'
+  import PinDialog from '@/features/field/PinDialog.vue'
+  import { userHasPin } from '@/offline/account'
   import { useSessionStore } from '@/stores/session'
   import EmailPreferences from './EmailPreferences.vue'
 
   // /profile for every role (AUTH-13; DBD D2). Viewers may edit their own profile.
   const session = useSessionStore()
   const { user, isClient } = storeToRefs(session)
+
+  // The device PIN is for technicians and admins; viewers record nothing offline (AUTH-12)
+  const canSetPin = computed(() => !isClient.value && session.canAct)
+  const pinOpen = ref(false)
+  const pinSet = ref(false)
 
   const parts = [
     { id: 'details-h', label: 'Details' },
@@ -170,6 +195,9 @@
     { id: 'ap-h', label: 'Appearance' },
     { id: 'em-h', label: 'Email preferences' },
   ]
+  if (canSetPin.value) {
+    parts.splice(4, 0, { id: 'pin-sec-h', label: 'Offline PIN' })
+  }
 
   // Scrolls the view to a section and moves focus there, so keyboard users land in it too
   function jump (id: string): void {
@@ -253,7 +281,12 @@
       event.preventDefault()
     }
   }
-  onMounted(() => window.addEventListener('beforeunload', warnOnUnload))
+  onMounted(async () => {
+    window.addEventListener('beforeunload', warnOnUnload)
+    if (user.value && canSetPin.value) {
+      pinSet.value = await userHasPin(user.value.id)
+    }
+  })
   onBeforeUnmount(() => window.removeEventListener('beforeunload', warnOnUnload))
   const { askLeave, confirmLeave, leave } = useLeaveGuard(dirty)
   onBeforeRouteLeave(confirmLeave)
