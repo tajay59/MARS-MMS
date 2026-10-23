@@ -48,7 +48,9 @@ def make_storage(settings: Settings) -> Storage:
     )
 
 
-def make_stations(settings: Settings, clock: Clock, http: httpx.AsyncClient) -> LabelSource:
+def make_stations(
+    settings: Settings, clock: Clock, http: httpx.AsyncClient
+) -> OperationsClient:
     tokens = ServiceTokens(
         settings.auth_url, "report", settings.service_secret.get_secret_value(), clock, http
     )

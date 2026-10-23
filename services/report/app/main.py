@@ -17,9 +17,10 @@ from mms_common import migrations, mongo
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.tokens import KeySource
+from mms_common.consumer import EventProcessor, SendToDlq
 from mms_common.ids import new_id
 from mms_common.jobs import JobQueue
-from mms_common.kafka import producer_factory
+from mms_common.kafka import consume_forever, producer_factory
 from mms_common.outbox import LeaderLease
 from mms_common.relay import run_relay
 from mms_common.time import Clock, SystemClock
@@ -29,6 +30,8 @@ from redis.asyncio import Redis
 from app import migrations as app_migrations
 from app.api import reports
 from app.config import Settings
+from app.events import consumer
+from app.jobs import backfill
 from app.repo.operations import LabelSource
 from app.repo.render import Renderer
 from app.repo.storage import Storage
@@ -82,18 +85,19 @@ def create_app(
         await migrations.run(db, app_migrations, clock)
 
         http = httpx.AsyncClient()
+        operations = make_stations(settings, clock, http)
         app.state.services = Services(
             settings=settings, clock=clock, client=client, db=db,
             storage=storage or make_storage(settings),
-            stations=stations or make_stations(settings, clock, http),
+            stations=stations or operations,
             renderer=renderer or make_renderer(),
             jobs=jobs or QueueJobs(JobQueue(redis, QUEUE)),
         )
 
         stop = asyncio.Event()
         tasks: list[asyncio.Task[None]] = []
-        # Start Kafka consumers (mms_common.kafka.consume_forever) and cron jobs
-        # (mms_common.cron.run_periodic) here too, each with `stop`, when run_background is on.
+        # Cron jobs (mms_common.cron.run_periodic) start here too, each with `stop`, when
+        # run_background is on.
         if settings.run_background:
             # The outbox relay runs in every worker; only the lease holder publishes (§8.2).
             lease = LeaderLease(redis, settings.service_name, new_id())
@@ -105,7 +109,22 @@ def create_app(
                 clock,
                 stop,
             )
-            tasks.append(asyncio.create_task(relay))
+
+            def make_consumer(send_to_dlq: SendToDlq) -> EventProcessor:
+                return consumer.processor(client, db, send_to_dlq, clock)
+
+            tasks += [
+                asyncio.create_task(relay),
+                asyncio.create_task(
+                    consume_forever(
+                        settings.kafka_bootstrap, consumer.GROUP, consumer.TOPICS,
+                        make_consumer, stop, settings.kafka,
+                    )
+                ),
+                # The read model covers everything entered since Phase 2, and the consumer group
+                # starts at the oldest event Kafka still holds (TRD §8.6)
+                asyncio.create_task(backfill.run(db, operations, stop)),
+            ]
         try:
             yield
         finally:
