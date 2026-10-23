@@ -81,7 +81,7 @@ def calibration_data(doc: dict[str, Any], due_at: Any) -> dict[str, Any]:
     return {
         "calibration_id": doc["_id"], "unit_id": doc["sensor_unit_id"],
         "station_id": doc.get("station_id"), "method": doc["method"], "at": doc["at"],
-        "result": doc["result"], "due_at": due_at,
+        "result": doc["result"], "due_at": due_at, "org_id": doc.get("org_id"),
     }
 
 
@@ -100,6 +100,8 @@ def request_data(doc: dict[str, Any]) -> dict[str, Any]:
         "priority": doc["priority"], "status": doc["status"], "title": doc["title"],
         "created_by": doc.get("created_by"),
         "assigned_staff_ids": list(doc.get("assigned_staff_ids", [])),
+        "milestones": dict(doc.get("milestones") or {}),
+        "reopen_count": doc.get("reopen_count"),
     }
 
 

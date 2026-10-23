@@ -685,6 +685,8 @@ calibration_facts { _id, sensor_unit_id, station_id, org_id, at, result, due_at 
 station_facts { _id /*station_id*/, org_id, country, type, status, code, name, aggregate_version }
 ```
 
+*As built (W16 slice 1):* the read model has four collections, `station_facts`, `request_facts`, `visit_facts` and `calibration_facts` (`sensor_events` waits for Phase 7). `request_facts` has no `country` and no `visit_count` (the first station's country is joined from `station_facts`, and visits are counted in `visit_facts`); it carries the request's milestone times, which `request.*` events and the request snapshot now include (`milestones`, `reopen_count`, optional fields of the event). `visit_facts` is built from the visit's status events and snapshot only: board-element events carry the element's revision, not the visit's `aggregate_version` (W11-35), so `element_counts` is filled by the draft report. `calibration_facts` carries `org_id` (optional field added to the calibration event).
+
 Indexes: `reports` on `(subject_ref, version)` unique, `pdf_sha256`, `(type, status)`, `request_id`; `signatures` on `report_id`; `request_facts` on `(org_id, status)`; `calibration_facts` on `(org_id, due_at)`.
 
 ### 5.5 notification (platform)
@@ -1070,7 +1072,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 Read models (report's facts, platform's `user_directory`, operations' copied organization names) are rebuilt from **current state**, not from event history. Kafka keeps only 14 days and the outbox only 7.
 
 - Each producer exposes `GET /internal/snapshot/{entity}?after=<id>&limit=500`, returning current documents with their `aggregate_version`.
-- `infra/scripts/backfill.py --consumer <service>` pages through the snapshots and upserts the read model with the same `aggregate_version` guard. The consumer then continues from its committed Kafka offset, so events during the backfill are applied or skipped correctly.
+- Each consuming service pages through the snapshots and upserts its read model with the same `aggregate_version` guard: `python -m app.cli backfill` in its container (as built in the report service, W16; operations' `backfill-orgs` is the same idea). The service also runs it once at every start, because its consumer group begins at the oldest event Kafka holds. (The planned `infra/scripts/backfill.py --consumer <service>` is not built: the command lives with the service that owns the read model.) The consumer then continues from its committed Kafka offset, so events during the backfill are applied or skipped correctly.
 - `upsert_if_newer` reads the stored `aggregate_version` before writing and never provokes a duplicate-key error: inside a consumer's transaction that error aborts the transaction even when caught (as built 2.6).
 - It runs on the first deploy of a consumer (for example, `report` in Phase 6 over data entered since Phase 2), after Kafka data loss, and when a new read model is added.
 

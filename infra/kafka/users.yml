@@ -20,6 +20,8 @@ users:
     groups: media
   - name: report
     produce: mms.report.events mms.dlq.report
+    consume: mms.operations.events
+    groups: report
   - name: platform
     consume: mms.auth.events mms.operations.events mms.media.events mms.report.events
     groups: audit notification

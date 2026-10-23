@@ -189,6 +189,7 @@ async def test_creating_writes_both_events_in_the_same_transaction(ops):
         "station_ids": [a["id"]], "category": "fault", "priority": "high",
         "status": "submitted", "by_admin": False, "title": "Wind sensor stuck",
         "created_by": SEED_USERS["client_a1"].id, "assigned_staff_ids": [],
+        "milestones": {"submitted_at": "2026-10-18T12:00:00Z"}, "reopen_count": 0,
     }
     assert changed[0].data["from_status"] is None and changed[0].data["to_status"] == "submitted"
     # the status history points at the event that made it
@@ -522,12 +523,15 @@ async def test_the_snapshot_serves_requests_like_the_events(ops):
     await act(ops, "admin", created["id"], "approve")
     response = await ops.http.get("/internal/snapshot/requests", headers=ops.service("report"))
     assert response.status_code == 200, response.text
-    assert response.json()["items"] == [{
+    [item] = response.json()["items"]
+    milestones = item.pop("milestones")  # the read model keeps the request's own milestone times
+    assert set(milestones) == {"submitted_at", "approved_at"}
+    assert item == {
         "request_id": created["id"], "ref": created["ref"], "org_id": ORG_A,
         "station_ids": [a["id"]], "category": "fault", "priority": "high", "status": "approved",
         "title": "Wind sensor stuck", "created_by": SEED_USERS["client_a1"].id,
-        "assigned_staff_ids": [], "aggregate_version": 2,
-    }]
+        "assigned_staff_ids": [], "reopen_count": 0, "aggregate_version": 2,
+    }
     assert (await ops.http.get("/internal/snapshot/requests",
                                headers=ops.bearer("admin"))).status_code in (401, 403)
 
