@@ -13,17 +13,40 @@
       The browser may clear this app’s data if the phone runs short of space. Sync as soon as you have signal, and keep the app installed.
     </p>
 
-    <v-btn class="mt-3" :to="{ name: 'storage-check' }" variant="outlined">Storage check</v-btn>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <v-btn :to="{ name: 'storage-check' }" variant="outlined">Storage check</v-btn>
+      <v-btn :loading="copying" variant="outlined" @click="copyReport">Copy report</v-btn>
+    </div>
+
+    <p v-if="copied" class="m-0 pt-2 text-sm text-surface-600" role="status">Copied. Paste it into a message to the office.</p>
+
+    <template v-if="reportText">
+      <p class="m-0 pt-2 text-sm text-surface-600" role="status">This phone would not copy it. Select the text below and copy it by hand.</p>
+
+      <v-textarea
+        ref="reportBox"
+        auto-grow
+        class="font-mono"
+        density="compact"
+        hide-details
+        label="Report"
+        :model-value="reportText"
+        readonly
+        rows="6"
+        @focus="selectAll"
+      />
+    </template>
   </section>
 </template>
 
 <script lang="ts" setup>
   import type { StorageReport } from '@/offline/storage'
-  import { computed, onMounted, ref } from 'vue'
+  import { computed, nextTick, onMounted, ref } from 'vue'
   import { APP_VERSION } from '@/app/brand'
   import { useLiveQuery } from '@/app/composables/useLiveQuery'
   import { describePhone, isStandalone } from '@/app/pwa/platform'
   import { db, deviceId } from '@/offline/db'
+  import { collectReport, formatReport } from '@/offline/report'
   import { offlineState, type OfflineState } from '@/offline/session'
   import { storageReport } from '@/offline/storage'
   import { useSessionStore } from '@/stores/session'
@@ -36,6 +59,10 @@
   const pin = ref<OfflineState | null>(null)
   const device = ref('')
   const worker = ref<boolean | null>(null)
+  const copying = ref(false)
+  const copied = ref(false)
+  const reportText = ref('')
+  const reportBox = ref<{ $el: HTMLElement } | null>(null)
 
   const { value: prepared } = useLiveQuery(async () => {
     const id = session.user?.id
@@ -87,6 +114,35 @@
         return 'Not set'
       }
     }
+  }
+
+  // Plain text a technician can paste into a message: versions, states, counts and the sync log,
+  // never a token, a PIN or anything recorded (W15-4). Where the clipboard is refused, the text is
+  // shown to select by hand.
+  async function copyReport () {
+    const id = session.user?.id
+    if (!id) {
+      return
+    }
+    copying.value = true
+    copied.value = false
+    reportText.value = ''
+    try {
+      const text = formatReport(await collectReport(id, APP_VERSION))
+      try {
+        await navigator.clipboard.writeText(text)
+        copied.value = true
+      } catch {
+        reportText.value = text
+      }
+    } finally {
+      copying.value = false
+    }
+  }
+
+  async function selectAll () {
+    await nextTick()
+    reportBox.value?.$el.querySelector('textarea')?.select()
   }
 
   onMounted(async () => {

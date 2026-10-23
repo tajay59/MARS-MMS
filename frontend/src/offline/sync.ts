@@ -4,6 +4,7 @@ import { NetworkError } from '@/api/problem'
 import { db, setMeta } from './db'
 import { wire } from './ops'
 import { applyAnswers, clearInflight, sendable } from './outbox'
+import { logSync } from './syncLog'
 
 /*
   The sync runner (TRD §7.3; PRD OFF-5 to OFF-8; W14-10, W14-11). It takes what is waiting in the
@@ -66,6 +67,8 @@ export interface Result {
 export interface Options {
   /** Ignore the backoff: "Sync now". */
   force?: boolean
+  /** What started this run, for the sync log. */
+  trigger?: string
 }
 
 let running = false
@@ -88,11 +91,36 @@ async function underLock<T> (run: () => Promise<T>): Promise<T | null> {
 
 export async function runSync (userId: string, deps: Deps, options: Options = {}): Promise<Result> {
   const result: Result = { outcome: 'nothing', sent: 0, applied: 0, conflicts: 0, refused: 0 }
-  const ran = await (deps.lock ?? underLock)(() => work(userId, deps, options, result))
+  let ran: unknown
+  try {
+    ran = await (deps.lock ?? underLock)(() => work(userId, deps, options, result))
+  } catch (error) {
+    await remember(userId, deps, options, result, error instanceof Error ? error.name : 'Error')
+    throw error
+  }
   if (ran === null) {
     return { ...result, outcome: 'busy' }
   }
+  await remember(userId, deps, options, result)
   return result
+}
+
+/** The run goes in the sync log (W15-4), unless it found nothing to do. */
+async function remember (userId: string, deps: Deps, options: Options, result: Result, error?: string): Promise<void> {
+  if (!error && result.outcome === 'nothing') {
+    return
+  }
+  const now = deps.now ?? Date.now
+  await logSync(userId, {
+    at: new Date(now()).toISOString(),
+    trigger: options.trigger ?? (options.force ? 'manual' : 'auto'),
+    outcome: error ? 'error' : result.outcome,
+    sent: result.sent,
+    applied: result.applied,
+    conflicts: result.conflicts,
+    refused: result.refused,
+    error,
+  }, deps.store ?? db)
 }
 
 async function work (userId: string, deps: Deps, options: Options, result: Result): Promise<void> {

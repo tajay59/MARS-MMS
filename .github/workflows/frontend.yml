@@ -49,3 +49,11 @@ jobs:
       # build runs vue-tsc (type-check) and the Vite production build in parallel
       - name: Type-check and build
         run: npm run build
+
+      # The kill switch (W15-3) must keep building: a self-destroying worker, and an app that does
+      # not register it again. Nothing from this build is deployed by a release.
+      - name: Kill-switch build
+        run: |
+          npm run build:kill
+          grep -q "registration.unregister" dist-kill/sw.js
+          ! grep -q "workbox" dist-kill/sw.js

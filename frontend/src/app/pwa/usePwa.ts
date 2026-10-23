@@ -30,7 +30,9 @@ export async function ensureWorker (): Promise<void> {
   shows the update prompt, and nothing reloads until the user says so.
 */
 export function usePwa (): void {
-  if (!('serviceWorker' in navigator)) {
+  // The kill-switch build (`npm run build:kill`, W15-3) ships a worker that unregisters itself: an
+  // app that registered it again on every start would be reloaded by it for ever
+  if (import.meta.env.MODE === 'kill' || !('serviceWorker' in navigator)) {
     return
   }
   const updates = useUpdateStore()
