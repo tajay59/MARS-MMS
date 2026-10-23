@@ -213,6 +213,7 @@ describe('logout and a second user (TRD §7.6)', () => {
         ready: true,
         files_total: 1,
         files_done: 1,
+        documents: [],
         data: {},
       })
       await store.files.add({
