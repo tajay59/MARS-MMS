@@ -26,7 +26,8 @@ async def test_the_facts_hold_the_visit_the_request_and_each_boards_content(ops)
                               {"id": new_id(), "text": "Tighten the clamp", "done": False}])
     await added(ops, "tech1", visit, stations[1], "recommendation", priority="high")
     media_id = upload(ops, visit, stations[0], note, "main", filename="IMG_7.jpg")
-    assert (await attach(ops, "tech1", visit, stations[0], note, media_id)).status_code in (200, 201)
+    attached = await attach(ops, "tech1", visit, stations[0], note, media_id)
+    assert attached.status_code in (200, 201)
 
     r = await facts(ops, visit["id"])
     assert r.status_code == 200, r.text
