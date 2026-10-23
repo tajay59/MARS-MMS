@@ -22,6 +22,12 @@ TABLE: dict[Route, Expect] = {
     # Label sheets (QR-6): admins print; a job is visible to whoever asked for it.
     ("POST", "/api/v1/reports/labels"): roles("admin"),
     ("GET", "/api/v1/reports/jobs/{job_id}"): roles("technician", "admin", "viewer"),
+    # Visit reports (W16): staff read drafts; a client reads only a final report of their own
+    # organization (the route filters, rule 6); only attending staff and admins ask for a preview.
+    ("GET", "/api/v1/reports"): roles("technician", "admin", "viewer", "client"),
+    ("GET", "/api/v1/reports/{report_id}"): roles("technician", "admin", "viewer", "client"),
+    ("GET", "/api/v1/reports/{report_id}/download"): roles("technician", "admin", "viewer", "client"),
+    ("POST", "/api/v1/reports/{report_id}/preview"): roles("technician", "admin"),
 }
 
 

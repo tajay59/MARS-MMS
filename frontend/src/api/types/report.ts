@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reports
+         * @description Reports and their versions, newest version first. Clients: final ones of their own
+         *     organization.
+         */
+        get: operations["list_reports_api_v1_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -45,10 +66,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Report */
+        get: operations["get_report_api_v1_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download
+         * @description A ten-minute link to the draft PDF (never cached: it acts as a password). If the report
+         *     changed since the PDF was drawn, `current` is false and the link is to the older one.
+         */
+        get: operations["download_api_v1_reports__report_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview
+         * @description RPT-3: draw the draft as it is now. Answers `ready` when that PDF already exists, else
+         *     queues one render (asking again while it runs queues nothing more) and answers `rendering`.
+         */
+        post: operations["preview_api_v1_reports__report_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** DownloadOut */
+        DownloadOut: {
+            /** Current */
+            current: boolean;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Filename */
+            filename: string;
+            /** Url */
+            url: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -108,6 +202,108 @@ export interface components {
             /** Station Ids */
             station_ids: string[];
         };
+        /**
+         * PdfState
+         * @description Where the draft PDF stands. `current` is false when the report has changed since it was
+         *     drawn: a preview draws it again.
+         */
+        PdfState: {
+            /** Current */
+            current: boolean;
+            /** Error */
+            error?: string | null;
+            /** Pages */
+            pages?: number | null;
+            /** Rendered At */
+            rendered_at?: string | null;
+            /** State */
+            state: string;
+        };
+        /**
+         * PreviewOut
+         * @description `ready`: the PDF for the report as it is now exists. `rendering`: poll the report.
+         */
+        PreviewOut: {
+            pdf: components["schemas"]["PdfState"];
+            /** State */
+            state: string;
+        };
+        /** ReportOut */
+        ReportOut: {
+            /** Awaiting Media */
+            awaiting_media: number;
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+            /** Content Version */
+            content_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Drafted At */
+            drafted_at?: string | null;
+            /** Facts Version */
+            facts_version: number;
+            /** Id */
+            id: string;
+            /** Number */
+            number: string;
+            pdf: components["schemas"]["PdfState"];
+            /** Request Id */
+            request_id: string;
+            /** Status */
+            status: string;
+            /** Subject Ref */
+            subject_ref: string;
+            /** Type */
+            type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id?: string | null;
+        };
+        /** ReportSummary */
+        ReportSummary: {
+            /** Awaiting Media */
+            awaiting_media: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Drafted At */
+            drafted_at?: string | null;
+            /** Id */
+            id: string;
+            /** Number */
+            number: string;
+            pdf: components["schemas"]["PdfState"];
+            /** Request Id */
+            request_id: string;
+            /** Status */
+            status: string;
+            /** Subject Ref */
+            subject_ref: string;
+            /** Type */
+            type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -130,6 +326,38 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_reports_api_v1_reports_get: {
+        parameters: {
+            query?: {
+                subject_ref?: string | null;
+                type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_job_api_v1_reports_jobs__job_id__get: {
         parameters: {
             query?: never;
@@ -181,6 +409,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_api_v1_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_api_v1_reports__report_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_reports__report_id__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
                 };
             };
             /** @description Validation Error */

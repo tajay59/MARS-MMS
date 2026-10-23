@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     # /internal/* on operations, with a service token from auth (TRD §6.4).
     auth_url: str = "http://auth:8000"
     ops_url: str = "http://operations:8000"
+    media_url: str = "http://media:8000"
     service_secret: SecretStr = SecretStr("")
     outbox_topic: str = "mms.report.events"
     # Outbox relay and consumers. Off in API tests.
@@ -46,6 +47,11 @@ class Settings(BaseSettings):
     # Printed on label sheets when the request gives none (QR-6). Empty prints no phone line.
     label_contact_phone: str = ""
     job_max_attempts: int = 3
+    # --- Visit report drafts (W16-5, W16-6)
+    # How long a draft waits for the visit's photos and video to be processed before its first
+    # PDF is drawn with what is ready (TRD 3.4: five minutes)
+    draft_wait_s: int = 300
+    draft_tick_s: int = 30  # how often the cron reads stale facts and queues first PDFs
 
     @property
     def kafka(self) -> KafkaAuth | None:

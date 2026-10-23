@@ -288,3 +288,26 @@ async def test_asking_twice_or_for_a_file_that_is_not_there_changes_nothing(medi
     await ask_to_delete(media, [media_id])
     assert len(await media.outbox("media.deleted")) == 1
     assert (await media.record(media_id))["version"] >= 1
+
+
+@pytest.mark.req("MED-1")
+async def test_the_report_service_reads_a_photos_display_copy_as_bytes(media):
+    """W16-7: the visit report embeds the display copy; it reaches the report service through
+    media, never through the files host."""
+    media_id, _ = await photo(media)
+    early = await media.http.get(f"/internal/media/{media_id}/rendition",
+                                 headers=media.service("report"))
+    assert early.status_code == 409  # not processed yet
+    assert await process_media(media.svc, media_id) == "ready"
+    r = await media.http.get(
+        f"/internal/media/{media_id}/rendition", headers=media.service("report"))
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/webp" and r.headers["cache-control"] == "no-store"
+    image = Image.open(io.BytesIO(r.content))
+    assert image.format == "WEBP" and max(image.size) <= 2048
+    assert not has_exif_or_gps(r.content)
+    # Only services that may read files, and only photos with a copy
+    assert (await media.http.get(f"/internal/media/{media_id}/rendition",
+                                 headers=media.service("platform"))).status_code in (401, 403)
+    assert (await media.http.get(f"/internal/media/{new_id()}/rendition",
+                                 headers=media.service("report"))).status_code == 404
