@@ -75,6 +75,7 @@ def with_visit(report, *, ready: bool = True) -> None:
     if ready:
         for m in (vf.P_BEFORE, vf.P_AFTER, vf.P_NOTE, vf.P_EXTRA):
             report.media.photos[m] = vf.webp()
+        report.media.posters[vf.VIDEO] = vf.webp((640, 360))
 
 
 # --- visit.ended makes the draft ----------------------------------------------------------------
@@ -239,6 +240,7 @@ async def test_the_render_stores_the_pdf_records_it_and_says_so_once(report):
     view = report.renderer.visits[0]
     task = view["stations"][0]["tasks"][0]
     assert task["before"][0]["uri"].startswith("data:image/jpeg;base64,")
+    assert view["videos"][0]["poster"].startswith("data:image/jpeg;base64,")  # its poster frame
 
 
 async def test_a_second_render_replaces_the_first_pdf_without_a_second_notification(report):

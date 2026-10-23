@@ -56,13 +56,16 @@ def build(
     videos: list[dict[str, Any]] = []
     stations: list[dict[str, Any]] = []
 
-    def shown(entries: list[Mapping[str, Any]], station_zone: str | None) -> list[dict[str, Any]]:
+    def shown(
+        entries: list[Mapping[str, Any]], station_zone: str | None, s_code: str
+    ) -> list[dict[str, Any]]:
         out = []
         for m in entries:
             if m["kind"] == "video":
                 videos.append({
                     "caption": captions.get(m["media_id"]) or m.get("caption"),
-                    "filename": m["filename"],
+                    "filename": m["filename"], "poster": pictures.get(f"poster:{m['media_id']}"),
+                    "station": s_code,
                     "link": f"{app_url.rstrip('/')}/visits/{visit['id']}/media/{m['media_id']}",
                 })
             elif m["kind"] == "image":
@@ -79,7 +82,7 @@ def build(
         zone = s.get("time_zone")
         tasks, notes, recs, configs = [], [], [], []
         for e in s["elements"]:
-            sections = {k: shown(v, zone) for k, v in e["media"].items()}
+            sections = {k: shown(v, zone, s["code"]) for k, v in e["media"].items()}
             if e["kind"] == "task":
                 items = e["items"]
                 tasks.append({

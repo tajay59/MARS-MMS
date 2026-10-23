@@ -77,6 +77,7 @@ class FakeMedia:
     def __init__(self) -> None:
         self.states: dict[str, str] = {}
         self.photos: dict[str, bytes] = {}
+        self.posters: dict[str, bytes] = {}  # a video's poster frame
         self.down = False
 
     async def status(self, media_id: str) -> str | None:
@@ -84,10 +85,10 @@ class FakeMedia:
             raise OperationsUnavailable()
         return self.states.get(media_id)
 
-    async def rendition(self, media_id: str) -> bytes | None:
+    async def rendition(self, media_id: str, *, thumbnail: bool = False) -> bytes | None:
         if self.down:
             raise OperationsUnavailable()
-        return self.photos.get(media_id)
+        return (self.posters if thumbnail else self.photos).get(media_id)
 
 
 class FakeRenderer:

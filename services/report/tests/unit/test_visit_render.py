@@ -38,6 +38,8 @@ def test_the_html_has_every_section_of_the_template():
         "Bring a new funnel", "Calibrations coming due", "Not yet signed", "Additional visit required",
     ):
         assert text in html, text
+    assert 'class="qr-small"' in html and "data:image/svg+xml" in html  # a QR code for the video
+    assert "Scan to watch it in the app" in html and "clip.mp4" in html
     assert "DRAFT" in html and 'class="watermark"' in html
     assert "08:30 EST" in html and "11:30 AST" in html  # each station's own zone
 
