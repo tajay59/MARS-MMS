@@ -56,10 +56,52 @@ class FakeStations:
         return [self.known[i] for i in station_ids if i in self.known]
 
 
+class FakeFacts:
+    """What operations answers on `/internal/visits/{id}/report-facts`."""
+
+    def __init__(self) -> None:
+        self.by_visit: dict[str, dict[str, Any]] = {}
+        self.down = False
+        self.calls: list[str] = []
+
+    async def visit_facts(self, visit_id: str) -> dict[str, Any] | None:
+        self.calls.append(visit_id)
+        if self.down:
+            raise OperationsUnavailable()
+        return self.by_visit.get(visit_id)
+
+
+class FakeMedia:
+    """Where each file stands, and the display copy of the photos that are ready."""
+
+    def __init__(self) -> None:
+        self.states: dict[str, str] = {}
+        self.photos: dict[str, bytes] = {}
+        self.posters: dict[str, bytes] = {}  # a video's poster frame
+        self.down = False
+
+    async def status(self, media_id: str) -> str | None:
+        if self.down:
+            raise OperationsUnavailable()
+        return self.states.get(media_id)
+
+    async def rendition(self, media_id: str, *, thumbnail: bool = False) -> bytes | None:
+        if self.down:
+            raise OperationsUnavailable()
+        return (self.posters if thumbnail else self.photos).get(media_id)
+
+
 class FakeRenderer:
     def __init__(self) -> None:
         self.calls: list[tuple[list[Label], str | None]] = []
+        self.visits: list[dict[str, Any]] = []
         self.fail = False
+
+    async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.visits.append(view)
+        return Rendered(pdf=PDF, pages=1)
 
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
         if self.fail:
@@ -87,6 +129,8 @@ class Report:
     jobs: FakeJobs
     stations: FakeStations
     renderer: FakeRenderer
+    facts: FakeFacts
+    media: FakeMedia
     s3: Any
     settings: Settings
 
@@ -144,9 +188,11 @@ async def report(mongo_uri, redis_url, s3_endpoint):
         make_client(s3_endpoint.url, s3_endpoint.access_key, secret),
     )
     jobs, stations, renderer = FakeJobs(), FakeStations(), FakeRenderer()
+    facts, media = FakeFacts(), FakeMedia()
     mongo: AsyncMongoClient = AsyncMongoClient(mongo_uri)
     app = create_app(settings, ready_checks={}, clock=clock, keys=issuer.keys, storage=storage,
-                     stations=stations, renderer=renderer, jobs=jobs)  # type: ignore[arg-type]
+                     stations=stations, renderer=renderer, jobs=jobs,  # type: ignore[arg-type]
+                     facts=facts, media=media)  # type: ignore[arg-type]
     async with app.router.lifespan_context(app):
         from mms_common.auth.revocation import revoke_user
 
@@ -158,7 +204,7 @@ async def report(mongo_uri, redis_url, s3_endpoint):
         ):
             yield Report(
                 app, http, store, mongo[db_name], clock, issuer, jobs, stations, renderer,
-                storage._s3, settings,
+                facts, media, storage._s3, settings,
             )
     await mongo.drop_database(db_name)
     await mongo.close()

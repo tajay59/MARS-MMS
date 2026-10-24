@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query
 from mms_common.auth import ServicePrincipal, require_service
@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from app.api.context import CtxDep
 from app.api.stations.calibration_routes import due_list
 from app.api.stations.schemas import DueList
+from app.api.visits import report_facts
 from app.domain.visits import elements as element_rules
 from app.events.publish import (
     calibration_data,
@@ -172,6 +173,18 @@ async def attachable(
     if not held & WRITE_ROLES:
         raise Forbidden()  # a viewer, or a client on a staff-only owner
     return AttachableOut(org_id=owner_org)
+
+
+@router.get("/internal/visits/{visit_id}/report-facts")
+async def visit_report_facts(
+    visit_id: Annotated[str, Path(pattern=UUID7_PATTERN)], svc: ReportService, ctx: CtxDep
+) -> dict[str, Any]:
+    """The visit, its request, its stations and their boards, for the report service's draft
+    (TRD 11.2, W16-2). Staff-side facts: the report service decides who may read a report."""
+    facts = await report_facts.build(ctx, visit_id)
+    if facts is None:
+        raise NotFound()
+    return facts
 
 
 @router.get("/internal/snapshot/{entity}")

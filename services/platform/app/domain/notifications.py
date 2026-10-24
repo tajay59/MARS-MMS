@@ -26,6 +26,7 @@ NOTIFY_EVENTS = frozenset({
     "comment.added",
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.ended",
     "visit.station_owner_changed", "visit.sync_conflict",
+    "report.drafted",
 })
 VISIT_LIVE_EVENTS = frozenset({
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored", "visit.started",
@@ -132,6 +133,8 @@ def plan(
         return Plan()
     if event_type.startswith("visit."):
         return _plan_visit(event_type, data, actor_id, actor_name, audience)
+    if event_type == "report.drafted":
+        return _plan_report(data)
 
     creator = [data["created_by"]] if data.get("created_by") else []
     assigned = list(data.get("assigned_staff_ids") or [])
@@ -218,6 +221,22 @@ def when_text(data: Mapping[str, Any]) -> str:
         zone = ZoneInfo("UTC")
     local = start.astimezone(zone) if start.tzinfo else start.replace(tzinfo=UTC).astimezone(zone)
     return f"{local:%a} {local.day} {local:%b}, {local:%H:%M} {local.tzname()}"
+
+
+def _plan_report(data: Mapping[str, Any]) -> Plan:
+    """The first draft PDF of a visit report is ready (PRD Appendix B, "Visit ended (draft report
+    ready)"): the people who attended hear of it, in the app only. The draft is staff only (rule
+    6), so no client is told, and nothing of its text travels in the event."""
+    visit_id = data["visit_id"]
+    line = f"{data['number']} · {data.get('title') or 'Maintenance request'}"
+    drafts = [
+        Draft(
+            user_id=user_id, type="report.drafted", title="Draft report ready", body=line,
+            link=f"/visits/{visit_id}", entity_type="visit", entity_id=visit_id, email=False,
+        )
+        for user_id in _once(list(data.get("staff_ids") or []), skip=None)
+    ]
+    return Plan(drafts=drafts)
 
 
 def _plan_visit(

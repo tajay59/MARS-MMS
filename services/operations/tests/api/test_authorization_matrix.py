@@ -117,6 +117,7 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/internal/attachable"): service("media"),
     ("GET", "/internal/calibrations/due"): service("platform"),  # the weekly digest (CAL-5)
     ("POST", "/internal/labels"): service("report"),  # the QR tokens a label sheet prints
+    ("GET", "/internal/visits/{visit_id}/report-facts"): service("report"),  # a draft report (W16)
 }
 
 

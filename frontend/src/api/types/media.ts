@@ -136,6 +136,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/media/{media_id}/rendition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Media Rendition
+         * @description A processed file's picture as bytes, for a visit report's PDF (TRD 11.1, W16-7). `view`:
+         *     the display copy of a photo (up to 2048 px on the long side; the report service shrinks it
+         *     for the page). `thumbnail`: the small WebP of a photo or a video's poster frame. The report
+         *     service has no rights on media's buckets, and the files host is not reachable from its
+         *     network by its public name.
+         */
+        get: operations["media_rendition_internal_media__media_id__rendition_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/media/{media_id}/url": {
         parameters: {
             query?: never;
@@ -630,6 +654,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MediaInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_rendition_internal_media__media_id__rendition_get: {
+        parameters: {
+            query?: {
+                variant?: string;
+            };
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

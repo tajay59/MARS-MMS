@@ -30,6 +30,16 @@ class LabelSource(Protocol):
     ) -> list[StationLabel]: ...
 
 
+class FactsSource(Protocol):
+    async def visit_facts(self, visit_id: str) -> dict[str, Any] | None: ...
+
+
+class SnapshotSource(Protocol):
+    async def snapshot(
+        self, entity: str, after: str | None = None
+    ) -> tuple[list[dict[str, Any]], str | None]: ...
+
+
 class OperationsClient:
     def __init__(self, base_url: str, tokens: ServiceTokens, http: httpx.AsyncClient) -> None:
         self._base = base_url.rstrip("/")
@@ -57,3 +67,41 @@ class OperationsClient:
             )
             for r in rows
         ]
+
+    async def snapshot(
+        self, entity: str, after: str | None = None
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """One page of `/internal/snapshot/<entity>` and the cursor for the next (TRD §8.6)."""
+        params: dict[str, Any] = {"limit": 500}
+        if after:
+            params["after"] = after
+        try:
+            response = await self._http.get(
+                f"{self._base}/internal/snapshot/{entity}", params=params,
+                headers=await self._tokens.headers(), timeout=30,
+            )
+        except (httpx.HTTPError, ConnectionError) as e:
+            raise OperationsUnavailable() from e
+        if response.status_code != 200:
+            raise OperationsUnavailable(str(response.status_code))
+        body = response.json()
+        items: list[dict[str, Any]] = body["items"]
+        next_after: str | None = body.get("next_after")
+        return items, next_after
+
+    async def visit_facts(self, visit_id: str) -> dict[str, Any] | None:
+        """The visit, its request, its stations and their boards, for a draft report (W16-2).
+        None when operations does not know the visit."""
+        try:
+            response = await self._http.get(
+                f"{self._base}/internal/visits/{visit_id}/report-facts",
+                headers=await self._tokens.headers(), timeout=30,
+            )
+        except (httpx.HTTPError, ConnectionError) as e:
+            raise OperationsUnavailable() from e
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise OperationsUnavailable(str(response.status_code))
+        facts: dict[str, Any] = response.json()
+        return facts

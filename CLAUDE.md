@@ -379,7 +379,7 @@ docker compose -f compose.yml -f compose.dev.yml down      # add -v to delete th
 Not yet available. Add these as they are built (IP Phase 1):
 
 - hot reload in the local stack (seed users exist through `python -m app.cli seed` in auth; stations and requests come with their services)
-- rebuild a read model (`infra/scripts/backfill.py --consumer <service>`)
+- rebuild a read model: `python -m app.cli backfill` in the report container (W16); there is no cross-service wrapper
 
 ## Definition of done (IP)
 

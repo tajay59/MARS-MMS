@@ -51,6 +51,13 @@ class Storage:
         except (ClientError, BotoCoreError) as e:
             raise StorageError(str(e)) from e
 
+    async def delete(self, bucket: str, key: str) -> None:
+        """Remove an object (an older draft PDF). Deleting what is not there is not an error."""
+        try:
+            await asyncio.to_thread(self._s3.delete_object, Bucket=bucket, Key=key)
+        except (ClientError, BotoCoreError) as e:
+            raise StorageError(str(e)) from e
+
     def get_url(
         self, bucket: str, key: str, ttl_s: int, *, content_type: str, filename: str
     ) -> str:

@@ -149,6 +149,8 @@ class CalibrationData(_Data):
     at: datetime
     result: str
     due_at: datetime | None = None  # the unit's calibration due date after this record
+    # Added in W16 for the report service's read model (optional, so version 1 stands)
+    org_id: str | None = None
 
 
 @register("calibration.recorded")
@@ -227,6 +229,11 @@ class RequestData(_Data):
     created_by: str | None = None
     # Who is on the request now, so the notification module knows whom a comment is for
     assigned_staff_ids: list[str] = Field(default_factory=list)
+    # Added in W16 for the report service's read model (optional, so version 1 stands): the
+    # request's own milestone times (`submitted_at`, `approved_at`, `assigned_at`,
+    # `review_started_at`, `closed_at`, ...) and how often it was reopened
+    milestones: dict[str, datetime] | None = None
+    reopen_count: int | None = None
 
 
 @register("request.submitted")
