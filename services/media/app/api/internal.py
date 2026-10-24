@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 from mms_common.auth import ServicePrincipal, require_service
 from mms_common.errors import Conflict, NotFound
@@ -61,20 +61,28 @@ async def media_url(media_id: MediaId, body: UrlIn, svc: Owner, ctx: CtxDep) -> 
 
 
 @router.get("/internal/media/{media_id}/rendition")
-async def media_rendition(media_id: MediaId, svc: Reader, ctx: CtxDep) -> Response:
-    """The display copy of a photo (the `view.webp` beside the original, up to 2048 px on the
-    long side; the report service shrinks it for the page) as bytes, for a visit report's PDF
-    (TRD 11.1, W16-7). The report service has no rights on media's buckets, and the files host is
-    not reachable from its network by its public name. Only a processed photo has one."""
+async def media_rendition(
+    media_id: MediaId, svc: Reader, ctx: CtxDep,
+    variant: Annotated[str, Query(pattern="^(view|thumbnail)$")] = "view",
+) -> Response:
+    """A processed file's picture as bytes, for a visit report's PDF (TRD 11.1, W16-7). `view`:
+    the display copy of a photo (up to 2048 px on the long side; the report service shrinks it
+    for the page). `thumbnail`: the small WebP of a photo or a video's poster frame. The report
+    service has no rights on media's buckets, and the files host is not reachable from its
+    network by its public name."""
     s = ctx.svc
     doc = await repo.get(s.db, media_id)
     if doc is None or doc["status"] == Status.DELETED.value:
         raise NotFound()
     if doc["status"] != Status.READY.value:
         raise Conflict("The file isn't ready", reason="not_ready")
-    if doc["kind"] != "image" or not doc.get("processed_key"):
+    if variant == "thumbnail":
+        key, content_type = doc.get("thumbnail_key"), "image/webp"
+    else:
+        key, content_type = doc.get("processed_key"), derive.view_type("image")
+        if doc["kind"] != "image":
+            key = None
+    if not key:
         raise NotFound()
-    data = b"".join([chunk async for chunk in s.storage.read(
-        s.settings.bucket_media, str(doc["processed_key"]))])
-    return Response(content=data, media_type=derive.view_type("image"),
-                    headers={"Cache-Control": "no-store"})
+    data = b"".join([chunk async for chunk in s.storage.read(s.settings.bucket_media, str(key))])
+    return Response(content=data, media_type=content_type, headers={"Cache-Control": "no-store"})

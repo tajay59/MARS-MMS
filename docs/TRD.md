@@ -1135,6 +1135,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 - Video entries include a QR code (segno) linking to `/visits/{id}/media/{media_id}` in the app.
 - Times are formatted in the station's `time_zone`, with the zone abbreviation. Signature blocks show both UTC and local time.
 - Each report stores its `template_version`, so old reports can be reproduced.
+- **Visual baseline (as built, W16 slice 3).** `services/report/visual/` draws a made-up visit in an image with the report image's fonts and compares each page with a committed picture (CI job `report visual`); a deliberate template change updates `visual/baselines` in the same commit. A video's poster frame comes from media's `GET /internal/media/{id}/rendition?variant=thumbnail`.
 - Label sheets (QR-6) are rendered by the report-worker from station data read through `operations /internal/snapshot/stations`.
 - Summary reports read only the report service's read model; they make no cross-service calls. CSV uses the same query as the PDF table.
 - **Charts in summary reports** use ApexCharts, the same library as the dashboards (DBD D3). WeasyPrint cannot run JavaScript, so the report-worker keeps one headless Chromium (Playwright for Python). It loads a standalone chart page (the ApexCharts bundle plus `charts/presets.ts`, built from the frontend and copied into the report image), renders each chart in the light palette, exports SVG and embeds it in the template. A chart that fails or takes over 30 s is left out with a note, and its table still prints.
