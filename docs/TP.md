@@ -3,10 +3,11 @@
 
 | | |
 |---|---|
-| **Version** | 1.3 (draft) |
-| **Date** | 2026-10-22 |
+| **Version** | 1.4 (draft) |
+| **Date** | 2026-10-28 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0 and IP 1.1: five services, Nginx gateway, SeaweedFS, weeks shifted to a W25 go-live. Offline merge tests replaced by station-owner and conflict-code tests. New tests for request status derivation, sensor-action reversal, the finalize saga, fail-closed file visibility, the offline PIN session, refresh-token races, the outbox leader lease, read-model backfill, service-worker cache clearing, the CSP tile host and multipart clean-up |
+| **Changes in 1.4** | W17 as built: the finalize saga is tested at every interruption point against "a final report always has the lead's valid signature for exactly its content hash and the stored PDF's hash"; signatures are cleared only when the hash of what prints changes; only shared elements print; a reminder is sent once per level; Playwright J7 runs end to end (`reportSign.spec.ts`) |
 | **Changes in 1.3** | The visit board replaces the work record (TRD 2.16, decisions W11-16 to W11-35, 2026-10-22): the sensor-inventory corrections tests are replaced by board tests (edit rights, tombstones, task completion, sharing, Config versions, Recommendation to request); Phase 4's tests and exit checks follow |
 | **Changes in 1.2** | Where the Phase 1 harnesses live as built: `mms_common.testing` (seed users and token issuer, authorization matrix, client leak check, container fixtures as a pytest plugin); the template's `tests/api/test_authorization_matrix.py`; the J1/J2 end-to-end stack test into the audit chain |
 | **Builds on** | [PRD.md](PRD.md) 1.1, [TRD.md](TRD.md) 2.0 (§7, §15, §17, §18), [AFD.md](AFD.md) 1.1 (J1–J10), [DBD.md](DBD.md) 1.2, [BSD.md](BSD.md) 1.1, [IP.md](IP.md) 1.1 draft |
@@ -65,7 +66,7 @@ Each of the 12 non-negotiable rules in `CLAUDE.md` has a test that fails the bui
 | Repo-layer scoping | 3 | A unit test asserts that every public `repo/` read for a client merges `org_id` (or `owner_org_id` / `current_org_id`), using a fake collection that records the filter. | Unit |
 | Injection | 12 | Every filter and search endpoint gets bodies and query strings containing `{"$ne": null}`, `{"$where": "1"}`, `{"$gt": ""}` and dotted keys. Expected: a validation error, never a widened result. | API |
 | Audit insert-only and chain | 10 | The audit Mongo role has no `update` or `remove` on `audit_events`, yet migrations can create indexes. Editing one stored record directly makes the integrity check report that record. | Integration |
-| Finalized reports immutable | 11 | Any write to a finalized version is rejected (409, V1); reopening creates version n+1 and invalidates the earlier signatures. | Unit + API |
+| Finalized reports immutable | 11 | Every mutating route (edit, sign, preview, finalize, reopen) called on a final or superseded version is refused with 409 and changes nothing; a board change does not touch a final report; reopening creates version n+1 as a draft with no signatures. As built: `tests/api/test_finalize.py`, `test_edit_sign.py`. | Unit + API |
 | UTC storage | 8 | A Hypothesis test round-trips times through each service's models: stored values are UTC; display helpers use the station's IANA zone. | Unit |
 | Client-generated IDs and `op_id` | 9 | Replaying any create with the same UUIDv7 or `op_id` returns the first result and creates nothing new. | API |
 
@@ -112,7 +113,11 @@ Ten areas get dedicated tests beyond the TRD's levels, ordered by the cost of a 
 ### Reports and PDFs (RPT-1 to RPT-10)
 
 - **Finalize saga:** render fails three times → report back to Draft, visit unlocked, signatures kept, `report.finalize_failed` emitted; a worker killed mid-saga leaves `finalizing`, and the cron resumes it to Final; facts changed between lock and render → back to Draft with signatures cleared.
-- **Signatures:** a facts refresh from a corrected board clears signatures, as an edited narrative does.
+- **Signatures (as built):** a facts refresh that changes what prints clears signatures, as an edited narrative does; the same facts read again, a locked visit or a staff-only edit keep them; cleared signatures stay in the list flagged; a signer who read an older version gets 409 `content_changed`; two taps make one signature (unique index); a viewer, a client and an admin who did not attend cannot sign.
+- **Invariant over every interruption point (as built):** for a lock refused, operations down, facts unavailable or gone, a fact changed, the render failing and the store failing, no run leaves a final report without the lead's valid signature for its content hash, and the PDF it names is the one stored.
+- **Only shared elements print (as built):** a staff-only element is absent from the narrative prefill, the photo choice, the hash and the final PDF's text; a client reads a final report with those elements removed and no signature image.
+- **Reminders (as built):** 2 and 5 working days across a weekend and a daylight-saving change, once per level, one reminder for a draft found late, a reopened version counting from the reopen.
+- **Corrections (as built):** `GET /reports/correction` is true for a client from the reopen until the corrected version is final, and a client still cannot read the draft or the superseded version.
 - **Visual regression:** each PDF template (visit report, close-out, client report form, label sheet, summary with ApexCharts) is rendered from fixed fixtures and compared page by page with approved PNG baselines.
 - A draft is generated within 10 minutes of sync and a summary within 2 minutes (NFR-2), measured in the integration stack.
 - Report times show in the station's time zone.
@@ -289,7 +294,8 @@ Every NFR has at least one automated check, and every journey has a Playwright t
 | J3, J4 | `requests.spec.ts` | Phase 3 |
 | J5 | `visit-prepare.spec.ts` | Phase 4 (claim, schedule, owners); prepare step and PIN added in Phase 5 |
 | J6 | `visit-offline.spec.ts` | Phase 5 |
-| J7, J8, J9 | `reports.spec.ts` | Phase 6 |
+| J7 | `report.spec.ts` (draft) and `reportSign.spec.ts` (edit, sign, finalize, client reads, reopen) | Phase 6 (built W16 and W17) |
+| J8, J9 | `reports.spec.ts` | Phase 6 (W18) |
 | J10 | `summaries.spec.ts` | Phase 7 |
 
 ## Defects and release criteria

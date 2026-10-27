@@ -2646,6 +2646,90 @@ sequenceDiagram
           </div>
         </figure>
 
+        <figure class="diagram" id="reports-j7-swimlane" data-title="J7: who does what from draft to final" data-kind="Swimlane flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    subgraph T["Lead technician"]
+        t1["Opens the draft from the notification"] --> t2["Edits the narrative, chooses photos"]
+        t2 --> t3["Signs: typed name, drawing, attestation"]
+        t3 --> t4["Finalizes"]
+    end
+    subgraph H["Other attending staff"]
+        h1["Signs (optional)"]
+    end
+    subgraph R["report service"]
+        r1["Saves with content_version, hashes what prints"]
+        r2["Clears valid signatures if the hash changed"]
+        r3["finalizing: edits stop"]
+        r4["Final PDF stored, status final, report.finalized"]
+    end
+    subgraph O["operations"]
+        o1["Locks the visit for this report version"]
+        o2["Sets the visit's report status, settles the request"]
+    end
+    subgraph C["Client"]
+        c1["Reads and downloads the final report"]
+    end
+    subgraph A["Admin"]
+        a1["Reopens with a reason"]
+    end
+    t2 --> r1 --> r2
+    r2 -. "signatures cleared" .-> t3
+    h1 -.-> r1
+    t4 --> r3 --> o1 --> r4 --> o2
+    o2 --> c1
+    c1 -. "correction needed" .-> a1
+    a1 --> t2
+</pre>
+          </div>
+          <figcaption>Draft to final, as built (W17). A reopen makes the next version a draft with the narrative kept and nothing signed; the client sees no report until it is final again.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="reports-signature-invalidation" data-title="Does a change clear the signatures?" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["Something changed in a draft"] --> B{"Is the report still a draft?"}
+    B -- "No: finalizing, final or superseded" --> Z["Refused. Final and superseded are immutable"]
+    B -- "Yes" --> C{"What changed?"}
+    C -- "A person edited the narrative or the photo choice" --> D{"Does the hash of what prints change?"}
+    C -- "The facts were read again from the board" --> D
+    C -- "A staff-only element changed" --> N["Hash unchanged: signatures stay"]
+    D -- "No: same words, same photos, same facts" --> K["Nothing is saved and nothing is cleared"]
+    D -- "Yes" --> E["content_version moves"]
+    E --> F{"Any valid signatures?"}
+    F -- "No" --> G["Saved"]
+    F -- "Yes" --> H["Each is kept with valid false, cleared_at and cleared_by (a person, facts or reopen)"]
+    H --> I["report.signatures_cleared, reason edit or facts"]
+    I --> J["Everyone signs again on the new version"]
+</pre>
+          </div>
+          <figcaption>The hash covers shared elements, the narrative and the photo choice, not counters, the lock or staff-only elements. A signer who read an older version gets 409 content_changed.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="reports-document-flowchart" data-title="Who writes each part of a visit report" data-kind="Document flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    BOARD["Visit boards (operations): Notes, Tasks, Recommendations, Config, files"] --> SH{"Shared with the client?"}
+    SH -- "No: staff only" --> ED["Shown in the editor, never printed"]
+    SH -- "Yes" --> FACTS["Facts: elements, photos, times, parameters"]
+    FACTS --> PREFILL["Narrative pre-filled once from shared notes and recommendations"]
+    PREFILL --> NARR["Narrative: staff edit summary, work per station, recommendations, follow-up"]
+    FACTS --> PH["Photo choice: six per station in the body, the rest in the appendix, captions for this report"]
+    FACTS --> HASH["content_hash: facts that print, narrative, photo choice"]
+    NARR --> HASH
+    PH --> HASH
+    HASH --> SIGN["Signatures: typed name, drawing, attestation, time, address, bound to the hash"]
+    SIGN --> PDF["Final PDF: signature blocks, hash in the footer, PDF sha256 stored"]
+    PDF --> CLIENT["Client reads and downloads"]
+    PDF --> VERIFY["Anyone checks a copy: POST /reports/verify"]
+</pre>
+          </div>
+          <figcaption>Facts come from the board and are never typed in the report; people write only the narrative and choose photos. The final PDF is one document for staff and client.</figcaption>
+        </figure>
+
         <div class="split">
           <div class="sub" id="reports-rendering">
             <h3>Rendering</h3>
@@ -4070,7 +4154,7 @@ flowchart TD
                 <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
                 <tr><td>P4 · Visits online</td><td>State: visit status · Decision tree: who can see and change an element (built) · State: a task (built) · Sequence: ending a visit in one transaction (built) · Website flowchart: which page a visit opens on (built, W12) · System flowchart: media processing pipeline (built) · State: media status</td></tr>
                 <tr><td>P5 · Offline</td><td>Built in W13: <a href="#offline-prepare-sequence">Sequence: prepare for field</a> · <a href="#offline-pin-state">State: the offline session</a> · <a href="#offline-start-decision">Decision tree: what the app shows when it starts</a> · <a href="#offline-device-storage">Data flow: device storage and what logout clears</a>. Built in W14: <a href="#offline-op-state">State: one operation</a> · <a href="#offline-conflict-decision">Decision tree: what each refusal means</a> · <a href="#offline-sync-sequence">Sequence: from the outbox to the server</a> · <a href="#offline-runner-code">Code flowchart: the sync runner</a>. Earlier plan: Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
-                <tr><td>P6 · Reports</td><td>Document flowchart: visit report signatures → final → client sign-off · Sequence: finalize saga (as built) · Customer journey: client review (J8) · State: client-review reminders and auto-close</td></tr>
+                <tr><td>P6 · Reports</td><td>Document flowchart: <a href="#reports-document-flowchart">who writes each part of a visit report</a> (W17) · Sequence: finalize saga (as built, W17) · Swimlane: <a href="#reports-j7-swimlane">J7, draft to final</a> (W17) · Decision tree: <a href="#reports-signature-invalidation">does a change clear the signatures</a> (W17) · Customer journey: client review (J8, W18) · State: client-review reminders and auto-close (W18)</td></tr>
                 <tr><td>P7 · Hardening</td><td>Logical model: summary reports and dashboards · Data flow: backup and restore · System flowchart: metrics, logs and alerts · Architecture: production hosts, networks and ports</td></tr>
                 <tr><td>P8 · Go-live</td><td>Workflow: hypercare triage · Customer journey: client onboarding from invitation · Gantt: go-live checklist</td></tr>
               </tbody>
@@ -4091,6 +4175,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-28</td><td>P6 &middot; W17 (charts and test documents)</td><td><b>W17 charts.</b> Three diagrams drawn from the code as merged: <a href="#reports-j7-swimlane">J7, draft to final</a> (swimlane, Mermaid lanes; a draw.io version can follow), <a href="#reports-signature-invalidation">does a change clear the signatures</a> (decision tree) and <a href="#reports-document-flowchart">who writes each part of a visit report</a> (document flowchart). The finalize saga and report state charts were updated with slice 3. BSD 1.7 and TP 1.4 follow what was built.</td></tr>
               <tr><td>2026-10-28</td><td>P6 &middot; W17 (slice 5)</td><td><b>The report page</b> (decision W17-11). Frontend: <code>/visit-reports/:id</code> with the editor, photo choice, signatures, sign dialog (<code>signature_pad</code>, lazy), finalize, reopen and versions; <code>ClientReportSection</code>; the Report section's new states and link; <code>api/report.ts</code> (<code>edit</code>, <code>sign</code>, <code>finalize</code>, <code>reopen</code>). 28 new Vitest tests, Playwright J7 end to end, <code>web-design-guidelines</code> reviewed (typed-name signature, first error focused, lazy thumbnails). AFD 1.8 corrects J7 (Preview opens the app's sheet).</td></tr>
               <tr><td>2026-10-27</td><td>P6 &middot; W17 (slice 3)</td><td><b>Finalize, reopen and verify</b> (decision W17-10). Report: <code>domain/finalize.py</code>, <code>jobs/{finalize,resume}.py</code>, <code>api/{finalize_routes,verify_routes}.py</code>, <code>VisitLocks</code> in <code>repo/operations.py</code>, the final page (signature blocks, hash in the footer, <code>full-final</code> visual baseline redrawn), <code>report.finalized</code>, <code>report.finalize_failed</code> and <code>report.reopened</code> emitters. The saga sequence and the report state charts now show what was built. Tests: the saga step by step, every failure point against the lead-signature rule, a crash and the cron, reopen (once, concurrently, owed unlock), what a client sees, immutability, verify, the lock client and the final PDF's text.</td></tr>
               <tr><td>2026-10-27</td><td>P6 &middot; W17 (slice 2)</td><td><b>Editing and signing a draft</b> (decision W17-9). Report: <code>domain/{content,signing}.py</code>, <code>repo/signatures.py</code>, <code>events/signatures.py</code>, <code>api/{edit_routes,presenters}.py</code>, <code>PATCH /reports/{id}/content</code>, <code>POST /reports/{id}/sign</code>, migration <code>0004_signatures</code>, the shared-only rule in the draft, the narrative prefill and the page, <code>content_hash</code> and <code>content_version</code> kept by the facts refresh. Tests: hash and edit rules (unit), the routes, concurrent taps, every way a signature is cleared or kept, a client's read of a final report, immutability of final and superseded reports.</td></tr>
