@@ -541,11 +541,12 @@ async def test_cancelling_a_request_cancels_its_planned_visits_but_not_a_started
 @pytest.mark.req("VIS-11")
 async def test_a_client_sees_their_organizations_visits_without_the_notes(ops):
     request, stations = await a_request(ops)
-    visit = (await plan(ops, "tech1", request, stations, notes="Gate code is 4471")).json()
+    visit = (await plan(ops, "tech1", request, stations, notes="Gate code is quokka-hinge")).json()
     r = await ops.http.get(f"/api/v1/visits/{visit['id']}", headers=ops.bearer("client_a1"))
     assert r.status_code == 200, r.text
     seen = r.json()
-    assert seen["notes"] is None and "4471" not in str(seen)
+    # A word, not digits: ids and times in the answer are random and can hold "4471" by chance
+    assert seen["notes"] is None and "quokka-hinge" not in str(seen)
     assert seen["lead"]["name"] == SEED_USERS["tech1"].name and seen["actions"] == []
     assert all(s["actions"] == [] for s in seen["stations"])
     assert "@" not in str(seen)  # names only, never an email address (D4)
