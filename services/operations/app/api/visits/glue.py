@@ -11,44 +11,21 @@ from __future__ import annotations
 from typing import Any
 
 from mms_common.auth import User
-from mms_common.errors import NotFound
-from mms_common.ids import new_id
-from pymongo import ReturnDocument
 from pymongo.asynchronous.client_session import AsyncClientSession
 
 from app.api.context import Ctx
-from app.domain.requests.recompute import recompute
-from app.domain.requests.state import Status
 from app.domain.visits import lifecycle
 from app.domain.visits.state import VStatus
 from app.events.publish import ev
+from app.events.settle import lock_request as take_request
+from app.events.settle import settle_request
 from app.repo.requests import requests as request_repo
 from app.repo.visits import visits as visit_repo
 
 
 async def lock_request(ctx: Ctx, request_id: str, s: AsyncClientSession) -> dict[str, Any]:
-    """Take the request, and make two visit changes on it queue up.
-
-    The write moves `visit_seq`, not `version` (a request editor's stale-write check must not
-    trip over a visit being planned). A second transaction touching the same request waits or
-    retries here, so it derives the status from visits that include the first one's change.
-    """
-    doc: dict[str, Any] | None = await request_repo.col(ctx.db).find_one_and_update(
-        {"_id": request_id}, {"$inc": {"visit_seq": 1}},
-        return_document=ReturnDocument.AFTER, session=s,
-    )
-    if doc is None:
-        raise NotFound()
-    return doc
-
-
-def history_entry(
-    *, from_status: str, to: Status, user: User, now: Any, event_id: str, note: str
-) -> dict[str, Any]:
-    return {
-        "from": from_status, "to": to.value, "by": user.id, "by_name": user.name, "at": now,
-        "note": note, "event_id": event_id,
-    }
+    """Take the request, so two visit changes on it queue up (see `events.settle`)."""
+    return await take_request(ctx.db, request_id, s)
 
 
 async def settle(
@@ -56,33 +33,9 @@ async def settle(
 ) -> dict[str, Any]:
     """Derive the request's status from its visits (read inside the transaction) and write it
     when it moved, with the first visit's start as a milestone. Returns the request as it is."""
-    visits = await visit_repo.for_request(ctx.db, request["_id"], None, s)
-    settled = recompute(request, visits)
-    now = ctx.clock.now()
-    milestones = dict(request.get("milestones", {}))
-    changes: dict[str, Any] = {}
-    if settled.first_visit_at is not None and "first_visit_at" not in milestones:
-        milestones["first_visit_at"] = settled.first_visit_at
-        changes["milestones"] = milestones
-    before = request["status"]
-    if settled.status.value != before:
-        changes["status"] = settled.status.value
-        changes["milestones"] = milestones
-    if not changes:
-        return request
-    event_id = new_id()
-    history = (
-        history_entry(from_status=before, to=settled.status, user=user, now=now,
-                      event_id=event_id, note=note)
-        if "status" in changes else None
+    return await settle_request(
+        ctx.db, ctx.clock, ctx.emitter(user), request, s, by=user.id, by_name=user.name, note=note,
     )
-    updated = await request_repo.update(
-        ctx.db, request["_id"], changes, now=now, by=user.id, session=s, history=history,
-    )
-    if "status" in changes:
-        await ctx.emitter(user).request_status(updated, s, from_status=before,
-                                               event_id=event_id)
-    return updated
 
 
 async def cancel_planned_visits(

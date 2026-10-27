@@ -20,6 +20,7 @@ from mms_common.time import SystemClock
 from redis.asyncio import Redis
 
 from app.config import Settings
+from app.jobs.finalize import finalize_report
 from app.jobs.labels import Retry, render_labels
 from app.jobs.render_draft import render_draft
 from app.services import (
@@ -33,6 +34,7 @@ from app.services import (
 
 RETRY_DEFER_S = 30
 DRAFT_PREFIX = "draft:"  # a visit report draft's job is `draft:<report id>`
+FINALIZE_PREFIX = "finalize:"  # and finalizing one is `finalize:<report id>`
 CONCURRENCY = 2  # TRD §9: two report jobs at a time
 
 
@@ -55,16 +57,19 @@ async def main() -> None:
         settings=settings, clock=clock, client=client, db=client[settings.mongo_db],
         storage=make_storage(settings), stations=operations, renderer=make_renderer(),
         jobs=NoJobs(), facts=operations, media=make_media(settings, clock, http),
+        locks=operations,
     )
 
     async def handle(job_id: str) -> None:
         try:
             if job_id.startswith(DRAFT_PREFIX):
                 await render_draft(svc, job_id[len(DRAFT_PREFIX):])
+            elif job_id.startswith(FINALIZE_PREFIX):
+                await finalize_report(svc, job_id[len(FINALIZE_PREFIX):])
             else:
                 await render_labels(svc, job_id)
         except Retry as e:
-            raise DeferJob(RETRY_DEFER_S) from e
+            raise DeferJob(e.defer_s or RETRY_DEFER_S) from e
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

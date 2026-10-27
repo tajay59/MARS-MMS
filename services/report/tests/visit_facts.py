@@ -1,6 +1,7 @@
 """A made-up visit for the report tests: what operations answers on `report-facts`.
 
-Nothing here is a real station, person or client (the repository is public). Two stations in two
+Nothing here is a real station, person or client (the repository is public). Every element is
+shared (only shared elements print, W17-1); a test makes one staff-only with `shared=False`. Two stations in two
 time zones, a Task with Before and After photos, a Note, a Recommendation, a Config element with a
 version, and a video.
 """
@@ -39,7 +40,7 @@ def media(media_id: str, kind: str = "image", name: str = "IMG.jpg", caption: st
 def element(kind: str, title: str, **over: Any) -> dict[str, Any]:
     return {
         "id": new_id(), "kind": kind, "title": title, "description": None, "items": [],
-        "priority": None, "shared": False, "request_ref": None, "config_versions": [],
+        "priority": None, "shared": True, "request_ref": None, "config_versions": [],
         "media": {"main": []} if kind in ("note", "recommendation")
         else {"before": [], "after": []},
         "created_by_name": "Test Technician", "created_at": "2026-10-05T14:10:00Z", "version": 1,

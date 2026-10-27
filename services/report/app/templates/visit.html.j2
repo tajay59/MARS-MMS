@@ -23,7 +23,7 @@
 {% block body %}
 <main class="report">
   {% if v.draft %}<div class="watermark" aria-hidden="true">DRAFT</div>{% endif %}
-  <div class="running-footer"><span class="mono">{{ v.number }}</span> · v{{ v.version }} · {{ v.status_word }}</div>
+  <div class="running-footer"><span class="mono">{{ v.number }}</span> · v{{ v.version }} · {{ v.status_word }}{% if v.hash %} · hash <span class="mono">{{ v.hash }}</span>{% endif %}</div>
 
   <header class="masthead">
     <div>
@@ -133,7 +133,16 @@
   <section class="signatures">
     <h2>Signatures</h2>
     {% if v.signatures %}
-    {% for sig in v.signatures %}<div class="signature"></div>{% endfor %}
+    {% for sig in v.signatures %}
+    <div class="signature">
+      <img src="{{ sig.uri }}" alt="Signature of {{ sig.name }}">
+      <div>
+        <p><strong>{{ sig.name }}</strong> <span class="muted">· {{ sig.role }}</span></p>
+        <p class="attest">{{ sig.attestation }}</p>
+        <p class="muted">Signed {{ sig.utc }}{% if sig.local != sig.utc %} ({{ sig.local }}){% endif %}</p>
+      </div>
+    </div>
+    {% endfor %}
     {% else %}
     <p class="unsigned">Not yet signed.</p>
     {% endif %}

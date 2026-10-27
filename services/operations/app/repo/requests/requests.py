@@ -143,7 +143,7 @@ async def update(
     changes: dict[str, Any],
     *,
     now: datetime,
-    by: str,
+    by: str | None,
     session: AsyncClientSession,
     expected_status: str | None = None,
     expected_version: int | None = None,

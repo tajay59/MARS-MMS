@@ -132,7 +132,7 @@ async def insert(db: Db, doc: dict[str, Any], session: AsyncClientSession) -> No
 
 
 async def update(
-    db: Db, visit_id: str, changes: dict[str, Any], *, now: datetime, by: str,
+    db: Db, visit_id: str, changes: dict[str, Any], *, now: datetime, by: str | None,
     session: AsyncClientSession, expected_status: str | None = None,
     expected_version: int | None = None,
 ) -> dict[str, Any]:

@@ -53,6 +53,23 @@ class Settings(BaseSettings):
     draft_wait_s: int = 300
     draft_tick_s: int = 30  # how often the cron reads stale facts and queues first PDFs
 
+    # --- Signatures (W17-5, W17-6; PRD RPT-4, Q2)
+    # The sentence shown above the signature and stored with it, as the person saw it
+    attestation: str = (
+        "I confirm the information in this report is accurate and the work described was "
+        "carried out."
+    )
+    signature_max_bytes: int = 100 * 1024
+    signature_max_width: int = 1200
+    signature_max_height: int = 600
+
+    # --- Finalizing (W17-7; TRD 11.2)
+    finalize_retries: int = 3  # tries at drawing the final PDF before the report is a draft again
+    finalize_backoff_s: int = 30  # doubled after each try
+    finalizing_timeout_s: int = 900  # a report left finalizing this long is taken up again
+    resume_tick_s: int = 60  # how often the cron looks for those, and for unlocks still owed
+    verify_max_bytes: int = 10 * 1024 * 1024  # a PDF given to /reports/verify (Nginx allows 10m)
+
     @property
     def kafka(self) -> KafkaAuth | None:
         password = self.kafka_password.get_secret_value() if self.kafka_password else None

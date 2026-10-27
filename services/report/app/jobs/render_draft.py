@@ -36,13 +36,13 @@ def object_key(report_id: str, content_version: int, facts_version: int) -> str:
     return f"visits/{report_id}/draft-{content_version}-{facts_version}.pdf"
 
 
-async def _pictures(svc: Services, report: dict[str, Any]) -> dict[str, str | None]:
+async def pictures_for(svc: Services, report: dict[str, Any]) -> dict[str, str | None]:
     """Each selected photo's display copy as a page-sized JPEG; None when it cannot be had (the
     page prints a grey box and its caption)."""
     ids = list(dict.fromkeys(s["media_id"] for s in report["content"]["media_selection"]))
     # A video's poster frame, kept under `poster:<media id>` (the page shows it beside the QR code)
-    posters = [r["media_id"] for r in drafts.media_refs(report["content"]["facts"])
-               if r["kind"] == "video"]
+    shared = drafts.media_refs(report["content"]["facts"], shared_only=True)
+    posters = [r["media_id"] for r in shared if r["kind"] == "video"]
     gate = asyncio.Semaphore(PICTURES_AT_ONCE)
 
     async def one(media_id: str, poster: bool = False) -> tuple[str, str | None]:
@@ -68,7 +68,7 @@ async def render_draft(svc: Services, report_id: str) -> None:
         return  # not a draft, already done, or unknown: nothing to do
     cv, fv = report["content_version"], report["facts_version"]
     try:
-        pictures = await _pictures(svc, report)
+        pictures = await pictures_for(svc, report)
         view = visit_view.build(report, pictures, app_url=svc.settings.app_url, generated_at=now)
         rendered = await svc.renderer.visit_report(view, report["template_version"])
         key = object_key(report_id, cv, fv)
@@ -94,7 +94,7 @@ async def render_draft(svc: Services, report_id: str) -> None:
 
     async def save(session: AsyncClientSession) -> bool:
         stored = await reports.finish_render(svc.db, report_id, pdf, first=first, session=session)
-        if stored and first:
+        if stored and first and report.get("supersedes_id") is None:
             await publish.drafted(svc.db, svc.clock, report, session)
         return stored
 

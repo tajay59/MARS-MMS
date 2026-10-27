@@ -28,20 +28,53 @@ PAGE_TOLERANCE = 0.005  # share of a page's pixels that may differ (0.5%)
 NOW = datetime(2026, 10, 5, 17, 0, tzinfo=UTC)
 
 
+HASH = "3f9a1c2e4b7d8a60" + "0" * 48  # the first 16 characters are printed in a final footer
+
+
+def drawn(seed: int) -> bytes:
+    """A made-up signature: a looping line, nobody's real one (the repository is public)."""
+    import io
+
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGBA", (520, 180), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(image)
+    points = [(20 + 38 * n, 100 + (60 if (n + seed) % 2 else -60) * ((n % 3) + 1) // 3)
+              for n in range(13)]
+    draw.line(points, fill=(20, 28, 60, 255), width=5, joint="curve")
+    draw.line([(30, 150), (480, 140)], fill=(20, 28, 60, 255), width=3)
+    out = io.BytesIO()
+    image.save(out, "PNG")
+    return out.getvalue()
+
+
+def signatures() -> list[dict]:
+    attest = "I confirm the information in this report is accurate and the work described was carried out."
+    return [
+        {"signer_id": vf.LEAD, "role": "lead", "typed_name": "Test Lead", "attestation": attest,
+         "signed_at": datetime(2026, 10, 5, 17, 3, tzinfo=UTC), "image": drawn(1)},
+        {"signer_id": vf.OTHER, "role": "attending", "typed_name": "Test Helper",
+         "attestation": attest, "signed_at": datetime(2026, 10, 5, 17, 9, tzinfo=UTC),
+         "image": drawn(2)},
+    ]
+
+
 def report(facts: dict, *, status: str = "draft") -> dict:
     doc = drafts.new_draft(
         report_id="r1", number="VR-2026-0042-02", subject_ref=f"visit:{vf.VISIT}",
         visit_id=vf.VISIT, request_id=vf.REQUEST, org_id=vf.ORG, staff_ids=[vf.LEAD],
         lead_staff_id=vf.LEAD, ended_at=NOW, now=NOW)
     doc["status"] = status
+    doc["content_hash"] = HASH
     doc["content"] = {
         "facts": facts, "narrative": drafts.default_narrative(facts),
         "media_selection": drafts.default_media_selection(facts)}
     return doc
 
 
-def pdf_of(doc: dict, pictures: dict[str, str | None]) -> bytes:
-    view = visit_view.build(doc, pictures, app_url="https://mms.example", generated_at=NOW)
+def pdf_of(doc: dict, pictures: dict[str, str | None], signed: list[dict] | None = None) -> bytes:
+    view = visit_view.build(
+        doc, pictures, app_url="https://mms.example", generated_at=NOW, signatures=signed or [])
     return render.to_pdf(render.render_visit_html(view, "visit-1")).pdf
 
 
@@ -72,7 +105,7 @@ def empty_visit() -> dict:
 
 CASES = {
     "full-draft": lambda: pdf_of(report(vf.facts()), pictures()),
-    "full-final": lambda: pdf_of(report(vf.facts(), status="final"), pictures()),
+    "full-final": lambda: pdf_of(report(vf.facts(), status="final"), pictures(), signatures()),
     "no-work": lambda: pdf_of(report(empty_visit()), {}),
 }
 

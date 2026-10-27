@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from app.api.context import CtxDep
 from app.api.stations.calibration_routes import due_list
 from app.api.stations.schemas import DueList
-from app.api.visits import report_facts
+from app.api.visits import report_facts, report_lock
 from app.domain.visits import elements as element_rules
 from app.events.publish import (
     calibration_data,
@@ -185,6 +185,39 @@ async def visit_report_facts(
     if facts is None:
         raise NotFound()
     return facts
+
+
+class LockIn(BaseModel):
+    report_id: Annotated[str, Field(pattern=UUID7_PATTERN)]
+    report_version: int = Field(ge=1)
+
+
+class LockOut(BaseModel):
+    visit_id: str
+    locked: bool
+    visit_version: int  # the visit's version after the call: the board as it was locked
+
+
+@router.post("/internal/visits/{visit_id}/lock")
+async def lock_visit(
+    visit_id: Annotated[str, Path(pattern=UUID7_PATTERN)], body: LockIn, svc: ReportService,
+    ctx: CtxDep,
+) -> LockOut:
+    """Lock an ended visit's boards for one version of its report (VIS-12; TRD 11.2 step 4.2).
+    The same pair again changes nothing; another report version on a locked visit is 409."""
+    visit, locked = await report_lock.lock(ctx, visit_id, body.report_id, body.report_version)
+    return LockOut(visit_id=visit_id, locked=locked, visit_version=visit["version"])
+
+
+@router.post("/internal/visits/{visit_id}/unlock")
+async def unlock_visit(
+    visit_id: Annotated[str, Path(pattern=UUID7_PATTERN)], body: LockIn, svc: ReportService,
+    ctx: CtxDep,
+) -> LockOut:
+    """Unlock the visit if this report version holds the lock (a failed finalize, or a reopen).
+    Anything else changes nothing and the answer says whether the visit is still locked."""
+    visit, locked = await report_lock.unlock(ctx, visit_id, body.report_id, body.report_version)
+    return LockOut(visit_id=visit_id, locked=locked, visit_version=visit["version"])
 
 
 @router.get("/internal/snapshot/{entity}")

@@ -66,6 +66,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify */
+        post: operations["verify_api_v1_reports_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/{report_id}": {
         parameters: {
             query?: never;
@@ -83,6 +100,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/{report_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Content
+         * @description RPT-2: change the narrative or the photo choice of a draft. `content_version` is the one
+         *     the editor read: another editor's save in between is 409 `content_changed`, unless this save
+         *     is already in (a repeat after a lost answer), which changes nothing. A change that alters what
+         *     prints clears the signatures (W17-3).
+         */
+        patch: operations["edit_content_api_v1_reports__report_id__content_patch"];
+        trace?: never;
+    };
     "/api/v1/reports/{report_id}/download": {
         parameters: {
             query?: never;
@@ -92,12 +132,35 @@ export interface paths {
         };
         /**
          * Download
-         * @description A ten-minute link to the draft PDF (never cached: it acts as a password). If the report
-         *     changed since the PDF was drawn, `current` is false and the link is to the older one.
+         * @description A ten-minute link to the report's PDF (never cached: it acts as a password): the final
+         *     one for a final or superseded version, else the latest draft. If a draft changed since its
+         *     PDF was drawn, `current` is false and the link is to the older one.
          */
         get: operations["download_api_v1_reports__report_id__download_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finalize Report
+         * @description RPT-5: make the signed draft final. The lead or an admin, once the lead has signed this
+         *     version. 409 `lead_not_signed` until then. Answers at once; the report is `finalizing` while
+         *     the visit is locked and the PDF is drawn.
+         */
+        post: operations["finalize_report_api_v1_reports__report_id__finalize_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -125,10 +188,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/{report_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen Report
+         * @description RPT-6: an admin reopens a final report for correction. The final becomes `superseded` and
+         *     stays readable; the next version is a draft with the same narrative and photo choice, the
+         *     facts read again and no signatures. Answers with the new draft. 409 `already_reopened` when
+         *     the version was already superseded, `not_final` when it is not final yet.
+         */
+        post: operations["reopen_report_api_v1_reports__report_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign
+         * @description RPT-4: a person who attended the visit signs the draft as it stands (`content_version`).
+         *     The record keeps the drawing, the typed name, the attestation as shown, the time, address and
+         *     browser, and the hash of the content (TRD 11.3). One valid signature each: signing again is
+         *     409 `already_signed`. A change to the report clears every signature.
+         */
+        post: operations["sign_api_v1_reports__report_id__sign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ContentPatch
+         * @description PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.
+         */
+        ContentPatch: {
+            /** Content Version */
+            content_version: number;
+            /** Media Selection */
+            media_selection?: components["schemas"]["SelectionEdit"][] | null;
+            narrative?: components["schemas"]["NarrativeEdit"] | null;
+        };
         /** DownloadOut */
         DownloadOut: {
             /** Current */
@@ -203,6 +323,27 @@ export interface components {
             station_ids: string[];
         };
         /**
+         * NarrativeEdit
+         * @description Fields that are given replace the old text; the others stay.
+         */
+        NarrativeEdit: {
+            /** Follow Up */
+            follow_up?: string | null;
+            /** Recommendations */
+            recommendations?: string | null;
+            /** Stations */
+            stations?: components["schemas"]["NarrativeStation"][] | null;
+            /** Summary */
+            summary?: string | null;
+        };
+        /** NarrativeStation */
+        NarrativeStation: {
+            /** Station Id */
+            station_id: string;
+            /** Work Performed */
+            work_performed: string;
+        };
+        /**
          * PdfState
          * @description Where the draft PDF stands. `current` is false when the report has changed since it was
          *     drawn: a preview draws it again.
@@ -228,14 +369,26 @@ export interface components {
             /** State */
             state: string;
         };
+        /**
+         * ReopenIn
+         * @description POST /reports/{id}/reopen (W17-10): why the final report is being corrected.
+         */
+        ReopenIn: {
+            /** Reason */
+            reason: string;
+        };
         /** ReportOut */
         ReportOut: {
+            /** Attestation */
+            attestation?: string | null;
             /** Awaiting Media */
             awaiting_media: number;
             /** Content */
             content: {
                 [key: string]: unknown;
             };
+            /** Content Hash */
+            content_hash?: string | null;
             /** Content Version */
             content_version: number;
             /**
@@ -247,17 +400,39 @@ export interface components {
             drafted_at?: string | null;
             /** Facts Version */
             facts_version: number;
+            /** Finalize Error */
+            finalize_error?: string | null;
+            /** Finalized At */
+            finalized_at?: string | null;
+            /** Finalized By */
+            finalized_by?: string | null;
             /** Id */
             id: string;
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
             /** Number */
             number: string;
             pdf: components["schemas"]["PdfState"];
+            /** Pdf Sha256 */
+            pdf_sha256?: string | null;
             /** Request Id */
             request_id: string;
+            /**
+             * Signatures
+             * @default []
+             */
+            signatures: components["schemas"]["SignatureOut"][];
+            /**
+             * Staff Ids
+             * @default []
+             */
+            staff_ids: string[];
             /** Status */
             status: string;
             /** Subject Ref */
             subject_ref: string;
+            /** Supersedes Id */
+            supersedes_id?: string | null;
             /** Type */
             type: string;
             /**
@@ -281,11 +456,15 @@ export interface components {
             created_at: string;
             /** Drafted At */
             drafted_at?: string | null;
+            /** Finalized At */
+            finalized_at?: string | null;
             /** Id */
             id: string;
             /** Number */
             number: string;
             pdf: components["schemas"]["PdfState"];
+            /** Pdf Sha256 */
+            pdf_sha256?: string | null;
             /** Request Id */
             request_id: string;
             /** Status */
@@ -304,6 +483,65 @@ export interface components {
             /** Visit Id */
             visit_id?: string | null;
         };
+        /**
+         * SelectionEdit
+         * @description A photo's place in the report: `in_body` (else the appendix) and its caption here.
+         */
+        SelectionEdit: {
+            /** Caption */
+            caption?: string | null;
+            /** In Body */
+            in_body?: boolean | null;
+            /** Media Id */
+            media_id: string;
+        };
+        /**
+         * SignIn
+         * @description POST /reports/{id}/sign (W17-6): the version the person read, the name they typed and
+         *     the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted).
+         */
+        SignIn: {
+            /** Content Version */
+            content_version: number;
+            /** Image */
+            image: string;
+            /** Typed Name */
+            typed_name: string;
+        };
+        /**
+         * SignatureOut
+         * @description One signature of this version. Staff only: `image` is the drawn PNG as a data URI, and is
+         *     absent once the signature was cleared (the record stays, W17-4).
+         */
+        SignatureOut: {
+            /** Attestation */
+            attestation: string;
+            /** Cleared At */
+            cleared_at?: string | null;
+            /** Cleared By */
+            cleared_by?: string | null;
+            /** Content Version */
+            content_version: number;
+            /** Id */
+            id: string;
+            /** Image */
+            image?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Signed At
+             * Format: date-time
+             */
+            signed_at: string;
+            /** Signer Id */
+            signer_id: string;
+            /** Signer Name */
+            signer_name: string;
+            /** Typed Name */
+            typed_name: string;
+            /** Valid */
+            valid: boolean;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -316,6 +554,22 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VerifyOut
+         * @description Whether a PDF is one this system issued. Names the report and its version; no content.
+         */
+        VerifyOut: {
+            /** Finalized At */
+            finalized_at?: string | null;
+            /** Match */
+            match: boolean;
+            /** Number */
+            number?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Version */
+            version?: number | null;
         };
     };
     responses: never;
@@ -422,6 +676,26 @@ export interface operations {
             };
         };
     };
+    verify_api_v1_reports_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyOut"];
+                };
+            };
+        };
+    };
     get_report_api_v1_reports__report_id__get: {
         parameters: {
             query?: never;
@@ -432,6 +706,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_content_api_v1_reports__report_id__content_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentPatch"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -484,6 +793,37 @@ export interface operations {
             };
         };
     };
+    finalize_report_api_v1_reports__report_id__finalize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     preview_api_v1_reports__report_id__preview_post: {
         parameters: {
             query?: never;
@@ -502,6 +842,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_report_api_v1_reports__report_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReopenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_api_v1_reports__report_id__sign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
                 };
             };
             /** @description Validation Error */

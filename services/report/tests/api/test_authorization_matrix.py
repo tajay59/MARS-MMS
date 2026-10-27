@@ -10,7 +10,7 @@ import httpx
 import pytest
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.revocation import revoke_user
-from mms_common.testing.matrix import Expect, Matrix, Route, check_table, roles
+from mms_common.testing.matrix import PUBLIC, Expect, Matrix, Route, check_table, roles
 from mms_common.testing.memory import MemoryStore
 from mms_common.testing.seed import SEED_USERS, TestIssuer
 from mms_common.time import ManualClock
@@ -28,6 +28,15 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/api/v1/reports/{report_id}"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports/{report_id}/download"): roles("technician", "admin", "viewer", "client"),
     ("POST", "/api/v1/reports/{report_id}/preview"): roles("technician", "admin"),
+    # Editing and signing (W17): attending staff and admins edit (the route checks they attended),
+    # the people who attended sign. A viewer never mutates and a client has no draft.
+    ("PATCH", "/api/v1/reports/{report_id}/content"): roles("technician", "admin"),
+    ("POST", "/api/v1/reports/{report_id}/sign"): roles("technician", "admin"),
+    # Finalizing: the lead or an admin (the route checks which); reopening: admins; verify: anyone,
+    # rate limited by Nginx (RPT-11)
+    ("POST", "/api/v1/reports/{report_id}/finalize"): roles("technician", "admin"),
+    ("POST", "/api/v1/reports/{report_id}/reopen"): roles("admin"),
+    ("POST", "/api/v1/reports/verify"): Expect(PUBLIC),
 }
 
 
