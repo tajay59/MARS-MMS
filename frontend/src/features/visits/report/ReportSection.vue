@@ -44,10 +44,18 @@
 
       <div v-if="online" class="flex flex-wrap gap-2 max-md:flex-col">
         <v-btn
-          v-if="words.canOpen && !words.canDraw"
           :block="!mdAndUp"
           color="primary"
+          :prepend-icon="mdiPencilOutline"
+          :to="{ name: 'visit-report', params: { id: report.id } }"
+          :variant="report.status === 'draft' && mayDraw ? 'flat' : 'outlined'"
+        >{{ openWords }}</v-btn>
+
+        <v-btn
+          v-if="words.canOpen && !words.canDraw"
+          :block="!mdAndUp"
           :prepend-icon="mdiFileEyeOutline"
+          variant="outlined"
           @click="opened = true"
         >Preview</v-btn>
 
@@ -83,7 +91,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { mdiAlertCircleOutline, mdiCheckCircleOutline, mdiClockAlertOutline, mdiFileEyeOutline, mdiFileOutline } from '@mdi/js'
+  import { mdiAlertCircleOutline, mdiCheckCircleOutline, mdiClockAlertOutline, mdiFileEyeOutline, mdiFileOutline, mdiPencilOutline } from '@mdi/js'
   import { computed, ref, toRef, watch } from 'vue'
   import { useDisplay } from 'vuetify'
   import { useOnline } from '@/app/composables/useOnline'
@@ -92,9 +100,10 @@
   import { useVisitReport } from './useVisitReport'
   import { look, statusText, versionText } from './words'
 
-  // The visit's report as staff see it (W16, RPT-1, RPT-3): its number and version, whether the
-  // draft PDF is ready, and Preview. Editing, signing and finalizing arrive with W17. A client
-  // never gets this section, and the server would answer 404 to a draft anyway (rule 6).
+  // The visit's report as staff see it (W16, RPT-1, RPT-3; W17): its number and version, whether the
+  // PDF is ready, Preview, and the way into the report page (/visit-reports/:id) to edit, sign,
+  // finalize and reopen. A client has ClientReportSection instead, and the server would answer 404
+  // to a draft anyway (rule 6).
   const props = defineProps<{
     visitId: string
     /** The visit has ended: the draft exists once the end has synced. */
@@ -110,6 +119,8 @@
   const { report } = state
 
   const opened = ref(false)
+  // Attending staff and admins edit and sign a draft; everyone else reads
+  const openWords = computed(() => report.value?.status === 'draft' && props.mayDraw ? 'Edit and sign' : 'Open the report')
   const words = computed(() => look(report.value!))
   // Within about two minutes of the end the draft may not exist yet: say it is on its way
   const looking = state.searching

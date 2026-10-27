@@ -137,5 +137,9 @@ export type ReportOut = Report['ReportOut']
 export type ReportPdf = Report['PdfState']
 export type ReportPreview = Report['PreviewOut']
 export type ReportDownload = Report['DownloadOut']
+export type ReportSignature = Report['SignatureOut']
+export type ReportContentPatch = Report['ContentPatch']
+export type ReportSignIn = Report['SignIn']
+export type ReportReopenIn = Report['ReopenIn']
 
 export type StationStatus = 'operational' | 'degraded' | 'offline' | 'decommissioned'
