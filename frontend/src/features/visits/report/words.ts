@@ -26,11 +26,18 @@ export function versionText (report: Pick<ReportSummary, 'version'>): string {
 }
 
 export function statusText (status: string): string {
-  return status === 'draft' ? 'Draft' : status.charAt(0).toUpperCase() + status.slice(1)
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 export function look (report: ReportSummary): ReportLook {
   const { pdf } = report
+  if (report.status === 'finalizing') {
+    return { tone: 'working', title: 'Finalizing…', text: 'The visit’s boards are locked while the PDF is made. This takes up to a minute.', canOpen: false, canDraw: false, action: 'Preview' }
+  }
+  if (report.status === 'final' || report.status === 'superseded') {
+    const word = report.status === 'final' ? 'Final report' : 'Superseded report'
+    return { tone: 'ready', title: word, text: 'Signed and kept as it was finalized.', canOpen: true, canDraw: false, action: 'Open' }
+  }
   if (pdf.state === 'failed') {
     return {
       tone: 'failed',
@@ -78,6 +85,9 @@ export function latest (reports: readonly ReportSummary[]): ReportSummary | null
 
 /** Whether the section should look again soon: a draft that is still being made. */
 export function isSettling (report: ReportSummary | null): boolean {
+  if (report?.status === 'finalizing') {
+    return true
+  }
   if (!report || report.status !== 'draft') {
     return false
   }

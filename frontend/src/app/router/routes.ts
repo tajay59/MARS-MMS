@@ -155,6 +155,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/offline/VisitFieldGate.vue'),
     meta: { title: 'Visit', layout: 'field', roles: STAFF, offline: true },
   },
+  {
+    // A visit's report (PRD RPT-2, RPT-4 to RPT-6; AFD J7): edit, sign, finalize and reopen. Staff only;
+    // needs a connection like every report action (OFF-10). A client reads a final report on the visit.
+    path: '/visit-reports/:id',
+    name: 'visit-report',
+    component: () => import('@/features/visits/report/editor/ReportEditorPage.vue'),
+    meta: { title: 'Visit report', layout: 'app', roles: STAFF },
+  },
   later('/reports', 'reports', 'Reports', 7),
   {
     // The person's own notifications (PRD NOT-1, NOT-2)

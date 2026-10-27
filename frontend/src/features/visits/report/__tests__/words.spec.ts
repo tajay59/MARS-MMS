@@ -47,6 +47,12 @@ describe('look', () => {
   it('offers Try again when drawing failed', () => {
     expect(look(report({}, { state: 'failed' }))).toMatchObject({ tone: 'failed', canDraw: true, action: 'Try again', canOpen: false })
   })
+
+  it('says a report is being finalized, and then that it is final and can be opened', () => {
+    expect(look(report({ status: 'finalizing' }))).toMatchObject({ tone: 'working', title: 'Finalizing…', canOpen: false, canDraw: false })
+    expect(look(report({ status: 'final' }))).toMatchObject({ tone: 'ready', title: 'Final report', canOpen: true, canDraw: false })
+    expect(look(report({ status: 'superseded' }))).toMatchObject({ title: 'Superseded report', canOpen: true, canDraw: false })
+  })
 })
 
 describe('the rest', () => {
@@ -54,6 +60,7 @@ describe('the rest', () => {
     expect(versionText({ version: 2 })).toBe('v2')
     expect(statusText('draft')).toBe('Draft')
     expect(statusText('final')).toBe('Final')
+    expect(statusText('finalizing')).toBe('Finalizing')
   })
 
   it('takes the newest version', () => {
@@ -68,5 +75,6 @@ describe('the rest', () => {
     expect(isSettling(report({ awaiting_media: 2 }, { state: 'ready', current: true }))).toBe(true)
     expect(isSettling(report({}, { state: 'ready', current: true }))).toBe(false)
     expect(isSettling(report({ status: 'final' }))).toBe(false)
+    expect(isSettling(report({ status: 'finalizing' }))).toBe(true)
   })
 })

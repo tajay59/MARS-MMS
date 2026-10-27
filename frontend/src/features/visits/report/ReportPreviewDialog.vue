@@ -2,7 +2,7 @@
   <ModalSheet v-model="open" labelledby="rp-h" max-width="880" sheet>
     <div class="flex items-center gap-2">
       <h2 id="rp-h" class="m-0 min-w-0 flex-1 truncate text-h3 text-surface-900">
-        Draft <span class="font-mono" translate="no">{{ report.number }}</span> {{ versionText(report) }}
+        {{ report.status === 'draft' ? 'Draft' : 'Report' }} <span class="font-mono" translate="no">{{ report.number }}</span> {{ versionText(report) }}
       </h2>
 
       <v-btn
@@ -28,7 +28,7 @@
     </div>
 
     <template v-else-if="link">
-      <p v-if="!report.pdf.current" class="m-0 mt-2 text-sm text-surface-700">This is an older drawing. Close this and choose Preview to draw the visit as it is now.</p>
+      <p v-if="report.status === 'draft' && !report.pdf.current" class="m-0 mt-2 text-sm text-surface-700">This is an older drawing. Close this and choose Preview to draw the visit as it is now.</p>
 
       <div class="mt-2 flex h-[70dvh] min-h-0 flex-col overflow-hidden rounded-lg border border-surface-300">
         <PdfViewer :url="link.url" />
