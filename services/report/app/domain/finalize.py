@@ -79,6 +79,15 @@ def is_stuck(report: Mapping[str, Any], now: datetime, timeout_s: int) -> bool:
     )
 
 
+def is_correcting(versions: Sequence[Mapping[str, Any]]) -> bool:
+    """The newest version is a draft (or being finalized) and it is not the first: an earlier
+    one was final and has been reopened."""
+    if not versions:
+        return False
+    newest = max(versions, key=lambda v: v["version"])
+    return bool(newest["version"] > 1 and newest["status"] in ("draft", "finalizing"))
+
+
 def reopen_reason(text: str) -> str:
     reason = " ".join(text.split())
     if not REASON_MIN <= len(reason) <= REASON_MAX:
