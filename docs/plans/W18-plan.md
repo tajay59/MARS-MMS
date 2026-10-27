@@ -107,4 +107,4 @@ At the start of each phase the charts are suggested and you choose (CLAUDE.md). 
 | Close-out version decision | Decision tree | New close-out, a new version, or nothing, for `request.closed` and for `report.finalized` on a closed request |
 | Request state, as built | State | The whole request lifecycle now that all of it exists (replaces the designed one) |
 
-Default: all seven, drawn as each slice lands, and the docs site updated at the end of the phase.
+**Chosen 2026-10-27: all seven.** Each is drawn from what its slice built (never from the design), in the slice's own PR or in one charts PR before the phase closes: the sequence with slice 2, the `accept` and `reject` flowchart and the reminders state with slice 1, the close-out flowchart and version tree with slice 3, the journey and the request state at the end. The docs site's Diagram guide lists them under P6 when the first one lands.
