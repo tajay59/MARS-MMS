@@ -83,6 +83,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/{report_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Content
+         * @description RPT-2: change the narrative or the photo choice of a draft. `content_version` is the one
+         *     the editor read: another editor's save in between is 409 `content_changed`, unless this save
+         *     is already in (a repeat after a lost answer), which changes nothing. A change that alters what
+         *     prints clears the signatures (W17-3).
+         */
+        patch: operations["edit_content_api_v1_reports__report_id__content_patch"];
+        trace?: never;
+    };
     "/api/v1/reports/{report_id}/download": {
         parameters: {
             query?: never;
@@ -125,10 +148,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/{report_id}/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign
+         * @description RPT-4: a person who attended the visit signs the draft as it stands (`content_version`).
+         *     The record keeps the drawing, the typed name, the attestation as shown, the time, address and
+         *     browser, and the hash of the content (TRD 11.3). One valid signature each: signing again is
+         *     409 `already_signed`. A change to the report clears every signature.
+         */
+        post: operations["sign_api_v1_reports__report_id__sign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ContentPatch
+         * @description PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.
+         */
+        ContentPatch: {
+            /** Content Version */
+            content_version: number;
+            /** Media Selection */
+            media_selection?: components["schemas"]["SelectionEdit"][] | null;
+            narrative?: components["schemas"]["NarrativeEdit"] | null;
+        };
         /** DownloadOut */
         DownloadOut: {
             /** Current */
@@ -203,6 +260,27 @@ export interface components {
             station_ids: string[];
         };
         /**
+         * NarrativeEdit
+         * @description Fields that are given replace the old text; the others stay.
+         */
+        NarrativeEdit: {
+            /** Follow Up */
+            follow_up?: string | null;
+            /** Recommendations */
+            recommendations?: string | null;
+            /** Stations */
+            stations?: components["schemas"]["NarrativeStation"][] | null;
+            /** Summary */
+            summary?: string | null;
+        };
+        /** NarrativeStation */
+        NarrativeStation: {
+            /** Station Id */
+            station_id: string;
+            /** Work Performed */
+            work_performed: string;
+        };
+        /**
          * PdfState
          * @description Where the draft PDF stands. `current` is false when the report has changed since it was
          *     drawn: a preview draws it again.
@@ -230,12 +308,16 @@ export interface components {
         };
         /** ReportOut */
         ReportOut: {
+            /** Attestation */
+            attestation?: string | null;
             /** Awaiting Media */
             awaiting_media: number;
             /** Content */
             content: {
                 [key: string]: unknown;
             };
+            /** Content Hash */
+            content_hash?: string | null;
             /** Content Version */
             content_version: number;
             /**
@@ -249,11 +331,23 @@ export interface components {
             facts_version: number;
             /** Id */
             id: string;
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
             /** Number */
             number: string;
             pdf: components["schemas"]["PdfState"];
             /** Request Id */
             request_id: string;
+            /**
+             * Signatures
+             * @default []
+             */
+            signatures: components["schemas"]["SignatureOut"][];
+            /**
+             * Staff Ids
+             * @default []
+             */
+            staff_ids: string[];
             /** Status */
             status: string;
             /** Subject Ref */
@@ -303,6 +397,65 @@ export interface components {
             version: number;
             /** Visit Id */
             visit_id?: string | null;
+        };
+        /**
+         * SelectionEdit
+         * @description A photo's place in the report: `in_body` (else the appendix) and its caption here.
+         */
+        SelectionEdit: {
+            /** Caption */
+            caption?: string | null;
+            /** In Body */
+            in_body?: boolean | null;
+            /** Media Id */
+            media_id: string;
+        };
+        /**
+         * SignIn
+         * @description POST /reports/{id}/sign (W17-6): the version the person read, the name they typed and
+         *     the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted).
+         */
+        SignIn: {
+            /** Content Version */
+            content_version: number;
+            /** Image */
+            image: string;
+            /** Typed Name */
+            typed_name: string;
+        };
+        /**
+         * SignatureOut
+         * @description One signature of this version. Staff only: `image` is the drawn PNG as a data URI, and is
+         *     absent once the signature was cleared (the record stays, W17-4).
+         */
+        SignatureOut: {
+            /** Attestation */
+            attestation: string;
+            /** Cleared At */
+            cleared_at?: string | null;
+            /** Cleared By */
+            cleared_by?: string | null;
+            /** Content Version */
+            content_version: number;
+            /** Id */
+            id: string;
+            /** Image */
+            image?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Signed At
+             * Format: date-time
+             */
+            signed_at: string;
+            /** Signer Id */
+            signer_id: string;
+            /** Signer Name */
+            signer_name: string;
+            /** Typed Name */
+            typed_name: string;
+            /** Valid */
+            valid: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -453,6 +606,41 @@ export interface operations {
             };
         };
     };
+    edit_content_api_v1_reports__report_id__content_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     download_api_v1_reports__report_id__download_get: {
         parameters: {
             query?: never;
@@ -502,6 +690,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_api_v1_reports__report_id__sign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
                 };
             };
             /** @description Validation Error */

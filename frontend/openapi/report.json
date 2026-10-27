@@ -1,6 +1,47 @@
 {
   "components": {
     "schemas": {
+      "ContentPatch": {
+        "additionalProperties": false,
+        "description": "PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.",
+        "properties": {
+          "content_version": {
+            "minimum": 1.0,
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "media_selection": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SelectionEdit"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Selection"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NarrativeEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "content_version"
+        ],
+        "title": "ContentPatch",
+        "type": "object"
+      },
       "DownloadOut": {
         "properties": {
           "current": {
@@ -212,6 +253,86 @@
         "title": "LabelsIn",
         "type": "object"
       },
+      "NarrativeEdit": {
+        "additionalProperties": false,
+        "description": "Fields that are given replace the old text; the others stay.",
+        "properties": {
+          "follow_up": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up"
+          },
+          "recommendations": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendations"
+          },
+          "stations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NarrativeStation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stations"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "title": "NarrativeEdit",
+        "type": "object"
+      },
+      "NarrativeStation": {
+        "additionalProperties": false,
+        "properties": {
+          "station_id": {
+            "maxLength": 64,
+            "title": "Station Id",
+            "type": "string"
+          },
+          "work_performed": {
+            "maxLength": 20000,
+            "title": "Work Performed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "work_performed"
+        ],
+        "title": "NarrativeStation",
+        "type": "object"
+      },
       "PdfState": {
         "description": "Where the draft PDF stands. `current` is false when the report has changed since it was\ndrawn: a preview draws it again.",
         "properties": {
@@ -285,6 +406,17 @@
       },
       "ReportOut": {
         "properties": {
+          "attestation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation"
+          },
           "awaiting_media": {
             "title": "Awaiting Media",
             "type": "integer"
@@ -293,6 +425,17 @@
             "additionalProperties": true,
             "title": "Content",
             "type": "object"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
           },
           "content_version": {
             "title": "Content Version",
@@ -323,6 +466,17 @@
             "title": "Id",
             "type": "string"
           },
+          "lead_staff_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Staff Id"
+          },
           "number": {
             "title": "Number",
             "type": "string"
@@ -333,6 +487,22 @@
           "request_id": {
             "title": "Request Id",
             "type": "string"
+          },
+          "signatures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SignatureOut"
+            },
+            "title": "Signatures",
+            "type": "array"
+          },
+          "staff_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Staff Ids",
+            "type": "array"
           },
           "status": {
             "title": "Status",
@@ -471,6 +641,162 @@
           "updated_at"
         ],
         "title": "ReportSummary",
+        "type": "object"
+      },
+      "SelectionEdit": {
+        "additionalProperties": false,
+        "description": "A photo's place in the report: `in_body` (else the appendix) and its caption here.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "in_body": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Body"
+          },
+          "media_id": {
+            "maxLength": 64,
+            "title": "Media Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_id"
+        ],
+        "title": "SelectionEdit",
+        "type": "object"
+      },
+      "SignIn": {
+        "additionalProperties": false,
+        "description": "POST /reports/{id}/sign (W17-6): the version the person read, the name they typed and\nthe drawing as base64 PNG (a `data:image/png;base64,` URI is accepted).",
+        "properties": {
+          "content_version": {
+            "minimum": 1.0,
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "image": {
+            "maxLength": 300000,
+            "title": "Image",
+            "type": "string"
+          },
+          "typed_name": {
+            "maxLength": 400,
+            "title": "Typed Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content_version",
+          "typed_name",
+          "image"
+        ],
+        "title": "SignIn",
+        "type": "object"
+      },
+      "SignatureOut": {
+        "description": "One signature of this version. Staff only: `image` is the drawn PNG as a data URI, and is\nabsent once the signature was cleared (the record stays, W17-4).",
+        "properties": {
+          "attestation": {
+            "title": "Attestation",
+            "type": "string"
+          },
+          "cleared_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleared At"
+          },
+          "cleared_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleared By"
+          },
+          "content_version": {
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "signed_at": {
+            "format": "date-time",
+            "title": "Signed At",
+            "type": "string"
+          },
+          "signer_id": {
+            "title": "Signer Id",
+            "type": "string"
+          },
+          "signer_name": {
+            "title": "Signer Name",
+            "type": "string"
+          },
+          "typed_name": {
+            "title": "Typed Name",
+            "type": "string"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "signer_id",
+          "role",
+          "signer_name",
+          "typed_name",
+          "attestation",
+          "signed_at",
+          "content_version",
+          "valid"
+        ],
+        "title": "SignatureOut",
         "type": "object"
       },
       "ValidationError": {
@@ -749,6 +1075,65 @@
         ]
       }
     },
+    "/api/v1/reports/{report_id}/content": {
+      "patch": {
+        "description": "RPT-2: change the narrative or the photo choice of a draft. `content_version` is the one\nthe editor read: another editor's save in between is 409 `content_changed`, unless this save\nis already in (a repeat after a lost answer), which changes nothing. A change that alters what\nprints clears the signatures (W17-3).",
+        "operationId": "edit_content_api_v1_reports__report_id__content_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit Content",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/reports/{report_id}/download": {
       "get": {
         "description": "A ten-minute link to the draft PDF (never cached: it acts as a password). If the report\nchanged since the PDF was drawn, `current` is false and the link is to the older one.",
@@ -842,6 +1227,65 @@
           }
         ],
         "summary": "Preview",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/sign": {
+      "post": {
+        "description": "RPT-4: a person who attended the visit signs the draft as it stands (`content_version`).\nThe record keeps the drawing, the typed name, the attestation as shown, the time, address and\nbrowser, and the hash of the content (TRD 11.3). One valid signature each: signing again is\n409 `already_signed`. A change to the report clears every signature.",
+        "operationId": "sign_api_v1_reports__report_id__sign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sign",
         "tags": [
           "reports"
         ]

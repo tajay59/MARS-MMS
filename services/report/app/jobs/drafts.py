@@ -18,8 +18,13 @@ from datetime import timedelta
 from typing import Any
 
 from mms_common.logging import get_logger
+from mms_common.mongo import in_transaction
+from pymongo.asynchronous.client_session import AsyncClientSession
 
+from app.domain import content as content_rules
 from app.domain import drafts
+from app.events import publish
+from app.events import signatures as sign_events
 from app.repo import reports
 from app.repo.operations import OperationsUnavailable
 from app.services import Services
@@ -61,11 +66,28 @@ async def refresh_facts(svc: Services, report: dict[str, Any]) -> bool:
         drafts.default_media_selection(facts) if first
         else drafts.refreshed_selection(content["media_selection"], facts)
     )
-    await reports.set_facts(
-        svc.db, report["_id"], expected_stale_at=report["facts_stale_at"], facts=facts,
-        narrative=narrative, selection=selection,
-        awaiting=drafts.pending_media(facts, statuses), now=svc.clock.now(),
-    )
+    new_hash = content_rules.content_hash({
+        "facts": facts, "narrative": narrative or content["narrative"],
+        "media_selection": selection,
+    })
+    old_hash = report.get("content_hash")
+
+    async def save(session: AsyncClientSession) -> None:
+        stored = await reports.set_facts(
+            svc.db, report["_id"], expected_stale_at=report["facts_stale_at"],
+            expected_content_version=report["content_version"], expected_hash=old_hash,
+            facts=facts, narrative=narrative, selection=selection,
+            awaiting=drafts.pending_media(facts, statuses), content_hash=new_hash,
+            now=svc.clock.now(), session=session,
+        )
+        # What prints changed after people signed: their signatures no longer apply (W17-3). The
+        # same facts read again change nothing, so the signatures stay.
+        if stored and old_hash is not None and old_hash != new_hash:
+            await sign_events.clear(
+                svc.db, svc.clock, report, reason="facts", by="facts", actor=publish.SYSTEM,
+                session=session)
+
+    await in_transaction(svc.client, save)
     return True
 
 

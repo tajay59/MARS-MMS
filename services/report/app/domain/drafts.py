@@ -20,11 +20,14 @@ FACTS_VERSION = 1  # the shape of operations' `report-facts` this release reads
 SETTLED = frozenset({"ready", "failed", "deleted"})
 
 
-def media_refs(facts: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """Every file on the visit's boards, in board order: where it is and what it is."""
+def media_refs(facts: Mapping[str, Any], *, shared_only: bool = False) -> list[dict[str, Any]]:
+    """Every file on the visit's boards, in board order: where it is and what it is. A report
+    prints only shared elements (W17-1), so what it picks and waits for is `shared_only`."""
     out: list[dict[str, Any]] = []
     for station in facts["stations"]:
         for element in station["elements"]:
+            if shared_only and not element.get("shared"):
+                continue
             for section, entries in element["media"].items():
                 for m in entries:
                     out.append({
@@ -37,21 +40,24 @@ def media_refs(facts: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def pending_media(facts: Mapping[str, Any], statuses: Mapping[str, str | None]) -> list[str]:
-    """Files still being checked or processed. A file media does not know is not waited for."""
+    """Files still being checked or processed. A file media does not know is not waited for, and
+    neither is one that will not print."""
     return [
-        r["media_id"] for r in media_refs(facts)
+        r["media_id"] for r in media_refs(facts, shared_only=True)
         if statuses.get(r["media_id"]) not in SETTLED | {None}
     ]
 
 
 def default_narrative(facts: Mapping[str, Any]) -> dict[str, Any]:
-    """Pre-filled from the board's Notes and Recommendations and the follow-up notes (TRD 11.2).
-    People change it in the editor (W17); a refresh of the facts never rewrites it."""
+    """Pre-filled from the board's shared Notes and Recommendations and the follow-up notes
+    (TRD 11.2; W17-1). People change it in the editor; a refresh of the facts never rewrites it."""
     stations = []
     recommendations: list[str] = []
     for station in facts["stations"]:
         work = []
         for e in station["elements"]:
+            if not e.get("shared"):
+                continue
             if e["kind"] == "note":
                 work.append(e["title"] + (f": {e['description']}" if e.get("description") else ""))
             elif e["kind"] == "recommendation":
@@ -71,7 +77,7 @@ def default_media_selection(facts: Mapping[str, Any]) -> list[dict[str, Any]]:
     first, then the rest in board order, at most `PER_STATION_IN_BODY` in each station's body."""
     selection: list[dict[str, Any]] = []
     for station in facts["stations"]:
-        photos = [r for r in media_refs(facts)
+        photos = [r for r in media_refs(facts, shared_only=True)
                   if r["station_id"] == station["station_id"] and r["kind"] == "image"]
         first: dict[tuple[str, str], str] = {}
         for r in photos:
@@ -92,9 +98,11 @@ def default_media_selection(facts: Mapping[str, Any]) -> list[dict[str, Any]]:
 def refreshed_selection(
     selection: list[dict[str, Any]], facts: Mapping[str, Any]
 ) -> list[dict[str, Any]]:
-    """After a facts refresh: files no longer on the board leave the selection, new photos join
+    """After a facts refresh: files no longer on the board (or no longer shared) leave the
+    selection, new photos join
     it in the appendix, and what people chose stays as it is (W16-4)."""
-    photos = {r["media_id"]: r for r in media_refs(facts) if r["kind"] == "image"}
+    photos = {r["media_id"]: r for r in media_refs(facts, shared_only=True)
+              if r["kind"] == "image"}
     kept = [s for s in selection if s["media_id"] in photos]
     known = {s["media_id"] for s in kept}
     for media_id, r in photos.items():

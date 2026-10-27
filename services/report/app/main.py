@@ -29,7 +29,7 @@ from mms_common.web import ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
-from app.api import report_routes, reports
+from app.api import edit_routes, report_routes, reports
 from app.config import Settings
 from app.events import consumer
 from app.jobs import backfill, drafts
@@ -170,6 +170,7 @@ def create_app(
     # Literal paths before /{id} (TRD §3.0). Every route goes in the authorization matrix.
     app.include_router(reports.router)
     app.include_router(report_routes.router)
+    app.include_router(edit_routes.router)
     return app
 
 

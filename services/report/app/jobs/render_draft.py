@@ -41,8 +41,8 @@ async def _pictures(svc: Services, report: dict[str, Any]) -> dict[str, str | No
     page prints a grey box and its caption)."""
     ids = list(dict.fromkeys(s["media_id"] for s in report["content"]["media_selection"]))
     # A video's poster frame, kept under `poster:<media id>` (the page shows it beside the QR code)
-    posters = [r["media_id"] for r in drafts.media_refs(report["content"]["facts"])
-               if r["kind"] == "video"]
+    shared = drafts.media_refs(report["content"]["facts"], shared_only=True)
+    posters = [r["media_id"] for r in shared if r["kind"] == "video"]
     gate = asyncio.Semaphore(PICTURES_AT_ONCE)
 
     async def one(media_id: str, poster: bool = False) -> tuple[str, str | None]:

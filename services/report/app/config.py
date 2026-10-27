@@ -53,6 +53,16 @@ class Settings(BaseSettings):
     draft_wait_s: int = 300
     draft_tick_s: int = 30  # how often the cron reads stale facts and queues first PDFs
 
+    # --- Signatures (W17-5, W17-6; PRD RPT-4, Q2)
+    # The sentence shown above the signature and stored with it, as the person saw it
+    attestation: str = (
+        "I confirm the information in this report is accurate and the work described was "
+        "carried out."
+    )
+    signature_max_bytes: int = 100 * 1024
+    signature_max_width: int = 1200
+    signature_max_height: int = 600
+
     @property
     def kafka(self) -> KafkaAuth | None:
         password = self.kafka_password.get_secret_value() if self.kafka_password else None
