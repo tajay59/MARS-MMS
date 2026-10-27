@@ -76,18 +76,20 @@ async def preview(report_id: ReportId, user: Worker, ctx: CtxDep) -> PreviewOut:
 
 @router.get("/{report_id}/download")
 async def download(report_id: ReportId, user: Reader, ctx: CtxDep) -> DownloadOut:
-    """A ten-minute link to the draft PDF (never cached: it acts as a password). If the report
-    changed since the PDF was drawn, `current` is false and the link is to the older one."""
+    """A ten-minute link to the report's PDF (never cached: it acts as a password): the final
+    one for a final or superseded version, else the latest draft. If a draft changed since its
+    PDF was drawn, `current` is false and the link is to the older one."""
     s = ctx.svc
     doc = presenters.visible(user, await reports.get(s.db, report_id))
-    pdf = doc.get("draft_pdf")
+    final = doc["status"] in ("final", "superseded")
+    pdf = doc.get("final_pdf") if final else doc.get("draft_pdf")
     if not pdf:
         raise Conflict("There is no PDF yet", code="no_pdf")
     ttl = s.settings.get_url_ttl_s
-    name = numbering.file_name(doc["number"], doc["version"], draft=True)
+    name = numbering.file_name(doc["number"], doc["version"], draft=not final)
     url = s.storage.get_url(
         s.settings.bucket_reports, pdf["key"], ttl, content_type=CONTENT_TYPE, filename=name)
     return DownloadOut(
         url=url, expires_at=s.clock.now() + timedelta(seconds=ttl), filename=name,
-        current=drafts.pdf_is_current(doc),
+        current=final or drafts.pdf_is_current(doc),
     )

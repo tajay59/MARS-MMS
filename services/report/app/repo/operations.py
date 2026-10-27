@@ -30,6 +30,21 @@ class LabelSource(Protocol):
     ) -> list[StationLabel]: ...
 
 
+class LockRefused(Exception):  # noqa: N818 - reads as the answer it is
+    """Operations will not lock the visit for this report: another report version holds it
+    (`locked_by_another_report`), the visit has not ended (`not_ended`) or is not known."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+class VisitLocks(Protocol):
+    async def lock(self, visit_id: str, report_id: str, version: int) -> None: ...
+
+    async def unlock(self, visit_id: str, report_id: str, version: int) -> None: ...
+
+
 class FactsSource(Protocol):
     async def visit_facts(self, visit_id: str) -> dict[str, Any] | None: ...
 
@@ -88,6 +103,33 @@ class OperationsClient:
         items: list[dict[str, Any]] = body["items"]
         next_after: str | None = body.get("next_after")
         return items, next_after
+
+    async def _lock_call(self, action: str, visit_id: str, report_id: str, version: int) -> None:
+        try:
+            response = await self._http.post(
+                f"{self._base}/internal/visits/{visit_id}/{action}",
+                json={"report_id": report_id, "report_version": version},
+                headers=await self._tokens.headers(), timeout=30,
+            )
+        except (httpx.HTTPError, ConnectionError) as e:
+            raise OperationsUnavailable() from e
+        if response.status_code in (404, 409):
+            code = "visit_not_found" if response.status_code == 404 else "refused"
+            try:
+                code = str(response.json().get("code", code))
+            except ValueError:
+                pass
+            raise LockRefused(code)
+        if response.status_code != 200:
+            raise OperationsUnavailable(str(response.status_code))
+
+    async def lock(self, visit_id: str, report_id: str, version: int) -> None:
+        """Lock the visit's boards for this report version (W17-8). Idempotent."""
+        await self._lock_call("lock", visit_id, report_id, version)
+
+    async def unlock(self, visit_id: str, report_id: str, version: int) -> None:
+        """Open the boards again. Does nothing if another version holds the lock."""
+        await self._lock_call("unlock", visit_id, report_id, version)
 
     async def visit_facts(self, visit_id: str) -> dict[str, Any] | None:
         """The visit, its request, its stations and their boards, for a draft report (W16-2).

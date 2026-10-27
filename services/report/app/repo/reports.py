@@ -210,3 +210,95 @@ async def finish_render(
         {"$set": changes}, session=session,
     )
     return bool(result.modified_count)
+
+
+# --- finalizing and reopening (W17-7, W17-10) ------------------------------------------------
+
+
+async def request_finalize(
+    db: Db, report_id: str, *, content_version: int, content_hash: str, by: str,
+    actor: dict[str, Any], now: datetime,
+) -> bool:
+    """draft -> finalizing, if the content is still the one that was signed. False when it moved
+    or another request got there first."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "draft", "content_version": content_version,
+         "content_hash": content_hash},
+        {"$set": {"status": "finalizing", "finalizing_at": now, "finalize_requested_by": by,
+                  "finalize_actor": actor, "finalize_attempts": 0, "finalize_error": None,
+                  "updated_at": now}},
+    )
+    return bool(result.modified_count)
+
+
+async def claim_finalizing(db: Db, report_id: str, now: datetime) -> dict[str, Any] | None:
+    """Start a try of the saga, or start it again after a worker died. Counts the try."""
+    doc: dict[str, Any] | None = await col(db).find_one_and_update(
+        {"_id": report_id, "status": "finalizing"},
+        {"$set": {"updated_at": now}, "$inc": {"finalize_attempts": 1}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return doc
+
+
+async def back_to_draft(
+    db: Db, report_id: str, *, error: str, stale: bool, unlock: dict[str, Any] | None,
+    now: datetime, session: AsyncClientSession,
+) -> bool:
+    """finalizing -> draft. `stale` makes the facts be read again; `unlock` is the lock still owed
+    to operations (done after the transaction, or by the cron if that fails)."""
+    changes: dict[str, Any] = {
+        "status": "draft", "finalize_error": error, "finalizing_at": None, "updated_at": now,
+        "unlock_pending": unlock,
+    }
+    if stale:
+        changes.update(facts_stale=True, facts_stale_at=now)
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "finalizing"}, {"$set": changes}, session=session)
+    return bool(result.modified_count)
+
+
+async def finish_final(
+    db: Db, report_id: str, *, final_pdf: dict[str, Any], by: str, at: datetime,
+    content_hash: str, session: AsyncClientSession,
+) -> bool:
+    """finalizing -> final, once, if the content is still the one that was signed."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "finalizing", "content_hash": content_hash},
+        {"$set": {"status": "final", "finalized_at": at, "finalized_by": by,
+                  "final_pdf": final_pdf, "pdf_key": final_pdf["key"],
+                  "pdf_sha256": final_pdf["sha256"], "finalize_error": None,
+                  "finalizing_at": None, "unlock_pending": None, "updated_at": at}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def stuck_finalizing(db: Db, before: datetime) -> list[dict[str, Any]]:
+    cursor = col(db).find({"status": "finalizing", "finalizing_at": {"$lte": before}})
+    return [d async for d in cursor.limit(50)]
+
+
+async def unlock_owed(db: Db) -> list[dict[str, Any]]:
+    cursor = col(db).find({"unlock_pending": {"$ne": None}})
+    return [d async for d in cursor.limit(50)]
+
+
+async def clear_unlock(db: Db, report_id: str, pending: dict[str, Any]) -> None:
+    await col(db).update_one(
+        {"_id": report_id, "unlock_pending": pending}, {"$set": {"unlock_pending": None}})
+
+
+async def supersede(
+    db: Db, report_id: str, *, by: str, now: datetime, session: AsyncClientSession
+) -> bool:
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "final"},
+        {"$set": {"status": "superseded", "superseded_at": now, "superseded_by": by,
+                  "updated_at": now}}, session=session)
+    return bool(result.modified_count)
+
+
+async def by_pdf_hash(db: Db, sha256: str) -> dict[str, Any] | None:
+    doc: dict[str, Any] | None = await col(db).find_one({"pdf_sha256": sha256})
+    return doc

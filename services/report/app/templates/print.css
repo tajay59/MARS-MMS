@@ -367,6 +367,31 @@ h1 {
   break-inside: avoid;
 }
 
+.report .signature {
+  display: grid;
+  grid-template-columns: 52mm 1fr;
+  gap: 5mm;
+  align-items: center;
+  padding: 3mm 0;
+  border-top: 0.2mm solid #ccc;
+  break-inside: avoid;
+}
+
+.report .signature img {
+  width: 52mm;
+  height: 18mm;
+  object-fit: contain;
+  border-bottom: 0.3mm solid #444;
+}
+
+.report .signature p {
+  margin: 0 0 0.8mm;
+}
+
+.report .signature .attest {
+  font-size: 9pt;
+}
+
 .report .appendix {
   break-before: page;
 }

@@ -31,6 +31,8 @@ class ReportSummary(BaseModel):
     pdf: PdfState
     awaiting_media: int
     drafted_at: datetime | None = None
+    finalized_at: datetime | None = None
+    pdf_sha256: str | None = None  # the code printed in a final report's footer is its start
     created_at: datetime
     updated_at: datetime
 
@@ -63,6 +65,9 @@ class ReportOut(ReportSummary):
     staff_ids: list[str] = []
     attestation: str | None = None
     signatures: list[SignatureOut] = []
+    finalized_by: str | None = None
+    finalize_error: str | None = None  # why the last finalize stopped
+    supersedes_id: str | None = None
 
 
 class NarrativeStation(BaseModel):
@@ -101,6 +106,32 @@ class ContentPatch(BaseModel):
     content_version: int = Field(ge=1)
     narrative: NarrativeEdit | None = None
     media_selection: list[SelectionEdit] | None = Field(default=None, max_length=500)
+
+
+class ReopenIn(BaseModel):
+    """POST /reports/{id}/reopen (W17-10): why the final report is being corrected."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(max_length=2_000)
+
+
+class VerifyIn(BaseModel):
+    """POST /reports/verify (W17-12): the SHA-256 of a report's PDF as 64 hex characters."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    sha256: str = Field(pattern="^[0-9a-fA-F]{64}$")
+
+
+class VerifyOut(BaseModel):
+    """Whether a PDF is one this system issued. Names the report and its version; no content."""
+
+    match: bool
+    number: str | None = None
+    version: int | None = None
+    status: str | None = None  # final | superseded
+    finalized_at: datetime | None = None
 
 
 class SignIn(BaseModel):

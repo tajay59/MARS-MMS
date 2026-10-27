@@ -18,7 +18,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from app.config import Settings
 from app.repo.media import MediaClient, MediaSource
-from app.repo.operations import FactsSource, LabelSource, OperationsClient
+from app.repo.operations import FactsSource, LabelSource, OperationsClient, VisitLocks
 from app.repo.render import Renderer, WeasyRenderer
 from app.repo.storage import Storage, make_client
 
@@ -41,6 +41,7 @@ class Services:
     jobs: Jobs
     facts: FactsSource
     media: MediaSource
+    locks: VisitLocks
 
 
 def make_storage(settings: Settings) -> Storage:

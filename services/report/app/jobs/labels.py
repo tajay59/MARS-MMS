@@ -21,7 +21,12 @@ CONTENT_TYPE = "application/pdf"
 
 
 class Retry(Exception):  # noqa: N818 - reads as the instruction it is
-    """A dependency was unreachable: the worker runs the job again later."""
+    """A dependency was unreachable: the worker runs the job again later (after `defer_s`
+    seconds when the job says how long, else after the worker's usual wait)."""
+
+    def __init__(self, defer_s: float | None = None) -> None:
+        super().__init__()
+        self.defer_s = defer_s
 
 
 def object_key(job_id: str) -> str:
