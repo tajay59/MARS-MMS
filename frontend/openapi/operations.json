@@ -1,6 +1,53 @@
 {
   "components": {
     "schemas": {
+      "AcceptIn": {
+        "additionalProperties": false,
+        "description": "REQ-13, W18-2/3. The client signs the work off. `reviewing` is the request's\n`review_started_at` as the page read it (not the milestone, which keeps the first). `image`\nis the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted), also for \"use my\ntyped name\".",
+        "properties": {
+          "attestation_accepted": {
+            "const": true,
+            "title": "Attestation Accepted",
+            "type": "boolean"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "image": {
+            "maxLength": 300000,
+            "title": "Image",
+            "type": "string"
+          },
+          "reviewing": {
+            "format": "date-time",
+            "title": "Reviewing",
+            "type": "string"
+          },
+          "typed_name": {
+            "maxLength": 400,
+            "title": "Typed Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewing",
+          "typed_name",
+          "image",
+          "attestation_accepted"
+        ],
+        "title": "AcceptIn",
+        "type": "object"
+      },
       "AnswerOut": {
         "properties": {
           "code": {
@@ -3539,6 +3586,29 @@
         "title": "ReferenceInstrument",
         "type": "object"
       },
+      "RejectIn": {
+        "additionalProperties": false,
+        "description": "REQ-13. The client sends the work back, with a reason the staff are told.",
+        "properties": {
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reviewing": {
+            "format": "date-time",
+            "title": "Reviewing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewing",
+          "reason"
+        ],
+        "title": "RejectIn",
+        "type": "object"
+      },
       "RemoveIn": {
         "additionalProperties": false,
         "properties": {
@@ -3594,7 +3664,9 @@
                 "release",
                 "cancel",
                 "edit",
-                "schedule_visit"
+                "schedule_visit",
+                "accept",
+                "reject"
               ],
               "type": "string"
             },
@@ -3614,6 +3686,18 @@
             },
             "title": "Attachments",
             "type": "array"
+          },
+          "auto_close_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Close At"
           },
           "cancel_reason": {
             "anyOf": [
@@ -3694,6 +3778,18 @@
               }
             ]
           },
+          "review_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Started At"
+          },
           "stations": {
             "items": {
               "$ref": "#/components/schemas/RequestStation"
@@ -3720,6 +3816,16 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "version": {
             "title": "Version",
@@ -3756,7 +3862,10 @@
           "actions",
           "attachments",
           "comment_count",
-          "visits"
+          "visits",
+          "verification",
+          "review_started_at",
+          "auto_close_at"
         ],
         "title": "RequestDetail",
         "type": "object"
@@ -6071,6 +6180,66 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerificationOut": {
+        "description": "The client's answer to Client Review (REQ-13). The drawn signature is not in it.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "auto_closed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "typed_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typed Name"
+          }
+        },
+        "required": [
+          "outcome",
+          "by",
+          "at",
+          "comment",
+          "typed_name"
+        ],
+        "title": "VerificationOut",
+        "type": "object"
+      },
       "VisitBrief": {
         "description": "A visit as the request page lists it.",
         "properties": {
@@ -7901,6 +8070,65 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/accept": {
+      "post": {
+        "description": "REQ-13: the client signs the work off. The request closes, the decision keeps the drawing,\nthe typed name, the wording shown, the time, address and browser, and the visit reports in\nforce. The drawing is stored here only; `request.closed` does not carry it.",
+        "operationId": "accept_request_api_v1_requests__id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/approve": {
       "post": {
         "description": "REQ-6: Submitted to Approved. The request then joins the queue.",
@@ -8473,6 +8701,65 @@
           }
         ],
         "summary": "Deny Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/reject": {
+      "post": {
+        "description": "REQ-13: the client sends the work back. In one transaction the request goes Client Review\nto Reopened and straight on to Assigned with the same staff; the review clock stops and the\nrework period starts (`rework_since`). The staff and admins are told the reason.",
+        "operationId": "reject_request_api_v1_requests__id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Request",
         "tags": [
           "requests"
         ]
@@ -11771,6 +12058,57 @@
           }
         ],
         "summary": "Labels",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/internal/requests/{request_id}/closeout-facts": {
+      "get": {
+        "description": "What the close-out report prints (RPT-8): the request, its timeline, visits and the\nreports in force, the comments clients may read, and the client's decision with the drawn\nsignature, which no event carries (W18-3).",
+        "operationId": "request_closeout_facts_internal_requests__request_id__closeout_facts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Request Closeout Facts Internal Requests  Request Id  Closeout Facts Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Closeout Facts",
         "tags": [
           "internal"
         ]
