@@ -2603,13 +2603,13 @@ stateDiagram-v2
     [*] --> Draft : visit.ended creates the draft
     Draft --> Draft : content edited or facts refreshed (signatures cleared)
     Draft --> Finalizing : lead has signed, Finalize
-    Finalizing --> Draft : facts changed at lock, or render failed 3 times
+    Finalizing --> Draft : lock refused, facts changed, or PDF failed 3 times
     Finalizing --> Final : PDF stored, report.finalized
     Final --> Superseded : admin reopens (new draft, version + 1)
     Superseded --> [*]
 </pre>
           </div>
-          <figcaption>A cron resumes any report left in <code>finalizing</code> for more than 15 minutes.</figcaption>
+          <figcaption>A cron resumes any report left in <code>finalizing</code> for more than 15 minutes (as built, W17-10).</figcaption>
         </figure>
 
         <figure class="diagram" data-title="Finalize saga" data-kind="Sequence diagram">
@@ -2617,33 +2617,31 @@ stateDiagram-v2
 <pre class="mermaid-def">
 sequenceDiagram
     autonumber
-    actor L as Lead technician
-    participant RP as report
-    participant OP as operations
+    actor L as Lead or admin
+    participant RP as report (API)
     participant W as report-worker
+    participant OP as operations
     participant S3 as SeaweedFS
+    participant C as cron (every minute)
 
     L->>RP: POST /api/v1/reports/{id}/finalize
-    RP->>RP: Check the lead's signature, status = finalizing (edits blocked)
-    RP->>OP: POST /internal/visits/{id}/lock (idempotent per report version)
-    OP-->>RP: Locked, final work version
-    RP->>RP: Re-snapshot facts
-    alt Facts changed since signing
-        RP->>OP: POST /internal/visits/{id}/unlock
-        RP-->>L: Back to draft, sign again
-    else Facts unchanged
-        RP->>RP: content_hash = SHA-256 of canonical content + signature metadata
-        RP->>W: render_final
-        alt Render succeeds
-            W->>S3: Store the PDF (footer shows the hash prefix)
-            W->>RP: One transaction: pdf_sha256, status = final, outbox report.finalized
-            RP--)OP: report.finalized, request status derived (Client Review)
-        else Render fails 3 times
-            W->>RP: status = draft, signatures kept, finalize_error stored
-            RP->>OP: POST /internal/visits/{id}/unlock
-            RP--)L: report.finalize_failed notification
-        end
+    RP->>RP: Lead's valid signature for this hash? status = finalizing (edits stop)
+    RP--)W: job finalize:{id}
+    RP-->>L: 202, the page follows the report
+    W->>OP: POST /internal/visits/{id}/lock {report_id, version} (idempotent)
+    W->>OP: GET report-facts, hash what prints
+    alt Locked, facts unchanged
+        W->>S3: Store visits/{id}/final-v{n}.pdf (footer: hash prefix, signatures)
+        W->>RP: One transaction: status = final, pdf_sha256, outbox report.finalized
+        RP--)OP: report.finalized, request status derived (Client Review)
+    else Facts changed
+        W->>RP: Signatures cleared, status = draft, stale, report.finalize_failed
+        W->>OP: POST unlock
+    else Lock refused, or PDF failed on the 3rd try (30 s, 60 s apart)
+        W->>RP: Signatures kept, status = draft, finalize_error, report.finalize_failed
+        W->>OP: POST unlock (owed in unlock_pending if operations is down)
     end
+    C->>RP: finalizing for 15 minutes? queue the job again. Unlocks owed? do them.
 </pre>
           </div>
         </figure>
@@ -3922,6 +3920,7 @@ flowchart TD
                 <tr><td>W16-16</td><td><b>The Report section on the visit page (slice 4, as built).</b> Staff see a Report section on an ended visit (<code>features/visits/report/</code>): the number, <code>v1</code> and Draft, whether the PDF is being made, ready, out of date or failed (<code>words.ts</code>), and Preview, which opens the PDF in the app's own viewer (<code>PdfViewer</code>, never a new tab) from a fresh ten-minute link. <code>useVisitReport</code> looks every 5 s while the draft is being made (about 2 minutes for a record that has not appeared, then it stops), pauses when the page is hidden, and keeps nothing on the device: a report is read online only (OFF-10). Viewers read; attending staff and admins draw the preview. The Sync page says &ldquo;Your report is made once the visit has synced&rdquo; under any visit whose <code>visit.end</code> is still in the outbox (<code>VisitPending.ending</code>). No new precached file (29 of 30). A client has no Report section (W16-12).</td><td>2026-10-27</td></tr>
                 <tr><td>W17-8</td><td><b>The visit lock and the report events (slice 1, as built; plan <code>docs/plans/W17-plan.md</code>).</b> Operations has <code>POST /internal/visits/{id}/lock</code> and <code>/unlock</code> (service <code>report</code> only; body <code>{report_id, report_version}</code>; answer <code>{visit_id, locked, visit_version}</code>). A lock belongs to one report version: the same pair again changes nothing, another pair on a locked visit is 409 <code>locked_by_another_report</code>, a visit that has not ended is 409 <code>not_ended</code>, and an unlock for a version that does not hold the lock changes nothing and says whether the visit is still locked. The board refuses writes on a locked visit (409 <code>locked</code>, already built). Operations now reads <code>mms.report.events</code> (Kafka right in <code>infra/kafka/users.yml</code>): <code>report.finalized</code> sets <code>report_status = final</code>, <code>report_id</code>, <code>report_version</code>, <code>report_finalized_at</code> on the visit and <code>report.reopened</code> sets <code>draft</code>, each guarded by the report version, and both settle the request in the same transaction through <code>events/settle.py</code> (shared with the visit routes). Entering Client Review starts <code>review_started_at</code> with no reminders sent; leaving it clears both, so a reopened report stops the review clock (RPT-6). Six event schemas are registered in <code>mms_common.events.report</code> (<code>report.signed</code>, <code>report.signatures_cleared</code>, <code>report.finalized</code>, <code>report.finalize_failed</code>, <code>report.reopened</code>, <code>report.finalize_reminder</code>): ids, versions, counts and a reason, never a name or an image; the report service emits them in slices 2 to 4.</td><td>2026-10-27</td></tr>
                 <tr><td>W17-9</td><td><b>Editing and signing a draft (slice 2, as built).</b> Only <b>shared</b> board elements print (W17-1): the narrative prefill, the photo choice, the files the draft waits for and the page itself (<code>domain/visit_view.py</code>) skip the rest, and a client reads a final report through <code>content.client_view</code> (shared elements only, no signature image, hash, attendee ids or attestation). <code>content_hash</code> is the SHA-256 of the canonical JSON of what prints (<code>domain/content.py</code>: shared elements, the narrative and the photo choice, without counters, the lock or staff-only elements), so locking the visit or editing a staff-only note invalidates nothing. <code>PATCH /api/v1/reports/{id}/content</code> takes <code>content_version</code> and the fields to change; a stale version is 409 <code>content_changed</code> with the current record, unless the same edit is already in (then 200 and no new version). A change that alters the hash moves <code>content_version</code> (a facts refresh too, so a signer cannot sign a page that changed under them) and clears the valid signatures in the same transaction with <code>report.signatures_cleared</code> (<code>edit</code> or <code>facts</code>); the facts refresh is conditional on the <code>content_version</code> it read, so it can never overwrite an edit. <code>POST /api/v1/reports/{id}/sign</code> takes <code>{content_version, typed_name, image}</code> (PNG, 100 KB, 1200 x 600 px, checked by magic bytes, end marker and header): attending staff only (an admin who did not attend gets 403 <code>not_attending</code>), draft only, 409 <code>already_signed</code> for a second valid signature (a unique partial index makes two taps one signature). The <code>signatures</code> record holds the drawing, typed name, attestation (<code>REPORT_ATTESTATION</code>) as shown, time, IP, browser, <code>content_hash</code> and <code>content_version</code>; cleared ones stay with <code>valid: false</code>, <code>cleared_at</code>, <code>cleared_by</code>. <code>report.signed</code> carries ids and a count, never the drawing or the name. Migration <code>0004_signatures</code> adds the indexes and gives drafts made before W17 their hash. Drafts made before W17 may hold staff-only text in their narrative prefill; the editor shows it and a person removes it.</td><td>2026-10-27</td></tr>
+                <tr><td>W17-10</td><td><b>Finalize, reopen and verify (slice 3, as built).</b> <code>POST /api/v1/reports/{id}/finalize</code> (the lead or an admin, once the lead has a valid signature for the current hash: 409 <code>lead_not_signed</code>) makes the report <code>finalizing</code> and queues <code>finalize:&lt;id&gt;</code>; asking again changes nothing. The worker (<code>jobs/finalize.py</code>) locks the visit for this version, reads the facts again with the boards locked and compares the hash, draws the final PDF (<code>visit.html.j2</code> with the signature blocks and <code>hash 3f9a1c2e4b7d8a60</code> in the footer) to <code>visits/&lt;id&gt;/final-v&lt;n&gt;.pdf</code>, and in one transaction sets <code>final</code>, <code>pdf_sha256</code> and adds <code>report.finalized</code>. Three tries, 30 s then 60 s apart. A refused lock, a changed fact (signatures cleared, <code>facts_changed</code>) or a third failed render (<code>render_failed</code>, signatures kept) returns the report to <code>draft</code> with <code>report.finalize_failed</code> and the unlock owed in <code>unlock_pending</code>, done at once or by the cron (<code>jobs/resume.py</code>, every minute, which also queues any report left <code>finalizing</code> for 15 minutes). A test over every failure point checks that a final report always has the lead's valid signature for exactly its <code>content_hash</code> and the stored PDF's hash. <code>POST /api/v1/reports/{id}/reopen</code> (admin, reason 5 to 500 characters) makes the final <code>superseded</code> and a draft of the next version in one transaction (narrative and photo choice copied, facts stale, no signatures, <code>report.reopened</code> with the request's status from the read model); 409 <code>already_reopened</code> or <code>not_final</code> otherwise; the old version's signatures stay valid for it. No <code>report.drafted</code> is sent for a correction. Decision on question 5: <b>a client never sees a superseded version or the new draft</b> (clients read final only), so after a reopen the visit page shows "a corrected report is on its way"; how the page learns that a reopen is in progress is a slice 5 question (the API shows a client nothing of it today). A lead who cannot sign has no override. <code>POST /api/v1/reports/verify</code> is public (Nginx's <code>auth</code> zone): <code>{sha256}</code> as JSON or a PDF as <code>application/pdf</code> (10 MB, hashed as it arrives, never stored) answers <code>{match, number, version, status, finalized_at}</code> and no content. There is no page for it (dropped from the boards). Downloads of a final or superseded version link to its own PDF.</td><td>2026-10-27</td></tr>
                 <tr><td>W9-1</td><td><b>Claim, assign and release share the state table.</b> Claim and assign are the one <code>Approved &rarr; Assigned</code> row (<code>Action.ASSIGN</code>); a technician's claim takes no body and always means themselves, an admin's assign takes 1 to 10 <code>staff_ids</code>. The new row <code>Assigned &rarr; Approved</code> is <code>Action.RELEASE</code>. Which staffing buttons a person sees (<code>claim</code>, <code>assign</code>, <code>release</code> in <code>actions</code>) comes from <code>staffing.actions_for</code>, since it depends on who is on the request</td><td>2026-10-21</td></tr>
                 <tr><td>W9-2</td><td><b>Only active technicians and admins can be assigned</b>, checked with auth (<code>POST /internal/users/lookup</code>), not from a copy: operations keeps no user table. Viewers, clients, disabled and unknown people give 422 <code>not_assignable</code></td><td>2026-10-21</td></tr>
                 <tr><td>W9-3</td><td><b>A claim race has one winner.</b> The update names the status it decided from (W8-5), so of two claims at the same moment one gets 200 and the other 409 <code>already_assigned</code> with the winner's name, which the page shows ("Tech 2 claimed it first")</td><td>2026-10-21</td></tr>
@@ -4091,6 +4090,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-27</td><td>P6 &middot; W17 (slice 3)</td><td><b>Finalize, reopen and verify</b> (decision W17-10). Report: <code>domain/finalize.py</code>, <code>jobs/{finalize,resume}.py</code>, <code>api/{finalize_routes,verify_routes}.py</code>, <code>VisitLocks</code> in <code>repo/operations.py</code>, the final page (signature blocks, hash in the footer, <code>full-final</code> visual baseline redrawn), <code>report.finalized</code>, <code>report.finalize_failed</code> and <code>report.reopened</code> emitters. The saga sequence and the report state charts now show what was built. Tests: the saga step by step, every failure point against the lead-signature rule, a crash and the cron, reopen (once, concurrently, owed unlock), what a client sees, immutability, verify, the lock client and the final PDF's text.</td></tr>
               <tr><td>2026-10-27</td><td>P6 &middot; W17 (slice 2)</td><td><b>Editing and signing a draft</b> (decision W17-9). Report: <code>domain/{content,signing}.py</code>, <code>repo/signatures.py</code>, <code>events/signatures.py</code>, <code>api/{edit_routes,presenters}.py</code>, <code>PATCH /reports/{id}/content</code>, <code>POST /reports/{id}/sign</code>, migration <code>0004_signatures</code>, the shared-only rule in the draft, the narrative prefill and the page, <code>content_hash</code> and <code>content_version</code> kept by the facts refresh. Tests: hash and edit rules (unit), the routes, concurrent taps, every way a signature is cleared or kept, a client's read of a final report, immutability of final and superseded reports.</td></tr>
               <tr><td>2026-10-27</td><td>P6 &middot; W17 (slice 1)</td><td><b>The visit lock and the report events</b> (decision W17-8). Operations: <code>domain/visits/lock.py</code>, <code>api/visits/report_lock.py</code>, <code>POST /internal/visits/{id}/lock|unlock</code>, <code>events/report_consumer.py</code>, <code>events/settle.py</code> (the request settle, now shared and able to run for the system), Kafka right for <code>operations</code> on <code>mms.report.events</code>. Library: six report event schemas. Tests: lock rules (unit), the lock routes and the consumer through <code>derive_status</code> (Client Review, reopen, a later finalize, a late older event, two visits, another visit needed).</td></tr>
               <tr><td>2026-10-27</td><td>P6 &middot; W16 (slice 4)</td><td><b>The Report section</b> (decision W16-16). Frontend: <code>api/report.ts</code> (list, get, preview, download), <code>features/visits/report/{words.ts,useVisitReport.ts,ReportSection.vue,ReportPreviewDialog.vue}</code>, the section on <code>VisitDetailView</code> for staff, and the Sync wording. 15 new Vitest tests; precache unchanged at 29 files. Playwright <code>e2e/report.spec.ts</code> (end a visit, draft by itself, Preview, axe light and dark, none for a client). Axe found the PDF viewer's scroll area unreachable by keyboard: it is now a labelled, focusable region (also fixes PDFs on the board).</td></tr>

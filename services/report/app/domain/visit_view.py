@@ -8,12 +8,14 @@ shared elements print (W17-1): the same PDF goes to staff and to the client.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import base64
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.domain import content as content_rules
+from app.domain.finalize import short_hash
 
 Pictures = Mapping[str, str | None]  # media_id -> JPEG data URI, None if not ready
 
@@ -45,8 +47,20 @@ def _image(m: Mapping[str, Any], pictures: Pictures) -> dict[str, Any]:
     }
 
 
+def _signature(s: Mapping[str, Any], zone: str | None) -> dict[str, Any]:
+    """A valid signature as the final page shows it: the drawing, the name as typed, the role, the
+    attestation as the person saw it, and the time in UTC and in the first station's zone."""
+    return {
+        "name": s["typed_name"], "role": "Lead" if s["role"] == "lead" else "Attending",
+        "attestation": s["attestation"],
+        "uri": "data:image/png;base64," + base64.b64encode(bytes(s["image"])).decode(),
+        "utc": local(s["signed_at"], None), "local": local(s["signed_at"], zone),
+    }
+
+
 def build(
-    report: Mapping[str, Any], pictures: Pictures, *, app_url: str, generated_at: datetime
+    report: Mapping[str, Any], pictures: Pictures, *, app_url: str, generated_at: datetime,
+    signatures: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     content = report["content"]
     facts, narrative = content["facts"], content["narrative"]
@@ -142,6 +156,7 @@ def build(
             {"code": s["code"], "due": local(s["next_calibration_due_at"], s.get("time_zone"))}
             for s in facts["stations"] if s.get("next_calibration_due_at")
         ],
-        "signatures": [],
+        "signatures": [_signature(s, first_zone) for s in signatures],
+        "hash": None if report["status"] == "draft" else short_hash(report.get("content_hash")),
         "no_work": all(st["empty"] for st in stations),
     }

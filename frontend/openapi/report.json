@@ -404,6 +404,22 @@
         "title": "PreviewOut",
         "type": "object"
       },
+      "ReopenIn": {
+        "additionalProperties": false,
+        "description": "POST /reports/{id}/reopen (W17-10): why the final report is being corrected.",
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReopenIn",
+        "type": "object"
+      },
       "ReportOut": {
         "properties": {
           "attestation": {
@@ -462,6 +478,40 @@
             "title": "Facts Version",
             "type": "integer"
           },
+          "finalize_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalize Error"
+          },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "finalized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized By"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -483,6 +533,17 @@
           },
           "pdf": {
             "$ref": "#/components/schemas/PdfState"
+          },
+          "pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Sha256"
           },
           "request_id": {
             "title": "Request Id",
@@ -511,6 +572,17 @@
           "subject_ref": {
             "title": "Subject Ref",
             "type": "string"
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Id"
           },
           "type": {
             "title": "Type",
@@ -579,6 +651,18 @@
             ],
             "title": "Drafted At"
           },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -589,6 +673,17 @@
           },
           "pdf": {
             "$ref": "#/components/schemas/PdfState"
+          },
+          "pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Sha256"
           },
           "request_id": {
             "title": "Request Id",
@@ -838,6 +933,65 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VerifyOut": {
+        "description": "Whether a PDF is one this system issued. Names the report and its version; no content.",
+        "properties": {
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "match": {
+            "title": "Match",
+            "type": "boolean"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "match"
+        ],
+        "title": "VerifyOut",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1027,6 +1181,27 @@
         ]
       }
     },
+    "/api/v1/reports/verify": {
+      "post": {
+        "operationId": "verify_api_v1_reports_verify_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/reports/{report_id}": {
       "get": {
         "operationId": "get_report_api_v1_reports__report_id__get",
@@ -1136,7 +1311,7 @@
     },
     "/api/v1/reports/{report_id}/download": {
       "get": {
-        "description": "A ten-minute link to the draft PDF (never cached: it acts as a password). If the report\nchanged since the PDF was drawn, `current` is false and the link is to the older one.",
+        "description": "A ten-minute link to the report's PDF (never cached: it acts as a password): the final\none for a final or superseded version, else the latest draft. If a draft changed since its\nPDF was drawn, `current` is false and the link is to the older one.",
         "operationId": "download_api_v1_reports__report_id__download_get",
         "parameters": [
           {
@@ -1178,6 +1353,55 @@
           }
         ],
         "summary": "Download",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/finalize": {
+      "post": {
+        "description": "RPT-5: make the signed draft final. The lead or an admin, once the lead has signed this\nversion. 409 `lead_not_signed` until then. Answers at once; the report is `finalizing` while\nthe visit is locked and the PDF is drawn.",
+        "operationId": "finalize_report_api_v1_reports__report_id__finalize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Finalize Report",
         "tags": [
           "reports"
         ]
@@ -1227,6 +1451,65 @@
           }
         ],
         "summary": "Preview",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/reopen": {
+      "post": {
+        "description": "RPT-6: an admin reopens a final report for correction. The final becomes `superseded` and\nstays readable; the next version is a draft with the same narrative and photo choice, the\nfacts read again and no signatures. Answers with the new draft. 409 `already_reopened` when\nthe version was already superseded, `not_final` when it is not final yet.",
+        "operationId": "reopen_report_api_v1_reports__report_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reopen Report",
         "tags": [
           "reports"
         ]

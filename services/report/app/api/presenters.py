@@ -16,6 +16,11 @@ from app.domain import drafts
 
 
 def pdf_state(doc: dict[str, Any]) -> PdfState:
+    final = doc.get("final_pdf")
+    if final and doc["status"] in ("final", "superseded"):
+        return PdfState(state="ready", current=True, pages=final["pages"], rendered_at=final["at"])
+    if doc["status"] == "finalizing":
+        return PdfState(state="rendering", current=True)
     pdf, render = doc.get("draft_pdf"), doc["render"]
     if render["state"] in ("queued", "running"):
         state = "rendering"
@@ -36,6 +41,7 @@ def summary(doc: dict[str, Any]) -> dict[str, Any]:
         "visit_id": doc.get("visit_id"), "request_id": doc["request_id"], "number": doc["number"],
         "version": doc["version"], "status": doc["status"], "pdf": pdf_state(doc),
         "awaiting_media": len(doc.get("awaiting_media", [])), "drafted_at": doc.get("drafted_at"),
+        "finalized_at": doc.get("finalized_at"), "pdf_sha256": doc.get("pdf_sha256"),
         "created_at": doc["created_at"], "updated_at": doc["updated_at"],
     }
 
@@ -77,5 +83,7 @@ def report_out(
         facts_version=doc["facts_version"], content=doc["content"],
         content_hash=doc.get("content_hash"), lead_staff_id=doc["lead_staff_id"],
         staff_ids=list(doc["staff_ids"]), attestation=attestation,
+        finalized_by=doc.get("finalized_by"), finalize_error=doc.get("finalize_error"),
+        supersedes_id=doc.get("supersedes_id"),
         signatures=[signature_out(d) for d in signed if d["report_version"] == doc["version"]],
     )

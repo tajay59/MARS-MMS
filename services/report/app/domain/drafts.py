@@ -129,8 +129,9 @@ def new_draft(
         "awaiting_media": [], "ended_at": ended_at,
         "content_hash": None, "template_version": TEMPLATE_VERSION,
         "draft_pdf": None, "render": {"state": "idle", "attempts": 0, "error": None},
-        "pdf_key": None, "pdf_sha256": None, "finalize_attempts": 0, "finalize_error": None,
-        "finalized_at": None, "finalized_by": None, "supersedes_id": None, "drafted_at": None,
+        "pdf_key": None, "pdf_sha256": None, "final_pdf": None, "finalize_attempts": 0,
+        "finalize_error": None, "finalizing_at": None, "finalized_at": None, "finalized_by": None,
+        "supersedes_id": None, "unlock_pending": None, "drafted_at": None,
         "created_at": now, "updated_at": now,
     }
 
