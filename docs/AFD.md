@@ -3,13 +3,14 @@
 
 | | |
 |---|---|
-| **Version** | 1.7 |
-| **Date** | 2026-10-23 |
+| **Version** | 1.8 |
+| **Date** | 2026-10-28 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows PRD 1.1 and TRD 2.0: a new **Unlock** page (offline PIN), station owners on visits (J5, J6), J6 checks preparation before the visit starts, reopened reports return the request to In progress (J7, J8), and new routing and edge states for offline sessions and sync conflicts. 37 pages |
 | **Changes in 1.2** | J1 step 2: the client types their organization's name (no public list of organizations); PRD 1.2 AUTH-1 |
 | **Changes in 1.3** | §5.1: staff and clients use the app shell (rail sections, pane tabs, view; DBD 1.4, decision W4-9). `/admin/registrations/:id` opens one registration (J1 step 4) |
 | **Changes in 1.4** | New admin page **Settings** (`/admin/settings/:part?`, decision W4-11): Appearance (the admin's own theme and, on this device, animations) and Brand colours (the Material 3 theme everyone sees, W4-12). Admin section tab after Audit log |
+| **Changes in 1.8** | J7 as built (W17, 2026-10-28): **Preview PDF** opens the PDF in the app's own sheet, not a new tab (an iPhone tab shows a blob or a download sheet); the signature dialog has a typed-name option for people who cannot draw; Finalize can stop three ways (the board changed, the visit could not be locked, the PDF failed) and the page says which; a client reads the final report on the visit page and never sees a superseded version or the correction in progress; an admin who did not attend does not sign. The public verify page is dropped: verifying is an API only |
 | **Changes in 1.7** | W14 as built: `/sync` shows what waits by visit (counted from the phone, so right with no signal), progress while sending, "Keep MARS-MMS open" with a wake lock, and **Needs attention** with Export, Try again and Done with this; the start question for an unprepared visit says **Prepare now** or **Start anyway**; Reschedule, Cancel and Change owner warn when a phone holds the visit. |
 | **Changes in 1.6** | J6: the field stepper (Before → Work → After → Review) is replaced by the station's **board** of Notes, Tasks, Recommendations and Config, with the photo gate at departure removed (PRD 1.5 VIS-5 to VIS-8, VIS-6 dropped; decisions W11-16 to W11-35, 2026-10-22). The Checklist templates admin page is removed. J7 fixes facts on the board |
 | **Changes in 1.5** | §5.1: below 1024 px (phones and tablets) the rail is a bottom bar with four sections and **Me** (DBD 1.6, decision W4-14) |
@@ -329,10 +330,10 @@ Staff edit only the narrative; facts are fixed on the board and flow back into t
 | 1 | Notification | Clicks **Draft report ready** | → `/visit-reports/:id` in draft mode (DRAFT watermark) |
 | 2 | `/visit-reports/:id` | Edits summary, work performed, recommendations and follow-up; picks photos and captions | Saves as they type. Stays on page |
 | 3 | `/visit-reports/:id` | Clicks **Fix on the board** next to a wrong fact | → `/visits/:id` with that element open; on save the draft's facts refresh → back to `/visit-reports/:id` |
-| 4 | `/visit-reports/:id` | Clicks **Preview PDF** | Opens the PDF in a new tab |
-| 5 | `/visit-reports/:id` | Clicks **Sign**; types full name, draws signature, ticks the attestation; clicks **Sign** | Signature added (needs signal). Any later edit clears the signatures |
-| 6 | `/visit-reports/:id` *[Lead]* | Clicks **Finalize** (enabled once the lead has signed), confirms | Shows "Finalizing…" while the PDF renders; then report Final; boards locked. If no further visit is needed and every visit report of the request is final, request → Client Review and the client is notified. Stays on page with **Download PDF**. If rendering fails, the report returns to Draft with its signatures kept and a **Try again** banner |
-| 7 | `/visit-reports/:id` *[Admin]* | On a final report, clicks **Reopen for correction** and types a reason | Old version marked Superseded; a new draft (version +1) opens on the same page; back to step 2. If the request was in Client Review, it returns to In progress and the client is told a corrected report is coming. If it was Closed, it stays Closed and the client gets the corrected report and a new close-out report |
+| 4 | `/visit-reports/:id` | Clicks **Preview PDF** | Saves what was typed, draws the PDF and opens it in the app's own sheet, with **Download** (not a new tab) |
+| 5 | `/visit-reports/:id` | Clicks **Sign**; types full name, draws signature (or chooses **Use my typed name as my signature**), ticks the attestation; clicks **Sign** | Signature added (needs signal). Only people who attended sign. Any later edit, or a fact changing on the board, clears the signatures; they stay in the list marked Cleared, with the reason |
+| 6 | `/visit-reports/:id` *[Lead]* | Clicks **Finalize** (enabled once the lead has signed), confirms | Shows "Finalizing…" while the PDF renders; then report Final; boards locked. If no further visit is needed and every visit report of the request is final, request → Client Review and the client is notified. Stays on page with **Download PDF**. If finalizing stops, the report returns to Draft and says why: the board changed (signatures cleared, sign again), the visit could not be locked, or the PDF failed after three tries (signatures kept; **Try again**) |
+| 7 | `/visit-reports/:id` *[Admin]* | On a final report, clicks **Reopen for correction** and types a reason | Old version marked Superseded; a new draft (version +1) opens on the same page; back to step 2. If the request was in Client Review, it returns to In progress and the client is told a corrected report is coming. If it was Closed, it stays Closed and the client gets the corrected report and a new close-out report. Until the corrected report is final the client sees no report on the visit (not the old version either) and the page says a corrected report is on its way |
 
 ### J8 · Review and sign off completed work
 

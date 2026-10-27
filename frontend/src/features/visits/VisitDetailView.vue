@@ -152,6 +152,9 @@
       :zone="zone"
     />
 
+    <!-- A client reads the final report of their organization once there is one (W17-13) -->
+    <ClientReportSection v-if="isClient && visit.status === 'ended'" :visit-id="visit.id" :zone="zone" />
+
     <!-- Scheduling notes are staff only: the server leaves them out for a client -->
     <section v-if="visit.notes" aria-labelledby="vn-h" class="flex flex-col gap-2">
       <h2 id="vn-h" class="m-0 text-h3 text-surface-900">Notes</h2>
@@ -167,6 +170,7 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import VisitBoard from './board/VisitBoard.vue'
   import PreparePanel from './prepare/PreparePanel.vue'
+  import ClientReportSection from './report/ClientReportSection.vue'
   import ReportSection from './report/ReportSection.vue'
   import { canDo, formatRange, formatWhen, names, stationTimes, visitZone, zoneLabel } from './visits'
 

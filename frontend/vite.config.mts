@@ -68,7 +68,7 @@ export default defineConfig(({ mode }) => ({
         // anyway (OFF-10); leaving it out keeps the first install short (F14, e2e/offline.spec.ts).
         // pdf.js and its worker (1.6 MB) stay out too: a PDF on the board needs a connection until
         // Phase 5 decides whether the field bundle carries them (F17, W11-30).
-        globIgnores: ['**/materialGenerate-*.js', '**/pdf-*.js', '**/pdf.worker*.js'],
+        globIgnores: ['**/materialGenerate-*.js', '**/pdf-*.js', '**/pdf.worker*.js', '**/signature_pad*.js'],
       },
       devOptions: {
         enabled: false, // `npm run build && npm run preview` to work on the worker
