@@ -34,6 +34,7 @@
             </div>
 
             <p v-if="visit.title" class="m-0 text-sm text-surface-700">{{ visit.title }}</p>
+            <p v-if="visit.ending" class="m-0 text-sm text-surface-700">Your report is made once the visit has synced.</p>
           </div>
 
           <template v-if="running && progress.total > 0">

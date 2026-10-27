@@ -25,7 +25,13 @@
       ><v-icon :icon="mdiPlus" /></v-btn>
     </div>
 
-    <div ref="scroller" class="min-h-0 flex-1 overflow-auto bg-surface-100 p-3">
+    <div
+      ref="scroller"
+      aria-label="Pages"
+      class="min-h-0 flex-1 overflow-auto bg-surface-100 p-3"
+      role="region"
+      tabindex="0"
+    >
       <div v-if="problem" class="py-8 text-center text-sm text-surface-700" role="alert">{{ problem }}</div>
 
       <div v-else class="mx-auto flex flex-col items-center gap-3" :style="{ width: `${zoom * 100}%` }">

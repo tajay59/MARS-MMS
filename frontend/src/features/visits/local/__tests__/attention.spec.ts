@@ -177,6 +177,13 @@ describe('what is waiting', () => {
     expect(await pendingByVisit(ME.id, store)).toMatchObject([{ changes: 0, files: 1 }])
   })
 
+  it('knows the visit end is still waiting, so the page can say the report follows', async () => {
+    const { store, ctx } = await started()
+    expect(await pendingByVisit(ME.id, store)).toMatchObject([{ ending: false }])
+    await endVisit(ctx, { additional_visit_required: false })
+    expect(await pendingByVisit(ME.id, store)).toMatchObject([{ ending: true }])
+  })
+
   it('is nothing for another person', async () => {
     const { store } = await started()
     expect(await pendingByVisit('someone-else', store)).toEqual([])

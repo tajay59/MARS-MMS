@@ -143,6 +143,15 @@
     <!-- Each station's board (W11-18): staff from the start, a client the shared part after the end -->
     <VisitBoard v-if="showBoards" :is-client="isClient" :me="me" :visit="visit" />
 
+    <!-- The draft report, once the end has synced (W16): staff only -->
+    <ReportSection
+      v-if="!isClient && visit.status === 'ended'"
+      ended
+      :may-draw="mayDraw"
+      :visit-id="visit.id"
+      :zone="zone"
+    />
+
     <!-- Scheduling notes are staff only: the server leaves them out for a client -->
     <section v-if="visit.notes" aria-labelledby="vn-h" class="flex flex-col gap-2">
       <h2 id="vn-h" class="m-0 text-h3 text-surface-900">Notes</h2>
@@ -158,6 +167,7 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import VisitBoard from './board/VisitBoard.vue'
   import PreparePanel from './prepare/PreparePanel.vue'
+  import ReportSection from './report/ReportSection.vue'
   import { canDo, formatRange, formatWhen, names, stationTimes, visitZone, zoneLabel } from './visits'
 
   // The body of /visits/:id (AFD J5, J6 step 3; DBD "Request page" layout). Dates are in the zone
@@ -183,6 +193,8 @@
   const zone = computed(() => visitZone(props.visit))
   const zoneName = computed(() => zone.value ? zoneLabel(zone.value) : '')
   const when = computed(() => formatRange(props.visit.planned_start, props.visit.planned_end, zone.value))
+  // Attending staff and admins draw the preview; a viewer reads (W16-12)
+  const mayDraw = computed(() => !!props.isAdmin || props.visit.lead.id === props.me || props.visit.staff.some(person => person.id === props.me))
   const canChangeOwner = computed(() => canDo(props.visit, 'change_owner') && ['planned', 'started'].includes(props.visit.status))
 
   // The boards fill in once the visit has started; a client sees them once it has ended (W11-28)
