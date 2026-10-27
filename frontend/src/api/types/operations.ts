@@ -1284,6 +1284,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/visits/{visit_id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock Visit
+         * @description Lock an ended visit's boards for one version of its report (VIS-12; TRD 11.2 step 4.2).
+         *     The same pair again changes nothing; another report version on a locked visit is 409.
+         */
+        post: operations["lock_visit_internal_visits__visit_id__lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/visits/{visit_id}/report-facts": {
         parameters: {
             query?: never;
@@ -1299,6 +1320,27 @@ export interface paths {
         get: operations["visit_report_facts_internal_visits__visit_id__report_facts_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/visits/{visit_id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock Visit
+         * @description Unlock the visit if this report version holds the lock (a failed finalize, or a reopen).
+         *     Anything else changes nothing and the answer says whether the visit is still locked.
+         */
+        post: operations["unlock_visit_internal_visits__visit_id__unlock_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2223,6 +2265,22 @@ export interface components {
         LabelsIn: {
             /** Station Ids */
             station_ids: string[];
+        };
+        /** LockIn */
+        LockIn: {
+            /** Report Id */
+            report_id: string;
+            /** Report Version */
+            report_version: number;
+        };
+        /** LockOut */
+        LockOut: {
+            /** Locked */
+            locked: boolean;
+            /** Visit Id */
+            visit_id: string;
+            /** Visit Version */
+            visit_version: number;
         };
         /** Logger */
         Logger: {
@@ -5874,6 +5932,41 @@ export interface operations {
             };
         };
     };
+    lock_visit_internal_visits__visit_id__lock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                visit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LockIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     visit_report_facts_internal_visits__visit_id__report_facts_get: {
         parameters: {
             query?: never;
@@ -5894,6 +5987,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlock_visit_internal_visits__visit_id__unlock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                visit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LockIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockOut"];
                 };
             };
             /** @description Validation Error */

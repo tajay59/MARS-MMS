@@ -2882,6 +2882,49 @@
         "title": "LabelsIn",
         "type": "object"
       },
+      "LockIn": {
+        "properties": {
+          "report_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "report_version": {
+            "minimum": 1.0,
+            "title": "Report Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "report_id",
+          "report_version"
+        ],
+        "title": "LockIn",
+        "type": "object"
+      },
+      "LockOut": {
+        "properties": {
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "visit_id": {
+            "title": "Visit Id",
+            "type": "string"
+          },
+          "visit_version": {
+            "title": "Visit Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "visit_id",
+          "locked",
+          "visit_version"
+        ],
+        "title": "LockOut",
+        "type": "object"
+      },
       "Logger": {
         "additionalProperties": false,
         "properties": {
@@ -11811,6 +11854,65 @@
         ]
       }
     },
+    "/internal/visits/{visit_id}/lock": {
+      "post": {
+        "description": "Lock an ended visit's boards for one version of its report (VIS-12; TRD 11.2 step 4.2).\nThe same pair again changes nothing; another report version on a locked visit is 409.",
+        "operationId": "lock_visit_internal_visits__visit_id__lock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lock Visit",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
     "/internal/visits/{visit_id}/report-facts": {
       "get": {
         "description": "The visit, its request, its stations and their boards, for the report service's draft\n(TRD 11.2, W16-2). Staff-side facts: the report service decides who may read a report.",
@@ -11857,6 +11959,65 @@
           }
         ],
         "summary": "Visit Report Facts",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/internal/visits/{visit_id}/unlock": {
+      "post": {
+        "description": "Unlock the visit if this report version holds the lock (a failed finalize, or a reopen).\nAnything else changes nothing and the answer says whether the visit is still locked.",
+        "operationId": "unlock_visit_internal_visits__visit_id__unlock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlock Visit",
         "tags": [
           "internal"
         ]

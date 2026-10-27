@@ -12,7 +12,7 @@ users:
     produce: mms.auth.events
   - name: operations
     produce: mms.operations.events mms.dlq.operations
-    consume: mms.auth.events mms.media.events
+    consume: mms.auth.events mms.media.events mms.report.events
     groups: operations
   - name: media
     produce: mms.media.events mms.dlq.media
