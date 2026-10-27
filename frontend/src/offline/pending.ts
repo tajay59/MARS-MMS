@@ -18,6 +18,8 @@ export interface VisitPending {
   files: number
   /** Bytes of those files. */
   bytes: number
+  /** The visit's end is still on this phone: its report is made once that has synced (W16). */
+  ending: boolean
 }
 
 /** Pending work for each visit that has some, oldest first. Conflicts are not counted here: they are Needs attention. */
@@ -32,13 +34,15 @@ export async function pendingByVisit (userId: string, store: MmsDb = db): Promis
     }
     const bundle = (await store.bundles.get(visitId))?.data as FieldBundle | undefined
     const created = {
-      visit_id: visitId, ref: bundle?.visit.ref ?? 'Visit', title: bundle?.visit.request_title ?? '', changes: 0, files: 0, bytes: 0,
+      visit_id: visitId, ref: bundle?.visit.ref ?? 'Visit', title: bundle?.visit.request_title ?? '', changes: 0, files: 0, bytes: 0, ending: false,
     }
     found.set(visitId, created)
     return created
   }
   for (const op of ops) {
-    (await entry(op.visit_id)).changes++
+    const item = await entry(op.visit_id)
+    item.changes++
+    item.ending ||= op.type === 'visit.end'
   }
   for (const blob of blobs) {
     if (blob.visit_id) {

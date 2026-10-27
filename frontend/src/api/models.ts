@@ -132,5 +132,10 @@ type Report = ReportComponents['schemas']
 
 export type JobOut = Report['JobOut']
 export type LabelsIn = Report['LabelsIn']
+export type ReportSummary = Report['ReportSummary']
+export type ReportOut = Report['ReportOut']
+export type ReportPdf = Report['PdfState']
+export type ReportPreview = Report['PreviewOut']
+export type ReportDownload = Report['DownloadOut']
 
 export type StationStatus = 'operational' | 'degraded' | 'offline' | 'decommissioned'
