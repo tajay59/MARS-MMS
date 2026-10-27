@@ -26,7 +26,8 @@ NOTIFY_EVENTS = frozenset({
     "comment.added",
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.ended",
     "visit.station_owner_changed", "visit.sync_conflict",
-    "report.drafted",
+    "report.drafted", "report.finalized", "report.finalize_failed", "report.reopened",
+    "report.finalize_reminder",
 })
 VISIT_LIVE_EVENTS = frozenset({
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored", "visit.started",
@@ -133,8 +134,8 @@ def plan(
         return Plan()
     if event_type.startswith("visit."):
         return _plan_visit(event_type, data, actor_id, actor_name, audience)
-    if event_type == "report.drafted":
-        return _plan_report(data)
+    if event_type.startswith("report."):
+        return _plan_report(event_type, data, actor_id, audience)
 
     creator = [data["created_by"]] if data.get("created_by") else []
     assigned = list(data.get("assigned_staff_ids") or [])
@@ -223,19 +224,75 @@ def when_text(data: Mapping[str, Any]) -> str:
     return f"{local:%a} {local.day} {local:%b}, {local:%H:%M} {local.tzname()}"
 
 
-def _plan_report(data: Mapping[str, Any]) -> Plan:
-    """The first draft PDF of a visit report is ready (PRD Appendix B, "Visit ended (draft report
-    ready)"): the people who attended hear of it, in the app only. The draft is staff only (rule
-    6), so no client is told, and nothing of its text travels in the event."""
-    visit_id = data["visit_id"]
+# Why a finalize stopped, for the lead and the people who signed (W17-7): title, then what to do
+FINALIZE_FAILED_TEXT: dict[str, tuple[str, str]] = {
+    "facts_changed": ("Finalizing stopped: the board changed",
+                      "the signatures were cleared. Read the changes, sign and finalize again"),
+    "lock_failed": ("Finalizing stopped: the visit could not be locked",
+                    "nothing changed and the signatures are kept. Try again in a minute"),
+    "render_failed": ("Finalizing stopped: the PDF could not be made",
+                      "the signatures are kept and the boards are open again. Try again"),
+}
+# After a reopen the client hears of it only if they have already been asked to review (PRD RPT-6)
+REOPEN_TELLS_CLIENT = frozenset({"client_review", "closed"})
+
+
+def _plan_report(
+    event_type: str, data: Mapping[str, Any], actor_id: str | None, audience: Audience
+) -> Plan:
+    """A visit report event (PRD RPT-1, RPT-5 to RPT-7, Appendix B). The draft is staff only (rule
+    6), so no client hears of one; a client hears when a report is final, and when a final report
+    is reopened after they were asked to review it. Staff go to the report page, a client to the
+    visit. Nothing of the report's text travels in an event, so none appears here; a reopen's
+    reason is the admin's own words. The person who did it is never told."""
+    report_id, visit_id = data["report_id"], data["visit_id"]
     line = f"{data['number']} · {data.get('title') or 'Maintenance request'}"
-    drafts = [
-        Draft(
-            user_id=user_id, type="report.drafted", title="Draft report ready", body=line,
-            link=f"/visits/{visit_id}", entity_type="visit", entity_id=visit_id, email=False,
-        )
-        for user_id in _once(list(data.get("staff_ids") or []), skip=None)
-    ]
+    drafts: list[Draft] = []
+
+    def tell(
+        ids: Sequence[str], type_: str, title: str, body: str, *, client: bool = False,
+        email: bool = False,
+    ) -> None:
+        link = f"/visits/{visit_id}" if client else f"/visit-reports/{report_id}"
+        for user_id in _once(ids, skip=actor_id):
+            drafts.append(Draft(
+                user_id=user_id, type=type_, title=title, body=body, link=link,
+                entity_type="report", entity_id=report_id, email=email,
+            ))
+
+    staff = list(data.get("staff_ids") or [])
+    match event_type:
+        case "report.drafted":
+            tell(staff, "report.drafted", "Draft report ready", line)
+        case "report.finalized":
+            corrected = data["version"] > 1
+            tell(staff, "report.finalized",
+                 "Corrected report final" if corrected else "Visit report finalized", line)
+            tell(audience.org_clients, "report.finalized",
+                 "Corrected report final" if corrected else "Visit report finalized", line,
+                 client=True, email=True)
+        case "report.finalize_failed":
+            title, advice = FINALIZE_FAILED_TEXT.get(
+                data["reason"], ("Finalizing stopped", "try again"))
+            tell([data["lead_staff_id"], *(data.get("signer_ids") or [])],
+                 "report.finalize_failed", title, f"{line} · {advice}")
+        case "report.reopened":
+            reason = data["reason"]
+            tell(staff, "report.reopened", "Report reopened for correction",
+                 f"{line} · {reason}")
+            if data.get("request_status") in REOPEN_TELLS_CLIENT:
+                tell(audience.org_clients, "report.reopened", "A corrected report is coming",
+                     f"{line} · {reason}", client=True, email=True)
+        case "report.finalize_reminder":
+            days = data["working_days"]
+            gone = "2 working days" if days == 2 else f"{days} working days"
+            body = f"{line} · the visit ended {gone} ago. Finalize it so the client can review"
+            tell(staff, "report.finalize_reminder", "Report not finalized yet", body, email=True)
+            if days >= 5:
+                tell(audience.admins, "report.finalize_reminder", "Report not finalized yet",
+                     body)
+        case _:
+            pass
     return Plan(drafts=drafts)
 
 

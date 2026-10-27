@@ -32,7 +32,7 @@ from app import migrations as app_migrations
 from app.api import edit_routes, finalize_routes, report_routes, reports, verify_routes
 from app.config import Settings
 from app.events import consumer
-from app.jobs import backfill, drafts, resume
+from app.jobs import backfill, drafts, reminders, resume
 from app.repo.media import MediaSource
 from app.repo.operations import FactsSource, LabelSource, VisitLocks
 from app.repo.render import Renderer
@@ -136,6 +136,11 @@ def create_app(
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "drafts", settings.draft_tick_s,
                     lambda: drafts.tick(app.state.services), stop, first_delay_s=10.0,
+                )),
+                # Reminds (RPT-7) when a draft is not finalized after 2 and 5 working days
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "reminders", settings.reminder_tick_s,
+                    lambda: reminders.tick(app.state.services), stop, first_delay_s=90.0,
                 )),
                 # Takes up a finalize a worker left half done, and unlocks owed to operations
                 asyncio.create_task(run_periodic(
