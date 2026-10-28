@@ -122,7 +122,9 @@ async def _detail(ctx: Ctx, doc: dict[str, Any], user: User) -> RequestDetail:
     )
     return RequestDetail.build(doc, stations, org_names, cast(list[ActionName], actions),
                                comment_count=seen.get(doc["_id"], 0), visits=visits,
-                               auto_close_at=closes)
+                               auto_close_at=closes,
+                               attestation=(ctx.settings.client_attestation
+                                            if user.is_client and closes is not None else None))
 
 
 def _entry(

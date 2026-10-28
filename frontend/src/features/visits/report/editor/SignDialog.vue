@@ -2,9 +2,11 @@
   <ModalSheet v-model="open" labelledby="sg-h" max-width="520" persistent>
     <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
       <div>
-        <h2 id="sg-h" class="m-0 text-h3 text-surface-900">Sign the report</h2>
+        <h2 id="sg-h" class="m-0 text-h3 text-surface-900">{{ title }}</h2>
 
-        <p class="m-0 mt-1 text-sm text-surface-700">
+        <p v-if="subtitle" class="m-0 mt-1 text-sm text-surface-700">{{ subtitle }}</p>
+
+        <p v-else-if="number" class="m-0 mt-1 text-sm text-surface-700">
           <span class="font-mono" translate="no">{{ number }}</span> v{{ version }} · signing as {{ lead ? 'the lead' : 'attending' }}
         </p>
       </div>
@@ -65,9 +67,20 @@
 
       <p v-if="attestError" class="m-0 -mt-2 text-sm text-error" role="alert">{{ attestError }}</p>
 
+      <FormField v-if="withComment" id="sg-comment" label="Comment (optional)">
+        <v-textarea
+          id="sg-comment"
+          v-model="comment"
+          auto-grow
+          :maxlength="1000"
+          name="comment"
+          rows="2"
+        />
+      </FormField>
+
       <div class="flex flex-wrap justify-end gap-2">
         <v-btn :disabled="busy" variant="outlined" @click="open = false">Cancel</v-btn>
-        <v-btn color="primary" :loading="busy" type="submit">Sign</v-btn>
+        <v-btn color="primary" :loading="busy" type="submit">{{ submitLabel }}</v-btn>
       </div>
     </form>
   </ModalSheet>
@@ -86,10 +99,12 @@
   // answered; nothing is written to the device. The canvas is sized from devicePixelRatio when the
   // dialog opens; rotating the phone while it is open would blur it, so the size is taken once and
   // the pad is cleared if the window is resized.
-  const props = defineProps<{
-    number: string
-    version: number
-    lead: boolean
+  // The same dialog takes a client's acceptance of the work (W18, REQ-13): a title, a line under it
+  // and the button's words replace the report's, and a comment may go with the signature.
+  const props = withDefaults(defineProps<{
+    number?: string
+    version?: number
+    lead?: boolean
     /** The sentence the server stores with the signature, shown exactly as it is stored. */
     attestation: string
     busy: boolean
@@ -97,17 +112,25 @@
     failure: string | null
     /** The name to suggest (the person's own). */
     suggest: string
-  }>()
+    title?: string
+    subtitle?: string
+    submitLabel?: string
+    withComment?: boolean
+  }>(), {
+    number: undefined, version: undefined, lead: false, title: 'Sign the report', subtitle: undefined,
+    submitLabel: 'Sign', withComment: false,
+  })
 
   const EXPORT_WIDTH = 900
 
-  const emit = defineEmits<{ sign: [name: string, image: string] }>()
+  const emit = defineEmits<{ sign: [name: string, image: string, comment: string] }>()
   const open = defineModel<boolean>({ required: true })
 
   const box = ref<HTMLElement | null>(null)
   const canvas = ref<HTMLCanvasElement | null>(null)
   const name = ref('')
   const attested = ref(false)
+  const comment = ref('')
   const empty = ref(true)
   // The signature is the typed name drawn onto the pad, not a drawing by hand
   const typed = ref(false)
@@ -120,6 +143,7 @@
   async function start (): Promise<void> {
     name.value = props.suggest
     attested.value = false
+    comment.value = ''
     nameError.value = ''
     padError.value = ''
     attestError.value = ''
@@ -234,7 +258,7 @@
       document.querySelector<HTMLElement>(first)?.focus()
       return
     }
-    emit('sign', name.value.trim(), exportPng(pad.toDataURL('image/png')))
+    emit('sign', name.value.trim(), exportPng(pad.toDataURL('image/png')), comment.value.trim())
   }
 
   watch(open, isOpen => {

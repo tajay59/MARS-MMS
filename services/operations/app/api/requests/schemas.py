@@ -262,12 +262,15 @@ class RequestDetail(RequestSummary):
     verification: VerificationOut | None  # the client's last answer to Client Review
     review_started_at: datetime | None  # the current review's start: what `reviewing` names
     auto_close_at: datetime | None  # while in Client Review: when it closes if nobody answers
+    # The wording a client signs under, as it will be stored with the signature (W18-4). Only a
+    # client in Client Review is given it
+    attestation: str | None = None
 
     @classmethod
     def build(
         cls, doc: dict[str, Any], stations: dict[str, dict[str, Any]], orgs: dict[str, str],
         actions: list[Action], comment_count: int = 0, visits: list[VisitBrief] | None = None,
-        auto_close_at: datetime | None = None,
+        auto_close_at: datetime | None = None, attestation: str | None = None,
     ) -> RequestDetail:
         return cls(
             **RequestSummary.of(doc, stations, orgs).model_dump(),
@@ -286,6 +289,7 @@ class RequestDetail(RequestSummary):
             comment_count=comment_count, visits=visits or [],
             verification=VerificationOut.of(doc.get("client_verification")),
             review_started_at=doc.get("review_started_at"), auto_close_at=auto_close_at,
+            attestation=attestation,
         )
 
 

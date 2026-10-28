@@ -450,3 +450,17 @@ async def test_the_facts_for_the_closeout_list_submitted_client_reports_only(ops
                                 headers=ops.service("report"))).json()
     assert [(r["title"], r["kind"]) for r in facts["client_reports"]] == [("Gauge check", "form")]
     assert "Fine" not in str(facts["client_reports"])  # titles and dates, never the text
+
+
+@pytest.mark.req("REQ-13")
+async def test_only_a_client_in_review_is_given_the_wording_to_sign_under(ops):
+    _visit, request, _report, started = await in_review(ops)
+    for who, expected in (("client_a1", True), ("client_a2", True), ("tech1", False),
+                          ("admin", False), ("viewer", False)):
+        got = (await request_now(ops, request["id"], who)).get("attestation")
+        assert (got is not None) is expected, who
+    assert got is None
+    wording = (await request_now(ops, request["id"], "client_a1"))["attestation"]
+    assert wording == ops.app.state.settings.client_attestation
+    await accept(ops, "client_a1", request["id"], started)
+    assert (await request_now(ops, request["id"], "client_a1")).get("attestation") is None

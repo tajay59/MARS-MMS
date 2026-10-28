@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, BoardRequestIn, CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, FieldBundle, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
+import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, BoardRequestIn, CalibrationPage, ClientReportIn, ClientReportOut, ClientReportPage, ClientReportPatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, FieldBundle, Places, QrResolved, QueuePage, RequestAcceptIn, RequestDetail, RequestIn, RequestPage, RequestPatch, RequestRejectIn, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -66,6 +66,10 @@ export const requestsApi = {
     api.post<RequestDetail>(`/requests/${id}/assign`, { staff_ids: staffIds, version }),
   claim: (id: string) => api.post<RequestDetail>(`/requests/${id}/claim`, {}),
   release: (id: string) => api.post<RequestDetail>(`/requests/${id}/release`, {}),
+  // Client Review (REQ-13): a client signs the work off, or sends it back with a reason. Both name the
+  // review they read (`reviewing`: the detail's `review_started_at`), and sending one twice is safe.
+  accept: (id: string, body: RequestAcceptIn) => api.post<RequestDetail>(`/requests/${id}/accept`, body),
+  reject: (id: string, body: RequestRejectIn) => api.post<RequestDetail>(`/requests/${id}/reject`, body),
   workload: (signal?: AbortSignal) => api.get<Workload>('/requests/workload', { signal }),
   // Comments (REQ-9, REQ-10): oldest first. A client's list has no internal comment. `body.id` is
   // made on the device: sending it again returns the comment already posted (200).
@@ -79,6 +83,28 @@ export const requestsApi = {
     api.get<DownloadOut>(`/requests/${id}/attachments/${mediaId}/download`),
   commentFile: (id: string, commentId: string, mediaId: string) =>
     api.get<DownloadOut>(`/requests/${id}/comments/${commentId}/attachments/${mediaId}/download`),
+}
+
+// A client's own reports on a request (CRP-1 to CRP-5). A draft is private to its author and `version`
+// guards each change; a submitted report cannot change. A form's PDF is a report of the report service.
+export interface ClientReportQuery {
+  request_id?: string
+  station_id?: string
+  limit?: number
+}
+
+export const clientReportsApi = {
+  list: (query: ClientReportQuery = {}, signal?: AbortSignal) =>
+    api.get<ClientReportPage>('/client-reports', { query: { ...query }, signal }),
+  get: (id: string, signal?: AbortSignal) => api.get<ClientReportOut>(`/client-reports/${id}`, { signal }),
+  // `body.id` is made on the device: sending it again returns the draft already made (200)
+  create: (body: ClientReportIn) => api.post<ClientReportOut>('/client-reports', body),
+  update: (id: string, body: ClientReportPatch) => api.patch<ClientReportOut>(`/client-reports/${id}`, body),
+  // Idempotent. For a form whose PDF could not be drawn it is also Try again
+  submit: (id: string) => api.post<ClientReportOut>(`/client-reports/${id}/submit`, {}),
+  // Ten-minute links, asked for on click and never kept (TRD 7.6)
+  download: (id: string) => api.get<DownloadOut>(`/client-reports/${id}/download`),
+  file: (id: string, mediaId: string) => api.get<DownloadOut>(`/client-reports/${id}/attachments/${mediaId}/download`),
 }
 
 // Approved requests nobody has taken, oldest first (staff only; a client has no queue)
