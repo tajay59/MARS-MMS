@@ -5,9 +5,8 @@ rows, `build` turns them into a `Doc` of tables, the job writes it as CSV (the m
 draws it as a PDF. A summary has no report number, version or signature, and it is not found by
 `/reports/verify`; its footer says who made it and when. No I/O here (rule 7).
 
-Built so far: the seven types the read model can serve today. Station asset, Sensor
-reliability, Configuration history and Technician workload need sensor models, configuration
-versions and staff names in the read model and follow with it.
+Built: ten of the eleven types. Technician workload needs staff names, which the read model
+does not hold, and the charts (headless Chromium) follow with it.
 """
 
 from __future__ import annotations
@@ -36,6 +35,9 @@ class Kind(StrEnum):
     NETWORK_STATUS = "network_status"
     MONTHLY_SUMMARY = "monthly_summary"
     ANNUAL_SUMMARY = "annual_summary"
+    STATION_ASSET = "station_asset"
+    SENSOR_RELIABILITY = "sensor_reliability"
+    CONFIGURATION_HISTORY = "configuration_history"
 
 
 @dataclass(frozen=True)
@@ -63,6 +65,15 @@ TYPES: dict[Kind, TypeInfo] = {t.key: t for t in (
              "Requests and visits in the period, by category and by country.", False),
     TypeInfo(Kind.ANNUAL_SUMMARY, "Annual summary",
              "Requests, visits and calibrations for each month of the period.", False),
+    TypeInfo(Kind.STATION_ASSET, "Station asset",
+             "What is installed at each station now: sensors, serials and calibration dates.",
+             True, uses_period=False),
+    TypeInfo(Kind.SENSOR_RELIABILITY, "Sensor reliability",
+             "Installs, removals, failed calibrations and time in service for each sensor model.",
+             False),
+    TypeInfo(Kind.CONFIGURATION_HISTORY, "Configuration history",
+             "The configuration versions saved for each station, and the visit behind each.",
+             False),
 )}
 
 
@@ -317,6 +328,83 @@ def annual_summary(data: Mapping[str, Any]) -> Doc:
     )
 
 
+def station_asset(data: Mapping[str, Any]) -> Doc:
+    stations, units, models = data["stations"], data["units"], data["models"]
+    last, now = data["last_cal"], data["now"]
+
+    def where(i: Mapping[str, Any]) -> tuple[str, str, str]:
+        return (stations.get(i["station_id"], {}).get("code", ""), i.get("parameter") or "",
+                i.get("serial", ""))
+
+    rows: list[list[Any]] = []
+    overdue = 0
+    for i in sorted(data["installs"], key=where):
+        station = stations.get(i["station_id"], {})
+        model = models.get(i.get("model_id"))
+        due = units.get(i["unit_id"], {}).get("due_at")
+        overdue += bool(due and due < now)
+        rows.append([station.get("code", ""), station.get("name", ""), i.get("parameter") or "",
+                     f"{model['manufacturer']} {model['model']}" if model else "",
+                     i.get("serial", ""), i.get("installed_at"),
+                     last.get(i["unit_id"], {}).get("at"), due])
+    return Doc(
+        Kind.STATION_ASSET, "Station asset",
+        kpis=[("Stations", str(len({i["station_id"] for i in data["installs"]}))),
+              ("Sensors installed", str(len(rows))), ("Calibrations overdue", str(overdue))],
+        tables=[Table("Installed sensors", ["Station", "Name", "Parameter", "Model", "Serial",
+                                            "Installed", "Last calibrated", "Next due"], rows)],
+    )
+
+
+def sensor_reliability(data: Mapping[str, Any]) -> Doc:
+    models, units = data["models"], data["units"]
+    table: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"installs": 0, "removals": 0, "failed": 0, "days": [], "now": 0})
+    for i in data["installed"]:
+        table[i.get("model_id", "")]["installs"] += 1
+    for i in data["removed"]:
+        row = table[i.get("model_id", "")]
+        row["removals"] += 1
+        took = days_between(i.get("installed_at"), i.get("removed_at"))
+        if took is not None:
+            row["days"].append(took)
+    for c in data["failed"]:
+        table[units.get(c["sensor_unit_id"], {}).get("model_id", "")]["failed"] += 1
+    for i in data["open"]:
+        table[i.get("model_id", "")]["now"] += 1
+    rows: list[list[Any]] = []
+    for model_id, t in table.items():
+        model = models.get(model_id)
+        name = f"{model['manufacturer']} {model['model']}" if model else "Unknown model"
+        mean = round(sum(t["days"]) / len(t["days"]), 1) if t["days"] else None
+        rows.append([name, model["kind"] if model else "", t["installs"], t["removals"],
+                     t["failed"], mean, t["now"]])
+    rows.sort(key=lambda r: (-r[4], r[0]))
+    return Doc(
+        Kind.SENSOR_RELIABILITY, "Sensor reliability",
+        kpis=[("Models", str(len(rows))), ("Removals", str(sum(r[3] for r in rows))),
+              ("Failed calibrations", str(sum(r[4] for r in rows)))],
+        tables=[Table("By model", ["Model", "Kind", "Installed", "Removed", "Failed calibrations",
+                                   "Mean days in service", "In service now"], rows,
+                      right=(2, 3, 4, 5, 6))],
+        notes=["Mean days in service counts sensors removed in the period only."],
+    )
+
+
+def configuration_history(data: Mapping[str, Any]) -> Doc:
+    stations, visits = data["stations"], data["visit_refs"]
+    rows = [[c["created_at"], stations.get(c["station_id"], {}).get("code", ""), c["number"],
+             c["file_count"], visits.get(c.get("visit_id"), "")]
+            for c in sorted(data["configs"], key=lambda x: x["created_at"])]
+    return Doc(
+        Kind.CONFIGURATION_HISTORY, "Configuration history",
+        kpis=[("Versions saved", str(len(rows))),
+              ("Stations changed", str(len({c["station_id"] for c in data["configs"]})))],
+        tables=[Table("Versions", ["When", "Station", "Version", "Files", "Visit"], rows,
+                      right=(2, 3))],
+    )
+
+
 BUILDERS: dict[Kind, Callable[[Mapping[str, Any]], Doc]] = {
     Kind.STATION_HISTORY: station_history,
     Kind.CLIENT_ACTIVITY: client_activity,
@@ -325,6 +413,9 @@ BUILDERS: dict[Kind, Callable[[Mapping[str, Any]], Doc]] = {
     Kind.NETWORK_STATUS: network_status,
     Kind.MONTHLY_SUMMARY: monthly_summary,
     Kind.ANNUAL_SUMMARY: annual_summary,
+    Kind.STATION_ASSET: station_asset,
+    Kind.SENSOR_RELIABILITY: sensor_reliability,
+    Kind.CONFIGURATION_HISTORY: configuration_history,
 }
 
 

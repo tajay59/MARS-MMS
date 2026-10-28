@@ -541,7 +541,7 @@ export interface components {
          * Kind
          * @enum {string}
          */
-        Kind: "station_history" | "client_activity" | "request_turnaround" | "calibration_due" | "network_status" | "monthly_summary" | "annual_summary";
+        Kind: "station_history" | "client_activity" | "request_turnaround" | "calibration_due" | "network_status" | "monthly_summary" | "annual_summary" | "station_asset" | "sensor_reliability" | "configuration_history";
         /** LabelsIn */
         LabelsIn: {
             /**

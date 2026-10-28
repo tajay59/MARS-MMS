@@ -494,7 +494,10 @@
           "calibration_due",
           "network_status",
           "monthly_summary",
-          "annual_summary"
+          "annual_summary",
+          "station_asset",
+          "sensor_reliability",
+          "configuration_history"
         ],
         "title": "Kind",
         "type": "string"

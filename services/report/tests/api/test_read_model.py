@@ -187,9 +187,24 @@ def snapshot_source(name: str = "Alpha") -> Pages:
         "current_station_id": STATION, "calibration_due_at": "2027-09-01T00:00:00Z",
         "aggregate_version": 4,
     }
+    model = {
+        "model_id": "m-1", "kind": "sensor", "manufacturer": "Vaisala", "model": "HMP155",
+        "parameters": ["AT", "RH"], "default_calibration_interval_days": 365, "aggregate_version": 2,
+    }
+    config = {
+        "config_id": "cfg-1", "station_id": STATION, "version": 4, "file_count": 3,
+        "visit_id": VISIT, "created_at": "2026-10-06T09:00:00Z", "aggregate_version": 1,
+    }
+    installation = {
+        "installation_id": "ins-1", "unit_id": "u-1", "serial": "SN-1", "model_id": "m-1",
+        "station_id": STATION, "parameter": "AT", "installed_at": "2026-09-01T00:00:00Z",
+        "removed_at": None, "aggregate_version": 1,
+    }
     return Pages({
         "stations": [[station_item]], "requests": [[request_item], []],
         "visits": [[visit_item]], "calibrations": [[cal]], "sensor_units": [[unit]],
+        "sensor_models": [[model]], "config_versions": [[config]],
+        "installations": [[installation]],
     })
 
 
@@ -198,13 +213,15 @@ async def test_the_backfill_pages_through_every_entity_and_a_repeat_writes_nothi
     first = await backfill.backfill(report.db, source)
     assert first == {
         "stations": (1, 1), "requests": (1, 1), "visits": (1, 1), "calibrations": (1, 1),
-        "sensor_units": (1, 1),
+        "sensor_units": (1, 1), "sensor_models": (1, 1), "config_versions": (1, 1),
+        "installations": (1, 1),
     }
     assert ("requests", "1") in source.asked  # it followed the cursor
     again = await backfill.backfill(report.db, snapshot_source())
     assert again == {
         "stations": (1, 0), "requests": (1, 0), "visits": (1, 0), "calibrations": (1, 0),
-        "sensor_units": (1, 0),
+        "sensor_units": (1, 0), "sensor_models": (1, 0), "config_versions": (1, 0),
+        "installations": (1, 1),  # an installation is merged field by field, so it is rewritten
     }
     row = await report.db["visit_facts"].find_one({"_id": VISIT})
     assert row["started_at"] == datetime(2026, 10, 5, 8, 0) and row["status"] == "ended"
@@ -213,6 +230,13 @@ async def test_the_backfill_pages_through_every_entity_and_a_repeat_writes_nothi
     assert request_row["assigned_ids"] == ["u-1", "u-2"]  # who is on it, for a technician's view
     unit = await report.db["unit_facts"].find_one({"_id": "u-1"})
     assert (unit["status"], unit["station_id"], unit["serial"]) == ("installed", STATION, "SN-1")
+    model = await report.db["model_facts"].find_one({"_id": "m-1"})
+    assert (model["manufacturer"], model["interval_days"]) == ("Vaisala", 365)
+    config = await report.db["config_facts"].find_one({"_id": "cfg-1"})
+    assert (config["number"], config["file_count"], config["visit_id"]) == (4, 3, VISIT)
+    assert config["created_at"] == datetime(2026, 10, 6, 9, 0)
+    installed = await report.db["installation_facts"].find_one({"_id": "ins-1"})
+    assert installed["installed_at"] == datetime(2026, 9, 1) and "removed_at" not in installed
     assert unit["due_at"] == datetime(2027, 9, 1, 0, 0)
 
 
@@ -251,4 +275,37 @@ async def test_unit_events_make_and_update_a_row_and_old_ones_change_nothing(rep
     row = await report.db["unit_facts"].find_one({"_id": "u-1"})
     assert (row["status"], row["aggregate_version"]) == ("installed", 3)
     assert row["due_at"] == datetime(2027, 1, 1, 0, 0)
+    assert not dead
+
+
+async def test_models_configuration_versions_and_installations_come_from_events(report):
+    p, dead = await processor(report)
+    model = event("sensor_model.created", "sensor_model", 1, {
+        "model_id": "m-9", "kind": "sensor", "manufacturer": "Vaisala", "model": "HMP155",
+        "parameters": ["AT"], "default_calibration_interval_days": 365}, "m-9")
+    assert await p.process(model) is Outcome.APPLIED
+    assert (await report.db["model_facts"].find_one({"_id": "m-9"}))["model"] == "HMP155"
+
+    # a configuration version takes its id from the resource and its time from the envelope
+    config = Envelope(
+        event_id=new_id(), type="config.version_created", occurred_at=T0, source="operations",
+        key=STATION, aggregate_version=4, resource=Resource(type="config_version", id="cfg-9"),
+        org_id=ORG, data={"station_id": STATION, "version": 4, "file_count": 2, "visit_id": None},
+    ).model_dump_json().encode()
+    assert await p.process(config) is Outcome.APPLIED
+    row = await report.db["config_facts"].find_one({"_id": "cfg-9"})
+    assert (row["number"], row["file_count"], row["created_at"]) == (4, 2, datetime(2026, 10, 5, 8, 0))
+
+    # an installation is written by two events, in either order
+    def sensor(type_: str, at: str) -> bytes:
+        return event(type_, "sensor_unit", 1, {
+            "installation_id": "ins-9", "unit_id": "u-9", "serial": "SN-9", "model_id": "m-9",
+            "station_id": STATION, "parameter": "AT", "at": at, "unit_status": "installed"},
+            "u-9")
+
+    assert await p.process(sensor("sensor.removed", "2026-10-04T00:00:00Z")) is Outcome.APPLIED
+    assert await p.process(sensor("sensor.installed", "2026-09-01T00:00:00Z")) is Outcome.APPLIED
+    got = await report.db["installation_facts"].find_one({"_id": "ins-9"})
+    assert got["installed_at"] == datetime(2026, 9, 1) and got["removed_at"] == datetime(2026, 10, 4)
+    assert (got["serial"], got["model_id"], got["parameter"]) == ("SN-9", "m-9", "AT")
     assert not dead

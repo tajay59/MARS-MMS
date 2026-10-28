@@ -10,8 +10,8 @@ import type { SummaryIn, SummaryJob, SummaryKind, SummaryType } from '@/api/mode
 
 /** The groups in the pane, in order; a type the server sends that is not here lands in Other. */
 const GROUPS: readonly { label: string, types: readonly string[] }[] = [
-  { label: 'Stations', types: ['station_history', 'network_status'] },
-  { label: 'Calibration', types: ['calibration_due'] },
+  { label: 'Stations', types: ['station_history', 'station_asset', 'configuration_history', 'network_status'] },
+  { label: 'Calibration and sensors', types: ['calibration_due', 'sensor_reliability'] },
   { label: 'Requests and people', types: ['client_activity', 'request_turnaround'] },
   { label: 'Maintenance', types: ['monthly_summary', 'annual_summary'] },
 ]

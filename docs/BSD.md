@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.10 |
+| **Version** | 1.11 |
 | **Date** | 2026-10-28 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0: five services and six databases; SeaweedFS instead of MinIO; Nginx instead of Kong; `org_id` copied onto sensor installations and calibrations (closes B2); model documents reached through operations (B4); files start staff-only (ADR-19); station owners on visits; offline profile and PIN verifier on the device; read models rebuilt by backfill. B3 closed by TRD §5 indexes; B5 and B6 recorded as decisions |
@@ -11,6 +11,7 @@
 | **Changes in 1.3** | auth's `settings` collection (one document, `branding`: the organization's Material 3 brand colours, decision W4-12); the PWA keeps its last copy in `localStorage` (`mms-branding`), with the per-device `mms-motion` setting |
 | **Changes in 1.5** | Follows TRD 2.7 (decision W5-8): auth's `organizations` gain `short_name` and `external_id` (unique where set), copied into operations' `organizations`; `stations.external_id` (unique where set). Imported from the organization's existing system; its MQTT credentials are never copied |
 | **Changes in 1.4** | The stations module as built (TRD 2.6): operations' `organizations` copy (name, country, status) from auth's events and snapshot; `sensor_models.key` unique; `installations.source_action_id` unique only where set |
+| **Changes in 1.11** | Follows TRD 2.22 (W19 slice 3b): the report read model also holds `model_facts`, `config_facts` and `installation_facts`. |
 | **Changes in 1.10** | Follows TRD 2.21 (W19 slice 3): `report_jobs` also holds summary reports (`type: summary`; `params`, `params_key`, `requested_by_name`, `result {key, format, sha256, bytes, rows, pages, file_name}`); the files are `summaries/<job id>.pdf\|csv` in `mms-reports` and are removed after 30 days. |
 | **Changes in 1.9** | Follows TRD 2.20 (W19 slice 2): `unit_facts` joins the read model, and `request_facts` carries `assigned_ids`. |
 | **Changes in 1.8** | Follows TRD 2.19 (W19 slice 1): `audit_checks` in the notification database holds the integrity checks of the audit chain and their results. |
