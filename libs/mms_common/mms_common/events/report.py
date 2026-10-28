@@ -4,7 +4,8 @@ travels in an event (rule 1; the audit record would keep it for ever).
 W16 adds `report.drafted`. W17 adds the signing and finalize events (TRD 11.2, 11.3): none of
 them carries the drawn signature, a typed name or any text of the report, only ids, versions,
 counts and a reason. `report.finalized` and `report.reopened` are what operations reads to set a
-visit's report status (TRD 3.2). The close-out and client-report events arrive in W18.
+visit's report status (TRD 3.2). W18 adds `report.generated` (a client report's PDF); the
+close-out events follow.
 """
 
 from __future__ import annotations
@@ -127,3 +128,18 @@ class ReportFinalizeReminder(_VisitReport):
     staff_ids: list[str]
     lead_staff_id: str
 
+
+@register("report.generated")
+class ReportGenerated(_Data):
+    """The PDF of a client's online-form report was drawn (`ready`) or could not be after the
+    retries (`failed`), W18-10. Operations records `report_id` on the client report from this;
+    it carries no text. Keyed by the request."""
+
+    client_report_id: str
+    request_id: str
+    org_id: str
+    report_id: str
+    number: str  # CR-YYYY-NNNN-NN
+    outcome: Literal["ready", "failed"]
+    pdf_sha256: str | None = None
+    attempt: int = 1

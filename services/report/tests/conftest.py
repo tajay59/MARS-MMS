@@ -61,6 +61,7 @@ class FakeFacts:
 
     def __init__(self) -> None:
         self.by_visit: dict[str, dict[str, Any]] = {}
+        self.by_client_report: dict[str, dict[str, Any]] = {}
         self.down = False
         self.calls: list[str] = []
 
@@ -69,6 +70,12 @@ class FakeFacts:
         if self.down:
             raise OperationsUnavailable()
         return self.by_visit.get(visit_id)
+
+    async def client_report_facts(self, client_report_id: str) -> dict[str, Any] | None:
+        self.calls.append(client_report_id)
+        if self.down:
+            raise OperationsUnavailable()
+        return self.by_client_report.get(client_report_id)
 
 
 class FakeLocks:
@@ -124,6 +131,7 @@ class FakeRenderer:
     def __init__(self) -> None:
         self.calls: list[tuple[list[Label], str | None]] = []
         self.visits: list[dict[str, Any]] = []
+        self.forms: list[dict[str, Any]] = []
         self.fail = False
 
     async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
@@ -133,6 +141,12 @@ class FakeRenderer:
         # A final report differs from every other (its version and hash are in its footer)
         extra = f"% v{view['version']} {view.get('hash')}".encode() if view.get("hash") else b""
         return Rendered(pdf=PDF + extra, pages=1)
+
+    async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.forms.append(view)
+        return Rendered(pdf=PDF + f"% {view['number']} {view.get('hash')}".encode(), pages=1)
 
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
         if self.fail:

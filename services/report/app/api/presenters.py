@@ -74,6 +74,12 @@ def report_out(
     user: User, doc: dict[str, Any], signed: list[dict[str, Any]], attestation: str
 ) -> ReportOut:
     """`signed` is every signature of the report; only this version's are shown."""
+    if doc["type"] == "client_form":
+        # The client wrote it and sent it: staff and client read the same page
+        return ReportOut(
+            **summary(doc), content_version=doc["content_version"],
+            facts_version=doc["facts_version"], content=doc["content"],
+        )
     if user.is_client:
         return ReportOut(**summary(doc), content_version=doc["content_version"],
                          facts_version=doc["facts_version"],

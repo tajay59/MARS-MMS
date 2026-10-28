@@ -214,7 +214,7 @@ Rule: a user with the `client` role holds no staff role, and has exactly one `or
 | --- | --- | --- | --- | --- |
 | `requests` | Maintenance requests and their state | `ref` (MR-YYYY-NNNN) unique, `org_id`, `station_ids[]`, `status`, `status_history[]`, `assigned_staff_ids[]`, `rework_since`, `review_started_at`, `client_verification` (outcome + signature), `milestones` | `org_id` | `ref` unique; `(org_id, status)`; `(status, assigned_staff_ids)`; `(status, review_started_at)` |
 | `comments` | Flat thread per request | `request_id`, `org_id`, `author_id`, `body`, `internal`, `edited_at` | `org_id`, and `internal = false` | `(request_id, created_at)` |
-| `client_reports` | Client's own PDF or form report | `request_id`, `org_id`, `kind`, `status` (draft or submitted), `media_id`, `report_id`, `form` | `org_id` | `request_id` |
+| `client_reports` | Client's own PDF or form report. A draft is private to its author; a submitted report is read-only (W18-9) | `request_id`, `org_id`, `kind`, `status` (draft or submitted), `title`, `report_date`, `station_ids`, `file`, `form`, `render`, `report_id`, `attempt` | `org_id` | `request_id`, `station_ids` |
 | `counters` | Reference number sequences | `_id` = "MR-2026" or "VR-2026-0042", `seq` | — | — |
 
 ### operations — visits module

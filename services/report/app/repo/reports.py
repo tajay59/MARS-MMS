@@ -302,3 +302,110 @@ async def supersede(
 async def by_pdf_hash(db: Db, sha256: str) -> dict[str, Any] | None:
     doc: dict[str, Any] | None = await col(db).find_one({"pdf_sha256": sha256})
     return doc
+
+
+# --- a client's online-form report (W18-10) --------------------------------------------------
+
+
+async def next_sequence(db: Db, key: str, session: AsyncClientSession) -> int:
+    """The next number of a series (`CR-…-NN`). It moves inside the caller's transaction, so a
+    report that fails to save does not use one up."""
+    counter: dict[str, Any] | None = await db["counters"].find_one_and_update(
+        {"_id": key}, {"$inc": {"seq": 1}}, upsert=True, return_document=ReturnDocument.AFTER,
+        session=session,
+    )
+    if counter is None:  # upsert=True always returns the document
+        raise RuntimeError("the counter was not created")
+    return int(counter["seq"])
+
+
+async def for_client_report(
+    db: Db, client_report_id: str, session: AsyncClientSession | None = None
+) -> dict[str, Any] | None:
+    doc: dict[str, Any] | None = await col(db).find_one(
+        {"type": "client_form", "client_report_id": client_report_id}, session=session)
+    return doc
+
+
+async def restart_client_form(
+    db: Db, report_id: str, *, attempt: int, now: datetime, session: AsyncClientSession
+) -> bool:
+    """render_failed -> rendering, for the client's next try. False if it moved meanwhile."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "render_failed", "attempt": {"$lt": attempt}},
+        {"$set": {"status": "rendering", "attempt": attempt, "render.state": "idle",
+                  "render.attempts": 0, "render.error": None, "updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def client_forms_waiting(db: Db, stuck_before: datetime) -> list[dict[str, Any]]:
+    """Forms to draw: none queued yet, or queued or running for so long that the worker that had
+    it is gone (the job is safe to take twice)."""
+    cursor = col(db).find({
+        "type": "client_form", "status": "rendering",
+        "$or": [{"render.state": "idle"},
+                {"render.state": {"$in": ["queued", "running"]},
+                 "updated_at": {"$lte": stuck_before}}],
+    })
+    return [d async for d in cursor.limit(50)]
+
+
+async def queue_client_form(db: Db, report_id: str, now: datetime, stuck_before: datetime) -> bool:
+    """idle (or abandoned) -> queued, once: two ticks queue it once."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering",
+         "$or": [{"render.state": "idle"},
+                 {"render.state": {"$in": ["queued", "running"]},
+                  "updated_at": {"$lte": stuck_before}}]},
+        {"$set": {"render.state": "queued", "render.queued_at": now, "updated_at": now}},
+    )
+    return bool(result.modified_count)
+
+
+async def claim_client_form(db: Db, report_id: str, now: datetime) -> dict[str, Any] | None:
+    doc: dict[str, Any] | None = await col(db).find_one_and_update(
+        {"_id": report_id, "status": "rendering", "render.state": {"$in": ["queued", "running"]}},
+        {"$set": {"render.state": "running", "render.started_at": now, "updated_at": now},
+         "$inc": {"render.attempts": 1}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return doc
+
+
+async def requeue_client_form(db: Db, report_id: str, now: datetime) -> None:
+    await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "render.state": "running"},
+        {"$set": {"render.state": "queued", "updated_at": now}},
+    )
+
+
+async def finish_client_form(
+    db: Db, report_id: str, *, attempt: int, facts: dict[str, Any], content_hash: str,
+    final_pdf: dict[str, Any], session: AsyncClientSession,
+) -> bool:
+    """rendering -> final, once, for the attempt the PDF was drawn for."""
+    at = final_pdf["at"]
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "attempt": attempt},
+        {"$set": {"status": "final", "content.form": facts, "content_hash": content_hash,
+                  "final_pdf": final_pdf, "pdf_key": final_pdf["key"],
+                  "pdf_sha256": final_pdf["sha256"], "finalized_at": at, "render.state": "idle",
+                  "render.error": None, "updated_at": at}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def fail_client_form(
+    db: Db, report_id: str, *, attempt: int, code: str, now: datetime, session: AsyncClientSession
+) -> bool:
+    """rendering -> render_failed, once. The client may submit again."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "attempt": attempt},
+        {"$set": {"status": "render_failed", "render.state": "failed", "render.error": code,
+                  "updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)

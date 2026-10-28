@@ -342,6 +342,25 @@ class RequestClosed(RequestData):
     by_id: str | None = None
 
 
+# --- client_report.* (W18 slice 2) --------------------------------------------------------------
+
+
+@register("client_report.submitted")
+class ClientReportSubmitted(RequestData):
+    """A client submitted a report about their own station (PRD CRP-1 to CRP-4). The request's
+    facts come with it, so platform needs no read. Never the report's text: for an online form
+    the report service reads it from operations with its service token (like the close-out).
+    `attempt` is 1 for the first submission and goes up when a form report whose PDF could not be
+    drawn is submitted again (W18-10)."""
+
+    client_report_id: str
+    kind: str  # pdf | form
+    report_title: str
+    submitted_by_id: str
+    submitted_by_name: str
+    attempt: int = 1
+
+
 # --- comment.* (W9 slice 2) -------------------------------------------------------------------
 
 

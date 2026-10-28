@@ -134,3 +134,26 @@ async def reopened(
         request_status=request_status,
     )
     return await _add(db, clock, report, "report.reopened", data, actor, session)
+
+
+async def generated(
+    db: AsyncDatabase[dict[str, Any]], clock: Clock, report: dict[str, Any], *, outcome: str,
+    session: AsyncClientSession,
+) -> Envelope:
+    """A client's online-form report was drawn, or could not be (W18-10). Operations records the
+    report from this. Keyed by the request (TRD 8.1); no text."""
+    data = ev.ReportGenerated(
+        client_report_id=report["client_report_id"], request_id=report["request_id"],
+        org_id=report["org_id"], report_id=report["_id"], number=report["number"],
+        outcome=outcome,  # type: ignore[arg-type]
+        pdf_sha256=(report.get("final_pdf") or {}).get("sha256") if outcome == "ready" else None,
+        attempt=report["attempt"],
+    )
+    envelope = Envelope(
+        event_id=new_id(), type="report.generated", occurred_at=clock.now(), source=SOURCE,
+        key=report["request_id"], aggregate_version=report["version"], actor=SYSTEM,
+        org_id=report["org_id"], resource=Resource(type="report", id=report["_id"]),
+        data=data.model_dump(mode="json"),
+    )
+    await outbox.add(db["outbox"], envelope, session=session, clock=clock)
+    return envelope

@@ -32,7 +32,7 @@ from app import migrations as app_migrations
 from app.api import edit_routes, finalize_routes, report_routes, reports, verify_routes
 from app.config import Settings
 from app.events import consumer
-from app.jobs import backfill, drafts, resume
+from app.jobs import backfill, drafts, render_client_form, resume
 from app.repo.media import MediaSource
 from app.repo.operations import FactsSource, LabelSource, VisitLocks
 from app.repo.render import Renderer
@@ -136,6 +136,12 @@ def create_app(
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "drafts", settings.draft_tick_s,
                     lambda: drafts.tick(app.state.services), stop, first_delay_s=10.0,
+                )),
+                # Queues the PDFs of clients' online-form reports
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "client_forms", settings.draft_tick_s,
+                    lambda: render_client_form.tick(app.state.services), stop,
+                    first_delay_s=15.0,
                 )),
                 # Takes up a finalize a worker left half done, and unlocks owed to operations
                 asyncio.create_task(run_periodic(

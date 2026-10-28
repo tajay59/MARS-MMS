@@ -35,6 +35,10 @@ REQUEST_FIELDS = (
     "assigned_staff_ids", "denial_reason", "cancel_reason",
 )
 COMMENT_FIELDS = ("request_id", "author_id", "author_role", "body", "internal", "attachments")
+CLIENT_REPORT_FIELDS = (
+    "request_id", "kind", "status", "title", "report_date", "station_ids", "render", "report_id",
+    "attempt",
+)
 VISIT_FIELDS = (
     "ref", "request_id", "status", "planned_start", "planned_end", "staff_ids", "lead_staff_id",
     "started_at", "ended_at", "additional_visit_required", "cancel_reason",
@@ -356,6 +360,24 @@ class Emitter:
             type_=type_, key=request["_id"], resource=("comment", comment["_id"]),
             aggregate_version=comment["version"], org_id=request["org_id"], session=session,
             before=view(before, COMMENT_FIELDS), after=view(comment, COMMENT_FIELDS),
+        )
+
+    async def client_report(
+        self, doc: dict[str, Any], request: dict[str, Any], session: AsyncClientSession, *,
+        before: dict[str, Any] | None = None,
+    ) -> Envelope:
+        """`client_report.submitted`, keyed by the request (TRD 8.1) and versioned by the report.
+        The data names the report and says what kind it is, never what it says (W18-9)."""
+        return await self.emit(
+            ev.ClientReportSubmitted(
+                **request_data(request), client_report_id=doc["_id"], kind=doc["kind"],
+                report_title=doc["title"], submitted_by_id=doc["submitted_by"],
+                submitted_by_name=doc["submitted_by_name"], attempt=doc["attempt"],
+            ),
+            type_="client_report.submitted", key=request["_id"],
+            resource=("client_report", doc["_id"]), aggregate_version=doc["version"],
+            org_id=request["org_id"], session=session,
+            before=view(before, CLIENT_REPORT_FIELDS), after=view(doc, CLIENT_REPORT_FIELDS),
         )
 
     async def attachments_visibility(

@@ -276,9 +276,11 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | GET / POST | `/api/v1/requests/{id}/comments` | scoped (internal hidden from clients); viewers read only | Flat thread; POST is idempotent by `id` (as built 2.12) |
 | PATCH | `/api/v1/requests/{id}/comments/{cid}` | author, within 15 min | Edit a comment (body; staff may also toggle `internal`) |
 | GET | `/api/v1/requests/{id}/attachments/{media_id}/download`, `/comments/{comment_id}/attachments/{media_id}/download` | scoped (internal hidden from clients) | Ten-minute link to a PDF. Files attach at creation (`media_ids` on `POST /requests`) or with a comment, not afterwards (as built 2.12) |
-| GET / POST | `/api/v1/client-reports` | client (own org), staff (read) | List; create (`kind: pdf\|form`, status draft) |
-| PATCH | `/api/v1/client-reports/{id}` | client (own, draft only) | Update the form draft |
-| POST | `/api/v1/client-reports/{id}/submit` | client | Submit (form → PDF rendered by report) |
+| GET / POST | `/api/v1/client-reports` | GET: client (own org: submitted reports and their own drafts), staff (submitted only); POST: client | List (`request_id`, `station_id` filters); create a draft `{id?, request_id, kind: pdf\|form, title?, report_date?, station_ids?}`, idempotent by `id` (as built, W18-9) |
+| GET / PATCH | `/api/v1/client-reports/{id}` | GET: scoped as above; PATCH: client (the author, draft only) | `{version, title?, report_date?, station_ids?, media_id? (pdf), summary?, observations?, data_quality_notes?, image_ids? (form)}`; a submitted report is 409 `not_a_draft` (CRP-4) |
+| POST | `/api/v1/client-reports/{id}/submit` | client (the author) | Draft → submitted; idempotent; `client_report.submitted` and, for files, `media.visibility_requested` (org) in the same transaction. A form report whose PDF failed is submitted again as Try again (`attempt` + 1) |
+| GET | `/api/v1/client-reports/{id}/download` | scoped | Ten-minute link to a PDF report's file; a form report's PDF is `GET /api/v1/reports/{report_id}/download` |
+| GET | `/api/v1/client-reports/{id}/attachments/{media_id}/download` | scoped | Ten-minute link to a picture attached to a form report |
 | GET | `/api/v1/my-work` | staff | My assigned requests |
 | GET | `/internal/requests/{id}` | service | Request, org, stations, staff and status (used by report) |
 
@@ -303,6 +305,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/internal/visits/{id}/lock` | service (report) | Lock the visit's boards; idempotent per `{report_id, report_version}`; returns `{visit_id, locked, visit_version}` (as built, W17) |
 | POST | `/internal/visits/{id}/unlock` | service (report) | Unlock for correction or after a failed finalize; idempotent |
 | GET | `/internal/visits/{id}` | service | Full visit for report rendering |
+| GET | `/internal/client-reports/{id}` | service (report) | A submitted online-form report: title, date, stations with zones, summary, observations, data-quality notes, picture list, organization name. The event carries none of it (W18-10) |
 | GET | `/internal/requests/{id}/closeout-facts` | service (report) | What the close-out report prints: the request, timeline, visits with the report versions in force, comments a client may read, and the client's decision with the drawn signature (W18-3, W18-11) |
 | GET | `/internal/attachable?owner_ref=&user=` | service (media) | May this user attach a file here? Returns `org_id` |
 | POST | `/internal/labels` | service (report) | `{station_ids}` (1 to 200) → `[{station_id, code, name, qr_token, org_name, country}]` in the order asked, unknown stations left out. The only place report can read tokens (as built 2.9) |
@@ -374,7 +377,7 @@ Each station on a visit has a **board**: a list of elements in `visit_elements` 
 |---|---|
 | `report.finalized` (visit) | Set `visit.report_status = final` (guarded by report version), recompute the request status |
 | `report.reopened` (visit) | Set `visit.report_status = draft`, recompute the request status |
-| `report.generated` (client_form) | Attach the rendered PDF to the client report |
+| `report.generated` (client_form) | Record on the client report whether its PDF is `ready` (with `report_id`) or `failed`; only the answer to the latest `attempt` counts, once (as built, W18-10) |
 | `org.created`, `org.updated` | Refresh operations' copy of the organization (`organizations`: name, country, status, guarded by `aggregate_version`) and the owner name copied onto its stations. The copy is also filled from auth's `/internal/snapshot/organizations` at every start (§8.6); new stations need an active organization (as built 2.6) |
 
 **Cron (Redis-locked):** client-review reminders on days 7, 21 and 28 (`request.review_reminder`); auto-close on day 30 (`request.closed` with `auto_closed: true`), both daily and configurable (`OPS_REVIEW_REMINDER_DAYS`, `OPS_AUTO_CLOSE_DAYS`); weekly calibration-due digest (`calibration.due_digest`, CAL-5).
@@ -611,11 +614,13 @@ requests {
 }
 comments { _id, request_id, org_id, author_id, author_name, author_role, body, attachments: [], internal, edited_at }
 client_reports {
-  _id, request_id, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
-  media_id /*pdf upload or rendered pdf*/, report_id /*rendered form*/,
-  form: { title, report_date, station_ids, summary,
-          observations: [{ station_id, text }], data_quality_notes, attachments: [] },
-  submitted_by, submitted_at
+  _id, request_id, request_ref, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
+  title, report_date /*ISO date*/, station_ids /*of the request*/,
+  file: { media_id, name, size_bytes } /*a pdf report's upload*/,
+  form: { summary, observations: [{ station_id, text }], data_quality_notes,
+          images: [{ media_id, name, size_bytes }] /*up to 10*/ },
+  render: "none"|"rendering"|"ready"|"failed" /*a form's PDF*/, report_id /*the report service's record*/,
+  attempt, submitted_by, submitted_by_name, submitted_at
 }
 
 // visits module
@@ -646,7 +651,7 @@ sync_operations { _id /*client op id*/, user_id, device_id, type, result, applie
 counters { _id /*"MR-2026" or "VR-2026-0042"*/, seq }
 ```
 
-Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `request_id`; `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `visit_elements` on `(visit_id, station_id, created_at)` and `org_id`.
+Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `(request_id, _id)`, `(org_id, status)`, `station_ids` and the media ids (migration 0015); `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `visit_elements` on `(visit_id, station_id, created_at)` and `org_id`.
 
 ### 5.3 media
 
@@ -1052,7 +1057,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `request.closed` | operations | platform, report | request_id, outcome (`accepted` or `auto_closed`), auto_closed, by_id. **No signature**: images never travel in events (W18-3); the report service reads it from `/internal/requests/{id}/closeout-facts` |
 | `request.cancelled` | operations | platform, report | request_id, reason? |
 | `comment.added` / `comment.edited` | operations | platform | request_id, comment_id, internal |
-| `client_report.submitted` | operations | report, platform | client_report_id, request_id, kind, form? |
+| `client_report.submitted` | operations | report, platform | the request's facts, client_report_id, kind, report_title, submitted_by_id, submitted_by_name, attempt. **No text**: the report service reads a form from `/internal/client-reports/{id}` (W18-10) |
 | `visit.scheduled` / `visit.rescheduled` | operations | platform, report | visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners |
 | `visit.cancelled` / `visit.restored` | operations | platform, report | visit_id, request_id |
 | `visit.started` | operations | report, platform (audit) | visit_id, request_id, started_at |
@@ -1069,7 +1074,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `report.finalized` | report | operations, platform, report (read model) | report_id, type, subject_ref, request_id, version |
 | `report.finalize_failed` | report | platform | report_id, version, error |
 | `report.reopened` | report | operations, platform | report_id, new_version, reason |
-| `report.generated` | report | operations, platform | report_id, type, subject_ref |
+| `report.generated` | report | operations, platform | client_report_id, request_id, org_id, report_id, number, outcome (`ready` or `failed`), pdf_sha256?, attempt (as built, W18-10; the close-out's event is `report.closeout_generated`, slice 3) |
 | `report.finalize_reminder` | report | platform (notification) | report_id, working_days |
 
 ¹ User fields: `user_id`, `email`, `name`, `roles`, `status`, `org_id`, so `user_directory` can upsert from any `user.*` event (§5.5).
