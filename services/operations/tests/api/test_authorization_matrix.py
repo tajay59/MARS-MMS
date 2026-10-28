@@ -83,6 +83,14 @@ TABLE: dict[Route, Expect] = {
     # Client Review: only the client answers (REQ-13); another organization's is a 404
     ("POST", "/api/v1/requests/{id}/accept"): roles("client"),
     ("POST", "/api/v1/requests/{id}/reject"): roles("client"),
+    # Client reports (CRP-1 to CRP-5, W18): clients write their own, staff read what was submitted
+    ("GET", "/api/v1/client-reports"): Expect(ANY),
+    ("POST", "/api/v1/client-reports"): roles("client"),
+    ("GET", "/api/v1/client-reports/{id}"): Expect(ANY),
+    ("PATCH", "/api/v1/client-reports/{id}"): roles("client"),
+    ("POST", "/api/v1/client-reports/{id}/submit"): roles("client"),
+    ("GET", "/api/v1/client-reports/{id}/download"): Expect(ANY),
+    ("GET", "/api/v1/client-reports/{id}/attachments/{media_id}/download"): Expect(ANY),
     # Visits (VIS-1 to VIS-4, VIS-9, VIS-11, W10): everyone reads what their scope allows (a client
     # their organization's); technicians and admins plan and run them (the domain narrows it to
     # the people on the request or attending), only admins restore; viewers and clients never write.
@@ -122,6 +130,7 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/internal/labels"): service("report"),  # the QR tokens a label sheet prints
     ("GET", "/internal/visits/{visit_id}/report-facts"): service("report"),  # a draft report (W16)
     ("GET", "/internal/requests/{request_id}/closeout-facts"): service("report"),  # RPT-8 (W18)
+    ("GET", "/internal/client-reports/{report_id}"): service("report"),  # a form report (CRP-3)
     ("POST", "/internal/visits/{visit_id}/lock"): service("report"),  # finalize (W17, VIS-12)
     ("POST", "/internal/visits/{visit_id}/unlock"): service("report"),  # failed finalize, reopen
 }

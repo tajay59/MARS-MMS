@@ -94,6 +94,8 @@ async def reopen_report(
         raise Conflict("This report was already reopened", code="already_reopened")
     if old["status"] != "final":
         raise Conflict("Only a final report can be reopened", code="not_final")
+    if old["type"] != "visit":
+        raise Conflict("Only a visit report can be reopened", code="not_reopenable")
     created_id = new_id()
     actor = actor_for(request, user)
 

@@ -31,6 +31,7 @@ from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.api import internal_routes, sync_routes
+from app.api.client_reports import routes as client_report_routes
 from app.api.requests import comment_routes, queue_routes, request_routes, review_routes
 from app.api.stations import (
     calibration_routes,
@@ -166,6 +167,7 @@ def create_app(
     app.include_router(review_routes.router)
     app.include_router(queue_routes.router)
     app.include_router(comment_routes.router)
+    app.include_router(client_report_routes.router)
     app.include_router(visit_routes.router)
     app.include_router(element_routes.router)
     app.include_router(bundle_routes.router)
