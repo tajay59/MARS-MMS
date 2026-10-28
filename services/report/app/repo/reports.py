@@ -299,6 +299,25 @@ async def supersede(
     return bool(result.modified_count)
 
 
+async def reminder_candidates(db: Db) -> list[dict[str, Any]]:
+    """Drafts that have their facts (the reminder names the request) and could be reminded."""
+    cursor = col(db).find({"status": "draft", "content.facts": {"$ne": None}})
+    return [d async for d in cursor.limit(500)]
+
+
+async def mark_reminded(
+    db: Db, report_id: str, levels: list[int], top: int, now: datetime,
+    session: AsyncClientSession,
+) -> bool:
+    """Record the reminder levels as done, once: False if this level was already marked."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "draft", "reminders_sent": {"$ne": top}},
+        {"$addToSet": {"reminders_sent": {"$each": levels}}, "$set": {"updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
 async def by_pdf_hash(db: Db, sha256: str) -> dict[str, Any] | None:
     doc: dict[str, Any] | None = await col(db).find_one({"pdf_sha256": sha256})
     return doc

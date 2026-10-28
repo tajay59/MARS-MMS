@@ -120,5 +120,6 @@ def reopened_draft(
         "finalize_error": None, "finalizing_at": None, "finalized_at": None, "finalized_by": None,
         "supersedes_id": old["_id"], "reopened_reason": reason, "reopened_by": by,
         "unlock_pending": {"report_id": old["_id"], "version": old["version"]},
+        "reminders_sent": [], "remind_from": now,
         "drafted_at": old.get("drafted_at"), "created_at": now, "updated_at": now,
     }
