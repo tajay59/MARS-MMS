@@ -597,3 +597,48 @@ async def test_verify_never_stores_the_file(report):
         "/api/v1/reports/verify", content=b"%PDF-1.7 anything",
         headers={"Content-Type": "application/pdf"})
     assert await report.db["reports"].count_documents({}) == before
+
+
+# --- a correction in progress, for the client (W17-10) -----------------------------------------------
+
+
+async def correcting(report, who: str) -> bool:
+    r = await report.http.get(
+        f"/api/v1/reports/correction?visit_id={vf.VISIT}", headers=report.bearer(who))
+    assert r.status_code == 200
+    answer: bool = r.json()["correcting"]
+    return answer
+
+
+@pytest.mark.req("RPT-6")
+async def test_a_client_learns_that_a_correction_is_on_its_way_and_nothing_else(report):
+    done = await final(report)
+    await report.db["reports"].update_many(
+        {}, {"$set": {"org_id": SEED_USERS["client_a1"].org_id}})
+    # A final report with nothing newer: nothing is being corrected
+    assert await correcting(report, "client_a1") is False
+    assert await correcting(report, "tech1") is False
+    new = (await reopen(report, done)).json()
+    assert await correcting(report, "client_a1") is True
+    assert await correcting(report, "tech1") is True  # staff may ask too
+    # Another organization's client learns nothing about it
+    assert await correcting(report, "client_b1") is False
+    # The client still cannot read the draft or the superseded version
+    for report_id in (new["id"], done["_id"]):
+        r = await report.http.get(
+            f"/api/v1/reports/{report_id}", headers=report.bearer("client_a1"))
+        assert r.status_code == 404
+    # Once the corrected version is final, nothing is being corrected
+    current = await repo.get(report.db, new["id"])
+    await sign(report, current, "tech1")
+    await post(report, await repo.get(report.db, new["id"]), "finalize")
+    assert await correcting(report, "client_a1") is True  # finalizing is still a correction
+    await finalize_report(report.svc, new["id"])
+    assert await correcting(report, "client_a1") is False
+
+
+async def test_the_question_needs_a_visit_id_and_a_first_draft_is_not_a_correction(report):
+    await signed(report)
+    assert await correcting(report, "tech1") is False
+    bad = await report.http.get("/api/v1/reports/correction", headers=report.bearer("tech1"))
+    assert bad.status_code == 422
