@@ -10,7 +10,7 @@ import httpx
 import pytest
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.revocation import revoke_user
-from mms_common.testing.matrix import ANY, Expect, Matrix, Route, check_table
+from mms_common.testing.matrix import ANY, Expect, Matrix, Route, check_table, roles
 from mms_common.testing.memory import MemoryStore
 from mms_common.testing.seed import SEED_USERS, TestIssuer
 from mms_common.time import ManualClock
@@ -26,6 +26,15 @@ TABLE: dict[Route, Expect] = {
     ("PUT", "/api/v1/notifications/preferences"): Expect(ANY, self_service=True),
     ("POST", "/api/v1/notifications/read-all"): Expect(ANY, self_service=True),
     ("POST", "/api/v1/notifications/{id}/read"): Expect(ANY, self_service=True),
+    # The audit log (AUD-4 to AUD-6): admins read the whole trail, export it and run the
+    # check. Staff and the Viewer read a resource's History; clients read none of it. Starting
+    # a check changes nothing of anyone's work, but it is a POST and admin-only (rule 5).
+    ("GET", "/api/v1/audit/events"): roles("admin"),
+    ("GET", "/api/v1/audit/events/export.csv"): roles("admin"),
+    ("GET", "/api/v1/audit/resources/{kind}/{thing_id}"): roles("admin", "technician", "viewer"),
+    ("POST", "/api/v1/audit/verify"): roles("admin"),
+    ("GET", "/api/v1/audit/checks/latest"): roles("admin"),
+    ("GET", "/api/v1/audit/checks/{check_id}"): roles("admin"),
 }
 
 
