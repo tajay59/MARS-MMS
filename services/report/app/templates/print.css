@@ -400,3 +400,31 @@ h1 {
   margin-top: 8mm;
   font-size: 8pt;
 }
+
+/* Tables of rows (the close-out's timeline, visits and client reports) */
+.report .rows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+
+.report .rows th {
+  text-align: left;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #555;
+  border-bottom: 0.3mm solid #0a6780;
+  padding: 1mm 2mm 1mm 0;
+}
+
+.report .rows td {
+  vertical-align: top;
+  padding: 1mm 2mm 1mm 0;
+  border-bottom: 0.15mm solid #ccc;
+}
+
+.report .rows tr {
+  break-inside: avoid;
+}
+

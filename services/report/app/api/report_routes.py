@@ -46,7 +46,7 @@ async def list_reports(
     organization."""
     found = await reports.list_reports(ctx.svc.db, subject_ref=subject_ref, type_=type)
     return [ReportSummary(**presenters.summary(d)) for d in found
-            if not user.is_client or (d["status"] == "final" and d["org_id"] == user.org_id)]
+            if not user.is_client or presenters.client_may_read(d, user)]
 
 
 @router.get("/correction")

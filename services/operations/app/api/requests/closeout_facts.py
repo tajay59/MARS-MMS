@@ -14,13 +14,14 @@ import base64
 from typing import Any
 
 from app.api.context import Ctx
+from app.repo import client_reports as client_report_repo
 from app.repo.requests import comments as comment_repo
 from app.repo.requests import requests as request_repo
 from app.repo.stations import orgs
 from app.repo.stations import stations as station_repo
 from app.repo.visits import visits as visit_repo
 
-FACTS_VERSION = 1
+FACTS_VERSION = 2  # 2: `client_reports` (W18 slice 3)
 
 
 def _decision(doc: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -30,7 +31,7 @@ def _decision(doc: dict[str, Any] | None) -> dict[str, Any] | None:
     image = signed.get("image")
     return {
         "outcome": doc["outcome"], "by_id": doc.get("by"), "by_name": doc.get("by_name"),
-        "at": doc["at"], "comment": doc.get("comment"),
+        "at": doc["at"], "reviewing": doc.get("reviewing"), "comment": doc.get("comment"),
         "typed_name": signed.get("typed_name"), "attestation": signed.get("attestation"),
         "signature_png_b64": base64.b64encode(image).decode() if image else None,
         "reports": doc.get("reports", []),
@@ -46,6 +47,8 @@ async def build(ctx: Ctx, request_id: str) -> dict[str, Any] | None:
     visits = await visit_repo.for_request(ctx.db, request_id, None)
     talk = comment_repo.col(ctx.db).find({"request_id": request_id, "internal": False}).sort(
         "_id", 1)
+    submitted = client_report_repo.col(ctx.db).find(
+        {"request_id": request_id, "status": "submitted"}).sort("_id", 1)
     return {
         "facts_version": FACTS_VERSION,
         "request": {
@@ -75,6 +78,12 @@ async def build(ctx: Ctx, request_id: str) -> dict[str, Any] | None:
              "report_id": v.get("report_id"), "report_version": v.get("report_version"),
              "report_status": v.get("report_status")}
             for v in visits if v["status"] != "cancelled"
+        ],
+        "client_reports": [
+            {"id": r["_id"], "kind": r["kind"], "title": r["title"],
+             "report_date": r["report_date"], "submitted_by_name": r["submitted_by_name"],
+             "submitted_at": r["submitted_at"], "report_id": r.get("report_id")}
+            async for r in submitted
         ],
         "comments": [
             {"author_name": c["author_name"], "author_role": c["author_role"], "body": c["body"],

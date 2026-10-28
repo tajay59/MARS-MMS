@@ -12,7 +12,12 @@ from pymongo import AsyncMongoClient
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.database import AsyncDatabase
 
-from app.events import client_report_consumer, readmodel_consumer, visit_consumer
+from app.events import (
+    client_report_consumer,
+    closeout_consumer,
+    readmodel_consumer,
+    visit_consumer,
+)
 
 GROUP = "report"
 TOPICS = [*readmodel_consumer.TOPICS]  # visit_consumer and client_report_consumer: the same
@@ -44,6 +49,6 @@ def processor(
 ) -> EventProcessor:
     handlers = combine(
         readmodel_consumer.handlers(db), visit_consumer.handlers(db, clock),
-        client_report_consumer.handlers(db, clock),
+        client_report_consumer.handlers(db, clock), closeout_consumer.handlers(db, clock),
     )
     return EventProcessor(client, db, handlers, send_to_dlq, clock)

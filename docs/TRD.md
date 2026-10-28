@@ -306,7 +306,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/internal/visits/{id}/unlock` | service (report) | Unlock for correction or after a failed finalize; idempotent |
 | GET | `/internal/visits/{id}` | service | Full visit for report rendering |
 | GET | `/internal/client-reports/{id}` | service (report) | A submitted online-form report: title, date, stations with zones, summary, observations, data-quality notes, picture list, organization name. The event carries none of it (W18-10) |
-| GET | `/internal/requests/{id}/closeout-facts` | service (report) | What the close-out report prints: the request, timeline, visits with the report versions in force, comments a client may read, and the client's decision with the drawn signature (W18-3, W18-11) |
+| GET | `/internal/requests/{id}/closeout-facts` | service (report) | What the close-out report prints: the request, timeline, visits with the report versions in force, the submitted client reports (title, kind, date, author, never their text), comments a client may read, and the client's decision with the drawn signature and the review it answered (`facts_version` 2; W18-3, W18-11) |
 | GET | `/internal/attachable?owner_ref=&user=` | service (media) | May this user attach a file here? Returns `org_id` |
 | POST | `/internal/labels` | service (report) | `{station_ids}` (1 to 200) → `[{station_id, code, name, qr_token, org_name, country}]` in the order asked, unknown stations left out. The only place report can read tokens (as built 2.9) |
 | GET | `/internal/snapshot/{stations\|requests\|visits\|sensor_units\|calibrations}` | service | Backfill (§8.6) |
@@ -343,7 +343,7 @@ def derive_status(req, visits) -> Status:
 
 - **Parallel visits.** A request may have several visits planned or started at once. Its status follows the busiest visit.
 - **Report reopened in Client Review** → a report is no longer final → **In progress**. `review_started_at` and `reminders_sent` are cleared, so reminders and auto-close stop. Re-finalizing starts a fresh Client Review.
-- **Report reopened after Closed** → the request stays Closed. The report service regenerates the close-out report when the corrected version is final, and the client is notified (PRD RPT-6).
+- **Report reopened after Closed** → the request stays Closed. When the corrected version is final the report service makes close-out version n + 1 in the same transaction that makes the visit report final (`supersedes_id`; the earlier one becomes `superseded` when the new one is drawn, and a client can still read it), or joins the correction to a close-out that is still to be drawn; the PDF lists the correction ("Corrected report VR-… v2 replaced v1"), and the client is notified (PRD RPT-6; as built, W18-12).
 - **Report-only correction after a rejection** → reopening a report gives In progress; finalizing it gives Client Review.
 - **Cancel.** Cancelling a request cancels its planned visits in the same transaction. A started visit is left as it is: its work is still accepted and synced (no data loss), but the request stays Cancelled.
 
@@ -432,7 +432,7 @@ Each station on a visit has a **board**: a list of elements in `visit_elements` 
 | `visit.ended` | Create a draft visit report (waits up to 5 min for `media.processed` on that visit, then renders with what is ready) |
 | `visit.element_added` / `visit.element_updated` / `visit.element_deleted` | Refresh the draft's facts snapshot (draft only; clears signatures, §11.2) |
 | `media.processed` | Refresh the thumbnails in the draft |
-| `request.closed` | Render the close-out report |
+| `request.closed` | Make the close-out report (version 1): a record and its number `CO-YYYY-NNNN` at once, the PDF in the worker from `/internal/requests/{id}/closeout-facts` (as built, W18-11) |
 | `client_report.submitted` (form) | Render the client report PDF → `report.generated` |
 | `request.*`, `visit.*`, `sensor.*`, `calibration.*`, `station.*`, `config.*` | Update the read model (§5.4), upserting only when `aggregate_version` is newer |
 
@@ -1076,6 +1076,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `report.finalized` | report | operations, platform, report (read model) | report_id, type, subject_ref, request_id, version |
 | `report.finalize_failed` | report | platform | report_id, version, error |
 | `report.reopened` | report | operations, platform | report_id, new_version, reason |
+| `report.closeout_generated` | report | platform | report_id, number (`CO-YYYY-NNNN`), version, request_id, request_ref, org_id, title?, corrected, pdf_sha256 (as built, W18-11; ids only) |
 | `report.generated` | report | operations, platform | client_report_id, request_id, org_id, report_id, number, outcome (`ready` or `failed`), pdf_sha256?, attempt (as built, W18-10; the close-out's event is `report.closeout_generated`, slice 3) |
 | `report.finalize_reminder` | report | platform (notification) | report_id, working_days |
 
@@ -1176,7 +1177,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 
 - The PWA uses `signature_pad` to capture a drawn signature (PNG, trimmed, ≤ 100 KB), plus a typed full name and an attestation checkbox showing the configured wording.
 - The server records signer ID, role, `signed_at` (server time), IP, user agent and the `content_hash` / `content_version` signed.
-- **Client acceptance signature** is captured on `POST /requests/{id}/verify` and stored in `requests.client_verification.signature`. It is carried in `request.closed` and rendered on the close-out report.
+- **Client acceptance signature** is captured on `POST /requests/{id}/accept` and stored in `requests.client_verification.signature`. It is **not** carried in any event: the report service reads it from `GET /internal/requests/{id}/closeout-facts` when it draws the close-out, keeps only the drawing's SHA-256 in its record, and prints the drawing on the PDF (W18-3).
 - Signing needs a connection (OFF-10).
 - A certificate-based PDF signature (PAdES, for example with pyHanko and an organization certificate) is not in v1 but can be added at step 4.4 without data-model changes (PRD Q3).
 

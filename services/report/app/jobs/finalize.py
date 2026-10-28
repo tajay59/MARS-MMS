@@ -27,7 +27,7 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 
 from app.domain import content as content_rules
 from app.domain import drafts, finalize, visit_view
-from app.events import publish
+from app.events import closeout_consumer, publish
 from app.events import signatures as sign_events
 from app.jobs.labels import Retry
 from app.jobs.render_draft import CONTENT_TYPE, pictures_for
@@ -167,6 +167,8 @@ async def finalize_report(svc: Services, report_id: str) -> None:
             await publish.finalized(
                 svc.db, svc.clock, report, finalized_by=by, pdf_sha256=pdf["sha256"],
                 at=at, actor=actor, session=session)
+            # A correction after the request closed makes the next close-out version (W18-12)
+            await closeout_consumer.on_visit_report_final(svc.db, svc.clock, report, session)
 
     await in_transaction(svc.client, save)
 
