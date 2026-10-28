@@ -239,6 +239,11 @@
         <StationConfigurations v-if="tab === 'configurations'" :can-write="canWrite" :station="station" />
       </v-tabs-window-item>
 
+      <!-- Staff only (AUD-6, W19): who changed the station and when, from the audit trail -->
+      <v-tabs-window-item v-if="isStaff" value="history">
+        <HistoryTab v-if="tab === 'history'" :id="station.id" :admin="isAdmin" kind="station" />
+      </v-tabs-window-item>
+
       <!-- Tabs whose data arrives in later phases keep their place (approved mock-up) -->
       <v-tabs-window-item v-for="t in laterTabs" :key="t.key" :value="t.key">
         <div class="flex flex-col items-center gap-2 py-14 text-center">
@@ -255,6 +260,7 @@
   import type { DueState } from './stations'
   import type { CalibrationOut, StationDetail } from '@/api/models'
   import { mdiChevronDown, mdiChevronRight, mdiChevronUp, mdiMapMarker, mdiProgressClock } from '@mdi/js'
+  import { storeToRefs } from 'pinia'
   import { computed, inject, ref, watch } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
@@ -264,6 +270,8 @@
   import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { pageBarKey } from '@/components/pageBar'
+  import HistoryTab from '@/features/history/HistoryTab.vue'
+  import { useSessionStore } from '@/stores/session'
   import ParameterTags from './ParameterTags.vue'
   import StationConfigurations from './StationConfigurations.vue'
   import StationDocuments from './StationDocuments.vue'
@@ -273,6 +281,7 @@
   // The body of /stations/:id (DBD "Station page"). Clients see a summary: no configurations,
   // calibration records or history, and the server leaves out the QR token (rule 6).
   const props = defineProps<{ station: StationDetail, isStaff: boolean, canWrite?: boolean }>()
+  const { isAdmin } = storeToRefs(useSessionStore())
   const emit = defineEmits<{ 'qr-replaced': [station: StationDetail] }>()
 
   const route = useRoute()
@@ -291,7 +300,7 @@
     { key: 'visits', label: 'Visits', later: 'Site visits arrive in phase 4.' },
     { key: 'reports', label: 'Reports', later: 'Visit reports arrive in phase 6.' },
     { key: 'calibration', label: 'Calibration', staff: true },
-    { key: 'history', label: 'History', staff: true, later: 'The station’s change history arrives in phase 7.' },
+    { key: 'history', label: 'History', staff: true },
   ] as Tab[]).filter(t => props.isStaff || !t.staff))
   const laterTabs = computed(() => tabs.value.filter(t => t.later !== undefined))
 

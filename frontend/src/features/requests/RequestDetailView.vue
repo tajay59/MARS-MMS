@@ -128,6 +128,19 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Staff only (AUD-6, W19): every change to the request, its visits, comments and reports -->
+        <div v-if="!isClient" class="mt-8 flex flex-col gap-3">
+          <h2 class="m-0 text-h3 text-surface-900">Every change</h2>
+
+          <HistoryTab
+            v-if="tab === 'history'"
+            :id="detail.id"
+            :admin="isAdmin"
+            kind="request"
+            :level="3"
+          />
+        </div>
       </v-tabs-window-item>
     </v-tabs-window>
   </div>
@@ -136,6 +149,7 @@
 <script lang="ts" setup>
   import type { RequestDetail } from '@/api/models'
   import { mdiCancel, mdiCloseCircleOutline } from '@mdi/js'
+  import { storeToRefs } from 'pinia'
   import { computed, inject, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
@@ -144,7 +158,9 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { pageBarKey } from '@/components/pageBar'
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
+  import HistoryTab from '@/features/history/HistoryTab.vue'
   import RequestVisits from '@/features/visits/RequestVisits.vue'
+  import { useSessionStore } from '@/stores/session'
   import { canAddClientReport } from './reports/reports'
   import RequestReports from './reports/RequestReports.vue'
   import RequestComments from './RequestComments.vue'
@@ -154,6 +170,7 @@
   // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments,
   // the visits, the reports (W18) and the history of every change.
   const props = defineProps<{ detail: RequestDetail, isClient: boolean, refreshKey?: number }>()
+  const { isAdmin } = storeToRefs(useSessionStore())
 
   const route = useRoute()
   const router = useRouter()

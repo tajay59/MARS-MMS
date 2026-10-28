@@ -52,7 +52,7 @@
         label="Reports to finalize"
         link="Open"
         :loading="loading"
-        :to="{ name: 'reports' }"
+        :to="firstReport"
         :unavailable="unavailable"
         :value="figures?.my_reports_to_finalize"
       />
@@ -95,6 +95,11 @@
   const prepared = ref<number | null>(null)
 
   const figures = computed(() => props.data?.figures ?? null)
+  // The tile opens the oldest report waiting for a signature; with none, the reports page
+  const firstReport = computed(() => {
+    const first = props.data?.reports_to_finalize[0]
+    return first ? { name: 'visit-report', params: { id: first.report_id } } : { name: 'reports' }
+  })
   const waitingToSync = computed(() => sync.ready.value ? sync.totals.value.changes + sync.totals.value.files : null)
   const readyCaption = computed(() => props.unavailable ? 'ready on this phone' : undefined)
 
