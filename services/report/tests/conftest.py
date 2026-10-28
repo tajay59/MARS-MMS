@@ -241,6 +241,7 @@ async def report(mongo_uri, redis_url, s3_endpoint):
         mongo_uri=mongo_uri, mongo_db=db_name, redis_url=redis_url, run_background=False,
         s3_url=s3_endpoint.url, files_url=s3_endpoint.url, s3_access_key=s3_endpoint.access_key,
         s3_secret_key=s3_endpoint.secret_key, app_url="https://mms.example",
+        dashboard_cache_s=0,
     )
     secret = s3_endpoint.secret_key
     storage = Storage(

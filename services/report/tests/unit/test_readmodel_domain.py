@@ -73,8 +73,28 @@ def test_a_calibration_row_and_a_station_row():
     assert station["type"] is None and station["_id"] == "s1"
 
 
+def test_a_unit_row_and_who_is_on_a_request():
+    unit = rm.unit_row({
+        "unit_id": "u1", "serial": "SN-1", "model_id": "m1", "status": "installed",
+        "current_station_id": "s1", "calibration_due_at": "2027-01-01T00:00:00Z",
+    }, 3)
+    assert (unit["_id"], unit["station_id"], unit["aggregate_version"]) == ("u1", "s1", 3)
+    assert unit["due_at"].year == 2027
+    assert rm.unit_row({"unit_id": "u2", "serial": "x", "model_id": "m", "status": "in_stock"},
+                       1)["due_at"] is None
+    request = rm.request_row({
+        "request_id": "r1", "ref": "MR-1", "org_id": "o1", "station_ids": ["s1"],
+        "category": "fault", "priority": "normal", "status": "assigned",
+        "assigned_staff_ids": ["u1", "u2"],
+    }, 2)
+    assert request["assigned_ids"] == ["u1", "u2"]
+
+
 def test_every_event_and_snapshot_entity_has_a_builder():
     wanted = set(rm.REQUEST_EVENTS) | set(rm.VISIT_EVENTS) | set(rm.STATION_EVENTS)
     assert set(rm.BUILDERS) >= wanted
-    assert set(rm.SNAPSHOT_ENTITIES) == {"stations", "requests", "visits", "calibrations"}
+    assert set(rm.UNIT_EVENTS) <= set(rm.BUILDERS)
+    assert set(rm.SNAPSHOT_ENTITIES) == {
+        "stations", "requests", "visits", "calibrations", "sensor_units",
+    }
     assert not any(t.startswith("visit.element") for t in rm.BUILDERS)

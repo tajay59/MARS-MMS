@@ -1,6 +1,219 @@
 {
   "components": {
     "schemas": {
+      "AdminDashboard": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/AdminFigures"
+          },
+          "reports_awaiting": {
+            "items": {
+              "$ref": "#/components/schemas/AwaitingReport"
+            },
+            "title": "Reports Awaiting",
+            "type": "array"
+          },
+          "requests_by_status": {
+            "items": {
+              "$ref": "#/components/schemas/StatusCount"
+            },
+            "title": "Requests By Status",
+            "type": "array"
+          },
+          "stations_by_country": {
+            "items": {
+              "$ref": "#/components/schemas/CountryRow"
+            },
+            "title": "Stations By Country",
+            "type": "array"
+          },
+          "view": {
+            "const": "admin",
+            "default": "admin",
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "figures",
+          "requests_by_status",
+          "stations_by_country",
+          "reports_awaiting"
+        ],
+        "title": "AdminDashboard",
+        "type": "object"
+      },
+      "AdminFigures": {
+        "properties": {
+          "calibrations_due_soon": {
+            "title": "Calibrations Due Soon",
+            "type": "integer"
+          },
+          "calibrations_overdue": {
+            "title": "Calibrations Overdue",
+            "type": "integer"
+          },
+          "failed_calibrations": {
+            "title": "Failed Calibrations",
+            "type": "integer"
+          },
+          "in_client_review": {
+            "title": "In Client Review",
+            "type": "integer"
+          },
+          "reports_awaiting_finalization": {
+            "title": "Reports Awaiting Finalization",
+            "type": "integer"
+          },
+          "requests_awaiting_approval": {
+            "title": "Requests Awaiting Approval",
+            "type": "integer"
+          },
+          "unassigned_queue": {
+            "title": "Unassigned Queue",
+            "type": "integer"
+          },
+          "upcoming_visits": {
+            "title": "Upcoming Visits",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requests_awaiting_approval",
+          "unassigned_queue",
+          "in_client_review",
+          "calibrations_overdue",
+          "calibrations_due_soon",
+          "failed_calibrations",
+          "reports_awaiting_finalization",
+          "upcoming_visits"
+        ],
+        "title": "AdminFigures",
+        "type": "object"
+      },
+      "AwaitingReport": {
+        "properties": {
+          "age_days": {
+            "title": "Age Days",
+            "type": "integer"
+          },
+          "lead_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Name"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "station_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Station Codes",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "number",
+          "version",
+          "visit_id",
+          "request_id",
+          "station_codes",
+          "lead_name",
+          "age_days"
+        ],
+        "title": "AwaitingReport",
+        "type": "object"
+      },
+      "ClientDashboard": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/ClientFigures"
+          },
+          "recent_reports": {
+            "items": {
+              "$ref": "#/components/schemas/RecentReport"
+            },
+            "title": "Recent Reports",
+            "type": "array"
+          },
+          "stations": {
+            "$ref": "#/components/schemas/StationStatusCounts"
+          },
+          "view": {
+            "const": "client",
+            "default": "client",
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "figures",
+          "stations",
+          "recent_reports"
+        ],
+        "title": "ClientDashboard",
+        "type": "object"
+      },
+      "ClientFigures": {
+        "properties": {
+          "awaiting_our_review": {
+            "title": "Awaiting Our Review",
+            "type": "integer"
+          },
+          "open_requests": {
+            "title": "Open Requests",
+            "type": "integer"
+          },
+          "upcoming_visits": {
+            "title": "Upcoming Visits",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open_requests",
+          "awaiting_our_review",
+          "upcoming_visits"
+        ],
+        "title": "ClientFigures",
+        "type": "object"
+      },
       "ContentPatch": {
         "additionalProperties": false,
         "description": "PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.",
@@ -54,6 +267,44 @@
           "correcting"
         ],
         "title": "CorrectionOut",
+        "type": "object"
+      },
+      "CountryRow": {
+        "properties": {
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "decommissioned": {
+            "title": "Decommissioned",
+            "type": "integer"
+          },
+          "degraded": {
+            "title": "Degraded",
+            "type": "integer"
+          },
+          "offline": {
+            "title": "Offline",
+            "type": "integer"
+          },
+          "operational": {
+            "title": "Operational",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "country",
+          "operational",
+          "degraded",
+          "offline",
+          "decommissioned",
+          "total"
+        ],
+        "title": "CountryRow",
         "type": "object"
       },
       "DownloadOut": {
@@ -416,6 +667,59 @@
           "pdf"
         ],
         "title": "PreviewOut",
+        "type": "object"
+      },
+      "RecentReport": {
+        "properties": {
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "report_id",
+          "number",
+          "type",
+          "version",
+          "request_id",
+          "finalized_at"
+        ],
+        "title": "RecentReport",
         "type": "object"
       },
       "ReopenIn": {
@@ -908,6 +1212,112 @@
         "title": "SignatureOut",
         "type": "object"
       },
+      "StationStatusCounts": {
+        "properties": {
+          "decommissioned": {
+            "title": "Decommissioned",
+            "type": "integer"
+          },
+          "degraded": {
+            "title": "Degraded",
+            "type": "integer"
+          },
+          "offline": {
+            "title": "Offline",
+            "type": "integer"
+          },
+          "operational": {
+            "title": "Operational",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operational",
+          "degraded",
+          "offline",
+          "decommissioned"
+        ],
+        "title": "StationStatusCounts",
+        "type": "object"
+      },
+      "StatusCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "title": "StatusCount",
+        "type": "object"
+      },
+      "TechnicianDashboard": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/TechnicianFigures"
+          },
+          "reports_to_finalize": {
+            "items": {
+              "$ref": "#/components/schemas/AwaitingReport"
+            },
+            "title": "Reports To Finalize",
+            "type": "array"
+          },
+          "view": {
+            "const": "technician",
+            "default": "technician",
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "figures",
+          "reports_to_finalize"
+        ],
+        "title": "TechnicianDashboard",
+        "type": "object"
+      },
+      "TechnicianFigures": {
+        "properties": {
+          "my_assigned": {
+            "title": "My Assigned",
+            "type": "integer"
+          },
+          "my_reports_to_finalize": {
+            "title": "My Reports To Finalize",
+            "type": "integer"
+          },
+          "my_upcoming_visits": {
+            "title": "My Upcoming Visits",
+            "type": "integer"
+          },
+          "queue": {
+            "title": "Queue",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "my_assigned",
+          "queue",
+          "my_upcoming_visits",
+          "my_reports_to_finalize"
+        ],
+        "title": "TechnicianFigures",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1022,6 +1432,85 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/dashboard": {
+      "get": {
+        "description": "The caller's own view by default. Asking for one the role does not have is refused.",
+        "operationId": "dashboard_api_v1_dashboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "admin",
+                    "technician",
+                    "client"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "View"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "admin": "#/components/schemas/AdminDashboard",
+                      "client": "#/components/schemas/ClientDashboard",
+                      "technician": "#/components/schemas/TechnicianDashboard"
+                    },
+                    "propertyName": "view"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/AdminDashboard"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TechnicianDashboard"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ClientDashboard"
+                    }
+                  ],
+                  "title": "Response Dashboard Api V1 Dashboard Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dashboard",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
     "/api/v1/reports": {
       "get": {
         "description": "Reports and their versions, newest version first. Clients: final ones of their own\norganization.",

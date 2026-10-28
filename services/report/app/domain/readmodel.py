@@ -24,7 +24,8 @@ STATIONS = "station_facts"
 REQUESTS = "request_facts"
 VISITS = "visit_facts"
 CALIBRATIONS = "calibration_facts"
-COLLECTIONS = (STATIONS, REQUESTS, VISITS, CALIBRATIONS)
+UNITS = "unit_facts"
+COLLECTIONS = (STATIONS, REQUESTS, VISITS, CALIBRATIONS, UNITS)
 
 # What a later event does not repeat: kept from the stored row when the new one lacks it
 VISIT_KEEP = ("started_at", "ended_at", "additional_visit_required", "element_counts",
@@ -48,6 +49,7 @@ VISIT_EVENTS = (
 )
 STATION_EVENTS = ("station.created", "station.updated")
 CALIBRATION_EVENTS = ("calibration.recorded",)
+UNIT_EVENTS = ("sensor_unit.created", "sensor_unit.updated")
 
 
 def when(value: Any) -> datetime | None:
@@ -76,6 +78,7 @@ def request_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
         "station_ids": list(data["station_ids"]), "category": data["category"],
         "priority": data["priority"], "status": data["status"],
         "reopen_count": data.get("reopen_count") or 0, "auto_closed": False,
+        "assigned_ids": list(data.get("assigned_staff_ids") or []),
         "aggregate_version": version,
     }
     for key in MILESTONES:
@@ -107,6 +110,16 @@ def calibration_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
     }
 
 
+def unit_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
+    """A sensor unit: where it is and when its calibration is due (W19-6). Its organization is
+    its station's, joined from `station_facts` when a report needs it."""
+    return {
+        "_id": data["unit_id"], "serial": data["serial"], "model_id": data["model_id"],
+        "status": data["status"], "station_id": data.get("current_station_id"),
+        "due_at": when(data.get("calibration_due_at")), "aggregate_version": version,
+    }
+
+
 def keep_from(
     stored: Mapping[str, Any], row: dict[str, Any], keep: tuple[str, ...]
 ) -> dict[str, Any]:
@@ -122,6 +135,7 @@ BUILDERS: dict[str, tuple[str, Builder]] = {
     **{t: (REQUESTS, request_row) for t in REQUEST_EVENTS},
     **{t: (VISITS, visit_row) for t in VISIT_EVENTS},
     **{t: (CALIBRATIONS, calibration_row) for t in CALIBRATION_EVENTS},
+    **{t: (UNITS, unit_row) for t in UNIT_EVENTS},
 }
 
 # What `/internal/snapshot/<entity>` fills
@@ -130,4 +144,5 @@ SNAPSHOT_ENTITIES: dict[str, tuple[str, Builder]] = {
     "requests": (REQUESTS, request_row),
     "visits": (VISITS, visit_row),
     "calibrations": (CALIBRATIONS, calibration_row),
+    "sensor_units": (UNITS, unit_row),
 }

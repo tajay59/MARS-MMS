@@ -168,6 +168,7 @@ def snapshot_source(name: str = "Alpha") -> Pages:
     request_item = {
         "request_id": REQUEST, "ref": "MR-2026-0042", "org_id": ORG, "station_ids": [STATION],
         "category": "fault", "priority": "normal", "status": "closed", "title": "x",
+        "assigned_staff_ids": ["u-1", "u-2"],
         "aggregate_version": 7, "milestones": {"closed_at": "2026-10-09T10:00:00Z"},
     }
     visit_item = {
@@ -181,9 +182,14 @@ def snapshot_source(name: str = "Alpha") -> Pages:
         "at": "2026-09-01T00:00:00Z", "result": "pass", "due_at": None, "org_id": ORG,
         "aggregate_version": 1,
     }
+    unit = {
+        "unit_id": "u-1", "serial": "SN-1", "model_id": "m-1", "status": "installed",
+        "current_station_id": STATION, "calibration_due_at": "2027-09-01T00:00:00Z",
+        "aggregate_version": 4,
+    }
     return Pages({
         "stations": [[station_item]], "requests": [[request_item], []],
-        "visits": [[visit_item]], "calibrations": [[cal]],
+        "visits": [[visit_item]], "calibrations": [[cal]], "sensor_units": [[unit]],
     })
 
 
@@ -192,16 +198,22 @@ async def test_the_backfill_pages_through_every_entity_and_a_repeat_writes_nothi
     first = await backfill.backfill(report.db, source)
     assert first == {
         "stations": (1, 1), "requests": (1, 1), "visits": (1, 1), "calibrations": (1, 1),
+        "sensor_units": (1, 1),
     }
     assert ("requests", "1") in source.asked  # it followed the cursor
     again = await backfill.backfill(report.db, snapshot_source())
     assert again == {
         "stations": (1, 0), "requests": (1, 0), "visits": (1, 0), "calibrations": (1, 0),
+        "sensor_units": (1, 0),
     }
     row = await report.db["visit_facts"].find_one({"_id": VISIT})
     assert row["started_at"] == datetime(2026, 10, 5, 8, 0) and row["status"] == "ended"
-    closed = (await report.db["request_facts"].find_one({"_id": REQUEST}))["closed_at"]
-    assert closed == datetime(2026, 10, 9, 10, 0)
+    request_row = await report.db["request_facts"].find_one({"_id": REQUEST})
+    assert request_row["closed_at"] == datetime(2026, 10, 9, 10, 0)
+    assert request_row["assigned_ids"] == ["u-1", "u-2"]  # who is on it, for a technician's view
+    unit = await report.db["unit_facts"].find_one({"_id": "u-1"})
+    assert (unit["status"], unit["station_id"], unit["serial"]) == ("installed", STATION, "SN-1")
+    assert unit["due_at"] == datetime(2027, 9, 1, 0, 0)
 
 
 async def test_an_event_newer_than_the_snapshot_wins_in_either_order(report):
@@ -221,3 +233,22 @@ async def test_an_event_newer_than_the_snapshot_wins_in_either_order(report):
 async def test_the_read_model_has_its_indexes(report):
     names = {i["name"] async for i in await report.db["request_facts"].list_indexes()}
     assert "org_id_1_status_1" in names
+
+
+async def test_unit_events_make_and_update_a_row_and_old_ones_change_nothing(report):
+    p, dead = await processor(report)
+
+    def unit(type_: str, version: int, status: str, due: str | None, **extra: Any) -> bytes:
+        return event(type_, "sensor_unit", version, {
+            "unit_id": "u-1", "serial": "SN-1", "model_id": "m-1", "status": status,
+            "current_station_id": STATION, "calibration_due_at": due, **extra,
+        }, "u-1")
+
+    assert await p.process(unit("sensor_unit.created", 1, "in_stock", None)) is Outcome.APPLIED
+    assert await p.process(unit("sensor_unit.updated", 3, "installed", "2027-01-01T00:00:00Z",
+                                changed_fields=["status"])) is Outcome.APPLIED
+    await p.process(unit("sensor_unit.updated", 2, "in_repair", None, changed_fields=["status"]))
+    row = await report.db["unit_facts"].find_one({"_id": "u-1"})
+    assert (row["status"], row["aggregate_version"]) == ("installed", 3)
+    assert row["due_at"] == datetime(2027, 1, 1, 0, 0)
+    assert not dead
