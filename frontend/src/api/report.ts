@@ -1,6 +1,6 @@
 // The report service's routes (TRD §3.4). Shapes come from openapi/report.json.
 
-import type { JobOut, LabelsIn, ReportContentPatch, ReportDownload, ReportOut, ReportPreview, ReportReopenIn, ReportSignIn, ReportSummary } from './models'
+import type { JobOut, LabelsIn, ReportContentPatch, ReportCorrection, ReportDownload, ReportOut, ReportPreview, ReportReopenIn, ReportSignIn, ReportSummary } from './models'
 import { api } from './http'
 
 export const reportsApi = {
@@ -15,6 +15,8 @@ export const reportsApi = {
   preview: (id: string) => api.post<ReportPreview>(`/reports/${id}/preview`),
   /** A ten-minute link, never kept (it acts as a password). */
   download: (id: string) => api.get<ReportDownload>(`/reports/${id}/download`),
+  /** Whether a visit's final report is being corrected (a client's only sight of a reopen). */
+  correction: (visitId: string, signal?: AbortSignal) => api.get<ReportCorrection>('/reports/correction', { query: { visit_id: visitId }, signal }),
   /** RPT-2: change the narrative or the photo choice of a draft. A stale `content_version` is 409 `content_changed` with `current`. */
   edit: (id: string, body: ReportContentPatch) => api.patch<ReportOut>(`/reports/${id}/content`, body),
   /** RPT-4: sign the draft as it stands. 409 `already_signed` or `content_changed`. Never queued: it needs a connection. */

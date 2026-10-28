@@ -42,6 +42,20 @@
         "title": "ContentPatch",
         "type": "object"
       },
+      "CorrectionOut": {
+        "description": "Whether a visit's final report is being corrected: a version after the first is a draft\nor being finalized. All a client learns of a reopen (W17-10): the superseded version and\nthe new draft stay hidden from them.",
+        "properties": {
+          "correcting": {
+            "title": "Correcting",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "correcting"
+        ],
+        "title": "CorrectionOut",
+        "type": "object"
+      },
       "DownloadOut": {
         "properties": {
           "current": {
@@ -1080,6 +1094,55 @@
           }
         ],
         "summary": "List Reports",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/correction": {
+      "get": {
+        "description": "Is this visit's final report being corrected? Scoped like every read: a client asks about\ntheir own organization's visit only, and anything else is \"no\" (rule 4). It tells a client\nthat \"a corrected report is on its way\" without showing them the draft.",
+        "operationId": "correction_api_v1_reports_correction_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Correction",
         "tags": [
           "reports"
         ]
