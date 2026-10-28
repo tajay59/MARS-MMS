@@ -401,7 +401,8 @@ def test_services_are_routed_and_check_tokens_themselves(web):
     assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
     r = get(web, "/api/v1/auth/me", headers={"Authorization": "Bearer not.a.token"})
     assert r.status_code == 401
-    assert get(web, "/api/v1/audit/events").status_code == 404  # platform: not built until P7
+    r = get(web, "/api/v1/audit/events")  # platform (W19): the token is checked first
+    assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
     r = get(web, "/api/v1/media/not-a-file")  # media (Phase 2): the token is checked first
     assert r.status_code == 401 and r.headers["content-type"].startswith("application/problem")
     r = get(web, "/api/v1/stations")  # operations (Phase 2)
@@ -469,6 +470,44 @@ def _login(web, email: str, password: str) -> str:
     r = api(web, "POST", "/api/v1/auth/login", json={"email": email, "password": password})
     assert r.status_code == 200, r.text
     return str(r.json()["access_token"])
+
+
+def test_the_audit_log_is_read_exported_and_checked_through_the_gateway(web, seeded, mongo_up):
+    """AUD-4 to AUD-6 (W19): admins search, export and check the chain; staff read a History;
+    clients read none of it. The check runs in the platform container within seconds."""
+    import time
+
+    admin = _login(web, "admin@example.org", seeded)
+    client = _login(web, "client.a1@example.org", seeded)  # two logins: the gateway limits them
+    page = api(web, "GET", "/api/v1/audit/events", admin, params={"limit": 5})
+    assert page.status_code == 200, page.text
+    assert page.json()["items"] and page.json()["total"] >= 1
+    assert api(web, "GET", "/api/v1/audit/events", client).status_code == 403
+    thing = f"/api/v1/audit/resources/station/{_uuid7()}"
+    assert api(web, "GET", thing, admin).json() == {"items": [], "next_cursor": None}
+    assert api(web, "GET", thing, client).status_code == 403  # a client reads no History
+    exported = api(web, "GET", "/api/v1/audit/events/export.csv", admin,
+                   params={"action": "auth.login_succeeded"})
+    assert exported.status_code == 200, exported.text
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert exported.text.startswith(chr(0xFEFF) + "seq,at,actor_name")
+
+    started = api(web, "POST", "/api/v1/audit/verify", admin)
+    assert started.status_code == 202, started.text
+    check = started.json()["id"]
+    for _ in range(90):  # the platform takes queued checks every 10 seconds
+        done = api(web, "GET", f"/api/v1/audit/checks/{check}", admin).json()
+        if done["status"] in ("passed", "broken", "failed"):
+            break
+        time.sleep(1)
+    assert done["status"] == "passed", done
+    for _ in range(30):  # the check records itself in the chain a moment after it finishes
+        last = api(web, "GET", "/api/v1/audit/events", admin,
+                   params={"action": "audit.verified", "limit": 1}).json()["items"]
+        if last and last[0]["metadata"]["check_id"] == check:
+            break
+        time.sleep(1)
+    assert last and last[0]["metadata"]["check_id"] == check
 
 
 def test_seeded_stations_are_scoped_by_organization_and_audited(web, seeded, mongo_up):
