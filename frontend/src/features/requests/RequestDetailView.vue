@@ -5,6 +5,13 @@
       <FeedbackBanner :icon="banner.tone === 'error' ? mdiCancel : (banner.tone === 'neutral' ? mdiCloseCircleOutline : undefined)" :type="banner.tone === 'error' ? 'error' : 'info'">
         <p class="m-0 font-medium">{{ banner.title }}</p>
         <p v-if="banner.body" class="m-0 mt-0.5">{{ banner.body }}</p>
+
+        <v-btn
+          v-if="banner.review"
+          class="mt-2"
+          color="primary"
+          :to="{ name: 'request-review', params: { id: detail.id } }"
+        >Review and sign off</v-btn>
       </FeedbackBanner>
     </div>
 
@@ -18,7 +25,7 @@
         :show-arrows="mdAndUp"
       >
         <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
-          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span><span v-else-if="t.key === 'visits' && visitCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ visitCount }}</span>
+          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span><span v-else-if="t.key === 'visits' && visitCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ visitCount }}</span><span v-else-if="t.key === 'reports' && reportCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ reportCount }}</span>
         </v-tab>
       </v-tabs>
     </Teleport>
@@ -91,6 +98,10 @@
         <RequestVisits :can-schedule="detail.actions.includes('schedule_visit')" :refresh-key="refreshKey" :request-id="detail.id" @count="seenVisits = $event" />
       </v-tabs-window-item>
 
+      <v-tabs-window-item v-if="showReports" value="reports">
+        <RequestReports :detail="detail" :is-client="isClient" :refresh-key="refreshKey" @count="reportCount = $event" />
+      </v-tabs-window-item>
+
       <v-tabs-window-item value="history">
         <div class="overflow-x-auto">
           <table class="w-full border-collapse text-sm">
@@ -134,12 +145,14 @@
   import { pageBarKey } from '@/components/pageBar'
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
   import RequestVisits from '@/features/visits/RequestVisits.vue'
+  import { canAddClientReport } from './reports/reports'
+  import RequestReports from './reports/RequestReports.vue'
   import RequestComments from './RequestComments.vue'
   import { bannerFor, categoryLabel, lookOf, timelineOf } from './requests'
   import SavedFile from './SavedFile.vue'
 
-  // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments
-  // the visits and the history of every change. Reports join the tabs in Phase 6.
+  // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments,
+  // the visits, the reports (W18) and the history of every change.
   const props = defineProps<{ detail: RequestDetail, isClient: boolean, refreshKey?: number }>()
 
   const route = useRoute()
@@ -147,18 +160,23 @@
   const { mdAndUp } = useDisplay()
   const pageBar = inject(pageBarKey, ref<HTMLElement | null>(null))
 
-  const tabs = [
+  // Reports (W18): there is something to read or add once the request has reached the work
+  const showReports = computed(() => canAddClientReport(props.detail.status))
+  const reportCount = ref(0)
+
+  const tabs = computed(() => [
     { key: 'overview', label: 'Overview' },
     { key: 'comments', label: 'Comments' },
     { key: 'visits', label: 'Visits' },
+    ...(showReports.value ? [{ key: 'reports', label: 'Reports' }] : []),
     { key: 'history', label: 'History' },
-  ]
+  ])
 
   // The tab is in the URL (?tab=history)
   const tab = computed<string>({
     get: () => {
       const value = route.query.tab
-      return typeof value === 'string' && tabs.some(t => t.key === value) ? value : 'overview'
+      return typeof value === 'string' && tabs.value.some(t => t.key === value) ? value : 'overview'
     },
     set: value => {
       void router.replace({ query: { ...route.query, tab: value === 'overview' ? undefined : value } })

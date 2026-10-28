@@ -50,6 +50,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Client Reports
+         * @description CRP-5: newest first. A client gets their organization's submitted reports and their own
+         *     drafts; staff get submitted reports.
+         */
+        get: operations["list_client_reports_api_v1_client_reports_get"];
+        put?: never;
+        /**
+         * Create Client Report
+         * @description CRP-1, CRP-2: start a draft on a request of the client's organization. Idempotent by
+         *     `id`: sending it again returns the draft already made (200).
+         */
+        post: operations["create_client_report_api_v1_client_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Client Report */
+        get: operations["get_client_report_api_v1_client_reports__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Client Report
+         * @description CRP-2: change a draft. A submitted report can't be changed (CRP-4): 409 `not_a_draft`.
+         *     A draft is private, so it is not an event.
+         */
+        patch: operations["update_client_report_api_v1_client_reports__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}/attachments/{media_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Client Report File
+         * @description A picture attached to a form report (or the report's PDF), for the page to show.
+         */
+        get: operations["download_client_report_file_api_v1_client_reports__id__attachments__media_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Client Report
+         * @description A ten-minute link to a PDF report's file. A form report's PDF is the report service's:
+         *     ask `/api/v1/reports/{report_id}/download`.
+         */
+        get: operations["download_client_report_api_v1_client_reports__id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Client Report
+         * @description CRP-3, CRP-4: send the report. From now on nobody can change it. Safe to send twice: a
+         *     report already sent is returned as it is. A form report whose PDF could not be drawn is
+         *     sent for drawing once more (Try again), and nothing else about it changes.
+         */
+        post: operations["submit_client_report_api_v1_client_reports__id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -230,6 +341,28 @@ export interface paths {
          *     an admin until it is done. Only what is sent changes.
          */
         patch: operations["patch_request_api_v1_requests__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Request
+         * @description REQ-13: the client signs the work off. The request closes, the decision keeps the drawing,
+         *     the typed name, the wording shown, the time, address and browser, and the visit reports in
+         *     force. The drawing is stored here only; `request.closed` does not carry it.
+         */
+        post: operations["accept_request_api_v1_requests__id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/requests/{id}/approve": {
@@ -414,6 +547,28 @@ export interface paths {
          * @description REQ-6: Submitted to Denied. The reason is required and the client sees it.
          */
         post: operations["deny_request_api_v1_requests__id__deny_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Request
+         * @description REQ-13: the client sends the work back. In one transaction the request goes Client Review
+         *     to Reopened and straight on to Assigned with the same staff; the review clock stops and the
+         *     rework period starts (`rework_since`). The staff and admins are told the reason.
+         */
+        post: operations["reject_request_api_v1_requests__id__reject_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1241,6 +1396,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/client-reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Report Facts Route
+         * @description What a client's online-form report prints (CRP-3): its text, stations and pictures. The
+         *     event that announces a submission carries none of it (W18-10).
+         */
+        get: operations["client_report_facts_route_internal_client_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/labels": {
         parameters: {
             query?: never;
@@ -1257,6 +1433,28 @@ export interface paths {
          *     snapshots, so this is the only place report can read them.
          */
         post: operations["labels_internal_labels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/requests/{request_id}/closeout-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Request Closeout Facts
+         * @description What the close-out report prints (RPT-8): the request, its timeline, visits and the
+         *     reports in force, the comments clients may read, and the client's decision with the drawn
+         *     signature, which no event carries (W18-3).
+         */
+        get: operations["request_closeout_facts_internal_requests__request_id__closeout_facts_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1351,6 +1549,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptIn
+         * @description REQ-13, W18-2/3. The client signs the work off. `reviewing` is the request's
+         *     `review_started_at` as the page read it (not the milestone, which keeps the first). `image`
+         *     is the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted), also for "use my
+         *     typed name".
+         */
+        AcceptIn: {
+            /**
+             * Attestation Accepted
+             * @constant
+             */
+            attestation_accepted: true;
+            /** Comment */
+            comment?: string | null;
+            /** Image */
+            image: string;
+            /**
+             * Reviewing
+             * Format: date-time
+             */
+            reviewing: string;
+            /** Typed Name */
+            typed_name: string;
+        };
         /** AnswerOut */
         AnswerOut: {
             /** Code */
@@ -1581,6 +1804,113 @@ export interface components {
         CancelIn: {
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * ClientReportIn
+         * @description CRP-1. `id` is made on the device: sending it again returns the draft already made. The
+         *     stations default to all of the request's.
+         */
+        ClientReportIn: {
+            /** Id */
+            id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "form";
+            /** Report Date */
+            report_date?: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Station Ids */
+            station_ids?: string[];
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
+        /** ClientReportOut */
+        ClientReportOut: {
+            /** Can Edit */
+            can_edit: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            file: components["schemas"]["AttachmentOut"] | null;
+            form: components["schemas"]["FormOut"];
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "form";
+            /** Render */
+            render: string;
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
+            /** Report Id */
+            report_id: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Request Ref */
+            request_ref: string;
+            /** Station Ids */
+            station_ids: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted";
+            /** Submitted At */
+            submitted_at: string | null;
+            submitted_by: components["schemas"]["PersonRef"] | null;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** ClientReportPage */
+        ClientReportPage: {
+            /** Items */
+            items: components["schemas"]["ClientReportOut"][];
+        };
+        /**
+         * ClientReportPatch
+         * @description CRP-2. Only what is sent changes; `version` is the one the page was looking at. A PDF
+         *     report takes `media_id`; a form report takes the text fields and `image_ids` (pictures
+         *     uploaded for `client_report:<id>`). Sending `media_id: null` takes the PDF off the draft.
+         */
+        ClientReportPatch: {
+            /** Data Quality Notes */
+            data_quality_notes?: string | null;
+            /** Image Ids */
+            image_ids?: string[] | null;
+            /** Media Id */
+            media_id?: string | null;
+            /** Observations */
+            observations?: components["schemas"]["Observation"][] | null;
+            /** Report Date */
+            report_date?: string | null;
+            /** Station Ids */
+            station_ids?: string[] | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Version */
+            version: number;
         };
         /**
          * CommentIn
@@ -2104,6 +2434,19 @@ export interface components {
             stations: components["schemas"]["BundleStation"][];
             visit: components["schemas"]["VisitOut"];
         };
+        /** FormOut */
+        FormOut: {
+            /** Data Quality Notes */
+            data_quality_notes: string;
+            /** Images */
+            images: components["schemas"]["AttachmentOut"][];
+            /** Observations */
+            observations: {
+                [key: string]: string;
+            }[];
+            /** Summary */
+            summary: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2328,6 +2671,13 @@ export interface components {
             /** Model */
             model: string;
         };
+        /** Observation */
+        Observation: {
+            /** Station Id */
+            station_id: string;
+            /** Text */
+            text: string;
+        };
         /** OpIn */
         OpIn: {
             /** Op Id */
@@ -2478,6 +2828,19 @@ export interface components {
             /** Serial */
             serial?: string | null;
         };
+        /**
+         * RejectIn
+         * @description REQ-13. The client sends the work back, with a reason the staff are told.
+         */
+        RejectIn: {
+            /** Reason */
+            reason: string;
+            /**
+             * Reviewing
+             * Format: date-time
+             */
+            reviewing: string;
+        };
         /** RemoveIn */
         RemoveIn: {
             /** At */
@@ -2496,11 +2859,15 @@ export interface components {
         /** RequestDetail */
         RequestDetail: {
             /** Actions */
-            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit" | "schedule_visit")[];
+            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit" | "schedule_visit" | "accept" | "reject")[];
             /** Assigned Staff */
             assigned_staff: components["schemas"]["PersonRef"][];
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
+            /** Attestation */
+            attestation?: string | null;
+            /** Auto Close At */
+            auto_close_at: string | null;
             /** Cancel Reason */
             cancel_reason: string | null;
             /** Category */
@@ -2528,6 +2895,8 @@ export interface components {
             /** Ref */
             ref: string;
             requested_by: components["schemas"]["PersonRef"] | null;
+            /** Review Started At */
+            review_started_at: string | null;
             /** Stations */
             stations: components["schemas"]["RequestStation"][];
             /** Status */
@@ -2541,6 +2910,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            verification: components["schemas"]["VerificationOut"] | null;
             /** Version */
             version: number;
             /** Visits */
@@ -3169,6 +3539,27 @@ export interface components {
             type: string;
         };
         /**
+         * VerificationOut
+         * @description The client's answer to Client Review (REQ-13). The drawn signature is not in it.
+         */
+        VerificationOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["PersonRef"] | null;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "accepted" | "rejected" | "auto_closed";
+            /** Typed Name */
+            typed_name: string | null;
+        };
+        /**
          * VisitBrief
          * @description A visit as the request page lists it.
          */
@@ -3450,6 +3841,232 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DueList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_client_reports_api_v1_client_reports_get: {
+        parameters: {
+            query?: {
+                request_id?: string | null;
+                station_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_client_report_api_v1_client_reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_client_report_api_v1_client_reports__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_client_report_api_v1_client_reports__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientReportPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_client_report_file_api_v1_client_reports__id__attachments__media_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_client_report_api_v1_client_reports__id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_client_report_api_v1_client_reports__id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
                 };
             };
             /** @description Validation Error */
@@ -3860,6 +4477,41 @@ export interface operations {
             };
         };
     };
+    accept_request_api_v1_requests__id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_request_api_v1_requests__id__approve_post: {
         parameters: {
             query?: never;
@@ -4171,6 +4823,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DenyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_request_api_v1_requests__id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIn"];
             };
         };
         responses: {
@@ -5865,6 +6552,39 @@ export interface operations {
             };
         };
     };
+    client_report_facts_route_internal_client_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     labels_internal_labels_post: {
         parameters: {
             query?: never;
@@ -5885,6 +6605,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LabelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_closeout_facts_internal_requests__request_id__closeout_facts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

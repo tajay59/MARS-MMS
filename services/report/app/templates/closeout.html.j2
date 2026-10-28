@@ -1,0 +1,121 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ v.number }} · Close-out Report{% endblock %}
+{% block body %}
+<main class="report">
+  <div class="running-footer"><span class="mono">{{ v.number }}</span> · v{{ v.version }} · Final{% if v.hash %} · hash <span class="mono">{{ v.hash }}</span>{% endif %}</div>
+
+  <header class="masthead">
+    <div>
+      <p class="brand">MARS-MMS</p>
+      <h1>Close-out Report</h1>
+      <p class="muted">{{ v.org_name }}</p>
+    </div>
+    <dl class="meta">
+      <div><dt>Report</dt><dd class="mono">{{ v.number }}</dd></div>
+      <div><dt>Version</dt><dd>v{{ v.version }} · Final</dd></div>
+      <div><dt>Closed</dt><dd>{{ v.closed }}</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <h2>Request</h2>
+    <dl class="facts">
+      <div><dt>Request</dt><dd><span class="mono">{{ v.request_ref }}</span> · {{ v.request_title }}</dd></div>
+      <div><dt>Client</dt><dd>{{ v.org_name }}{% if v.requested_by %}, asked by {{ v.requested_by }}{% endif %}</dd></div>
+      <div><dt>Category</dt><dd>{{ v.category }} · {{ v.priority }} priority</dd></div>
+      <div><dt>Asked on</dt><dd>{{ v.requested }}</dd></div>
+      <div><dt>Stations</dt><dd>{% for s in v.stations %}<span class="mono">{{ s.code }}</span> {{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}</dd></div>
+    </dl>
+  </section>
+
+  {% if v.corrections %}
+  <section>
+    <h2>Corrections</h2>
+    <ul>
+      {% for c in v.corrections %}
+      <li>Corrected report <span class="mono">{{ c.ref }}</span> v{{ c.to }} replaced v{{ c.from }} on {{ c.at }}.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="signatures">
+    <h2>Decision</h2>
+    {% if v.decision and v.decision.accepted %}
+    <div class="signature">
+      {% if v.decision.signature %}<img src="{{ v.decision.signature }}" alt="Signature of {{ v.decision.typed_name }}">{% endif %}
+      <div>
+        <p><strong>Accepted by {{ v.decision.typed_name }}</strong>{% if v.decision.by and v.decision.by != v.decision.typed_name %} <span class="muted">· signed in as {{ v.decision.by }}</span>{% endif %}</p>
+        {% if v.decision.attestation %}<p class="attest">{{ v.decision.attestation }}</p>{% endif %}
+        <p class="muted">Signed {{ v.decision.at }}</p>
+        {% if v.decision.comment %}<p class="story">{{ v.decision.comment }}</p>{% endif %}
+      </div>
+    </div>
+    {% elif v.decision and v.decision.automatic %}
+    <p>{{ v.decision.sentence }}</p>
+    {% else %}
+    <p class="muted">No decision is recorded.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Timeline</h2>
+    <table class="rows">
+      <thead><tr><th>Status</th><th>When</th><th>By</th><th>Note</th></tr></thead>
+      <tbody>
+        {% for t in v.timeline %}
+        <tr><td>{{ t.status }}</td><td>{{ t.at }}</td><td>{{ t.by }}</td><td>{{ t.note }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Visits and reports</h2>
+    {% if v.visits %}
+    <table class="rows">
+      <thead><tr><th>Visit</th><th>Report</th><th>Dates</th><th>Lead</th></tr></thead>
+      <tbody>
+        {% for x in v.visits %}
+        <tr>
+          <td class="mono">{{ x.ref }}</td>
+          <td>{% if x.version %}{% if x.link %}<a href="{{ x.link }}">v{{ x.version }}</a>{% else %}v{{ x.version }}{% endif %}{% else %}-{% endif %}</td>
+          <td>{{ x.dates }}</td>
+          <td>{{ x.lead or "-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No visits were made.</p>
+    {% endif %}
+  </section>
+
+  {% if v.client_reports %}
+  <section>
+    <h2>Client reports</h2>
+    <table class="rows">
+      <thead><tr><th>Title</th><th>Kind</th><th>Date</th><th>By</th></tr></thead>
+      <tbody>
+        {% for r in v.client_reports %}
+        <tr><td><a href="{{ r.link }}">{{ r.title }}</a></td><td>{{ r.kind }}</td><td>{{ r.date }}</td><td>{{ r.by }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if v.comments %}
+  <section>
+    <h2>Comments</h2>
+    {% for c in v.comments %}
+    <div class="element">
+      <h4>{{ c.author }} <span class="muted">· {{ c.role }} · {{ c.at }}</span></h4>
+      <p class="story">{{ c.body }}</p>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+  <p class="generated muted">Generated {{ v.generated }}</p>
+</main>
+{% endblock %}

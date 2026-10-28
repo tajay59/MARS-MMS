@@ -4,7 +4,8 @@
 either can move the request into or out of Client Review, so the request is settled in the same
 transaction as the visit (ADR-17, rule 2). The report's version guards the write: an event older
 than what the visit already knows changes nothing. Other report events (`report.drafted`, the
-signing events) are not operations' business and are ignored.
+signing events) are not operations' business and are ignored. `report.generated` is the PDF of a
+client's online-form report (W18-10): it says the report is ready, or could not be drawn.
 """
 
 from __future__ import annotations
@@ -19,9 +20,11 @@ from pydantic import BaseModel
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.database import AsyncDatabase
 
+from app.domain import client_reports as client_report_rules
 from app.domain.visits import lock as rules
 from app.events.publish import Emitter
 from app.events.settle import lock_request, settle_request
+from app.repo import client_reports as client_report_repo
 from app.repo.visits import visits as visit_repo
 
 TOPICS = ["mms.report.events"]
@@ -67,4 +70,26 @@ def handlers(db: AsyncDatabase[dict[str, Any]], clock: Clock) -> dict[str, Handl
             f"Visit report reopened as v{payload.version}", session,
         )
 
-    return {"report.finalized": finalized, "report.reopened": reopened}
+    async def generated(
+        payload: BaseModel, envelope: Envelope, session: AsyncClientSession
+    ) -> None:
+        """Record where a form report's PDF stands. Only the answer to the latest submission
+        counts, and only once: a repeat, or the answer to an earlier try, changes nothing."""
+        if not isinstance(payload, report_ev.ReportGenerated):  # pragma: no cover
+            raise TypeError(type(payload).__name__)
+        doc = await client_report_repo.get(db, payload.client_report_id, None, session)
+        if (doc is None or doc["attempt"] != payload.attempt
+                or doc["render"] != client_report_rules.Render.RENDERING.value):
+            return
+        ready = payload.outcome == "ready"
+        await client_report_repo.update(
+            db, doc["_id"],
+            {"render": (client_report_rules.Render.READY if ready
+                        else client_report_rules.Render.FAILED).value,
+             "report_id": payload.report_id},
+            now=clock.now(), by=None, expected_version=None, session=session,
+        )
+
+    return {
+        "report.finalized": finalized, "report.reopened": reopened, "report.generated": generated,
+    }

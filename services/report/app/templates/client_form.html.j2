@@ -1,0 +1,65 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ v.number }} · Client Report{% endblock %}
+{% block body %}
+<main class="report">
+  <div class="running-footer"><span class="mono">{{ v.number }}</span> · v{{ v.version }} · Final{% if v.hash %} · hash <span class="mono">{{ v.hash }}</span>{% endif %}</div>
+
+  <header class="masthead">
+    <div>
+      <p class="brand">MARS-MMS</p>
+      <h1>Client Report</h1>
+      <p class="muted">{{ v.org_name }}</p>
+    </div>
+    <dl class="meta">
+      <div><dt>Report</dt><dd class="mono">{{ v.number }}</dd></div>
+      <div><dt>Date</dt><dd>{{ v.report_date }}</dd></div>
+      <div><dt>Sent</dt><dd>{{ v.submitted }}</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <h2>{{ v.title }}</h2>
+    <dl class="facts">
+      <div><dt>Request</dt><dd><span class="mono">{{ v.request_ref }}</span>{% if v.request_title %} · {{ v.request_title }}{% endif %}</dd></div>
+      <div><dt>Written by</dt><dd>{{ v.submitted_by }}, {{ v.org_name }}</dd></div>
+      <div><dt>Stations covered</dt><dd>{% for s in v.stations %}<span class="mono">{{ s.code }}</span> {{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}</dd></div>
+    </dl>
+    <h3>Summary</h3>
+    <p class="story">{{ v.summary }}</p>
+  </section>
+
+  {% if v.stations | selectattr("observation") | list %}
+  <section>
+    <h2>Observations by station</h2>
+    {% for s in v.stations if s.observation %}
+    <div class="element">
+      <h4><span class="mono">{{ s.code }}</span> {{ s.name }}</h4>
+      <p class="story">{{ s.observation }}</p>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if v.data_quality_notes %}
+  <section>
+    <h2>Data quality</h2>
+    <p class="story">{{ v.data_quality_notes }}</p>
+  </section>
+  {% endif %}
+
+  {% if v.images %}
+  <section class="appendix">
+    <h2>Attachments</h2>
+    <div class="photos">
+      {% for p in v.images %}
+      <figure>
+        {% if p.uri %}<img src="{{ p.uri }}" alt="{{ p.name }}">{% else %}<div class="photo-missing">Picture not available</div>{% endif %}
+        <figcaption>{{ p.name }}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  <p class="generated muted">Generated {{ v.generated }}</p>
+</main>
+{% endblock %}

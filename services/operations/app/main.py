@@ -20,6 +20,7 @@ from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.service_client import ServiceTokens
 from mms_common.auth.tokens import KeySource
 from mms_common.consumer import EventProcessor, SendToDlq
+from mms_common.cron import run_periodic
 from mms_common.ids import new_id
 from mms_common.kafka import consume_forever, producer_factory
 from mms_common.outbox import LeaderLease
@@ -30,7 +31,8 @@ from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.api import internal_routes, sync_routes
-from app.api.requests import comment_routes, queue_routes, request_routes
+from app.api.client_reports import routes as client_report_routes
+from app.api.requests import comment_routes, queue_routes, request_routes, review_routes
 from app.api.stations import (
     calibration_routes,
     config_routes,
@@ -42,7 +44,7 @@ from app.api.stations import (
 from app.api.visits import bundle_routes, element_routes, visit_routes
 from app.config import Settings
 from app.events import consumer
-from app.jobs import org_backfill
+from app.jobs import org_backfill, review_clock
 from app.repo.requests.staff_client import StaffApi, StaffClient
 from app.repo.stations.media_client import MediaApi, MediaClient
 
@@ -115,6 +117,10 @@ def create_app(
                     )
                 ),
                 asyncio.create_task(org_backfill.run(db, http, tokens, settings.auth_url, stop)),
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "review_clock", settings.review_clock_every_s,
+                    lambda: review_clock.run(client, db, clock, settings), stop,
+                )),
             ]
         try:
             yield
@@ -158,8 +164,10 @@ def create_app(
     app.include_router(document_routes.station_router)
     app.include_router(config_routes.router)
     app.include_router(request_routes.router)
+    app.include_router(review_routes.router)
     app.include_router(queue_routes.router)
     app.include_router(comment_routes.router)
+    app.include_router(client_report_routes.router)
     app.include_router(visit_routes.router)
     app.include_router(element_routes.router)
     app.include_router(bundle_routes.router)

@@ -35,7 +35,9 @@ class Settings(BaseSettings):
     ]
 
     # The notification consumer's topics: auth for accounts, operations for requests and comments.
-    notification_topics: list[str] = ["mms.auth.events", "mms.operations.events"]
+    notification_topics: list[str] = [
+        "mms.auth.events", "mms.operations.events", "mms.report.events",
+    ]
     # A socket's token is checked again this often (TRD 13.4 says 25 s).
     ws_heartbeat_s: float = 25.0
 

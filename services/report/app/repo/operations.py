@@ -48,6 +48,10 @@ class VisitLocks(Protocol):
 class FactsSource(Protocol):
     async def visit_facts(self, visit_id: str) -> dict[str, Any] | None: ...
 
+    async def client_report_facts(self, client_report_id: str) -> dict[str, Any] | None: ...
+
+    async def closeout_facts(self, request_id: str) -> dict[str, Any] | None: ...
+
 
 class SnapshotSource(Protocol):
     async def snapshot(
@@ -147,3 +151,39 @@ class OperationsClient:
             raise OperationsUnavailable(str(response.status_code))
         facts: dict[str, Any] = response.json()
         return facts
+
+    async def client_report_facts(self, client_report_id: str) -> dict[str, Any] | None:
+        """A client's submitted online-form report: its text, stations and pictures (W18-10).
+        None when operations does not know it (or it is not a submitted form)."""
+        try:
+            response = await self._http.get(
+                f"{self._base}/internal/client-reports/{client_report_id}",
+                headers=await self._tokens.headers(), timeout=30,
+            )
+        except (httpx.HTTPError, ConnectionError) as e:
+            raise OperationsUnavailable() from e
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise OperationsUnavailable(str(response.status_code))
+        facts: dict[str, Any] = response.json()
+        return facts
+
+    async def closeout_facts(self, request_id: str) -> dict[str, Any] | None:
+        """What a request's close-out prints: the request, its timeline, the visit reports in
+        force, the client reports, the comments a client may read and the client's decision with
+        the drawing (W18-11). None when operations does not know the request."""
+        try:
+            response = await self._http.get(
+                f"{self._base}/internal/requests/{request_id}/closeout-facts",
+                headers=await self._tokens.headers(), timeout=30,
+            )
+        except (httpx.HTTPError, ConnectionError) as e:
+            raise OperationsUnavailable() from e
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise OperationsUnavailable(str(response.status_code))
+        facts: dict[str, Any] = response.json()
+        return facts
+

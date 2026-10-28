@@ -1709,7 +1709,178 @@ stateDiagram-v2
     Cancelled --> [*]
 </pre>
           </div>
-          <figcaption>As built in W8: the actions up to Assigned and Cancelled are routes (approve, deny, cancel); assign, accept, reject and the automatic close are in the table and tested but have no route yet (W9, Phase 6). Status chips use the reserved status colours from DBD. Every change appends <code>status_history</code> and emits <code>request.status_changed</code>.</figcaption>
+          <figcaption>As built in W8: the actions up to Assigned and Cancelled are routes (approve, deny, cancel); assign, claim and release came with W9, and in W18 the client's accept and reject became routes and the automatic close a job (the charts below). Status chips use the reserved status colours from DBD. Every change appends <code>status_history</code> and emits <code>request.status_changed</code>.</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="accept and reject, branch by branch" data-kind="Code flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A(["POST accept or reject"]) --> B{"A client, and the request is theirs?"}
+    B -- "staff or viewer" --> B1["403"]
+    B -- "another organization" --> B2["404"]
+    B -- yes --> C{"Same person, same answer, same review?"}
+    C -- yes --> C1["200 with the stored result"]
+    C -- no --> D{"Status is client_review?"}
+    D -- no --> D1["409 bad_transition"]
+    D -- yes --> E{"reviewing equals review_started_at?"}
+    E -- no --> E1["409 review_changed"]
+    E -- yes --> F{"Which answer?"}
+    F -- accept --> G{"PNG within limits, name 2 to 120, attestation ticked?"}
+    G -- no --> G1["422"]
+    G -- yes --> H["One transaction: read again, Closed, decision kept, request.closed, status_changed"]
+    F -- reject --> I{"Reason 5 to 1000 characters?"}
+    I -- no --> I1["422"]
+    I -- yes --> J["One transaction: Reopened, then Assigned, rework_since, request.reopened, two status_changed"]
+</pre>
+          </div>
+          <figcaption>The route re-reads the request inside the transaction, so a client who answers at the moment the clock closes the request, or a report is reopened, gets a clean 409 (as built, W18-1).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Client Review and its clock" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> ClientReview : every visit report final, request.client_review_started
+    ClientReview --> ClientReview : day 7, 21, 28 reminder (only the latest after an outage)
+    ClientReview --> Closed : client accepts with a signature
+    ClientReview --> Assigned : client rejects (through Reopened, same staff)
+    ClientReview --> Closed : day 30, closed by the system
+    ClientReview --> InProgress : admin reopens a report (clock stops)
+    InProgress --> ClientReview : report final again (the days start again)
+    Assigned --> ClientReview : new visit or corrected report is final
+    Closed --> [*]
+</pre>
+          </div>
+          <figcaption>Days are 24-hour periods since <code>review_started_at</code>, checked every 15 minutes; <code>OPS_REVIEW_REMINDER_DAYS</code> and <code>OPS_AUTO_CLOSE_DAYS</code> are numbers and may be fractions on staging (as built, W18-1).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="A client report is submitted and drawn" data-kind="Sequence">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+sequenceDiagram
+    participant C as Client (browser)
+    participant O as operations
+    participant K as Kafka
+    participant R as report consumer
+    participant W as report-worker
+    C->>O: POST /client-reports, PATCH (draft, private to the author)
+    C->>O: POST /client-reports/{id}/submit
+    O->>O: one transaction: submitted, client_report.submitted, media.visibility_requested
+    O-->>C: 200, render = rendering
+    O->>K: client_report.submitted (no text)
+    K->>R: client_report.submitted
+    R->>R: report CR-YYYY-NNNN-NN, status rendering
+    W->>R: tick queues clientform:id
+    W->>O: GET /internal/client-reports/{id}
+    O-->>W: text, stations, pictures
+    W->>W: draw, store the PDF
+    W->>R: one transaction: final, report.generated (ready)
+    R->>K: report.generated
+    K->>O: report.generated
+    O->>O: render = ready, report_id
+</pre>
+          </div>
+          <figcaption>A form report's text never travels in an event; the worker reads it with a service token. Three failed tries end in <code>render_failed</code> and <code>report.generated</code> (<code>failed</code>); the client's Try again submits it once more (<code>attempt</code> + 1) and the same report is drawn again (as built, W18-2).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Who writes what in the close-out report" data-kind="Document flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    R["Request and its status history"] --> T["Timeline"]
+    V["Visits and the visit report version in force"] --> VT["Visits and reports (links)"]
+    C["Client reports (title, kind, date, author)"] --> CT["Client reports"]
+    M["Comments a client may read"] --> CM["Comments"]
+    D["Client decision: name, drawing, wording, time"] --> DS["Decision"]
+    A["Auto-close at day 30"] --> DS
+    X["Earlier close-out version"] --> CR["Corrections: VR v2 replaced v1"]
+    V --> CR
+    T --> P["Close-out PDF, final, hash in the footer"]
+    VT --> P
+    CT --> P
+    CM --> P
+    DS --> P
+    CR --> P
+    P --> S["POST /reports/verify finds it by SHA-256"]
+    I["Internal comments and board text"] -. never read .-> P
+</pre>
+          </div>
+          <figcaption>Operations filters internal comments where it reads them (rule 6), and the facts hold report numbers and versions, never a visit board's text, so neither can reach the page (as built, W18-3).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Does a final visit report change the close-out?" data-kind="Decision tree">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A(["A visit report becomes final, in the finalize transaction"]) --> B{"Is it version 2 or later?"}
+    B -- no --> S1["Nothing: the close-out reads the facts as they are"]
+    B -- yes --> C{"Does the request have a close-out?"}
+    C -- no --> S2["Nothing: request.closed will draw it from the facts as they stand"]
+    C -- yes --> D{"Is the latest one still to be drawn, or failed?"}
+    D -- yes --> M["Join it: expects the new version, inputs counter + 1, the draw in progress is redone"]
+    D -- no --> N["New version n + 1: supersedes the final one, expects the new version"]
+    N --> W{"Does operations show that version yet?"}
+    M --> W
+    W -- no --> R["Wait up to five minutes, then draw with what is there"]
+    W -- yes --> G["Draw: final, the earlier one superseded, report.closeout_generated"]
+    R --> G
+</pre>
+          </div>
+          <figcaption>The two events travel separately, so the record says what it waits for (<code>expects</code>); a unique <code>(subject_ref, version)</code> makes a version exist once (as built, W18-3).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="The client's path through a request" data-kind="Customer journey">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+journey
+    title A client from the first request to the close-out
+    section Ask
+      Submit the request: 4: Client
+      Hear that it was approved: 5: Client
+    section Follow the work
+      Read the visit report: 4: Client
+      Add a report of their own (PDF or form): 3: Client
+    section Review
+      Get the email Work ready for your review: 5: Client
+      Read the reports on the review page: 4: Client
+      Accept with a signature: 5: Client
+      Or send the work back with a reason: 2: Client
+      Get a reminder on day 7, 21 or 28: 2: Client
+    section After
+      Open the close-out report: 5: Client
+      Get the corrected close-out if a report was corrected: 4: Client
+</pre>
+          </div>
+          <figcaption>The path as built (W18): the email and reminders open the review page, the answer and the close-out are on the Reports tab, and everything on it needs a connection (AFD 5.2).</figcaption>
+        </figure>
+
+        <figure class="diagram" data-title="Request state, as built" data-kind="State diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+stateDiagram-v2
+    [*] --> Submitted
+    Submitted --> Approved : admin approves
+    Submitted --> Denied : admin denies
+    Submitted --> Cancelled : client or admin
+    Approved --> Assigned : admin assigns or technician claims
+    Approved --> Cancelled
+    Assigned --> Approved : last person lets go
+    Assigned --> Scheduled : a visit is planned
+    Scheduled --> InProgress : a visit starts
+    Scheduled --> Assigned : the visit is cancelled
+    InProgress --> Assigned : visit ended, another needed
+    InProgress --> ClientReview : every visit report final, no further visit
+    ClientReview --> Closed : client accepts, or day 30
+    ClientReview --> Assigned : client rejects (through Reopened)
+    ClientReview --> InProgress : an admin reopens a report
+    Closed --> Closed : a corrected report makes a new close-out version
+    Denied --> [*]
+    Cancelled --> [*]
+    Closed --> [*]
+</pre>
+          </div>
+          <figcaption>Every status after Assigned is derived from the visits and their reports (<code>derive_status</code>) except the client's answer; a Closed request stays Closed when a report is corrected (RPT-6). Replaces the designed chart (as built, W18).</figcaption>
         </figure>
 
         <div class="sub" id="requests-derive">
@@ -2644,6 +2815,90 @@ sequenceDiagram
     C->>RP: finalizing for 15 minutes? queue the job again. Unlocks owed? do them.
 </pre>
           </div>
+        </figure>
+
+        <figure class="diagram" id="reports-j7-swimlane" data-title="J7: who does what from draft to final" data-kind="Swimlane flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    subgraph T["Lead technician"]
+        t1["Opens the draft from the notification"] --> t2["Edits the narrative, chooses photos"]
+        t2 --> t3["Signs: typed name, drawing, attestation"]
+        t3 --> t4["Finalizes"]
+    end
+    subgraph H["Other attending staff"]
+        h1["Signs (optional)"]
+    end
+    subgraph R["report service"]
+        r1["Saves with content_version, hashes what prints"]
+        r2["Clears valid signatures if the hash changed"]
+        r3["finalizing: edits stop"]
+        r4["Final PDF stored, status final, report.finalized"]
+    end
+    subgraph O["operations"]
+        o1["Locks the visit for this report version"]
+        o2["Sets the visit's report status, settles the request"]
+    end
+    subgraph C["Client"]
+        c1["Reads and downloads the final report"]
+    end
+    subgraph A["Admin"]
+        a1["Reopens with a reason"]
+    end
+    t2 --> r1 --> r2
+    r2 -. "signatures cleared" .-> t3
+    h1 -.-> r1
+    t4 --> r3 --> o1 --> r4 --> o2
+    o2 --> c1
+    c1 -. "correction needed" .-> a1
+    a1 --> t2
+</pre>
+          </div>
+          <figcaption>Draft to final, as built (W17). A reopen makes the next version a draft with the narrative kept and nothing signed; the client sees no report until it is final again.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="reports-signature-invalidation" data-title="Does a change clear the signatures?" data-kind="Decision tree diagram">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["Something changed in a draft"] --> B{"Is the report still a draft?"}
+    B -- "No: finalizing, final or superseded" --> Z["Refused. Final and superseded are immutable"]
+    B -- "Yes" --> C{"What changed?"}
+    C -- "A person edited the narrative or the photo choice" --> D{"Does the hash of what prints change?"}
+    C -- "The facts were read again from the board" --> D
+    C -- "A staff-only element changed" --> N["Hash unchanged: signatures stay"]
+    D -- "No: same words, same photos, same facts" --> K["Nothing is saved and nothing is cleared"]
+    D -- "Yes" --> E["content_version moves"]
+    E --> F{"Any valid signatures?"}
+    F -- "No" --> G["Saved"]
+    F -- "Yes" --> H["Each is kept with valid false, cleared_at and cleared_by (a person, facts or reopen)"]
+    H --> I["report.signatures_cleared, reason edit or facts"]
+    I --> J["Everyone signs again on the new version"]
+</pre>
+          </div>
+          <figcaption>The hash covers shared elements, the narrative and the photo choice, not counters, the lock or staff-only elements. A signer who read an older version gets 409 content_changed.</figcaption>
+        </figure>
+
+        <figure class="diagram" id="reports-document-flowchart" data-title="Who writes each part of a visit report" data-kind="Document flowchart">
+          <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    BOARD["Visit boards (operations): Notes, Tasks, Recommendations, Config, files"] --> SH{"Shared with the client?"}
+    SH -- "No: staff only" --> ED["Shown in the editor, never printed"]
+    SH -- "Yes" --> FACTS["Facts: elements, photos, times, parameters"]
+    FACTS --> PREFILL["Narrative pre-filled once from shared notes and recommendations"]
+    PREFILL --> NARR["Narrative: staff edit summary, work per station, recommendations, follow-up"]
+    FACTS --> PH["Photo choice: six per station in the body, the rest in the appendix, captions for this report"]
+    FACTS --> HASH["content_hash: facts that print, narrative, photo choice"]
+    NARR --> HASH
+    PH --> HASH
+    HASH --> SIGN["Signatures: typed name, drawing, attestation, time, address, bound to the hash"]
+    SIGN --> PDF["Final PDF: signature blocks, hash in the footer, PDF sha256 stored"]
+    PDF --> CLIENT["Client reads and downloads"]
+    PDF --> VERIFY["Anyone checks a copy: POST /reports/verify"]
+</pre>
+          </div>
+          <figcaption>Facts come from the board and are never typed in the report; people write only the narrative and choose photos. The final PDF is one document for staff and client.</figcaption>
         </figure>
 
         <div class="split">
@@ -3921,8 +4176,14 @@ flowchart TD
                 <tr><td>W17-8</td><td><b>The visit lock and the report events (slice 1, as built; plan <code>docs/plans/W17-plan.md</code>).</b> Operations has <code>POST /internal/visits/{id}/lock</code> and <code>/unlock</code> (service <code>report</code> only; body <code>{report_id, report_version}</code>; answer <code>{visit_id, locked, visit_version}</code>). A lock belongs to one report version: the same pair again changes nothing, another pair on a locked visit is 409 <code>locked_by_another_report</code>, a visit that has not ended is 409 <code>not_ended</code>, and an unlock for a version that does not hold the lock changes nothing and says whether the visit is still locked. The board refuses writes on a locked visit (409 <code>locked</code>, already built). Operations now reads <code>mms.report.events</code> (Kafka right in <code>infra/kafka/users.yml</code>): <code>report.finalized</code> sets <code>report_status = final</code>, <code>report_id</code>, <code>report_version</code>, <code>report_finalized_at</code> on the visit and <code>report.reopened</code> sets <code>draft</code>, each guarded by the report version, and both settle the request in the same transaction through <code>events/settle.py</code> (shared with the visit routes). Entering Client Review starts <code>review_started_at</code> with no reminders sent; leaving it clears both, so a reopened report stops the review clock (RPT-6). Six event schemas are registered in <code>mms_common.events.report</code> (<code>report.signed</code>, <code>report.signatures_cleared</code>, <code>report.finalized</code>, <code>report.finalize_failed</code>, <code>report.reopened</code>, <code>report.finalize_reminder</code>): ids, versions, counts and a reason, never a name or an image; the report service emits them in slices 2 to 4.</td><td>2026-10-27</td></tr>
                 <tr><td>W17-9</td><td><b>Editing and signing a draft (slice 2, as built).</b> Only <b>shared</b> board elements print (W17-1): the narrative prefill, the photo choice, the files the draft waits for and the page itself (<code>domain/visit_view.py</code>) skip the rest, and a client reads a final report through <code>content.client_view</code> (shared elements only, no signature image, hash, attendee ids or attestation). <code>content_hash</code> is the SHA-256 of the canonical JSON of what prints (<code>domain/content.py</code>: shared elements, the narrative and the photo choice, without counters, the lock or staff-only elements), so locking the visit or editing a staff-only note invalidates nothing. <code>PATCH /api/v1/reports/{id}/content</code> takes <code>content_version</code> and the fields to change; a stale version is 409 <code>content_changed</code> with the current record, unless the same edit is already in (then 200 and no new version). A change that alters the hash moves <code>content_version</code> (a facts refresh too, so a signer cannot sign a page that changed under them) and clears the valid signatures in the same transaction with <code>report.signatures_cleared</code> (<code>edit</code> or <code>facts</code>); the facts refresh is conditional on the <code>content_version</code> it read, so it can never overwrite an edit. <code>POST /api/v1/reports/{id}/sign</code> takes <code>{content_version, typed_name, image}</code> (PNG, 100 KB, 1200 x 600 px, checked by magic bytes, end marker and header): attending staff only (an admin who did not attend gets 403 <code>not_attending</code>), draft only, 409 <code>already_signed</code> for a second valid signature (a unique partial index makes two taps one signature). The <code>signatures</code> record holds the drawing, typed name, attestation (<code>REPORT_ATTESTATION</code>) as shown, time, IP, browser, <code>content_hash</code> and <code>content_version</code>; cleared ones stay with <code>valid: false</code>, <code>cleared_at</code>, <code>cleared_by</code>. <code>report.signed</code> carries ids and a count, never the drawing or the name. Migration <code>0004_signatures</code> adds the indexes and gives drafts made before W17 their hash. Drafts made before W17 may hold staff-only text in their narrative prefill; the editor shows it and a person removes it.</td><td>2026-10-27</td></tr>
                 <tr><td>W17-10</td><td><b>Finalize, reopen and verify (slice 3, as built).</b> <code>POST /api/v1/reports/{id}/finalize</code> (the lead or an admin, once the lead has a valid signature for the current hash: 409 <code>lead_not_signed</code>) makes the report <code>finalizing</code> and queues <code>finalize:&lt;id&gt;</code>; asking again changes nothing. The worker (<code>jobs/finalize.py</code>) locks the visit for this version, reads the facts again with the boards locked and compares the hash, draws the final PDF (<code>visit.html.j2</code> with the signature blocks and <code>hash 3f9a1c2e4b7d8a60</code> in the footer) to <code>visits/&lt;id&gt;/final-v&lt;n&gt;.pdf</code>, and in one transaction sets <code>final</code>, <code>pdf_sha256</code> and adds <code>report.finalized</code>. Three tries, 30 s then 60 s apart. A refused lock, a changed fact (signatures cleared, <code>facts_changed</code>) or a third failed render (<code>render_failed</code>, signatures kept) returns the report to <code>draft</code> with <code>report.finalize_failed</code> and the unlock owed in <code>unlock_pending</code>, done at once or by the cron (<code>jobs/resume.py</code>, every minute, which also queues any report left <code>finalizing</code> for 15 minutes). A test over every failure point checks that a final report always has the lead's valid signature for exactly its <code>content_hash</code> and the stored PDF's hash. <code>POST /api/v1/reports/{id}/reopen</code> (admin, reason 5 to 500 characters) makes the final <code>superseded</code> and a draft of the next version in one transaction (narrative and photo choice copied, facts stale, no signatures, <code>report.reopened</code> with the request's status from the read model); 409 <code>already_reopened</code> or <code>not_final</code> otherwise; the old version's signatures stay valid for it. No <code>report.drafted</code> is sent for a correction. Decision on question 5: <b>a client never sees a superseded version or the new draft</b> (clients read final only), so after a reopen the visit page shows "a corrected report is on its way"; how the page learns that a reopen is in progress is a slice 5 question (the API shows a client nothing of it today). A lead who cannot sign has no override. <code>POST /api/v1/reports/verify</code> is public (Nginx's <code>auth</code> zone): <code>{sha256}</code> as JSON or a PDF as <code>application/pdf</code> (10 MB, hashed as it arrives, never stored) answers <code>{match, number, version, status, finalized_at}</code> and no content. There is no page for it (dropped from the boards). Downloads of a final or superseded version link to its own PDF.</td><td>2026-10-27</td></tr>
-                <tr><td>W17-11</td><td><b>The report page (slice 5, as built; boards: the W16 sheet 4 to 6 and the W17 sheet, approved 2026-10-27).</b> <code>/visit-reports/:id</code> (<code>features/visits/report/editor/</code>, staff only, route name <code>visit-report</code>, needs a connection): the summary, each station's work performed, recommendations and follow-up as text that saves 0.8 s after the last keystroke with the <code>content_version</code> that was read (<code>useReportEditor.ts</code>; Saved, Typing, Saving, Not saved yet. Retrying&hellip;); "From the board" with every element and a <b>Staff only</b> mark on the ones that do not print; the photo choice (six in each station's body, captions for this report only); the signatures panel (a cleared signature stays in the list with its reason); Finalize, the Finalizing state followed every 3 s, the three stopped reasons, Download, Reopen for correction (admins) and the list of versions. Text typed and not saved is kept in the page's memory only; closing the tab asks first; if someone else saved first their version is shown and the unsaved text is offered under <b>Copy my text</b>. The signature dialog imports <code>signature_pad</code> when it opens (out of the precache through <code>globIgnores</code>: 29 of 30 files), sizes the canvas from <code>devicePixelRatio</code>, clears it if the window is resized, shrinks the PNG to 900 px wide before sending (the server takes 1200 x 600 and 100 KB) and offers <b>Use my typed name as my signature</b> for people who cannot draw. A signature is never stored on the device. The visit page's Report section links to the page (<b>Edit and sign</b>, or <b>Open the report</b>) and shows Finalizing and Final; a client has <code>ClientReportSection</code> (the final report of their organization, Open report and Download PDF). Open: how a client's page learns that a reopen is in progress, so it can say a corrected report is on its way (the API hides the superseded version and the new draft, and says nothing else); the notification links move to the page with slice 4. Playwright <code>e2e/reportSign.spec.ts</code> runs J7 end to end (edit, sign, an edit clears the signature, sign with the typed name, finalize, the client opens and downloads the final, an admin reopens, the client sees none); axe in light and dark.</td><td>2026-10-28</td></tr>
+                <tr><td>W17-11</td><td><b>The report page (slice 5, as built; boards: the W16 sheet 4 to 6 and the W17 sheet, approved 2026-10-27).</b> <code>/visit-reports/:id</code> (<code>features/visits/report/editor/</code>, staff only, route name <code>visit-report</code>, needs a connection): the summary, each station's work performed, recommendations and follow-up as text that saves 0.8 s after the last keystroke with the <code>content_version</code> that was read (<code>useReportEditor.ts</code>; Saved, Typing, Saving, Not saved yet. Retrying&hellip;); "From the board" with every element and a <b>Staff only</b> mark on the ones that do not print; the photo choice (six in each station's body, captions for this report only); the signatures panel (a cleared signature stays in the list with its reason); Finalize, the Finalizing state followed every 3 s, the three stopped reasons, Download, Reopen for correction (admins) and the list of versions. Text typed and not saved is kept in the page's memory only; closing the tab asks first; if someone else saved first their version is shown and the unsaved text is offered under <b>Copy my text</b>. The signature dialog imports <code>signature_pad</code> when it opens (out of the precache through <code>globIgnores</code>: 29 of 30 files), sizes the canvas from <code>devicePixelRatio</code>, clears it if the window is resized, shrinks the PNG to 900 px wide before sending (the server takes 1200 x 600 and 100 KB) and offers <b>Use my typed name as my signature</b> for people who cannot draw. A signature is never stored on the device. The visit page's Report section links to the page (<b>Edit and sign</b>, or <b>Open the report</b>) and shows Finalizing and Final; a client has <code>ClientReportSection</code> (the final report of their organization, Open report and Download PDF). A client's page learns that a reopen is in progress from <code>GET /api/v1/reports/correction?visit_id=</code> (<code>{correcting}</code>: the newest version is a draft or finalizing and is not the first), which is all a client learns of it (the superseded version and the new draft stay hidden): the Report section then says <i>A corrected report is on its way</i>. Playwright <code>e2e/reportSign.spec.ts</code> runs J7 end to end (edit, sign, an edit clears the signature, sign with the typed name, finalize, the client opens and downloads the final, an admin reopens, the client sees none); axe in light and dark.</td><td>2026-10-28</td></tr>
                 <tr><td>W17-12</td><td><b>Report notifications and reminders (slice 4, as built).</b> Platform's <code>plan()</code> now handles the four W17 report events with the PRD Appendix B rows. <code>report.finalized</code>: the attending staff in the app (not who finalized it) and the client in the app and by email, to the visit (a client has no report page); a version above 1 says <i>Corrected report final</i>. <code>report.finalize_failed</code>: the lead and the people who signed, in the app, with the reason in words (<code>facts_changed</code>, <code>lock_failed</code>, <code>render_failed</code>). <code>report.reopened</code>: the attending staff in the app with the admin's reason; the client in the app and by email only when the event's <code>request_status</code> is <code>client_review</code> or <code>closed</code>. <code>report.finalize_reminder</code>: the people who have not signed in the app and by email at 2 working days, and the admins in the app at 5. Staff links go to <code>/visit-reports/&lt;id&gt;</code> (the draft notification moved there too, so <b>merge slice 5 before this</b>); the notification's entity is <code>report</code> and its email button says <i>Open the report</i>. Three email choices join the preferences catalogue: <code>report.finalized</code> and <code>report.reopened</code> (clients, on) and <code>report.finalize_reminder</code> (technicians and admins, on). The reminder is the report service's cron <code>jobs/reminders.py</code> (hourly under a Redis lock): a draft whose 2nd or 5th working day has come adds the event in the same transaction that records it in <code>reminders_sent</code>, so it is sent once. Working days are Monday to Friday in the first station's zone, with no holiday calendar, and keep the time of day (a Friday 16:40 end is two working days old on Tuesday 16:40). Counting starts at the visit's end, or at the reopen for a corrected version (<code>remind_from</code>); a draft found after a long gap gets one reminder, for the latest level. The levels are fixed at 2 and 5 (the event schema allows only those), so <code>REPORT_REMINDER_DAYS</code> from the plan is not a setting; <code>REPORT_REMINDER_TICK_S</code> (3600) is.</td><td>2026-10-28</td></tr>
+                <tr><td>W17-11</td><td><b>The report page (slice 5, as built; boards: the W16 sheet 4 to 6 and the W17 sheet, approved 2026-10-27).</b> <code>/visit-reports/:id</code> (<code>features/visits/report/editor/</code>, staff only, route name <code>visit-report</code>, needs a connection): the summary, each station's work performed, recommendations and follow-up as text that saves 0.8 s after the last keystroke with the <code>content_version</code> that was read (<code>useReportEditor.ts</code>; Saved, Typing, Saving, Not saved yet. Retrying&hellip;); "From the board" with every element and a <b>Staff only</b> mark on the ones that do not print; the photo choice (six in each station's body, captions for this report only); the signatures panel (a cleared signature stays in the list with its reason); Finalize, the Finalizing state followed every 3 s, the three stopped reasons, Download, Reopen for correction (admins) and the list of versions. Text typed and not saved is kept in the page's memory only; closing the tab asks first; if someone else saved first their version is shown and the unsaved text is offered under <b>Copy my text</b>. The signature dialog imports <code>signature_pad</code> when it opens (out of the precache through <code>globIgnores</code>: 29 of 30 files), sizes the canvas from <code>devicePixelRatio</code>, clears it if the window is resized, shrinks the PNG to 900 px wide before sending (the server takes 1200 x 600 and 100 KB) and offers <b>Use my typed name as my signature</b> for people who cannot draw. A signature is never stored on the device. The visit page's Report section links to the page (<b>Edit and sign</b>, or <b>Open the report</b>) and shows Finalizing and Final; a client has <code>ClientReportSection</code> (the final report of their organization, Open report and Download PDF). Open: how a client's page learns that a reopen is in progress, so it can say a corrected report is on its way (the API hides the superseded version and the new draft, and says nothing else); the notification links move to the page with slice 4. Playwright <code>e2e/reportSign.spec.ts</code> runs J7 end to end (edit, sign, an edit clears the signature, sign with the typed name, finalize, the client opens and downloads the final, an admin reopens, the client sees none); axe in light and dark.</td><td>2026-10-28</td></tr>
+                <tr><td>W18-5</td><td><b>The review, client report and Reports screens (slice 5, as built; boards: the "AWS-MMS W18 screens" sheet, approved 2026-10-28).</b> <code>/requests/:id/review</code> (<code>features/requests/review/</code>: <code>ReviewPage</code>, <code>RejectDialog</code>, <code>useReview</code>, the pure <code>review.ts</code> that picks the state of the review and the words of a refused answer): the final visit reports and the client's own reports open in the app's PDF sheet (<code>PdfSheet</code>), Accept is the W17 <code>SignDialog</code> with the client's wording (<code>attestation</code> on the request detail, given only to a client in Client Review) and an optional comment, Reject asks for a reason of 5 to 1,000 characters. Both name the review the page read (<code>reviewing</code>). The request page gains the Client Review banner with <b>Review and sign off</b>, a closed banner, and a <b>Reports</b> tab (<code>features/requests/reports/</code>: the close-out leads, replaced versions follow, then each visit's report and the client reports; it looks again every 8 seconds while a PDF is being made). <code>/requests/:id/client-reports/new</code> and <code>/:reportId</code> (<code>features/requests/clientReports/</code>): the draft is made when a kind is chosen, saved 0.8 seconds after typing under its <code>version</code>, one save at a time, and a failed save is retried every 5 seconds with the text kept in the page. Nothing is kept on the device and no worker or chunk is added: the precache stays at 29 files. Reviewed with <code>web-design-guidelines</code>.</td></tr>
+                <tr><td>W18-4</td><td><b>Review notifications (slice 4, as built).</b> One planner for the client's review and what follows (<code>_plan_review</code>, <code>REVIEW_EVENTS</code>): every client of the organization is asked to review and reminded, by app and email (preference <code>request.client_review</code>, button "Review the work", link <code>/requests/{id}/review</code>); a rejection tells the assigned staff and every admin with the client's reason, by app and email (<code>request.reopened</code>); an acceptance or automatic close tells the client's colleagues, the team and the admins in the app; a client report tells the team and admins in the app, once even if its PDF is drawn again; the first close-out tells the clients in the app, a corrected one also by email (<code>report.closeout</code>, button "Read the report"). The notification group now reads <code>mms.report.events</code>: until now no <code>report.*</code> event reached it (W17's notifications are planned on the same topic). Nobody is told of a draft: staff only, rule 6.</td></tr>
+                <tr><td>W18-3</td><td><b>The close-out report (slice 3, as built).</b> <code>request.closed</code> makes a <code>closeout</code> report at once (number <code>CO-YYYY-NNNN</code>, version 1, status <code>rendering</code>); the worker (<code>jobs/render_closeout.py</code>, <code>closeout:&lt;id&gt;</code>, queued by a 30-second tick) reads <code>GET /internal/requests/{id}/closeout-facts</code> (now version 2: client reports and the review the decision answered), draws <code>closeout.html.j2</code> and in one transaction makes it <code>final</code>, supersedes the version it replaces and adds <code>report.closeout_generated</code> (ids only). It is final as soon as drawn, never signed, edited or reopened (409 <code>not_reopenable</code>); the drawing is kept only as its SHA-256 in the record. A correction after closure (W18-12) is handled where the visit report becomes final: version n + 1 (<code>expects</code> the corrected version), or joined to a close-out still to be drawn (<code>inputs_seq</code> makes a draw that missed it be redone). The record waits up to five minutes for operations to show the corrected version; one that fails three times is drawn again an hour later, because nobody can try again for it. A client reads final and superseded close-outs of their organization; <code>POST /reports/verify</code> finds every version. Visual baselines: <code>closeout-accepted</code>, <code>closeout-auto</code>, <code>closeout-corrected</code> and <code>client-form</code>.</td></tr>
+                <tr><td>W18-2</td><td><b>Client reports (slice 2, as built).</b> <code>/api/v1/client-reports</code>: a client starts a draft (<code>kind</code> <code>pdf</code> or <code>form</code>, idempotent by a device-made <code>id</code>), changes it with <code>PATCH</code> (<code>version</code>), and <code>submit</code>s it; from then on nothing changes it (CRP-4, 409 <code>not_a_draft</code>). A draft is private to its author (even from staff and colleagues); a submitted report is read by the organization and by staff. A Closed request still takes a late report; Submitted, Denied and Cancelled do not (question 2, default). A PDF report holds one PDF, a form report up to 10 pictures (question 3, default), both uploaded for <code>client_report:{id}</code> to the media service and shown to the organization by <code>media.visibility_requested</code> in the submit transaction. The form is drawn by the report service: <code>client_report.submitted</code> carries no text, the worker reads it from <code>GET /internal/client-reports/{id}</code>, the report is <code>client_form</code> number <code>CR-YYYY-NNNN-NN</code>, <code>final</code> as soon as the PDF exists and never reopened, and <code>report.generated</code> (<code>ready</code> or <code>failed</code>, per <code>attempt</code>) tells operations. Drafts write no events: they are private and change nothing others see.</td></tr>
+                <tr><td>W18-1</td><td><b>Client Review: accept, reject and the clock (slice 1, as built; plan <code>docs/plans/W18-plan.md</code>).</b> <code>POST /api/v1/requests/{id}/accept</code> and <code>/reject</code> (clients, own organization) replace the TRD's single <code>verify</code>. Both carry <code>reviewing</code>, the <code>review_started_at</code> the page read: a different value means a corrected report began a new review, and the answer is 409 <code>review_changed</code>. The same person repeating the same answer gets the stored result. Accept stores the drawing, typed name, the wording shown (<code>OPS_CLIENT_ATTESTATION</code>), the time, address and browser, and the visit reports in force (<code>client_verification.reports</code>) in <code>requests</code> only; <code>request.closed</code> carries no image and the report service reads the decision from <code>GET /internal/requests/{id}/closeout-facts</code> (service <code>report</code>; internal comments left out). Reject is Client Review, Reopened, Assigned in one transaction with <code>rework_since</code>. <code>jobs/review_clock.py</code> (every 15 minutes, Redis-locked) sends <code>request.review_reminder</code> and closes at <code>OPS_AUTO_CLOSE_DAYS</code> as the system; after an outage only the latest overdue reminder goes. Production refuses review periods under a day. <code>mms_common.signature</code> now holds the PNG check both services use. New events: <code>request.client_review_started</code>, <code>request.review_reminder</code>, <code>request.reopened</code>, <code>request.closed</code>. Two charts: the accept and reject flowchart and the Client Review state.</td><td>2026-10-28</td></tr>
                 <tr><td>W9-1</td><td><b>Claim, assign and release share the state table.</b> Claim and assign are the one <code>Approved &rarr; Assigned</code> row (<code>Action.ASSIGN</code>); a technician's claim takes no body and always means themselves, an admin's assign takes 1 to 10 <code>staff_ids</code>. The new row <code>Assigned &rarr; Approved</code> is <code>Action.RELEASE</code>. Which staffing buttons a person sees (<code>claim</code>, <code>assign</code>, <code>release</code> in <code>actions</code>) comes from <code>staffing.actions_for</code>, since it depends on who is on the request</td><td>2026-10-21</td></tr>
                 <tr><td>W9-2</td><td><b>Only active technicians and admins can be assigned</b>, checked with auth (<code>POST /internal/users/lookup</code>), not from a copy: operations keeps no user table. Viewers, clients, disabled and unknown people give 422 <code>not_assignable</code></td><td>2026-10-21</td></tr>
                 <tr><td>W9-3</td><td><b>A claim race has one winner.</b> The update names the status it decided from (W8-5), so of two claims at the same moment one gets 200 and the other 409 <code>already_assigned</code> with the winner's name, which the page shows ("Tech 2 claimed it first")</td><td>2026-10-21</td></tr>
@@ -4071,7 +4332,7 @@ flowchart TD
                 <tr><td>P3 · Requests</td><td>State: request status (as built) · Decision tree: <code>derive_status</code> · Swimlane: J4 approve, assign, claim · Sequence: notification fan-out over WebSocket · Event storming: request events</td></tr>
                 <tr><td>P4 · Visits online</td><td>State: visit status · Decision tree: who can see and change an element (built) · State: a task (built) · Sequence: ending a visit in one transaction (built) · Website flowchart: which page a visit opens on (built, W12) · System flowchart: media processing pipeline (built) · State: media status</td></tr>
                 <tr><td>P5 · Offline</td><td>Built in W13: <a href="#offline-prepare-sequence">Sequence: prepare for field</a> · <a href="#offline-pin-state">State: the offline session</a> · <a href="#offline-start-decision">Decision tree: what the app shows when it starts</a> · <a href="#offline-device-storage">Data flow: device storage and what logout clears</a>. Built in W14: <a href="#offline-op-state">State: one operation</a> · <a href="#offline-conflict-decision">Decision tree: what each refusal means</a> · <a href="#offline-sync-sequence">Sequence: from the outbox to the server</a> · <a href="#offline-runner-code">Code flowchart: the sync runner</a>. Earlier plan: Sequence: prepare for field · State: offline operation lifecycle (queued → sending → applied, duplicate or conflict) · Decision tree: conflict handling · Data flow: device storage and what logout clears</td></tr>
-                <tr><td>P6 · Reports</td><td>Document flowchart: visit report signatures → final → client sign-off · Sequence: finalize saga (as built) · Customer journey: client review (J8) · State: client-review reminders and auto-close</td></tr>
+                <tr><td>P6 · Reports</td><td>Document flowchart: <a href="#reports-document-flowchart">who writes each part of a visit report</a> (W17) · Sequence: finalize saga (as built, W17) · Swimlane: <a href="#reports-j7-swimlane">J7, draft to final</a> (W17) · Decision tree: <a href="#reports-signature-invalidation">does a change clear the signatures</a> (W17) · Customer journey: client review (J8, W18) · State: client-review reminders and auto-close (W18)</td></tr>
                 <tr><td>P7 · Hardening</td><td>Logical model: summary reports and dashboards · Data flow: backup and restore · System flowchart: metrics, logs and alerts · Architecture: production hosts, networks and ports</td></tr>
                 <tr><td>P8 · Go-live</td><td>Workflow: hypercare triage · Customer journey: client onboarding from invitation · Gantt: go-live checklist</td></tr>
               </tbody>
@@ -4092,6 +4353,13 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-10-28</td><td>P6 &middot; W18 (slice 5)</td><td><b>The screens</b> (decision W18-5). Frontend: <code>/requests/:id/review</code>, the Reports tab, <code>/requests/:id/client-reports/new</code> and <code>/:reportId</code>, the Client Review and closed banners, <code>PdfSheet</code>, <code>SignDialog</code> generalized (title, wording, comment), <code>attestation</code> on the request detail (operations). Playwright <code>e2e/clientReview.spec.ts</code> (J8 accept, J8 reject, J9). Two charts (the client's journey, the request state as built). Phase 6 is closed for the staging release 0.6 checks.</td></tr>
+              <tr><td>2026-10-28</td><td>P6 &middot; W18 (slice 4)</td><td><b>Review notifications</b> (decision W18-4). Platform: <code>_plan_review</code> and <code>_plan_closeout</code> in <code>domain/notifications.py</code>, three preference types (<code>request.client_review</code>, <code>request.reopened</code>, <code>report.closeout</code>), the email buttons by type, the report topic added to the notification group. No screens yet: the links <code>/requests/{id}/review</code> and the Reports tab arrive with slice 5.</td></tr>
+              <tr><td>2026-10-28</td><td>P6 &middot; W18 (slice 3)</td><td><b>The close-out report</b> (decision W18-3). Report: <code>domain/closeout.py</code>, <code>domain/closeout_view.py</code>, <code>events/closeout_consumer.py</code>, <code>jobs/render_closeout.py</code>, <code>closeout.html.j2</code>, the version rules for a correction, <code>report.closeout_generated</code>; client reads superseded close-outs; the client form and close-out join the visual baselines. Operations: closeout-facts version 2 (client reports, the review). Two charts (document flowchart, decision tree).</td></tr>
+              <tr><td>2026-10-28</td><td>P6 &middot; W18 (slice 2)</td><td><b>Client reports</b> (decision W18-2). Operations: <code>domain/client_reports.py</code>, <code>repo/client_reports.py</code>, <code>api/client_reports/</code>, <code>GET /internal/client-reports/{id}</code>, the <code>client_report:</code> upload owner, migration 0015, the <code>report.generated</code> consumer. Report: <code>client_report_consumer</code>, <code>jobs/render_client_form.py</code>, <code>client_form.html.j2</code>, migration 0005. Events <code>client_report.submitted</code> and <code>report.generated</code> in <code>mms_common.events</code>. One chart (the submit sequence). No screens yet (slice 5).</td></tr>
+              <tr><td>2026-10-28</td><td>P6 &middot; W18 (slice 1)</td><td><b>Client Review: accept, reject and the review clock</b> (decision W18-1). Operations: <code>domain/requests/review.py</code>, <code>api/requests/review_routes.py</code>, <code>jobs/review_clock.py</code>, <code>api/requests/closeout_facts.py</code>, migration 0014; the request detail gains <code>review_started_at</code>, <code>auto_close_at</code> and <code>verification</code>. <code>mms_common</code>: <code>signature.py</code> (shared with report) and four request events. 23 new API tests under a manual clock and 21 unit tests; two charts (accept and reject, Client Review state).</td></tr>
+              <tr><td>2026-10-28</td><td>P6 &middot; W17 (correction signal)</td><td><b>A corrected report is on its way.</b> Report: <code>GET /api/v1/reports/correction?visit_id=</code> and <code>finalize.is_correcting</code>; frontend: the client's Report section shows the banner while a final report is being corrected. Playwright J7 checks it (axe included).</td></tr>
+              <tr><td>2026-10-28</td><td>P6 &middot; W17 (charts and test documents)</td><td><b>W17 charts.</b> Three diagrams drawn from the code as merged: <a href="#reports-j7-swimlane">J7, draft to final</a> (swimlane, Mermaid lanes; a draw.io version can follow), <a href="#reports-signature-invalidation">does a change clear the signatures</a> (decision tree) and <a href="#reports-document-flowchart">who writes each part of a visit report</a> (document flowchart). The finalize saga and report state charts were updated with slice 3. BSD 1.7 and TP 1.4 follow what was built.</td></tr>
               <tr><td>2026-10-28</td><td>P6 &middot; W17 (slice 5)</td><td><b>The report page</b> (decision W17-11). Frontend: <code>/visit-reports/:id</code> with the editor, photo choice, signatures, sign dialog (<code>signature_pad</code>, lazy), finalize, reopen and versions; <code>ClientReportSection</code>; the Report section's new states and link; <code>api/report.ts</code> (<code>edit</code>, <code>sign</code>, <code>finalize</code>, <code>reopen</code>). 28 new Vitest tests, Playwright J7 end to end, <code>web-design-guidelines</code> reviewed (typed-name signature, first error focused, lazy thumbnails). AFD 1.8 corrects J7 (Preview opens the app's sheet).</td></tr>
               <tr><td>2026-10-28</td><td>P6 &middot; W17 (slice 4)</td><td><b>Report notifications and reminders</b> (decision W17-12). Platform: <code>_plan_report</code> for the four W17 events, the <code>report.*</code> preference types, the report email button. Report: <code>domain/reminders.py</code>, <code>jobs/reminders.py</code> (hourly cron), <code>reminders_sent</code> and <code>remind_from</code> on a report, <code>report.finalize_reminder</code> emitter. Frontend: icons for the report notification types. Tests: working days across a weekend and a daylight saving change, each level once, a late draft, a reopened version counting again, every Appendix B row through <code>plan()</code>, and the emails and the person's choice on real MongoDB.</td></tr>
               <tr><td>2026-10-27</td><td>P6 &middot; W17 (slice 3)</td><td><b>Finalize, reopen and verify</b> (decision W17-10). Report: <code>domain/finalize.py</code>, <code>jobs/{finalize,resume}.py</code>, <code>api/{finalize_routes,verify_routes}.py</code>, <code>VisitLocks</code> in <code>repo/operations.py</code>, the final page (signature blocks, hash in the footer, <code>full-final</code> visual baseline redrawn), <code>report.finalized</code>, <code>report.finalize_failed</code> and <code>report.reopened</code> emitters. The saga sequence and the report state charts now show what was built. Tests: the saga step by step, every failure point against the lead-signature rule, a crash and the cron, reopen (once, concurrently, owed unlock), what a client sees, immutability, verify, the lock client and the final PDF's text.</td></tr>

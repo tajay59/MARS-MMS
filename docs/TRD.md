@@ -270,14 +270,17 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/requests/{id}/release` | technician, admin | Let go of a claim (admin: unassign all) → Approved when nobody is left (as built 2.11) |
 | GET | `/api/v1/requests/workload` | admin | Open requests per staff ID, for the Assign dialog |
 | POST | `/api/v1/requests/{id}/cancel` | client (own, Submitted / Approved / Assigned), admin (any state before Closed; reason required from Scheduled on) | → Cancelled. Planned visits are cancelled in the same transaction |
-| POST | `/api/v1/requests/{id}/verify` | client | `{outcome: accepted\|rejected, comment, signature?}`; a signature is required when accepted |
+| POST | `/api/v1/requests/{id}/accept` | client (own) | Client Review → Closed. `{reviewing, typed_name, image, attestation_accepted, comment?}`; `image` is the drawn signature as base64 PNG (W18-1, W18-3) |
+| POST | `/api/v1/requests/{id}/reject` | client (own) | Client Review → Reopened → Assigned (same staff) in one transaction. `{reviewing, reason}` (5 to 1000 characters) |
 | GET | `/api/v1/queue` | technician, admin, viewer (client: 404) | Approved, unassigned requests, oldest approval first |
 | GET / POST | `/api/v1/requests/{id}/comments` | scoped (internal hidden from clients); viewers read only | Flat thread; POST is idempotent by `id` (as built 2.12) |
 | PATCH | `/api/v1/requests/{id}/comments/{cid}` | author, within 15 min | Edit a comment (body; staff may also toggle `internal`) |
 | GET | `/api/v1/requests/{id}/attachments/{media_id}/download`, `/comments/{comment_id}/attachments/{media_id}/download` | scoped (internal hidden from clients) | Ten-minute link to a PDF. Files attach at creation (`media_ids` on `POST /requests`) or with a comment, not afterwards (as built 2.12) |
-| GET / POST | `/api/v1/client-reports` | client (own org), staff (read) | List; create (`kind: pdf\|form`, status draft) |
-| PATCH | `/api/v1/client-reports/{id}` | client (own, draft only) | Update the form draft |
-| POST | `/api/v1/client-reports/{id}/submit` | client | Submit (form → PDF rendered by report) |
+| GET / POST | `/api/v1/client-reports` | GET: client (own org: submitted reports and their own drafts), staff (submitted only); POST: client | List (`request_id`, `station_id` filters); create a draft `{id?, request_id, kind: pdf\|form, title?, report_date?, station_ids?}`, idempotent by `id` (as built, W18-9) |
+| GET / PATCH | `/api/v1/client-reports/{id}` | GET: scoped as above; PATCH: client (the author, draft only) | `{version, title?, report_date?, station_ids?, media_id? (pdf), summary?, observations?, data_quality_notes?, image_ids? (form)}`; a submitted report is 409 `not_a_draft` (CRP-4) |
+| POST | `/api/v1/client-reports/{id}/submit` | client (the author) | Draft → submitted; idempotent; `client_report.submitted` and, for files, `media.visibility_requested` (org) in the same transaction. A form report whose PDF failed is submitted again as Try again (`attempt` + 1) |
+| GET | `/api/v1/client-reports/{id}/download` | scoped | Ten-minute link to a PDF report's file; a form report's PDF is `GET /api/v1/reports/{report_id}/download` |
+| GET | `/api/v1/client-reports/{id}/attachments/{media_id}/download` | scoped | Ten-minute link to a picture attached to a form report |
 | GET | `/api/v1/my-work` | staff | My assigned requests |
 | GET | `/internal/requests/{id}` | service | Request, org, stations, staff and status (used by report) |
 
@@ -302,6 +305,8 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/internal/visits/{id}/lock` | service (report) | Lock the visit's boards; idempotent per `{report_id, report_version}`; returns `{visit_id, locked, visit_version}` (as built, W17) |
 | POST | `/internal/visits/{id}/unlock` | service (report) | Unlock for correction or after a failed finalize; idempotent |
 | GET | `/internal/visits/{id}` | service | Full visit for report rendering |
+| GET | `/internal/client-reports/{id}` | service (report) | A submitted online-form report: title, date, stations with zones, summary, observations, data-quality notes, picture list, organization name. The event carries none of it (W18-10) |
+| GET | `/internal/requests/{id}/closeout-facts` | service (report) | What the close-out report prints: the request, timeline, visits with the report versions in force, the submitted client reports (title, kind, date, author, never their text), comments a client may read, and the client's decision with the drawn signature and the review it answered (`facts_version` 2; W18-3, W18-11) |
 | GET | `/internal/attachable?owner_ref=&user=` | service (media) | May this user attach a file here? Returns `org_id` |
 | POST | `/internal/labels` | service (report) | `{station_ids}` (1 to 200) → `[{station_id, code, name, qr_token, org_name, country}]` in the order asked, unknown stations left out. The only place report can read tokens (as built 2.9) |
 | GET | `/internal/snapshot/{stations\|requests\|visits\|sensor_units\|calibrations}` | service | Backfill (§8.6) |
@@ -338,7 +343,7 @@ def derive_status(req, visits) -> Status:
 
 - **Parallel visits.** A request may have several visits planned or started at once. Its status follows the busiest visit.
 - **Report reopened in Client Review** → a report is no longer final → **In progress**. `review_started_at` and `reminders_sent` are cleared, so reminders and auto-close stop. Re-finalizing starts a fresh Client Review.
-- **Report reopened after Closed** → the request stays Closed. The report service regenerates the close-out report when the corrected version is final, and the client is notified (PRD RPT-6).
+- **Report reopened after Closed** → the request stays Closed. When the corrected version is final the report service makes close-out version n + 1 in the same transaction that makes the visit report final (`supersedes_id`; the earlier one becomes `superseded` when the new one is drawn, and a client can still read it), or joins the correction to a close-out that is still to be drawn; the PDF lists the correction ("Corrected report VR-… v2 replaced v1"), and the client is notified (PRD RPT-6; as built, W18-12).
 - **Report-only correction after a rejection** → reopening a report gives In progress; finalizing it gives Client Review.
 - **Cancel.** Cancelling a request cancels its planned visits in the same transaction. A started visit is left as it is: its work is still accepted and synced (no data loss), but the request stays Cancelled.
 
@@ -372,10 +377,12 @@ Each station on a visit has a **board**: a list of elements in `visit_elements` 
 |---|---|
 | `report.finalized` (visit) | Set `visit.report_status = final` (guarded by report version), recompute the request status |
 | `report.reopened` (visit) | Set `visit.report_status = draft`, recompute the request status |
-| `report.generated` (client_form) | Attach the rendered PDF to the client report |
+| `report.generated` (client_form) | Record on the client report whether its PDF is `ready` (with `report_id`) or `failed`; only the answer to the latest `attempt` counts, once (as built, W18-10) |
 | `org.created`, `org.updated` | Refresh operations' copy of the organization (`organizations`: name, country, status, guarded by `aggregate_version`) and the owner name copied onto its stations. The copy is also filled from auth's `/internal/snapshot/organizations` at every start (§8.6); new stations need an active organization (as built 2.6) |
 
 **Cron (Redis-locked):** client-review reminders on days 7, 21 and 28 (`request.review_reminder`); auto-close on day 30 (`request.closed` with `auto_closed: true`), both daily and configurable (`OPS_REVIEW_REMINDER_DAYS`, `OPS_AUTO_CLOSE_DAYS`); weekly calibration-due digest (`calibration.due_digest`, CAL-5).
+
+**As built (W18 slice 1: Client Review).** `POST /requests/{id}/accept` and `/reject` (clients, own organization; another's is 404) replace the single `verify` route. Both carry `reviewing`, the request's `review_started_at` as the page read it (the field, not the milestone, which keeps the first review's time): if a corrected report has started a new review since, the answer is 409 `review_changed` and the page shows the new reports, so a client never signs a review they did not see. The same person sending the same answer for the same review again gets the stored result (200). Accept checks the drawing with `mms_common.signature` (PNG magic bytes and end marker, at most 100 KB and 1200 x 600 px; also used by the report service) and stores `client_verification = {outcome, by, by_name, at, reviewing, comment, reports: [{visit_id, ref, report_id, report_version}], signature: {typed_name, image, attestation, ip, user_agent}}`; the drawing lives only there. The wording shown is `OPS_CLIENT_ATTESTATION`. Reject goes Client Review → Reopened → Assigned in one transaction (two history entries, the second by the system), sets `rework_since`, adds to `reopen_count` and clears `review_started_at` and `reminders_sent`. Entering Client Review now emits `request.client_review_started` (from `settle_request`). The review clock is `jobs/review_clock.py`, run every 15 minutes by `mms_common.cron.run_periodic` under a Redis lock (`OPS_REVIEW_CLOCK_EVERY_S`): each request in Client Review is one transaction guarded by its status and its review; days are 24-hour periods since `review_started_at`; after an outage only the latest overdue reminder is sent and all are marked; at `OPS_AUTO_CLOSE_DAYS` it closes as the system with outcome `auto_closed`. Settings are days as numbers (fractions allowed so a staging check needs no calendar); production refuses less than a day. Index `(status, review_started_at)` (migration 0014). The request detail gains `review_started_at`, `auto_close_at`, `verification` (outcome, who, when, comment, typed name; never the image) and the actions `accept` and `reject` for the client.
 
 ### 3.3 media (media + media-worker)
 
@@ -425,7 +432,7 @@ Each station on a visit has a **board**: a list of elements in `visit_elements` 
 | `visit.ended` | Create a draft visit report (waits up to 5 min for `media.processed` on that visit, then renders with what is ready) |
 | `visit.element_added` / `visit.element_updated` / `visit.element_deleted` | Refresh the draft's facts snapshot (draft only; clears signatures, §11.2) |
 | `media.processed` | Refresh the thumbnails in the draft |
-| `request.closed` | Render the close-out report |
+| `request.closed` | Make the close-out report (version 1): a record and its number `CO-YYYY-NNNN` at once, the PDF in the worker from `/internal/requests/{id}/closeout-facts` (as built, W18-11) |
 | `client_report.submitted` (form) | Render the client report PDF → `report.generated` |
 | `request.*`, `visit.*`, `sensor.*`, `calibration.*`, `station.*`, `config.*` | Update the read model (§5.4), upserting only when `aggregate_version` is newer |
 
@@ -461,6 +468,8 @@ Each station on a visit has a **board**: a list of elements in `visit_elements` 
 | POST | `/api/v1/audit/verify` | admin | Run a hash-chain integrity check (job) → result |
 
 **Notification module.** Consumes the user-facing events in PRD Appendix B. For each event: resolve recipients from the local `user_directory` read model (built from `user.*` events, backfilled from auth on first start) and from the event data (org, assigned staff, attending staff) → store the notification → publish to Redis channel `ws:user:{id}` → every platform instance pushes to its connected sockets → send email if enabled. Entity changes (`request.status_changed`, `comment.added`) are also pushed as `entity.updated` messages for live pages (NOT-5). Account emails (NOT-3) are sent in Phase 1, before WebSocket delivery exists.
+
+**As built (W18 slice 4: review notifications).** `domain/notifications._plan_review` (events in `REVIEW_EVENTS`, kept apart from the request events because who hears depends on the client's answer): `request.client_review_started` and `request.review_reminder` tell every active client user of the organization, in-app and by email, with the link `/requests/{id}/review` and the button "Review the work" (preference `request.client_review`; a reminder says "waiting 7 days, closes by itself after 30", days written without a trailing `.0`); `request.reopened` (the client's rejection) tells the assigned staff and every admin, in-app and by email, with the client's reason (preference `request.reopened`); `request.closed` tells the colleagues of the client, the assigned staff and the admins in the app (accepted: not the person who signed; auto-closed: every client); `client_report.submitted` tells the assigned staff and the admins in the app (a second try at drawing the same form, `attempt` > 1, tells nobody); `report.closeout_generated` tells the organization's clients in the app, and a corrected one (`corrected`) also by email with the button "Read the report" (preference `report.closeout`). The notification group now also consumes `mms.report.events` (`notification_topics`; the Kafka ACL already allowed it). No report or form text travels in any of these events; a rejection's reason and a client report's title are the client's own words, shown to staff only.
 
 **Audit module.** Consumes every `mms.*.events` topic (§12).
 
@@ -609,11 +618,13 @@ requests {
 }
 comments { _id, request_id, org_id, author_id, author_name, author_role, body, attachments: [], internal, edited_at }
 client_reports {
-  _id, request_id, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
-  media_id /*pdf upload or rendered pdf*/, report_id /*rendered form*/,
-  form: { title, report_date, station_ids, summary,
-          observations: [{ station_id, text }], data_quality_notes, attachments: [] },
-  submitted_by, submitted_at
+  _id, request_id, request_ref, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
+  title, report_date /*ISO date*/, station_ids /*of the request*/,
+  file: { media_id, name, size_bytes } /*a pdf report's upload*/,
+  form: { summary, observations: [{ station_id, text }], data_quality_notes,
+          images: [{ media_id, name, size_bytes }] /*up to 10*/ },
+  render: "none"|"rendering"|"ready"|"failed" /*a form's PDF*/, report_id /*the report service's record*/,
+  attempt, submitted_by, submitted_by_name, submitted_at
 }
 
 // visits module
@@ -644,7 +655,7 @@ sync_operations { _id /*client op id*/, user_id, device_id, type, result, applie
 counters { _id /*"MR-2026" or "VR-2026-0042"*/, seq }
 ```
 
-Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `request_id`; `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `visit_elements` on `(visit_id, station_id, created_at)` and `org_id`.
+Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `(request_id, _id)`, `(org_id, status)`, `station_ids` and the media ids (migration 0015); `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `visit_elements` on `(visit_id, station_id, created_at)` and `org_id`.
 
 ### 5.3 media
 
@@ -1045,12 +1056,12 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `request.assigned` | operations | platform, report | request_id, staff_ids, claimed |
 | `request.status_changed` | operations | platform, report | request_id, ref, org_id, station_ids, category, priority, status, from_status (null on creation), to_status, reason? |
 | `request.client_review_started` | operations | platform, report | request_id |
-| `request.review_reminder` | operations | platform (notification) | request_id, day |
-| `request.reopened` | operations | platform, report | request_id, comment |
-| `request.closed` | operations | platform, report | request_id, outcome, auto_closed, signature? |
+| `request.review_reminder` | operations | platform (notification) | request_id, day, auto_close_day |
+| `request.reopened` | operations | platform, report | request_id, comment, by_id (the client's rejection) |
+| `request.closed` | operations | platform, report | request_id, outcome (`accepted` or `auto_closed`), auto_closed, by_id. **No signature**: images never travel in events (W18-3); the report service reads it from `/internal/requests/{id}/closeout-facts` |
 | `request.cancelled` | operations | platform, report | request_id, reason? |
 | `comment.added` / `comment.edited` | operations | platform | request_id, comment_id, internal |
-| `client_report.submitted` | operations | report, platform | client_report_id, request_id, kind, form? |
+| `client_report.submitted` | operations | report, platform | the request's facts, client_report_id, kind, report_title, submitted_by_id, submitted_by_name, attempt. **No text**: the report service reads a form from `/internal/client-reports/{id}` (W18-10) |
 | `visit.scheduled` / `visit.rescheduled` | operations | platform, report | visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners |
 | `visit.cancelled` / `visit.restored` | operations | platform, report | visit_id, request_id |
 | `visit.started` | operations | report, platform (audit) | visit_id, request_id, started_at |
@@ -1067,7 +1078,8 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `report.finalized` | report | operations, platform, report (read model) | report_id, type, subject_ref, request_id, version |
 | `report.finalize_failed` | report | platform | report_id, version, error |
 | `report.reopened` | report | operations, platform | report_id, new_version, reason |
-| `report.generated` | report | operations, platform | report_id, type, subject_ref |
+| `report.closeout_generated` | report | platform | report_id, number (`CO-YYYY-NNNN`), version, request_id, request_ref, org_id, title?, corrected, pdf_sha256 (as built, W18-11; ids only) |
+| `report.generated` | report | operations, platform | client_report_id, request_id, org_id, report_id, number, outcome (`ready` or `failed`), pdf_sha256?, attempt (as built, W18-10; the close-out's event is `report.closeout_generated`, slice 3) |
 | `report.finalize_reminder` | report | platform (notification) | report_id, working_days |
 
 ¹ User fields: `user_id`, `email`, `name`, `roles`, `status`, `org_id`, so `user_directory` can upsert from any `user.*` event (§5.5).
@@ -1167,7 +1179,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 
 - The PWA uses `signature_pad` to capture a drawn signature (PNG, trimmed, ≤ 100 KB), plus a typed full name and an attestation checkbox showing the configured wording.
 - The server records signer ID, role, `signed_at` (server time), IP, user agent and the `content_hash` / `content_version` signed.
-- **Client acceptance signature** is captured on `POST /requests/{id}/verify` and stored in `requests.client_verification.signature`. It is carried in `request.closed` and rendered on the close-out report.
+- **Client acceptance signature** is captured on `POST /requests/{id}/accept` and stored in `requests.client_verification.signature`. It is **not** carried in any event: the report service reads it from `GET /internal/requests/{id}/closeout-facts` when it draws the close-out, keeps only the drawing's SHA-256 in its record, and prints the drawing on the PDF (W18-3).
 - Signing needs a connection (OFF-10).
 - A certificate-based PDF signature (PAdES, for example with pyHanko and an organization certificate) is not in v1 but can be added at step 4.4 without data-model changes (PRD Q3).
 

@@ -28,6 +28,7 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/api/v1/reports/{report_id}"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports/{report_id}/download"): roles("technician", "admin", "viewer", "client"),
     ("POST", "/api/v1/reports/{report_id}/preview"): roles("technician", "admin"),
+    ("GET", "/api/v1/reports/correction"): roles("technician", "admin", "viewer", "client"),
     # Editing and signing (W17): attending staff and admins edit (the route checks they attended),
     # the people who attended sign. A viewer never mutates and a client has no draft.
     ("PATCH", "/api/v1/reports/{report_id}/content"): roles("technician", "admin"),

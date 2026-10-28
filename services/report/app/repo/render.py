@@ -41,6 +41,10 @@ class Renderer(Protocol):
 
     async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered: ...
 
+    async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
+    async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
 
 def qr_data_uri(url: str) -> str:
     """The QR code as an SVG data URI, black on white with the standard quiet zone. Level M
@@ -84,6 +88,18 @@ def render_visit_html(view: dict[str, Any], template_version: str) -> str:
         v={**view, "videos": videos}, template_version=template_version)
 
 
+def render_client_form_html(view: dict[str, Any], template_version: str) -> str:
+    """A client's online-form report as HTML (CRP-3). `view` is `domain/client_form_view.build`."""
+    return _env.get_template("client_form.html.j2").render(
+        v=view, template_version=template_version)
+
+
+def render_closeout_html(view: dict[str, Any], template_version: str) -> str:
+    """A request's close-out report as HTML (RPT-8). `view` is `domain/closeout_view.build`."""
+    return _env.get_template("closeout.html.j2").render(
+        v=view, template_version=template_version)
+
+
 def to_pdf(html: str) -> Rendered:
     from weasyprint import HTML  # noqa: PLC0415 - imports Pango; keep it out of API start-up
 
@@ -99,3 +115,12 @@ class WeasyRenderer:
     async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
         html = render_visit_html(view, template_version)
         return await asyncio.to_thread(to_pdf, html)
+
+    async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered:
+        html = render_client_form_html(view, template_version)
+        return await asyncio.to_thread(to_pdf, html)
+
+    async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered:
+        html = render_closeout_html(view, template_version)
+        return await asyncio.to_thread(to_pdf, html)
+

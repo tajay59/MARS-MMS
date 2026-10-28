@@ -32,7 +32,7 @@ from app import migrations as app_migrations
 from app.api import edit_routes, finalize_routes, report_routes, reports, verify_routes
 from app.config import Settings
 from app.events import consumer
-from app.jobs import backfill, drafts, reminders, resume
+from app.jobs import backfill, drafts, reminders, render_client_form, render_closeout, resume
 from app.repo.media import MediaSource
 from app.repo.operations import FactsSource, LabelSource, VisitLocks
 from app.repo.render import Renderer
@@ -141,6 +141,18 @@ def create_app(
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "reminders", settings.reminder_tick_s,
                     lambda: reminders.tick(app.state.services), stop, first_delay_s=90.0,
+                )),
+                # Queues the PDFs of clients' online-form reports
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "client_forms", settings.draft_tick_s,
+                    lambda: render_client_form.tick(app.state.services), stop,
+                    first_delay_s=15.0,
+                )),
+                # Queues the close-out reports of Closed requests
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "closeouts", settings.draft_tick_s,
+                    lambda: render_closeout.tick(app.state.services), stop,
+                    first_delay_s=17.0,
                 )),
                 # Takes up a finalize a worker left half done, and unlocks owed to operations
                 asyncio.create_task(run_periodic(

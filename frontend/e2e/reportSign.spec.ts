@@ -115,7 +115,7 @@ test('A technician edits, signs and finalizes the report, and the client reads i
   await sheet.getByRole('button', { name: 'Close' }).click()
   await client.getByRole('button', { name: 'Download PDF' }).click()
 
-  // An admin reopens it for correction; the client sees no report until the corrected one is final
+  // An admin reopens it for correction; the client is told a corrected report is on its way
   const admin = await staffPage(browser, 'admin@example.org')
   await admin.goto(reportPath)
   await expect(admin.getByText('Final v1').first()).toBeVisible()
@@ -132,7 +132,10 @@ test('A technician edits, signs and finalizes the report, and the client reads i
 
   await client.reload()
   await expect(client.getByRole('heading', { level: 1, name: /VR-/ })).toBeVisible()
-  await expect(client.getByRole('heading', { name: 'Report', exact: true })).toHaveCount(0)
+  const waiting = client.getByRole('region', { name: 'Report' })
+  await expect(waiting.getByText('A corrected report is on its way.')).toBeVisible()
+  await expect(waiting.getByRole('button', { name: 'Open report' })).toHaveCount(0)
+  await checkA11y(client, '/visits/:id (client, correction in progress)')
 
   await client.context().close()
   await admin.context().close()

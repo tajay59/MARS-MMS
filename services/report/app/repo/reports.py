@@ -321,3 +321,199 @@ async def mark_reminded(
 async def by_pdf_hash(db: Db, sha256: str) -> dict[str, Any] | None:
     doc: dict[str, Any] | None = await col(db).find_one({"pdf_sha256": sha256})
     return doc
+
+
+# --- a client's online-form report (W18-10) --------------------------------------------------
+
+
+async def next_sequence(db: Db, key: str, session: AsyncClientSession) -> int:
+    """The next number of a series (`CR-…-NN`). It moves inside the caller's transaction, so a
+    report that fails to save does not use one up."""
+    counter: dict[str, Any] | None = await db["counters"].find_one_and_update(
+        {"_id": key}, {"$inc": {"seq": 1}}, upsert=True, return_document=ReturnDocument.AFTER,
+        session=session,
+    )
+    if counter is None:  # upsert=True always returns the document
+        raise RuntimeError("the counter was not created")
+    return int(counter["seq"])
+
+
+async def for_client_report(
+    db: Db, client_report_id: str, session: AsyncClientSession | None = None
+) -> dict[str, Any] | None:
+    doc: dict[str, Any] | None = await col(db).find_one(
+        {"type": "client_form", "client_report_id": client_report_id}, session=session)
+    return doc
+
+
+async def restart_client_form(
+    db: Db, report_id: str, *, attempt: int, now: datetime, session: AsyncClientSession
+) -> bool:
+    """render_failed -> rendering, for the client's next try. False if it moved meanwhile."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "render_failed", "attempt": {"$lt": attempt}},
+        {"$set": {"status": "rendering", "attempt": attempt, "render.state": "idle",
+                  "render.attempts": 0, "render.error": None, "updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def rendering_waiting(
+    db: Db, type_: str, stuck_before: datetime
+) -> list[dict[str, Any]]:
+    """Reports of a type to draw: none queued yet, or queued or running for so long that the
+    worker that had it is gone (the job is safe to take twice)."""
+    cursor = col(db).find({
+        "type": type_, "status": "rendering",
+        "$or": [{"render.state": "idle"},
+                {"render.state": {"$in": ["queued", "running"]},
+                 "updated_at": {"$lte": stuck_before}}],
+    })
+    return [d async for d in cursor.limit(50)]
+
+
+async def queue_rendering(db: Db, report_id: str, now: datetime, stuck_before: datetime) -> bool:
+    """idle (or abandoned) -> queued, once: two ticks queue it once."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering",
+         "$or": [{"render.state": "idle"},
+                 {"render.state": {"$in": ["queued", "running"]},
+                  "updated_at": {"$lte": stuck_before}}]},
+        {"$set": {"render.state": "queued", "render.queued_at": now, "updated_at": now}},
+    )
+    return bool(result.modified_count)
+
+
+async def claim_rendering(db: Db, report_id: str, now: datetime) -> dict[str, Any] | None:
+    doc: dict[str, Any] | None = await col(db).find_one_and_update(
+        {"_id": report_id, "status": "rendering", "render.state": {"$in": ["queued", "running"]}},
+        {"$set": {"render.state": "running", "render.started_at": now, "updated_at": now},
+         "$inc": {"render.attempts": 1}},
+        return_document=ReturnDocument.AFTER,
+    )
+    return doc
+
+
+async def requeue_rendering(
+    db: Db, report_id: str, now: datetime, *, waiting: bool = False
+) -> None:
+    """Back to the queue after a failed try. `waiting` is not a failure (it is waiting for
+    another service to catch up), so the try is not counted."""
+    update: dict[str, Any] = {"$set": {"render.state": "queued", "updated_at": now}}
+    if waiting:
+        update["$inc"] = {"render.attempts": -1}
+    await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "render.state": "running"}, update)
+
+
+async def release_rendering(db: Db, report_id: str, now: datetime) -> None:
+    """Let go of a draw that cannot be used: the tick queues it again."""
+    await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "render.state": "running"},
+        {"$set": {"render.state": "idle", "render.attempts": 0, "updated_at": now}},
+    )
+
+
+async def finish_client_form(
+    db: Db, report_id: str, *, attempt: int, facts: dict[str, Any], content_hash: str,
+    final_pdf: dict[str, Any], session: AsyncClientSession,
+) -> bool:
+    """rendering -> final, once, for the attempt the PDF was drawn for."""
+    at = final_pdf["at"]
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "attempt": attempt},
+        {"$set": {"status": "final", "content.form": facts, "content_hash": content_hash,
+                  "final_pdf": final_pdf, "pdf_key": final_pdf["key"],
+                  "pdf_sha256": final_pdf["sha256"], "finalized_at": at, "render.state": "idle",
+                  "render.error": None, "updated_at": at}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def fail_client_form(
+    db: Db, report_id: str, *, attempt: int, code: str, now: datetime, session: AsyncClientSession
+) -> bool:
+    """rendering -> render_failed, once. The client may submit again."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "attempt": attempt},
+        {"$set": {"status": "render_failed", "render.state": "failed", "render.error": code,
+                  "updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+# --- a request's close-out report (W18-11, W18-12) ---------------------------------------------
+
+
+async def latest_closeout(
+    db: Db, request_id: str, session: AsyncClientSession | None = None
+) -> dict[str, Any] | None:
+    doc: dict[str, Any] | None = await col(db).find_one(
+        {"type": "closeout", "request_id": request_id}, sort=[("version", -1)], session=session)
+    return doc
+
+
+async def merge_expectation(
+    db: Db, report_id: str, visit_id: str, version: int, now: datetime,
+    session: AsyncClientSession,
+) -> bool:
+    """A correction arrived while the close-out is still to be drawn: it joins it. The inputs
+    counter moves, so a draw that read the facts before this cannot finish (it is drawn again)."""
+    result = await col(db).update_one(
+        {"_id": report_id, "status": {"$in": ["rendering", "render_failed"]}},
+        {"$max": {f"expects.{visit_id}": version}, "$inc": {"inputs_seq": 1},
+         "$set": {"updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def finish_closeout(
+    db: Db, report_id: str, *, inputs_seq: int, facts: dict[str, Any], content_hash: str,
+    final_pdf: dict[str, Any], corrections: list[dict[str, Any]], session: AsyncClientSession,
+) -> bool:
+    """rendering -> final, once, if nothing joined the close-out since the facts were read."""
+    at = final_pdf["at"]
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering", "inputs_seq": inputs_seq},
+        {"$set": {"status": "final", "content.closeout": facts, "content_hash": content_hash,
+                  "corrections": corrections, "final_pdf": final_pdf,
+                  "pdf_key": final_pdf["key"], "pdf_sha256": final_pdf["sha256"],
+                  "finalized_at": at, "render.state": "idle", "render.error": None,
+                  "updated_at": at}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def fail_closeout(
+    db: Db, report_id: str, *, code: str, now: datetime, session: AsyncClientSession
+) -> bool:
+    result = await col(db).update_one(
+        {"_id": report_id, "status": "rendering"},
+        {"$set": {"status": "render_failed", "render.state": "failed", "render.error": code,
+                  "updated_at": now}},
+        session=session,
+    )
+    return bool(result.modified_count)
+
+
+async def restart_failed_closeouts(db: Db, before: datetime, now: datetime) -> list[str]:
+    """A close-out has no client to try again: one that failed is drawn again after a while,
+    until it works. Returns the ids."""
+    ids = [
+        d["_id"] async for d in col(db).find(
+            {"type": "closeout", "status": "render_failed", "updated_at": {"$lte": before}},
+            {"_id": 1}).limit(20)
+    ]
+    for report_id in ids:
+        await col(db).update_one(
+            {"_id": report_id, "status": "render_failed"},
+            {"$set": {"status": "rendering", "render.state": "idle", "render.attempts": 0,
+                      "render.error": None, "updated_at": now}},
+        )
+    return ids
+

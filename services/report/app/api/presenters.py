@@ -46,12 +46,19 @@ def summary(doc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def client_may_read(doc: dict[str, Any], user: User) -> bool:
+    """A client reads a final report of their own organization. A close-out that a correction
+    replaced stays readable (W18-12): the client may hold the earlier PDF."""
+    shown = ("final", "superseded") if doc["type"] == "closeout" else ("final",)
+    return bool(doc["status"] in shown and doc["org_id"] == user.org_id)
+
+
 def visible(user: User, doc: dict[str, Any] | None) -> dict[str, Any]:
     """Staff read everything; a client only a final report of their organization (rule 6). Out
     of scope is 404, never 403 (rule 4)."""
     if doc is None:
         raise NotFound()
-    if user.is_client and not (doc["status"] == "final" and doc["org_id"] == user.org_id):
+    if user.is_client and not client_may_read(doc, user):
         raise NotFound()
     return doc
 
@@ -74,6 +81,12 @@ def report_out(
     user: User, doc: dict[str, Any], signed: list[dict[str, Any]], attestation: str
 ) -> ReportOut:
     """`signed` is every signature of the report; only this version's are shown."""
+    if doc["type"] in ("client_form", "closeout"):
+        # A client form and a close-out are the same page for staff and client
+        return ReportOut(
+            **summary(doc), content_version=doc["content_version"],
+            facts_version=doc["facts_version"], content=doc["content"],
+        )
     if user.is_client:
         return ReportOut(**summary(doc), content_version=doc["content_version"],
                          facts_version=doc["facts_version"],
