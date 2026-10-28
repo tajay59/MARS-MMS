@@ -188,10 +188,14 @@ async def test_each_role_sees_its_own_choices_with_the_defaults(env):
         assert r.status_code == 200
         seen[key] = flat(r.json())
     visits = {"visit.scheduled": True, "visit.cancelled": True}
+    reminder = {"report.finalize_reminder": True}
     assert seen["admin"] == {"request.submitted": True, "request.assigned": True,
-                             "request.cancelled": False, "calibration.digest": True, **visits}
-    assert seen["tech1"] == {"request.assigned": True, "request.cancelled": False, **visits}
-    assert seen["client_a1"] == {"request.decided": True, "request.cancelled": True, **visits}
+                             "request.cancelled": False, "calibration.digest": True,
+                             **reminder, **visits}
+    assert seen["tech1"] == {"request.assigned": True, "request.cancelled": False,
+                             **reminder, **visits}
+    assert seen["client_a1"] == {"request.decided": True, "request.cancelled": True,
+                                 "report.finalized": True, "report.reopened": True, **visits}
     assert seen["viewer"] == {}
 
 
