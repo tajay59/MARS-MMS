@@ -34,6 +34,7 @@ RequestStatus = Literal[
 ]
 Action = Literal[
     "approve", "deny", "assign", "claim", "release", "cancel", "edit", "schedule_visit",
+    "accept", "reject",
 ]
 
 
@@ -90,6 +91,27 @@ class RequestPatch(In):
 
 class DenyIn(In):
     reason: Reason  # the client sees it (REQ-6)
+
+
+class AcceptIn(In):
+    """REQ-13, W18-2/3. The client signs the work off. `reviewing` is the request's
+    `review_started_at` as the page read it (not the milestone, which keeps the first). `image`
+    is the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted), also for "use my
+    typed name"."""
+
+    reviewing: datetime
+    typed_name: str = Field(max_length=400)
+    image: str = Field(max_length=300_000)
+    attestation_accepted: Literal[True]
+    comment: Reason | None = None
+
+
+class RejectIn(In):
+    """REQ-13. The client sends the work back, with a reason the staff are told."""
+
+    reviewing: datetime
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5,
+                                             max_length=1000)]
 
 
 class CancelIn(In):
@@ -206,6 +228,26 @@ class Milestones(BaseModel):
     closed_at: datetime | None = None
 
 
+class VerificationOut(BaseModel):
+    """The client's answer to Client Review (REQ-13). The drawn signature is not in it."""
+
+    outcome: Literal["accepted", "rejected", "auto_closed"]
+    by: PersonRef | None
+    at: datetime
+    comment: str | None
+    typed_name: str | None
+
+    @classmethod
+    def of(cls, doc: dict[str, Any] | None) -> VerificationOut | None:
+        if not doc:
+            return None
+        by = PersonRef(id=doc["by"], name=doc.get("by_name") or "") if doc.get("by") else None
+        return cls(
+            outcome=doc["outcome"], by=by, at=doc["at"], comment=doc.get("comment"),
+            typed_name=(doc.get("signature") or {}).get("typed_name"),
+        )
+
+
 class RequestDetail(RequestSummary):
     description: str
     status_history: list[HistoryEntry]
@@ -217,11 +259,15 @@ class RequestDetail(RequestSummary):
     attachments: list[AttachmentOut]
     comment_count: int  # as this reader may see them: a client's count leaves out internal ones
     visits: list[VisitBrief]  # soonest first (PRD VIS-11: a client sees their own organization's)
+    verification: VerificationOut | None  # the client's last answer to Client Review
+    review_started_at: datetime | None  # the current review's start: what `reviewing` names
+    auto_close_at: datetime | None  # while in Client Review: when it closes if nobody answers
 
     @classmethod
     def build(
         cls, doc: dict[str, Any], stations: dict[str, dict[str, Any]], orgs: dict[str, str],
         actions: list[Action], comment_count: int = 0, visits: list[VisitBrief] | None = None,
+        auto_close_at: datetime | None = None,
     ) -> RequestDetail:
         return cls(
             **RequestSummary.of(doc, stations, orgs).model_dump(),
@@ -238,6 +284,8 @@ class RequestDetail(RequestSummary):
             milestones=Milestones(**doc.get("milestones", {})), version=doc["version"],
             actions=actions, attachments=[AttachmentOut(**a) for a in doc.get("attachments", [])],
             comment_count=comment_count, visits=visits or [],
+            verification=VerificationOut.of(doc.get("client_verification")),
+            review_started_at=doc.get("review_started_at"), auto_close_at=auto_close_at,
         )
 
 

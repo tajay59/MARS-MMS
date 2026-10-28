@@ -304,6 +304,44 @@ class RequestReleased(RequestData):
     by_id: str
 
 
+# --- Client Review (W18) ----------------------------------------------------------------------
+
+
+@register("request.client_review_started")
+class RequestClientReviewStarted(RequestData):
+    """Every visit report is final and no further visit is needed: the client is asked to accept
+    or reject (REQ-12). It also starts again after a corrected report is final."""
+
+
+@register("request.review_reminder")
+class RequestReviewReminder(RequestData):
+    """The client has not answered after `day` days in Client Review (REQ-14). `auto_close_day`
+    says when the request closes by itself, so the email can say so."""
+
+    day: float
+    auto_close_day: float
+
+
+@register("request.reopened")
+class RequestReopened(RequestData):
+    """The client rejected the work (REQ-13). The request is Reopened and goes straight back to
+    Assigned with the same staff. `comment` is the client's reason; the staff are told it."""
+
+    comment: str
+    by_id: str
+
+
+@register("request.closed")
+class RequestClosed(RequestData):
+    """Closed by the client's acceptance or, after the review period, by the system (REQ-13,
+    REQ-14). The client's drawn signature is never in the event: the report service reads it
+    from operations when it makes the close-out report."""
+
+    outcome: str  # accepted | auto_closed
+    auto_closed: bool
+    by_id: str | None = None
+
+
 # --- comment.* (W9 slice 2) -------------------------------------------------------------------
 
 

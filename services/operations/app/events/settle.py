@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from mms_common.errors import NotFound
+from mms_common.events import operations as ev
 from mms_common.ids import new_id
 from mms_common.time import Clock
 from pymongo import ReturnDocument
@@ -93,4 +94,7 @@ async def settle_request(
     )
     if "status" in changes:
         await emitter.request_status(updated, s, from_status=before, event_id=event_id)
+        if settled.status is Status.CLIENT_REVIEW:  # the client is asked to review (REQ-12)
+            await emitter.request(ev.RequestClientReviewStarted, "request.client_review_started",
+                                  updated, s)
     return updated

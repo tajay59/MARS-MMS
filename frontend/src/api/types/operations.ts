@@ -232,6 +232,28 @@ export interface paths {
         patch: operations["patch_request_api_v1_requests__id__patch"];
         trace?: never;
     };
+    "/api/v1/requests/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Request
+         * @description REQ-13: the client signs the work off. The request closes, the decision keeps the drawing,
+         *     the typed name, the wording shown, the time, address and browser, and the visit reports in
+         *     force. The drawing is stored here only; `request.closed` does not carry it.
+         */
+        post: operations["accept_request_api_v1_requests__id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{id}/approve": {
         parameters: {
             query?: never;
@@ -414,6 +436,28 @@ export interface paths {
          * @description REQ-6: Submitted to Denied. The reason is required and the client sees it.
          */
         post: operations["deny_request_api_v1_requests__id__deny_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Request
+         * @description REQ-13: the client sends the work back. In one transaction the request goes Client Review
+         *     to Reopened and straight on to Assigned with the same staff; the review clock stops and the
+         *     rework period starts (`rework_since`). The staff and admins are told the reason.
+         */
+        post: operations["reject_request_api_v1_requests__id__reject_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1263,6 +1307,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/requests/{request_id}/closeout-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Request Closeout Facts
+         * @description What the close-out report prints (RPT-8): the request, its timeline, visits and the
+         *     reports in force, the comments clients may read, and the client's decision with the drawn
+         *     signature, which no event carries (W18-3).
+         */
+        get: operations["request_closeout_facts_internal_requests__request_id__closeout_facts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/snapshot/{entity}": {
         parameters: {
             query?: never;
@@ -1351,6 +1417,31 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptIn
+         * @description REQ-13, W18-2/3. The client signs the work off. `reviewing` is the request's
+         *     `review_started_at` as the page read it (not the milestone, which keeps the first). `image`
+         *     is the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted), also for "use my
+         *     typed name".
+         */
+        AcceptIn: {
+            /**
+             * Attestation Accepted
+             * @constant
+             */
+            attestation_accepted: true;
+            /** Comment */
+            comment?: string | null;
+            /** Image */
+            image: string;
+            /**
+             * Reviewing
+             * Format: date-time
+             */
+            reviewing: string;
+            /** Typed Name */
+            typed_name: string;
+        };
         /** AnswerOut */
         AnswerOut: {
             /** Code */
@@ -2478,6 +2569,19 @@ export interface components {
             /** Serial */
             serial?: string | null;
         };
+        /**
+         * RejectIn
+         * @description REQ-13. The client sends the work back, with a reason the staff are told.
+         */
+        RejectIn: {
+            /** Reason */
+            reason: string;
+            /**
+             * Reviewing
+             * Format: date-time
+             */
+            reviewing: string;
+        };
         /** RemoveIn */
         RemoveIn: {
             /** At */
@@ -2496,11 +2600,13 @@ export interface components {
         /** RequestDetail */
         RequestDetail: {
             /** Actions */
-            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit" | "schedule_visit")[];
+            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit" | "schedule_visit" | "accept" | "reject")[];
             /** Assigned Staff */
             assigned_staff: components["schemas"]["PersonRef"][];
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
+            /** Auto Close At */
+            auto_close_at: string | null;
             /** Cancel Reason */
             cancel_reason: string | null;
             /** Category */
@@ -2528,6 +2634,8 @@ export interface components {
             /** Ref */
             ref: string;
             requested_by: components["schemas"]["PersonRef"] | null;
+            /** Review Started At */
+            review_started_at: string | null;
             /** Stations */
             stations: components["schemas"]["RequestStation"][];
             /** Status */
@@ -2541,6 +2649,7 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            verification: components["schemas"]["VerificationOut"] | null;
             /** Version */
             version: number;
             /** Visits */
@@ -3167,6 +3276,27 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VerificationOut
+         * @description The client's answer to Client Review (REQ-13). The drawn signature is not in it.
+         */
+        VerificationOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["PersonRef"] | null;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "accepted" | "rejected" | "auto_closed";
+            /** Typed Name */
+            typed_name: string | null;
         };
         /**
          * VisitBrief
@@ -3860,6 +3990,41 @@ export interface operations {
             };
         };
     };
+    accept_request_api_v1_requests__id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_request_api_v1_requests__id__approve_post: {
         parameters: {
             query?: never;
@@ -4171,6 +4336,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["DenyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_request_api_v1_requests__id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIn"];
             };
         };
         responses: {
@@ -5885,6 +6085,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LabelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_closeout_facts_internal_requests__request_id__closeout_facts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

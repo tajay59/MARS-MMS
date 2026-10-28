@@ -38,7 +38,7 @@ from app.api.requests.schemas import (
 from app.api.visits import glue as visit_glue
 from app.api.visits.schemas import VisitBrief
 from app.domain.requests import comments as comment_rules
-from app.domain.requests import rules, staffing
+from app.domain.requests import review, rules, staffing
 from app.domain.requests.state import MILESTONES, Action, Status, Who, allowed, transition
 from app.domain.visits import schedule as visit_schedule
 from app.events.publish import ev
@@ -57,9 +57,8 @@ Admin = Annotated[User, Depends(require_roles("admin"))]
 Worker = Annotated[User, Depends(require_roles("technician", "admin"))]
 IdPath = Annotated[str, Path(pattern=UUID7_PATTERN)]
 # The table actions with a button of their own. Assign, claim and release are worked out by
-# `staffing.actions_for` (who is on the request matters); the client's accept and reject wait
-# for Phase 6.
-OFFERED = frozenset({Action.APPROVE, Action.DENY, Action.CANCEL})
+# `staffing.actions_for` (who is on the request matters).
+OFFERED = frozenset({Action.APPROVE, Action.DENY, Action.CANCEL, Action.ACCEPT, Action.REJECT})
 # Visits can be planned while the request is assigned and being worked on (W10)
 SCHEDULABLE = frozenset({Status.ASSIGNED, Status.SCHEDULED, Status.IN_PROGRESS})
 
@@ -116,8 +115,14 @@ async def _detail(ctx: Ctx, doc: dict[str, Any], user: User) -> RequestDetail:
             actions.append("schedule_visit")
     seen = await comment_repo.counts(ctx.db, [doc["_id"]], user)
     visits = [VisitBrief.of(v) for v in await visit_repo.for_request(ctx.db, doc["_id"], user)]
+    started = doc.get("review_started_at")
+    closes = (
+        review.auto_close_at(started, ctx.settings.auto_close_days)
+        if started is not None and doc["status"] == Status.CLIENT_REVIEW.value else None
+    )
     return RequestDetail.build(doc, stations, org_names, cast(list[ActionName], actions),
-                               comment_count=seen.get(doc["_id"], 0), visits=visits)
+                               comment_count=seen.get(doc["_id"], 0), visits=visits,
+                               auto_close_at=closes)
 
 
 def _entry(

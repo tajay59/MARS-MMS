@@ -12,6 +12,7 @@ from mms_common.snapshot import SnapshotPage, page
 from pydantic import BaseModel, Field
 
 from app.api.context import CtxDep
+from app.api.requests import closeout_facts
 from app.api.stations.calibration_routes import due_list
 from app.api.stations.schemas import DueList
 from app.api.visits import report_facts, report_lock
@@ -173,6 +174,20 @@ async def attachable(
     if not held & WRITE_ROLES:
         raise Forbidden()  # a viewer, or a client on a staff-only owner
     return AttachableOut(org_id=owner_org)
+
+
+@router.get("/internal/requests/{request_id}/closeout-facts")
+async def request_closeout_facts(
+    svc: ReportService, ctx: CtxDep,
+    request_id: Annotated[str, Path(pattern=UUID7_PATTERN)],
+) -> dict[str, Any]:
+    """What the close-out report prints (RPT-8): the request, its timeline, visits and the
+    reports in force, the comments clients may read, and the client's decision with the drawn
+    signature, which no event carries (W18-3)."""
+    facts = await closeout_facts.build(ctx, request_id)
+    if facts is None:
+        raise NotFound()
+    return facts
 
 
 @router.get("/internal/visits/{visit_id}/report-facts")

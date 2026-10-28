@@ -270,7 +270,8 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/requests/{id}/release` | technician, admin | Let go of a claim (admin: unassign all) → Approved when nobody is left (as built 2.11) |
 | GET | `/api/v1/requests/workload` | admin | Open requests per staff ID, for the Assign dialog |
 | POST | `/api/v1/requests/{id}/cancel` | client (own, Submitted / Approved / Assigned), admin (any state before Closed; reason required from Scheduled on) | → Cancelled. Planned visits are cancelled in the same transaction |
-| POST | `/api/v1/requests/{id}/verify` | client | `{outcome: accepted\|rejected, comment, signature?}`; a signature is required when accepted |
+| POST | `/api/v1/requests/{id}/accept` | client (own) | Client Review → Closed. `{reviewing, typed_name, image, attestation_accepted, comment?}`; `image` is the drawn signature as base64 PNG (W18-1, W18-3) |
+| POST | `/api/v1/requests/{id}/reject` | client (own) | Client Review → Reopened → Assigned (same staff) in one transaction. `{reviewing, reason}` (5 to 1000 characters) |
 | GET | `/api/v1/queue` | technician, admin, viewer (client: 404) | Approved, unassigned requests, oldest approval first |
 | GET / POST | `/api/v1/requests/{id}/comments` | scoped (internal hidden from clients); viewers read only | Flat thread; POST is idempotent by `id` (as built 2.12) |
 | PATCH | `/api/v1/requests/{id}/comments/{cid}` | author, within 15 min | Edit a comment (body; staff may also toggle `internal`) |
@@ -302,6 +303,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/internal/visits/{id}/lock` | service (report) | Lock the visit's boards; idempotent per `{report_id, report_version}`; returns `{visit_id, locked, visit_version}` (as built, W17) |
 | POST | `/internal/visits/{id}/unlock` | service (report) | Unlock for correction or after a failed finalize; idempotent |
 | GET | `/internal/visits/{id}` | service | Full visit for report rendering |
+| GET | `/internal/requests/{id}/closeout-facts` | service (report) | What the close-out report prints: the request, timeline, visits with the report versions in force, comments a client may read, and the client's decision with the drawn signature (W18-3, W18-11) |
 | GET | `/internal/attachable?owner_ref=&user=` | service (media) | May this user attach a file here? Returns `org_id` |
 | POST | `/internal/labels` | service (report) | `{station_ids}` (1 to 200) → `[{station_id, code, name, qr_token, org_name, country}]` in the order asked, unknown stations left out. The only place report can read tokens (as built 2.9) |
 | GET | `/internal/snapshot/{stations\|requests\|visits\|sensor_units\|calibrations}` | service | Backfill (§8.6) |
@@ -376,6 +378,8 @@ Each station on a visit has a **board**: a list of elements in `visit_elements` 
 | `org.created`, `org.updated` | Refresh operations' copy of the organization (`organizations`: name, country, status, guarded by `aggregate_version`) and the owner name copied onto its stations. The copy is also filled from auth's `/internal/snapshot/organizations` at every start (§8.6); new stations need an active organization (as built 2.6) |
 
 **Cron (Redis-locked):** client-review reminders on days 7, 21 and 28 (`request.review_reminder`); auto-close on day 30 (`request.closed` with `auto_closed: true`), both daily and configurable (`OPS_REVIEW_REMINDER_DAYS`, `OPS_AUTO_CLOSE_DAYS`); weekly calibration-due digest (`calibration.due_digest`, CAL-5).
+
+**As built (W18 slice 1: Client Review).** `POST /requests/{id}/accept` and `/reject` (clients, own organization; another's is 404) replace the single `verify` route. Both carry `reviewing`, the request's `review_started_at` as the page read it (the field, not the milestone, which keeps the first review's time): if a corrected report has started a new review since, the answer is 409 `review_changed` and the page shows the new reports, so a client never signs a review they did not see. The same person sending the same answer for the same review again gets the stored result (200). Accept checks the drawing with `mms_common.signature` (PNG magic bytes and end marker, at most 100 KB and 1200 x 600 px; also used by the report service) and stores `client_verification = {outcome, by, by_name, at, reviewing, comment, reports: [{visit_id, ref, report_id, report_version}], signature: {typed_name, image, attestation, ip, user_agent}}`; the drawing lives only there. The wording shown is `OPS_CLIENT_ATTESTATION`. Reject goes Client Review → Reopened → Assigned in one transaction (two history entries, the second by the system), sets `rework_since`, adds to `reopen_count` and clears `review_started_at` and `reminders_sent`. Entering Client Review now emits `request.client_review_started` (from `settle_request`). The review clock is `jobs/review_clock.py`, run every 15 minutes by `mms_common.cron.run_periodic` under a Redis lock (`OPS_REVIEW_CLOCK_EVERY_S`): each request in Client Review is one transaction guarded by its status and its review; days are 24-hour periods since `review_started_at`; after an outage only the latest overdue reminder is sent and all are marked; at `OPS_AUTO_CLOSE_DAYS` it closes as the system with outcome `auto_closed`. Settings are days as numbers (fractions allowed so a staging check needs no calendar); production refuses less than a day. Index `(status, review_started_at)` (migration 0014). The request detail gains `review_started_at`, `auto_close_at`, `verification` (outcome, who, when, comment, typed name; never the image) and the actions `accept` and `reject` for the client.
 
 ### 3.3 media (media + media-worker)
 
@@ -1045,9 +1049,9 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `request.assigned` | operations | platform, report | request_id, staff_ids, claimed |
 | `request.status_changed` | operations | platform, report | request_id, ref, org_id, station_ids, category, priority, status, from_status (null on creation), to_status, reason? |
 | `request.client_review_started` | operations | platform, report | request_id |
-| `request.review_reminder` | operations | platform (notification) | request_id, day |
-| `request.reopened` | operations | platform, report | request_id, comment |
-| `request.closed` | operations | platform, report | request_id, outcome, auto_closed, signature? |
+| `request.review_reminder` | operations | platform (notification) | request_id, day, auto_close_day |
+| `request.reopened` | operations | platform, report | request_id, comment, by_id (the client's rejection) |
+| `request.closed` | operations | platform, report | request_id, outcome (`accepted` or `auto_closed`), auto_closed, by_id. **No signature**: images never travel in events (W18-3); the report service reads it from `/internal/requests/{id}/closeout-facts` |
 | `request.cancelled` | operations | platform, report | request_id, reason? |
 | `comment.added` / `comment.edited` | operations | platform | request_id, comment_id, internal |
 | `client_report.submitted` | operations | report, platform | client_report_id, request_id, kind, form? |
