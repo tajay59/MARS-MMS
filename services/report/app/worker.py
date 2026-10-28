@@ -25,6 +25,7 @@ from app.jobs.labels import Retry, render_labels
 from app.jobs.render_client_form import render_client_form
 from app.jobs.render_closeout import render_closeout
 from app.jobs.render_draft import render_draft
+from app.jobs.summary import render_summary
 from app.services import (
     QUEUE,
     Services,
@@ -39,6 +40,7 @@ DRAFT_PREFIX = "draft:"  # a visit report draft's job is `draft:<report id>`
 FINALIZE_PREFIX = "finalize:"  # and finalizing one is `finalize:<report id>`
 CLIENT_FORM_PREFIX = "clientform:"  # a client form report is `clientform:<report id>`
 CLOSEOUT_PREFIX = "closeout:"  # and a request's close-out is `closeout:<report id>`
+SUMMARY_PREFIX = "summary:"  # a summary report is `summary:<job id>` (W19)
 CONCURRENCY = 2  # TRD §9: two report jobs at a time
 
 
@@ -72,6 +74,8 @@ async def main() -> None:
                 await finalize_report(svc, job_id[len(FINALIZE_PREFIX):])
             elif job_id.startswith(CLOSEOUT_PREFIX):
                 await render_closeout(svc, job_id[len(CLOSEOUT_PREFIX):])
+            elif job_id.startswith(SUMMARY_PREFIX):
+                await render_summary(svc, job_id[len(SUMMARY_PREFIX):])
             elif job_id.startswith(CLIENT_FORM_PREFIX):
                 await render_client_form(svc, job_id[len(CLIENT_FORM_PREFIX):])
             else:

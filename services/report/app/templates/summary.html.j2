@@ -1,0 +1,46 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ v.title }} · Summary report{% endblock %}
+{% block body %}
+<main class="report summary">
+  <div class="running-footer">Generated {{ v.generated }}{% if v.generated_by %} by {{ v.generated_by }}{% endif %} · times in {{ v.zone }} · Summary report, not signed</div>
+
+  <header class="masthead">
+    <div>
+      <p class="brand">MARS-MMS</p>
+      <h1>{{ v.title }}</h1>
+      <p class="muted">{{ v.subtitle }}</p>
+      <p class="muted">{{ v.filters }}</p>
+    </div>
+  </header>
+
+  {% if v.kpis %}
+  <dl class="kpis">
+    {% for k in v.kpis %}
+    <div><dt>{{ k.label }}</dt><dd>{{ k.value }}</dd></div>
+    {% endfor %}
+  </dl>
+  {% endif %}
+
+  {% for t in v.tables %}
+  <section>
+    <h2>{{ t.title }}</h2>
+    {% if t.rows %}
+    <table class="rows">
+      <thead><tr>{% for c in t.columns %}<th{% if loop.index0 in t.right %} class="r"{% endif %}>{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in t.rows %}
+        <tr>{% for cell in row %}<td{% if loop.index0 in t.right %} class="r"{% endif %}>{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Nothing matches these filters.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  {% for n in v.notes %}
+  <p class="muted note">{{ n }}</p>
+  {% endfor %}
+</main>
+{% endblock %}

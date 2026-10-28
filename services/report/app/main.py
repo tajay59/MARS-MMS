@@ -35,11 +35,20 @@ from app.api import (
     finalize_routes,
     report_routes,
     reports,
+    summary_routes,
     verify_routes,
 )
 from app.config import Settings
 from app.events import consumer
-from app.jobs import backfill, drafts, reminders, render_client_form, render_closeout, resume
+from app.jobs import (
+    backfill,
+    drafts,
+    reminders,
+    render_client_form,
+    render_closeout,
+    resume,
+    summary,
+)
 from app.repo.media import MediaSource
 from app.repo.operations import FactsSource, LabelSource, VisitLocks
 from app.repo.render import Renderer
@@ -161,6 +170,11 @@ def create_app(
                     lambda: render_closeout.tick(app.state.services), stop,
                     first_delay_s=17.0,
                 )),
+                # Removes summary reports past their keep time (W19-8)
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "summary_purge", 3600,
+                    lambda: summary.purge_old(app.state.services), stop, first_delay_s=120.0,
+                )),
                 # Takes up a finalize a worker left half done, and unlocks owed to operations
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "resume", settings.resume_tick_s,
@@ -201,6 +215,7 @@ def create_app(
     # Literal paths before /{id} (TRD §3.0). Every route goes in the authorization matrix.
     app.include_router(reports.router)
     app.include_router(dashboard_routes.router)
+    app.include_router(summary_routes.router)
     app.include_router(verify_routes.router)
     app.include_router(report_routes.router)
     app.include_router(edit_routes.router)

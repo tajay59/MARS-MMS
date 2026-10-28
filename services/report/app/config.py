@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     draft_tick_s: int = 30  # how often the cron reads stale facts and queues first PDFs
     # How long a dashboard's figures are kept in Redis (TRD 11.2): 0 turns the cache off
     dashboard_cache_s: int = 60
+    # Summary reports (W19-8 to W19-10): a month starts at 00:00 in this zone; a file is kept this
+    # long; a period is at most this many days
+    summary_time_zone: str = "America/Jamaica"
+    summary_keep_days: int = 30
+    summary_max_days: int = 1096
 
     # --- Signatures (W17-5, W17-6; PRD RPT-4, Q2)
     # The sentence shown above the signature and stored with it, as the person saw it

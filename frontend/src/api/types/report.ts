@@ -108,6 +108,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start */
+        post: operations["start_api_v1_reports_summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/summary/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mine
+         * @description The person's own summaries of the last `REPORT_SUMMARY_KEEP_DAYS` days, newest first.
+         */
+        get: operations["mine_api_v1_reports_summary_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/summary/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job */
+        get: operations["get_job_api_v1_reports_summary_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/summary/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Types
+         * @description What this person may ask for: a client three, staff all that are built.
+         */
+        get: operations["types_api_v1_reports_summary_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/verify": {
         parameters: {
             query?: never;
@@ -462,7 +536,12 @@ export interface components {
          * JobType
          * @enum {string}
          */
-        JobType: "labels";
+        JobType: "labels" | "summary";
+        /**
+         * Kind
+         * @enum {string}
+         */
+        Kind: "station_history" | "client_activity" | "request_turnaround" | "calibration_due" | "network_status" | "monthly_summary" | "annual_summary";
         /** LabelsIn */
         LabelsIn: {
             /**
@@ -726,6 +805,78 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** SummaryIn */
+        SummaryIn: {
+            /** Country */
+            country?: string | null;
+            /**
+             * Due In Days
+             * @default 30
+             */
+            due_in_days: number;
+            /**
+             * Format
+             * @default pdf
+             * @enum {string}
+             */
+            format: "pdf" | "csv";
+            /** From */
+            from?: string | null;
+            /** Org Id */
+            org_id?: string | null;
+            /** Station Ids */
+            station_ids?: string[] | null;
+            /** To */
+            to?: string | null;
+            type: components["schemas"]["Kind"];
+        };
+        /** SummaryJob */
+        SummaryJob: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Download Url */
+            download_url: string | null;
+            /** Error */
+            error: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** File Name */
+            file_name: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "pdf" | "csv";
+            /** Id */
+            id: string;
+            /** Pages */
+            pages: number | null;
+            /** Period From */
+            period_from: string | null;
+            /** Period To */
+            period_to: string | null;
+            /** Rows */
+            rows: number | null;
+            status: components["schemas"]["JobStatus"];
+            type: components["schemas"]["Kind"];
+        };
+        /** SummaryType */
+        SummaryType: {
+            /** Description */
+            description: string;
+            /** Formats */
+            formats: string[];
+            /** Title */
+            title: string;
+            type: components["schemas"]["Kind"];
+            /** Uses Period */
+            uses_period: boolean;
+        };
         /** TechnicianDashboard */
         TechnicianDashboard: {
             /**
@@ -945,6 +1096,121 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_api_v1_reports_summary_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SummaryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mine_api_v1_reports_summary_jobs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryJob"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_api_v1_reports_summary_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    types_api_v1_reports_summary_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryType"][];
                 };
             };
         };

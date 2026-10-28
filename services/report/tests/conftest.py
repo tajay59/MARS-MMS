@@ -140,6 +140,7 @@ class FakeRenderer:
         self.visits: list[dict[str, Any]] = []
         self.forms: list[dict[str, Any]] = []
         self.closeouts: list[dict[str, Any]] = []
+        self.summaries: list[dict[str, Any]] = []
         self.fail = False
 
     async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
@@ -161,6 +162,12 @@ class FakeRenderer:
             raise RuntimeError("boom")
         self.closeouts.append(view)
         return Rendered(pdf=PDF + f"% {view['number']} v{view['version']} {view.get('hash')}".encode(), pages=1)
+
+    async def summary(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.summaries.append(view)
+        return Rendered(pdf=PDF + f"% {view['title']}".encode(), pages=1)
 
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
         if self.fail:

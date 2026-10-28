@@ -21,6 +21,7 @@ _PHONE = re.compile(r"^[+(]?[0-9][0-9 ()\-]{3,28}[0-9]$")
 
 class JobType(StrEnum):
     LABELS = "labels"
+    SUMMARY = "summary"
 
 
 class JobStatus(StrEnum):
