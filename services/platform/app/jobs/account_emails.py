@@ -34,6 +34,9 @@ log = get_logger(__name__)
 Security = Literal["none", "starttls", "ssl"]
 
 
+# The email button's words, by what the notification is about
+BUTTONS = {"request": "Open the request", "visit": "View the visit", "report": "Open the report"}
+
 # Where the link goes, by what the notification is (before what it is about)
 BUTTON_BY_TYPE = {
     "request.client_review": "Review the work", "report.closeout": "Read the report",
@@ -182,8 +185,7 @@ class Sender:
         else:
             rendered = notification_emails.render_notification(
                 title=note["title"], body=note["body"], name=user["name"], url=url,
-                button=BUTTON_BY_TYPE.get(note["type"]) or {
-                    "request": "Open the request", "visit": "View the visit"}.get(
+                button=BUTTON_BY_TYPE.get(note["type"]) or BUTTONS.get(
                     note["entity"]["type"], "Open"),
             )
         return self._compose(rendered, user["email"], user["name"], email_id)

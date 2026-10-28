@@ -120,6 +120,20 @@ async def finalize_failed(
     return await _add(db, clock, report, "report.finalize_failed", data, SYSTEM, session)
 
 
+async def finalize_reminder(
+    db: AsyncDatabase[dict[str, Any]], clock: Clock, report: dict[str, Any], *,
+    working_days: int, staff_ids: list[str], session: AsyncClientSession,
+) -> Envelope:
+    """A draft is still not final after 2 or 5 working days (PRD RPT-7)."""
+    visit = _visit(report)
+    data = ev.ReportFinalizeReminder(
+        **_about(report), working_days=working_days,  # type: ignore[arg-type]
+        request_ref=visit["request_ref"], title=visit.get("request_title"),
+        staff_ids=staff_ids, lead_staff_id=report["lead_staff_id"],
+    )
+    return await _add(db, clock, report, "report.finalize_reminder", data, SYSTEM, session)
+
+
 async def reopened(
     db: AsyncDatabase[dict[str, Any]], clock: Clock, report: dict[str, Any], *,
     previous_version: int, reason: str, reopened_by: str, request_status: str | None,

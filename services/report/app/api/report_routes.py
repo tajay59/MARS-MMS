@@ -17,8 +17,14 @@ from mms_common.ids import UUID7_PATTERN
 
 from app.api import presenters
 from app.api.context import CtxDep
-from app.api.report_schemas import DownloadOut, PreviewOut, ReportOut, ReportSummary
-from app.domain import drafts, numbering
+from app.api.report_schemas import (
+    CorrectionOut,
+    DownloadOut,
+    PreviewOut,
+    ReportOut,
+    ReportSummary,
+)
+from app.domain import drafts, finalize, numbering
 from app.jobs.drafts import job_id
 from app.jobs.render_draft import CONTENT_TYPE
 from app.repo import reports, signatures
@@ -41,6 +47,19 @@ async def list_reports(
     found = await reports.list_reports(ctx.svc.db, subject_ref=subject_ref, type_=type)
     return [ReportSummary(**presenters.summary(d)) for d in found
             if not user.is_client or presenters.client_may_read(d, user)]
+
+
+@router.get("/correction")
+async def correction(
+    user: Reader, ctx: CtxDep,
+    visit_id: Annotated[str, Query(pattern=UUID7_PATTERN)],
+) -> CorrectionOut:
+    """Is this visit's final report being corrected? Scoped like every read: a client asks about
+    their own organization's visit only, and anything else is "no" (rule 4). It tells a client
+    that "a corrected report is on its way" without showing them the draft."""
+    found = await reports.list_reports(ctx.svc.db, subject_ref=f"visit:{visit_id}", type_=None)
+    mine = [d for d in found if not user.is_client or d["org_id"] == user.org_id]
+    return CorrectionOut(correcting=finalize.is_correcting(mine))
 
 
 @router.get("/{report_id}")

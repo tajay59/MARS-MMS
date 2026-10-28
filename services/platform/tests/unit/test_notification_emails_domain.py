@@ -26,9 +26,11 @@ def test_each_person_can_choose_only_what_they_can_be_emailed_about():
     reopened = {"request.reopened"}  # a client sends work back (W18)
     review = {"request.client_review", "report.closeout"}
     assert keys(ADMIN) == {"request.submitted", "request.assigned", "request.cancelled",
-                           "calibration.digest"} | visits | reopened
-    assert keys(TECH) == {"request.assigned", "request.cancelled"} | visits | reopened
-    assert keys(CLIENT) == {"request.decided", "request.cancelled"} | visits | review
+                           "calibration.digest", "report.finalize_reminder"} | visits | reopened
+    assert keys(TECH) == {"request.assigned", "request.cancelled",
+                          "report.finalize_reminder"} | visits | reopened
+    assert keys(CLIENT) == {"request.decided", "request.cancelled", "report.finalized",
+                            "report.reopened"} | visits | review
     assert keys(VIEWER) == set()
     assert keys(ADMIN | TECH) == keys(ADMIN)
 
@@ -50,6 +52,12 @@ def test_the_defaults_follow_appendix_b_and_the_choice_wins():
     assert on({}, "request.cancelled", TECH) is False
     assert on({"request.cancelled": True}, "request.cancelled", TECH) is True
     assert on({"request.assigned": False}, "request.assigned", TECH) is False
+    # Reports: the client hears a final report by email, staff are reminded by email
+    assert on({}, "report.finalized", CLIENT) is True
+    assert on({}, "report.reopened", CLIENT) is True
+    assert on({}, "report.finalize_reminder", TECH) is True
+    assert on({}, "report.finalize_reminder", CLIENT) is False
+    assert on({"report.finalize_reminder": False}, "report.finalize_reminder", TECH) is False
     # A visit that is planned or cancelled is emailed to everyone it concerns, until they say no
     for roles in (ADMIN, TECH, CLIENT):
         assert on({}, "visit.scheduled", roles) is True

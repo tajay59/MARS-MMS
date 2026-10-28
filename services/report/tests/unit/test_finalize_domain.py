@@ -176,3 +176,15 @@ def test_the_final_pdf_says_who_signed_what_and_when_and_nothing_staff_only():
                      "05 Oct 2026, 17:00 UTC", "12:00 EST"):
         assert expected in text, expected
     assert "DRAFT" not in text and GATE_NOTE not in text and "Access" not in text
+
+
+def test_a_report_is_being_corrected_when_a_later_version_is_not_final_yet():
+    def v(version, status):
+        return {"version": version, "status": status}
+
+    assert finalize.is_correcting([]) is False
+    assert finalize.is_correcting([v(1, "draft")]) is False  # the first draft
+    assert finalize.is_correcting([v(1, "final")]) is False
+    assert finalize.is_correcting([v(1, "superseded"), v(2, "draft")]) is True
+    assert finalize.is_correcting([v(2, "finalizing"), v(1, "superseded")]) is True
+    assert finalize.is_correcting([v(1, "superseded"), v(2, "final")]) is False
