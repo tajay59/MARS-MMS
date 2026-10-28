@@ -131,7 +131,8 @@ def new_draft(
         "draft_pdf": None, "render": {"state": "idle", "attempts": 0, "error": None},
         "pdf_key": None, "pdf_sha256": None, "final_pdf": None, "finalize_attempts": 0,
         "finalize_error": None, "finalizing_at": None, "finalized_at": None, "finalized_by": None,
-        "supersedes_id": None, "unlock_pending": None, "drafted_at": None,
+        "supersedes_id": None, "unlock_pending": None, "reminders_sent": [],
+        "remind_from": ended_at, "drafted_at": None,
         "created_at": now, "updated_at": now,
     }
 
