@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     finalize_backoff_s: int = 30  # doubled after each try
     finalizing_timeout_s: int = 900  # a report left finalizing this long is taken up again
     resume_tick_s: int = 60  # how often the cron looks for those, and for unlocks still owed
+    reminder_tick_s: int = 3600  # how often drafts are looked at for a 2 or 5 working day reminder
     verify_max_bytes: int = 10 * 1024 * 1024  # a PDF given to /reports/verify (Nginx allows 10m)
 
     @property
