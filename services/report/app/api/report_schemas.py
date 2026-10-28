@@ -108,6 +108,14 @@ class ContentPatch(BaseModel):
     media_selection: list[SelectionEdit] | None = Field(default=None, max_length=500)
 
 
+class CorrectionOut(BaseModel):
+    """Whether a visit's final report is being corrected: a version after the first is a draft
+    or being finalized. All a client learns of a reopen (W17-10): the superseded version and
+    the new draft stay hidden from them."""
+
+    correcting: bool
+
+
 class ReopenIn(BaseModel):
     """POST /reports/{id}/reopen (W17-10): why the final report is being corrected."""
 
