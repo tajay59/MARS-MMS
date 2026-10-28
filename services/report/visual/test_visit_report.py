@@ -8,13 +8,14 @@ template draws a little differently with other fonts, which says nothing about t
 
 from __future__ import annotations
 
+import base64
 import os
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from app.domain import drafts, visit_view
+from app.domain import client_form, client_form_view, closeout, closeout_view, drafts, visit_view
 from app.repo import render
 from tests import visit_facts as vf
 
@@ -103,10 +104,96 @@ def empty_visit() -> dict:
     return facts
 
 
+def closeout_facts(*, accepted: bool = True, version: int = 1) -> dict:
+    """A made-up request, closed: nobody's real name, station or signature."""
+    return {
+        "facts_version": 2,
+        "request": {
+            "id": vf.REQUEST, "ref": "MR-2026-0042", "title": "Rain gauge not reporting",
+            "category": "fault", "priority": "high", "org_id": vf.ORG,
+            "org_name": "Test Weather Service", "requester_name": "Una Client",
+            "created_at": "2026-09-01T14:00:00Z", "milestones": {"closed_at": "2026-10-05T16:00:00Z"},
+        },
+        "stations": [{"station_id": vf.S1, "code": "TST-001", "name": "Test Harbour",
+                      "country": "JM", "time_zone": "America/Jamaica"}],
+        "timeline": [
+            {"to": "submitted", "at": "2026-09-01T14:00:00Z", "by_name": "Una Client", "note": None},
+            {"to": "approved", "at": "2026-09-02T09:00:00Z", "by_name": "Test Admin", "note": None},
+            {"to": "assigned", "at": "2026-09-02T09:05:00Z", "by_name": "Test Admin", "note": None},
+            {"to": "client_review", "at": "2026-09-20T14:00:00Z", "by_name": None, "note": None},
+            {"to": "closed", "at": "2026-10-05T16:00:00Z",
+             "by_name": "Una Client" if accepted else None,
+             "note": "Accepted by the client" if accepted else "Closed automatically"},
+        ],
+        "visits": [{"visit_id": vf.VISIT, "ref": "VR-2026-0042-02", "status": "ended",
+                    "started_at": "2026-09-05T13:00:00Z", "ended_at": "2026-09-05T17:00:00Z",
+                    "lead_name": "Test Lead", "report_id": "r1", "report_version": version}],
+        "client_reports": [{"id": vf.OTHER, "kind": "form", "title": "Gauge check",
+                            "report_date": "2026-09-30", "submitted_by_name": "Una Client",
+                            "submitted_at": "2026-09-30T15:00:00Z", "report_id": None}],
+        "comments": [{"author_name": "Una Client", "author_role": "client",
+                      "body": "Please check the mast as well.", "created_at": "2026-09-02T10:00:00Z"},
+                     {"author_name": "Test Lead", "author_role": "technician",
+                      "body": "The mast is sound.", "created_at": "2026-09-05T17:30:00Z"}],
+        "decision": {
+            "outcome": "accepted" if accepted else "auto_closed",
+            "by_name": "Una Client" if accepted else None, "at": "2026-10-05T16:00:00Z",
+            "reviewing": "2026-09-05T16:00:00Z", "comment": "Thank you for the quick work." if accepted else None,
+            "typed_name": "Una Client" if accepted else None,
+            "attestation": "I confirm the work described in the reports above has been completed and I accept it." if accepted else None,
+            "signature_png_b64": base64.b64encode(drawn(3)).decode() if accepted else None,
+        },
+    }
+
+
+def pdf_of_closeout(facts: dict, corrections: list | None = None) -> bytes:
+    doc = closeout.new_closeout(
+        report_id="c1", request_id=vf.REQUEST, request_ref="MR-2026-0042", title="T",
+        org_id=vf.ORG, version=2 if corrections else 1, supersedes_id=None, expects={}, now=NOW)
+    doc["content_hash"] = HASH
+    view = closeout_view.build(doc, facts, app_url="https://mms.example", generated_at=NOW,
+                               corrections=corrections or [])
+    return render.to_pdf(render.render_closeout_html(view, closeout.TEMPLATE_VERSION)).pdf
+
+
+def pdf_of_form(images: bool = True) -> bytes:
+    facts = {
+        "facts_version": 1, "client_report_id": "x", "attempt": 1,
+        "request": {"id": vf.REQUEST, "ref": "MR-2026-0042", "title": "Rain gauge not reporting"},
+        "org_id": vf.ORG, "org_name": "Test Weather Service", "title": "Q3 gauge check",
+        "report_date": "2026-09-30", "submitted_by_name": "Una Client",
+        "submitted_at": "2026-10-05T16:00:00Z",
+        "stations": [
+            {"station_id": vf.S1, "code": "TST-001", "name": "Test Harbour", "country": "JM",
+             "time_zone": "America/Jamaica"},
+            {"station_id": vf.S2, "code": "TST-002", "name": "Test Hill", "country": "JM",
+             "time_zone": None},
+        ],
+        "summary": "Readings were steady across the quarter apart from one gap. "
+                   "The cups were replaced in July.",
+        "observations": [{"station_id": vf.S1, "text": "The cups are worn again and turn slowly."}],
+        "data_quality_notes": "No data was recorded on the 4th after a power cut.",
+        "images": [{"media_id": vf.P_BEFORE, "name": "gauge.jpg"},
+                   {"media_id": vf.P_AFTER, "name": "mast.jpg"}] if images else [],
+    }
+    doc = client_form.new_report(
+        report_id="r1", client_report_id="x", report_number="CR-2026-0042-01",
+        request_id=vf.REQUEST, org_id=vf.ORG, submitted_by="u1", attempt=1, now=NOW)
+    doc["content_hash"] = HASH
+    view = client_form_view.build(doc, facts, pictures(), generated_at=NOW)
+    return render.to_pdf(render.render_client_form_html(view, client_form.TEMPLATE_VERSION)).pdf
+
+
 CASES = {
     "full-draft": lambda: pdf_of(report(vf.facts()), pictures()),
     "full-final": lambda: pdf_of(report(vf.facts(), status="final"), pictures(), signatures()),
     "no-work": lambda: pdf_of(report(empty_visit()), {}),
+    "closeout-accepted": lambda: pdf_of_closeout(closeout_facts()),
+    "closeout-auto": lambda: pdf_of_closeout(closeout_facts(accepted=False)),
+    "closeout-corrected": lambda: pdf_of_closeout(
+        closeout_facts(version=2),
+        [{"ref": "VR-2026-0042-02", "from": 1, "to": 2, "at": NOW}]),
+    "client-form": lambda: pdf_of_form(),
 }
 
 

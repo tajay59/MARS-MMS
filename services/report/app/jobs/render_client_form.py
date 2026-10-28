@@ -43,8 +43,8 @@ async def tick(svc: Services) -> dict[str, int]:
     now = svc.clock.now()
     stuck = now - timedelta(seconds=svc.settings.finalizing_timeout_s)
     queued = 0
-    for report in await reports.client_forms_waiting(svc.db, stuck):
-        if await reports.queue_client_form(svc.db, report["_id"], now, stuck):
+    for report in await reports.rendering_waiting(svc.db, "client_form", stuck):
+        if await reports.queue_rendering(svc.db, report["_id"], now, stuck):
             await svc.jobs.enqueue(job_id(report["_id"]))
             queued += 1
     return {"queued": queued}
@@ -83,7 +83,7 @@ async def _fail(svc: Services, report: dict[str, Any], code: str) -> None:
 
 
 async def render_client_form(svc: Services, report_id: str) -> None:
-    report = await reports.claim_client_form(svc.db, report_id, svc.clock.now())
+    report = await reports.claim_rendering(svc.db, report_id, svc.clock.now())
     if report is None:
         return  # done, failed or unknown: nothing to do
     attempt = report["attempt"]
@@ -105,7 +105,7 @@ async def render_client_form(svc: Services, report_id: str) -> None:
             log.error("client_form_failed", report_id=report_id, reason=type(e).__name__)
             await _fail(svc, report, "render_failed")
             return
-        await reports.requeue_client_form(svc.db, report_id, svc.clock.now())
+        await reports.requeue_rendering(svc.db, report_id, svc.clock.now())
         log.warning("client_form_retry", report_id=report_id, reason=type(e).__name__,
                     attempts=report["render"]["attempts"])
         raise Retry from e

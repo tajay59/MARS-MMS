@@ -136,6 +136,28 @@ async def reopened(
     return await _add(db, clock, report, "report.reopened", data, actor, session)
 
 
+async def closeout_generated(
+    db: AsyncDatabase[dict[str, Any]], clock: Clock, report: dict[str, Any],
+    session: AsyncClientSession,
+) -> Envelope:
+    """A request's close-out report is final (RPT-8), or version n + 1 replaced it after a
+    correction (RPT-6). Keyed by the request (TRD 8.1); ids only."""
+    data = ev.ReportCloseoutGenerated(
+        report_id=report["_id"], number=report["number"], version=report["version"],
+        request_id=report["request_id"], request_ref=report["request_ref"],
+        org_id=report["org_id"], title=report.get("title"), corrected=report["version"] > 1,
+        pdf_sha256=report["final_pdf"]["sha256"],
+    )
+    envelope = Envelope(
+        event_id=new_id(), type="report.closeout_generated", occurred_at=clock.now(),
+        source=SOURCE, key=report["request_id"], aggregate_version=report["version"],
+        actor=SYSTEM, org_id=report["org_id"], resource=Resource(type="report", id=report["_id"]),
+        data=data.model_dump(mode="json"),
+    )
+    await outbox.add(db["outbox"], envelope, session=session, clock=clock)
+    return envelope
+
+
 async def generated(
     db: AsyncDatabase[dict[str, Any]], clock: Clock, report: dict[str, Any], *, outcome: str,
     session: AsyncClientSession,

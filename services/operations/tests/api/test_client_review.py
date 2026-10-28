@@ -431,3 +431,22 @@ async def test_a_decision_that_is_still_open_has_no_decision_in_the_facts(ops):
                            headers=ops.service("report"))
     assert r.json()["decision"] is None
     assert (await request_now(ops, request["id"], "client_a1"))["status"] == "client_review"
+
+
+@pytest.mark.req("CRP-5")
+async def test_the_facts_for_the_closeout_list_submitted_client_reports_only(ops):
+    _visit, request, _report, started = await in_review(ops)
+    sent = (await ops.http.post("/api/v1/client-reports", headers=ops.bearer("client_a1"),
+                                json={"request_id": request["id"], "kind": "form",
+                                      "title": "Gauge check"})).json()
+    await ops.http.patch(f"/api/v1/client-reports/{sent['id']}", headers=ops.bearer("client_a1"),
+                         json={"version": sent["version"], "summary": "Fine"})
+    await ops.http.post("/api/v1/client-reports", headers=ops.bearer("client_a1"),
+                        json={"request_id": request["id"], "kind": "form", "title": "A draft"})
+    await ops.http.post(f"/api/v1/client-reports/{sent['id']}/submit",
+                        headers=ops.bearer("client_a1"))
+    await accept(ops, "client_a1", request["id"], started)
+    facts = (await ops.http.get(f"/internal/requests/{request['id']}/closeout-facts",
+                                headers=ops.service("report"))).json()
+    assert [(r["title"], r["kind"]) for r in facts["client_reports"]] == [("Gauge check", "form")]
+    assert "Fine" not in str(facts["client_reports"])  # titles and dates, never the text
