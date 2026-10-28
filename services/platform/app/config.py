@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     digest_hour: int = 7
     digest_tz: str = "America/Jamaica"
     digest_within_days: int = 30
+    # The nightly integrity check of the audit chain (AUD-5): queued from this hour, same zone.
+    audit_check_hour: int = 4
 
     @property
     def kafka(self) -> KafkaAuth | None:
