@@ -34,6 +34,9 @@ log = get_logger(__name__)
 Security = Literal["none", "starttls", "ssl"]
 
 
+# The email button's words, by what the notification is about
+BUTTONS = {"request": "Open the request", "visit": "View the visit", "report": "Open the report"}
+
 class Mailer(Protocol):
     async def send(self, message: EmailMessage) -> None: ...
 
@@ -176,8 +179,7 @@ class Sender:
         else:
             rendered = notification_emails.render_notification(
                 title=note["title"], body=note["body"], name=user["name"], url=url,
-                button={"request": "Open the request", "visit": "View the visit"}.get(
-                    note["entity"]["type"], "Open"),
+                button=BUTTONS.get(note["entity"]["type"], "Open"),
             )
         return self._compose(rendered, user["email"], user["name"], email_id)
 

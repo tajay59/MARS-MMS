@@ -84,7 +84,7 @@ describe('the messages the socket carries', () => {
   })
 
   it('has an icon for every type it names, and a bell for the rest', () => {
-    for (const type of ['account.registered', 'request.submitted', 'request.assigned', 'request.staff_changed', 'request.released', 'request.cancelled', 'comment.added', 'visit.scheduled', 'visit.cancelled', 'visit.ended', 'visit.owner_changed']) {
+    for (const type of ['account.registered', 'request.submitted', 'request.assigned', 'request.staff_changed', 'request.released', 'request.cancelled', 'comment.added', 'visit.scheduled', 'visit.cancelled', 'visit.ended', 'visit.owner_changed', 'report.drafted', 'report.finalized', 'report.reopened', 'report.finalize_failed', 'report.finalize_reminder']) {
       expect(iconFor(type)).not.toBe(iconFor('something.else'))
     }
   })
