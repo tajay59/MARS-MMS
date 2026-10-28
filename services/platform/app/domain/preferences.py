@@ -58,6 +58,21 @@ CATALOGUE: tuple[PrefType, ...] = (
         frozenset({"client", "technician", "admin"}), frozenset({"client", "technician", "admin"}),
     ),
     PrefType(
+        "request.client_review", "Review", "Work is ready for your review",
+        "For a request you made, and reminders while nobody at your organization has answered.",
+        frozenset({"client"}), frozenset({"client"}),
+    ),
+    PrefType(
+        "request.reopened", "Review", "A client sends work back",
+        "For a request you are on, with the client's reason.",
+        STAFF, STAFF,
+    ),
+    PrefType(
+        "report.closeout", "Review", "A corrected close-out report is ready",
+        "When a report is corrected after a request closed. The first one is in the app only.",
+        frozenset({"client"}), frozenset({"client"}),
+    ),
+    PrefType(
         "calibration.digest", "Calibration", "Weekly digest of calibrations due",
         "Mondays at 07:00. Overdue and due within 30 days.",
         frozenset({"admin"}), frozenset({"admin"}),

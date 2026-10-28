@@ -23,10 +23,12 @@ ADMIN, TECH, CLIENT, VIEWER = (
 def test_each_person_can_choose_only_what_they_can_be_emailed_about():
     keys = lambda roles: {t.key for t in preferences.types_for(roles)}  # noqa: E731
     visits = {"visit.scheduled", "visit.cancelled"}
+    reopened = {"request.reopened"}  # a client sends work back (W18)
+    review = {"request.client_review", "report.closeout"}
     assert keys(ADMIN) == {"request.submitted", "request.assigned", "request.cancelled",
-                           "calibration.digest"} | visits
-    assert keys(TECH) == {"request.assigned", "request.cancelled"} | visits
-    assert keys(CLIENT) == {"request.decided", "request.cancelled"} | visits
+                           "calibration.digest"} | visits | reopened
+    assert keys(TECH) == {"request.assigned", "request.cancelled"} | visits | reopened
+    assert keys(CLIENT) == {"request.decided", "request.cancelled"} | visits | review
     assert keys(VIEWER) == set()
     assert keys(ADMIN | TECH) == keys(ADMIN)
 
@@ -38,6 +40,11 @@ def test_the_defaults_follow_appendix_b_and_the_choice_wins():
     assert on({}, "request.assigned", TECH) is True
     assert on({}, "request.decided", CLIENT) is True
     assert on({}, "calibration.digest", ADMIN) is True
+    # Review (W18): a client is emailed to review and of a corrected close-out; staff of a rejection
+    assert on({}, "request.client_review", CLIENT) is True
+    assert on({}, "report.closeout", CLIENT) is True
+    assert on({}, "request.reopened", TECH) is True and on({}, "request.reopened", ADMIN) is True
+    assert on({}, "request.client_review", TECH) is False  # not theirs to be emailed about
     # A cancellation is emailed to the client, and offered to staff but starts off
     assert on({}, "request.cancelled", CLIENT) is True
     assert on({}, "request.cancelled", TECH) is False

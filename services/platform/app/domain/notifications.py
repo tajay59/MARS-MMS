@@ -28,6 +28,12 @@ NOTIFY_EVENTS = frozenset({
     "visit.station_owner_changed", "visit.sync_conflict",
     "report.drafted",
 })
+# Client Review, the client's answer, client reports and the close-out (W18; PRD Appendix B). They
+# are planned apart from the request events above: who hears depends on the client's answer.
+REVIEW_EVENTS = frozenset({
+    "request.client_review_started", "request.review_reminder", "request.reopened",
+    "request.closed", "client_report.submitted", "report.closeout_generated",
+})
 VISIT_LIVE_EVENTS = frozenset({
     "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored", "visit.started",
     "visit.ended", "visit.station_owner_changed", "visit.station_arrived",
@@ -129,6 +135,8 @@ def plan(
             ))
         return Plan(drafts=drafts)
 
+    if event_type in REVIEW_EVENTS:
+        return _plan_review(event_type, data, actor_id, audience)
     if event_type not in NOTIFY_EVENTS and event_type not in LIVE_EVENTS:
         return Plan()
     if event_type.startswith("visit."):
@@ -204,6 +212,87 @@ def _live(event_type: str, data: Mapping[str, Any], audience: Audience) -> list[
         Live(user_id=i, entity_id=data["request_id"], status=data["status"], kind=kind)
         for i in dict.fromkeys(ids)
     ]
+
+
+# --- Client Review and what follows (W18; PRD REQ-12 to REQ-14, CRP-1, RPT-8, Appendix B) -----
+
+
+def _days(value: float) -> str:
+    """`7` for 7.0 and `0.5` for half a day, so a reminder never says `7.0 days`."""
+    return f"{value:g}"
+
+
+def _plan_review(
+    event_type: str, data: Mapping[str, Any], actor_id: str | None, audience: Audience
+) -> Plan:
+    """Who hears of the client's review and what comes of it. Every client of the organization
+    is asked to review and reminded (any of them may answer: the first answer wins, W18-5); the
+    people on the request and the admins hear the answer. A rejection carries the client's own
+    reason, as a reopen carries the admin's; nothing else of any report's text travels. The
+    person who did it is never told."""
+    if event_type == "report.closeout_generated":
+        return _plan_closeout(data, audience)
+    drafts: list[Draft] = []
+    request_id = data["request_id"]
+    line = _request_line(data)
+    assigned = list(data.get("assigned_staff_ids") or [])
+    team = [*assigned, *audience.admins]
+
+    def tell(
+        ids: Sequence[str], type_: str, title: str, body: str, *, link: str | None = None,
+        email: bool = False,
+    ) -> None:
+        for user_id in _once(ids, skip=actor_id):
+            drafts.append(Draft(
+                user_id=user_id, type=type_, title=title, body=body,
+                link=link or f"/requests/{request_id}", entity_id=request_id, email=email,
+            ))
+
+    review = f"/requests/{request_id}/review"
+    match event_type:
+        case "request.client_review_started":
+            tell(audience.org_clients, "request.client_review", "Work ready for your review",
+                 line, link=review, email=True)
+        case "request.review_reminder":
+            body = (f"{line} · waiting {_days(data['day'])} days, closes by itself after "
+                    f"{_days(data['auto_close_day'])}")
+            tell(audience.org_clients, "request.client_review", "Still waiting for your review",
+                 body, link=review, email=True)
+        case "request.reopened":
+            tell(team, "request.reopened", "The client sent the work back",
+                 f"{line} · {data['comment']}", email=True)
+        case "request.closed":
+            if data["auto_closed"]:
+                tell([*audience.org_clients, *team], "request.closed",
+                     "Closed automatically", f"{line} · no answer to the review")
+            else:
+                tell([*audience.org_clients, *team], "request.closed", "Work accepted", line)
+        case "client_report.submitted":
+            # A second try at drawing the same report is not a new report
+            if data.get("attempt", 1) == 1:
+                tell(team, "client_report.submitted", "Client report added",
+                     f"{line} · {data['report_title']} by {data['submitted_by_name']}")
+        case _:
+            pass
+    return Plan(drafts=drafts)
+
+
+def _plan_closeout(data: Mapping[str, Any], audience: Audience) -> Plan:
+    """The close-out report is final (RPT-8): the client is told in the app; a corrected one
+    (RPT-6) is also worth an email, because a report they may have filed has been replaced."""
+    corrected = bool(data["corrected"])
+    line = f"{data['number']} · {data.get('title') or 'Maintenance request'}"
+    drafts = [
+        Draft(
+            user_id=user_id, type="report.closeout",
+            title="Corrected close-out report" if corrected else "Close-out report ready",
+            body=f"{line} · version {data['version']}" if corrected else line,
+            link=f"/requests/{data['request_id']}", entity_id=data["request_id"],
+            email=corrected,
+        )
+        for user_id in _once(audience.org_clients, skip=None)
+    ]
+    return Plan(drafts=drafts)
 
 
 # --- Visits (W10; PRD VIS-11, Appendix B) ------------------------------------------------------
