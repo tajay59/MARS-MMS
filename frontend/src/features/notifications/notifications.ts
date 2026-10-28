@@ -1,6 +1,6 @@
 import type { NotificationOut } from '@/api/models'
 import type { EntityUpdate, VisitUpdate } from '@/app/realtime/bus'
-import { mdiAccountCheckOutline, mdiAccountOutline, mdiBellOutline, mdiCalendarOutline, mdiCancel, mdiCommentTextOutline, mdiFlagCheckered, mdiInboxOutline, mdiReplay, mdiSwapHorizontal, mdiTuneVariant } from '@mdi/js'
+import { mdiAccountCheckOutline, mdiAccountOutline, mdiAlertCircleOutline, mdiBellOutline, mdiCalendarOutline, mdiCancel, mdiClockAlertOutline, mdiCommentTextOutline, mdiFileCheckOutline, mdiFileDocumentOutline, mdiFileRestoreOutline, mdiFlagCheckered, mdiInboxOutline, mdiReplay, mdiSwapHorizontal, mdiTuneVariant } from '@mdi/js'
 
 /*
   The notification list and the messages the socket carries (PRD NOT-1, NOT-2, NOT-5). No Vue
@@ -75,6 +75,21 @@ export function iconFor (type: string): string {
     }
     case 'visit.owner_changed': {
       return mdiSwapHorizontal
+    }
+    case 'report.drafted': {
+      return mdiFileDocumentOutline
+    }
+    case 'report.finalized': {
+      return mdiFileCheckOutline
+    }
+    case 'report.reopened': {
+      return mdiFileRestoreOutline
+    }
+    case 'report.finalize_failed': {
+      return mdiAlertCircleOutline
+    }
+    case 'report.finalize_reminder': {
+      return mdiClockAlertOutline
     }
     default: {
       return mdiBellOutline

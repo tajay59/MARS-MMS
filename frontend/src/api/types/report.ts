@@ -25,6 +25,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Correction
+         * @description Is this visit's final report being corrected? Scoped like every read: a client asks about
+         *     their own organization's visit only, and anything else is "no" (rule 4). It tells a client
+         *     that "a corrected report is on its way" without showing them the draft.
+         */
+        get: operations["correction_api_v1_reports_correction_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -248,6 +270,16 @@ export interface components {
             /** Media Selection */
             media_selection?: components["schemas"]["SelectionEdit"][] | null;
             narrative?: components["schemas"]["NarrativeEdit"] | null;
+        };
+        /**
+         * CorrectionOut
+         * @description Whether a visit's final report is being corrected: a version after the first is a draft
+         *     or being finalized. All a client learns of a reopen (W17-10): the superseded version and
+         *     the new draft stay hidden from them.
+         */
+        CorrectionOut: {
+            /** Correcting */
+            correcting: boolean;
         };
         /** DownloadOut */
         DownloadOut: {
@@ -599,6 +631,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correction_api_v1_reports_correction_get: {
+        parameters: {
+            query: {
+                visit_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionOut"];
                 };
             };
             /** @description Validation Error */

@@ -1,14 +1,19 @@
 <template>
-  <section v-if="report" aria-labelledby="crs-h" class="flex flex-col gap-2">
+  <section v-if="report || correcting" aria-labelledby="crs-h" class="flex flex-col gap-2">
     <div class="flex items-baseline justify-between gap-3">
       <h2 id="crs-h" class="m-0 text-h3 text-surface-900">Report</h2>
 
-      <span class="text-sm text-surface-600">
+      <span v-if="report && !correcting" class="text-sm text-surface-600">
         <span class="font-mono" translate="no">{{ report.number }}</span> · {{ versionText(report) }}
       </span>
     </div>
 
-    <div class="flex flex-col gap-3 rounded-lg bg-surface-50 px-3.5 py-3">
+    <!-- A final report is being corrected: the old version and the new draft stay hidden (W17-10) -->
+    <FeedbackBanner v-if="correcting" type="info">
+      <b class="font-semibold">A corrected report is on its way.</b> We will tell you when it is final.
+    </FeedbackBanner>
+
+    <div v-else-if="report" class="flex flex-col gap-3 rounded-lg bg-surface-50 px-3.5 py-3">
       <div class="flex items-center gap-2">
         <span class="inline-flex items-center gap-1 rounded-full border border-success bg-success-container px-2 py-0.5 text-xs font-medium text-on-success-container">
           <v-icon :icon="mdiCheck" size="12" />Final {{ versionText(report) }}
@@ -38,7 +43,13 @@
       </div>
     </div>
 
-    <ReportPreviewDialog v-model="opened" :fetch-link="link" :reason="problem" :report="report" />
+    <ReportPreviewDialog
+      v-if="report"
+      v-model="opened"
+      :fetch-link="link"
+      :reason="problem"
+      :report="report"
+    />
   </section>
 </template>
 
@@ -49,6 +60,7 @@
   import { useDisplay } from 'vuetify'
   import { reportsApi } from '@/api/report'
   import { useOnline } from '@/app/composables/useOnline'
+  import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { formatWhen } from '../visits'
   import ReportPreviewDialog from './ReportPreviewDialog.vue'
   import { wordsFor } from './useVisitReport'
@@ -63,6 +75,7 @@
   const online = useOnline()
   const { mdAndUp } = useDisplay()
   const report = ref<ReportSummary | null>(null)
+  const correcting = ref(false)
   const opened = ref(false)
   const saving = ref(false)
   const problem = ref<string | null>(null)
@@ -73,9 +86,13 @@
   async function load (): Promise<void> {
     const mine = ++generation
     try {
-      const found = await reportsApi.list(`visit:${props.visitId}`)
+      const [found, correction] = await Promise.all([
+        reportsApi.list(`visit:${props.visitId}`),
+        reportsApi.correction(props.visitId),
+      ])
       if (mine === generation) {
         report.value = found.find(r => r.status === 'final') ?? null
+        correcting.value = correction.correcting
       }
     } catch {
       // Nothing to show is the same as nothing yet
@@ -117,6 +134,7 @@
 
   watch(() => props.visitId, () => {
     report.value = null
+    correcting.value = false
     void load()
   }, { immediate: true })
 
