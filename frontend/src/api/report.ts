@@ -1,6 +1,6 @@
 // The report service's routes (TRD §3.4). Shapes come from openapi/report.json.
 
-import type { JobOut, LabelsIn, ReportContentPatch, ReportCorrection, ReportDownload, ReportOut, ReportPreview, ReportReopenIn, ReportSignIn, ReportSummary } from './models'
+import type { Dashboard, DashboardView, JobOut, LabelsIn, ReportContentPatch, ReportCorrection, ReportDownload, ReportOut, ReportPreview, ReportReopenIn, ReportSignIn, ReportSummary } from './models'
 import { api } from './http'
 
 export const reportsApi = {
@@ -25,4 +25,6 @@ export const reportsApi = {
   finalize: (id: string) => api.post<ReportOut>(`/reports/${id}/finalize`),
   /** RPT-6: an admin reopens a final report as the next draft version. */
   reopen: (id: string, body: ReportReopenIn) => api.post<ReportOut>(`/reports/${id}/reopen`, body),
+  /** SUM-4 to SUM-6: the caller's own dashboard figures (an admin may ask for `technician`). Kept a minute on the server. */
+  dashboard: (view?: DashboardView, signal?: AbortSignal) => api.get<Dashboard>('/dashboard', { query: { view }, signal }),
 }

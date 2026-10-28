@@ -137,6 +137,16 @@ export type Preferences = Platform['Preferences']
 
 type Report = ReportComponents['schemas']
 
+// The dashboards' figures (W19-7)
+export type AdminDashboard = Report['AdminDashboard']
+export type TechnicianDashboard = Report['TechnicianDashboard']
+export type ClientDashboard = Report['ClientDashboard']
+export type Dashboard = AdminDashboard | TechnicianDashboard | ClientDashboard
+export type DashboardView = Dashboard['view']
+export type AwaitingReport = Report['AwaitingReport']
+export type CountryRow = Report['CountryRow']
+export type RecentReport = Report['RecentReport']
+
 export type JobOut = Report['JobOut']
 export type LabelsIn = Report['LabelsIn']
 export type ReportSummary = Report['ReportSummary']
