@@ -191,11 +191,13 @@ async def test_each_role_sees_its_own_choices_with_the_defaults(env):
     reminder = {"report.finalize_reminder": True}
     assert seen["admin"] == {"request.submitted": True, "request.assigned": True,
                              "request.cancelled": False, "calibration.digest": True,
-                             **reminder, **visits}
+                             **reminder, "request.reopened": True, **visits}
     assert seen["tech1"] == {"request.assigned": True, "request.cancelled": False,
-                             **reminder, **visits}
+                             **reminder, "request.reopened": True, **visits}
     assert seen["client_a1"] == {"request.decided": True, "request.cancelled": True,
-                                 "report.finalized": True, "report.reopened": True, **visits}
+                                 "report.finalized": True, "report.reopened": True,
+                                 "request.client_review": True, "report.closeout": True,
+                                 **visits}
     assert seen["viewer"] == {}
 
 

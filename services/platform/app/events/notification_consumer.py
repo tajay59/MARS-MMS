@@ -25,7 +25,7 @@ from redis.asyncio import Redis
 
 from app import realtime
 from app.domain.account_emails import EVENT_TYPES, EmailJob, Kind, job_for
-from app.domain.notifications import LIVE_EVENTS, NOTIFY_EVENTS, plan
+from app.domain.notifications import LIVE_EVENTS, NOTIFY_EVENTS, REVIEW_EVENTS, plan
 from app.repo import directory, emails, notifications
 
 GROUP = "notification"
@@ -121,7 +121,7 @@ def processor(
             steps.append(notify)
         handlers[event_type] = chain(*steps)
     handlers["user.purged"] = drop_from_directory
-    for event_type in NOTIFY_EVENTS | LIVE_EVENTS:
+    for event_type in NOTIFY_EVENTS | LIVE_EVENTS | REVIEW_EVENTS:
         handlers.setdefault(event_type, notify)
     return NotificationProcessor(
         client, db, handlers, send_to_dlq, clock, pending=pending, redis=redis
