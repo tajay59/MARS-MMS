@@ -4086,6 +4086,17 @@
             "title": "Attachments",
             "type": "array"
           },
+          "attestation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation"
+          },
           "auto_close_at": {
             "anyOf": [
               {

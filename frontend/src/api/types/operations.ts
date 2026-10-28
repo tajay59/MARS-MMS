@@ -2864,6 +2864,8 @@ export interface components {
             assigned_staff: components["schemas"]["PersonRef"][];
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
+            /** Attestation */
+            attestation?: string | null;
             /** Auto Close At */
             auto_close_at: string | null;
             /** Cancel Reason */

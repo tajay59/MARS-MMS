@@ -134,6 +134,27 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: 'New request', layout: 'app', roles: ['client', 'admin'] },
   },
   {
+    // A client reviews the finished work and signs it off, or sends it back (PRD REQ-12, REQ-13; AFD
+    // J8). Online only, and clients only: the email and the reminders link here.
+    path: '/requests/:id/review',
+    name: 'request-review',
+    component: () => import('@/features/requests/review/ReviewPage.vue'),
+    meta: { title: 'Review the work', layout: 'app', roles: ['client'] },
+  },
+  {
+    // A client's own report on a request, as a PDF or an online form (PRD CRP-1 to CRP-4; AFD J9)
+    path: '/requests/:id/client-reports/new',
+    name: 'client-report-new',
+    component: () => import('@/features/requests/clientReports/ClientReportPage.vue'),
+    meta: { title: 'Add a client report', layout: 'app', roles: ['client'] },
+  },
+  {
+    path: '/requests/:id/client-reports/:reportId',
+    name: 'client-report-draft',
+    component: () => import('@/features/requests/clientReports/ClientReportPage.vue'),
+    meta: { title: 'Add a client report', layout: 'app', roles: ['client'] },
+  },
+  {
     path: '/requests/:id?/:mode(edit)?',
     name: 'requests',
     component: () => import('@/features/requests/RequestsPage.vue'),

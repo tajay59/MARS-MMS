@@ -348,6 +348,8 @@ The client either accepts with a signature, which closes the request, or rejects
 | 4 | Reminder email (days 7, 21, 28) | Clicks **Review the work** | → `/requests/:id/review` |
 | 5 | — (no response by day 30) | Nothing | Request closed automatically; close-out report says it was auto-closed |
 
+**As built (W18 slice 5):** after **Sign and accept** the client stays on `/requests/:id/review`, which shows "Work accepted. The request is closed. Your close-out report is being made." with a **See the reports** button (the Reports tab, where the close-out leads once the worker has made it). After **Send** it shows "Sent back." with a button back to the request. A review that is no longer open shows its own banner instead of the buttons: accepted, closed automatically, sent back, or "A corrected report is on its way"; an answer the server refuses because a report changed meanwhile says "The reports changed while you were reviewing" and reads the page again. The Reports tab is on every request that has reached the work, for staff too.
+
 If an admin reopens a visit report while the request is in Client Review, the request returns to In progress, reminders stop, and `/requests/:id/review` shows "A corrected report is on its way. You'll be asked to review again." The 30 days start again when the corrected report is final.
 
 ### J9 · Add a client report
@@ -361,6 +363,8 @@ A client can add their own report to a request at any time, as a PDF or an onlin
 | 2b | `/requests/:id/client-reports/new` | Chooses **Fill in the online form**; enters title, date, stations, summary, per-station observations, data-quality notes and attachments | — |
 | 3 | Online form | Clicks **Save draft** | Draft saved; stays on page. Reopened later from **Continue draft** on the Reports tab |
 | 4 | Online form | Clicks **Submit** | Rendered to PDF and attached; can no longer be edited → `/requests/:id`, Reports tab |
+
+**As built (W18 slice 5):** a draft is made on the server as soon as the kind is chosen, saved 0.8 seconds after the last keystroke, and reopened from **Continue draft** on the Reports tab at `/requests/:id/client-reports/:reportId`. A draft is private to its author. **Submit** asks once more ("You cannot change it afterwards"). A form is drawn into a PDF a moment later: the row says "Making the PDF", then offers **Open**; if the PDF could not be made the row says so and the author gets **Try again**. A PDF is one file up to 25 MB; a form takes up to 10 JPEG or PNG pictures, printed at the end.
 
 ### J10 · Run summary reports and check the audit log
 
