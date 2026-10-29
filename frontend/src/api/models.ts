@@ -147,6 +147,20 @@ export type AwaitingReport = Report['AwaitingReport']
 export type CountryRow = Report['CountryRow']
 export type RecentReport = Report['RecentReport']
 
+// Summary reports (W19-8)
+export type SummaryIn = Report['SummaryIn']
+export type SummaryJob = Report['SummaryJob']
+export type SummaryType = Report['SummaryType']
+export type SummaryKind = SummaryType['type']
+
+// The audit log (W19-1), from the platform service
+export type AuditPage = Platform['AuditPage']
+export type AuditRecord = Platform['AuditRecord']
+export type HistoryPage = Platform['HistoryPage']
+export type HistoryEntry = Platform['HistoryEntry']
+export type CheckOut = Platform['CheckOut']
+export type HistoryKind = 'station' | 'request' | 'visit'
+
 export type JobOut = Report['JobOut']
 export type LabelsIn = Report['LabelsIn']
 export type ReportSummary = Report['ReportSummary']

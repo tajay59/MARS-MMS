@@ -31,7 +31,7 @@
   import { mdiEmailOutline } from '@mdi/js'
   import { ref } from 'vue'
   import { authApi } from '@/api/auth'
-  import { NetworkError } from '@/api/problem'
+  import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
@@ -59,9 +59,14 @@
       await authApi.requestReset(email.value.trim())
       sent.value = true
     } catch (error) {
-      failure.value = error instanceof NetworkError
-        ? 'No connection. Check your signal and try again.'
-        : 'Something went wrong on our side. Try again in a minute.'
+      if (error instanceof NetworkError) {
+        failure.value = 'No connection. Check your signal and try again.'
+      } else if (error instanceof ApiError && error.status === 429) {
+        // The gateway limits these requests (10 a minute): say so, and it is safe to send again
+        failure.value = 'Too many attempts. Wait a minute, then try again.'
+      } else {
+        failure.value = 'Something went wrong on our side. Try again in a minute.'
+      }
     } finally {
       busy.value = false
     }

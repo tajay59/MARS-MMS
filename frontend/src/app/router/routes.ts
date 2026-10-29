@@ -184,7 +184,14 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/visits/report/editor/ReportEditorPage.vue'),
     meta: { title: 'Visit report', layout: 'app', roles: STAFF },
   },
-  later('/reports', 'reports', 'Reports', 7),
+  {
+    // Summary reports (PRD SUM-1 to SUM-3; AFD J10): the types in the pane, the settings and the
+    // person's own reports in the view. A client makes two, for their own organization.
+    path: '/reports',
+    name: 'reports',
+    component: () => import('@/features/reports/ReportsPage.vue'),
+    meta: { title: 'Reports', layout: 'app' },
+  },
   {
     // The person's own notifications (PRD NOT-1, NOT-2)
     path: '/notifications',
@@ -265,7 +272,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/admin/StationToolsPage.vue'),
     meta: { title: 'QR labels and import', layout: 'app', roles: ADMIN },
   },
-  later('/admin/audit', 'admin-audit', 'Audit log', 7, ADMIN),
+  {
+    // The audit log (PRD AUD-4, AUD-5): search, the record in full, CSV export and the integrity check
+    path: '/admin/audit',
+    name: 'admin-audit',
+    component: () => import('@/features/audit/AuditPage.vue'),
+    meta: { title: 'Audit log', layout: 'app', roles: ADMIN },
+  },
   {
     // Appearance (the admin's own) and the organization's brand colours (W4-11, W4-12)
     path: '/admin/settings/:part(appearance|colours)?',

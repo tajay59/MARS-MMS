@@ -1,6 +1,6 @@
 // The report service's routes (TRD §3.4). Shapes come from openapi/report.json.
 
-import type { Dashboard, DashboardView, JobOut, LabelsIn, ReportContentPatch, ReportCorrection, ReportDownload, ReportOut, ReportPreview, ReportReopenIn, ReportSignIn, ReportSummary } from './models'
+import type { Dashboard, DashboardView, JobOut, LabelsIn, ReportContentPatch, ReportCorrection, ReportDownload, ReportOut, ReportPreview, ReportReopenIn, ReportSignIn, ReportSummary, SummaryIn, SummaryJob, SummaryType } from './models'
 import { api } from './http'
 
 export const reportsApi = {
@@ -27,4 +27,10 @@ export const reportsApi = {
   reopen: (id: string, body: ReportReopenIn) => api.post<ReportOut>(`/reports/${id}/reopen`, body),
   /** SUM-4 to SUM-6: the caller's own dashboard figures (an admin may ask for `technician`). Kept a minute on the server. */
   dashboard: (view?: DashboardView, signal?: AbortSignal) => api.get<Dashboard>('/dashboard', { query: { view }, signal }),
+  /** SUM-1 to SUM-3: the types this role may run. */
+  summaryTypes: (signal?: AbortSignal) => api.get<SummaryType[]>('/reports/summary/types', { signal }),
+  /** Asks for a summary and returns at once (202); the same ask within a minute returns the same job. */
+  startSummary: (body: SummaryIn) => api.post<SummaryJob>('/reports/summary', body),
+  /** The person's own summaries of the last 30 days, newest first. A finished one carries a ten-minute link (never kept). */
+  summaryJobs: (signal?: AbortSignal) => api.get<SummaryJob[]>('/reports/summary/jobs', { signal }),
 }

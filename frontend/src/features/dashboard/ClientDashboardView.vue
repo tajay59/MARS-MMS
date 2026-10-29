@@ -70,7 +70,6 @@
         <section aria-labelledby="recent-h" class="flex min-w-0 flex-col gap-2 rounded-card bg-surface-50 p-5">
           <div class="flex items-baseline justify-between gap-3">
             <h2 id="recent-h" class="m-0 text-h3 text-surface-900">Recent reports</h2>
-            <router-link class="inline-flex min-h-6 items-center text-sm font-medium text-primary no-underline hover:underline" :to="{ name: 'reports' }">All reports<span aria-hidden="true"> →</span></router-link>
           </div>
 
           <p v-if="unavailable" class="m-0 text-sm text-surface-600">Needs a connection.</p>
