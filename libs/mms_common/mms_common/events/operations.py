@@ -234,6 +234,9 @@ class RequestData(_Data):
     # `review_started_at`, `closed_at`, ...) and how often it was reopened
     milestones: dict[str, datetime] | None = None
     reopen_count: int | None = None
+    # Added in W19 for the report service's workload summary (optional, so version 1 stands): the
+    # names of the people on the request, by id, so no read from operations is needed (rule 1)
+    assigned_staff_names: dict[str, str] = Field(default_factory=dict)
 
 
 @register("request.submitted")
@@ -418,6 +421,8 @@ class VisitFacts(_Data):
     # The zone of the first station: the one the visit's dates are written in (W10-1). Optional,
     # so version 1 of every visit event still holds
     time_zone: str | None = None
+    # Added in W19 (optional): the names of the people on the visit, by id
+    staff_names: dict[str, str] = Field(default_factory=dict)
 
 
 @register("visit.scheduled")

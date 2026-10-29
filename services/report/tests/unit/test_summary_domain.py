@@ -56,6 +56,7 @@ def test_a_period_is_checked():
 def test_a_client_may_run_three_types_and_staff_all():
     client = {k for k in Kind if summary.allowed(k, client=True)}
     assert client == {Kind.STATION_HISTORY, Kind.CLIENT_ACTIVITY, Kind.STATION_ASSET}
+    assert not summary.allowed(Kind.TECHNICIAN_WORKLOAD, client=True)
     assert all(summary.allowed(k, client=False) for k in Kind)
     assert set(summary.TYPES) == set(Kind) == set(summary.BUILDERS)
 
@@ -222,3 +223,31 @@ def test_configuration_history_names_the_visit_and_orders_by_time():
     assert [r[2] for r in doc.main.rows] == [1, 4]
     assert doc.main.rows[1] == [at(9), "JM-KIN-001", 4, 3, "VR-2026-0001-01"]
     assert dict(doc.kpis) == {"Versions saved": "2", "Stations changed": "2"}
+
+
+@pytest.mark.req("SUM-1")
+def test_technician_workload_adds_up_requests_visits_hours_and_signatures():
+    doc = summary.build(Kind.TECHNICIAN_WORKLOAD, {
+        "names": {"u1": "Devon Clarke", "u2": "Aisha Mohammed"},
+        "open": [{"assigned_ids": ["u1"]}, {"assigned_ids": ["u1", "u2"]}],
+        "closed": [{"assigned_ids": ["u1"]}],
+        "visits": [
+            {"staff_ids": ["u1", "u2"], "lead_staff_id": "u1", "started_at": at(1, 8),
+             "ended_at": at(1, 12)},
+            {"staff_ids": ["u1"], "lead_staff_id": "u1", "started_at": at(2, 8),
+             "ended_at": at(2, 10)},
+            {"staff_ids": ["u2"], "lead_staff_id": "u2", "started_at": None, "ended_at": at(3)},
+        ],
+        "signed": {"u1": 2, "u3": 1}})
+    by_name = {r[0]: r for r in doc.main.rows}
+    assert by_name["Devon Clarke"][1:] == [2, 1, 2, 2, 6.0, 2]
+    assert by_name["Aisha Mohammed"][1:] == [1, 0, 2, 1, 4.0, 0]  # no start time: no hours
+    assert by_name["Unknown person"][1:] == [0, 0, 0, 0, 0.0, 1]  # signed, but not on a visit
+    assert [r[0] for r in doc.main.rows] == ["Aisha Mohammed", "Devon Clarke", "Unknown person"]
+    assert dict(doc.kpis) == {"Technicians": "3", "Visits ended": "3", "Hours on site": "10"}
+
+
+def test_a_workload_with_nobody_in_it_is_an_empty_table():
+    doc = summary.build(Kind.TECHNICIAN_WORKLOAD, {
+        "names": {}, "open": [], "closed": [], "visits": [], "signed": {}})
+    assert doc.main.rows == [] and doc.kpis[0] == ("Technicians", "0")

@@ -10,15 +10,15 @@ function type (key: string, title = key): SummaryType {
 
 describe('grouped', () => {
   it('puts the types in the pane in the order of the groups, leaving out what the server did not send', () => {
-    const groups = grouped([type('request_turnaround'), type('station_history'), type('annual_summary')])
+    const groups = grouped([type('technician_workload'), type('request_turnaround'), type('station_history'), type('annual_summary')])
     expect(groups.map(g => g.label)).toEqual(['Stations', 'Requests and people', 'Maintenance'])
-    expect(groups[1]?.types.map(t => t.type)).toEqual(['request_turnaround'])
+    expect(groups[1]?.types.map(t => t.type)).toEqual(['request_turnaround', 'technician_workload'])
   })
 
   it('keeps a type it does not know in Other, so a new report still shows', () => {
-    const groups = grouped([type('station_history'), type('technician_workload')])
+    const groups = grouped([type('station_history'), type('a_future_report')])
     expect(groups.at(-1)).toMatchObject({ label: 'Other' })
-    expect(groups.at(-1)?.types[0]?.type).toBe('technician_workload')
+    expect(groups.at(-1)?.types[0]?.type).toBe('a_future_report')
   })
 
   it('files the asset, configuration and sensor reports where people look for them', () => {

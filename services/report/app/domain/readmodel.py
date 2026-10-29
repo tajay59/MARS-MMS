@@ -28,7 +28,8 @@ UNITS = "unit_facts"
 MODELS = "model_facts"
 CONFIGS = "config_facts"
 INSTALLS = "installation_facts"
-COLLECTIONS = (STATIONS, REQUESTS, VISITS, CALIBRATIONS, UNITS, MODELS, CONFIGS, INSTALLS)
+STAFF = "staff_facts"
+COLLECTIONS = (STATIONS, REQUESTS, VISITS, CALIBRATIONS, UNITS, MODELS, CONFIGS, INSTALLS, STAFF)
 
 # What a later event does not repeat: kept from the stored row when the new one lacks it
 VISIT_KEEP = ("started_at", "ended_at", "additional_visit_required", "element_counts",
@@ -83,6 +84,8 @@ def request_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
         "priority": data["priority"], "status": data["status"],
         "reopen_count": data.get("reopen_count") or 0, "auto_closed": False,
         "assigned_ids": list(data.get("assigned_staff_ids") or []),
+        # Names ride along with the row and are kept in `staff_facts` (W19-11), not in the row
+        "staff_names": dict(data.get("assigned_staff_names") or {}),
         "aggregate_version": version,
     }
     for key in MILESTONES:
@@ -101,7 +104,8 @@ def visit_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
         "started_at": when(data.get("started_at")), "ended_at": when(data.get("ended_at")),
         "additional_visit_required": data.get("additional_visit_required"),
         "element_counts": None, "report_finalized_at": None,
-        "time_zone": data.get("time_zone"), "aggregate_version": version,
+        "time_zone": data.get("time_zone"), "staff_names": dict(data.get("staff_names") or {}),
+        "aggregate_version": version,
     }
 
 
