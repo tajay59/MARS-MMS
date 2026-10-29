@@ -16,9 +16,14 @@ from typing import Any, Protocol
 
 import segno
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from mms_common.logging import get_logger
 from PIL import Image
 
+from app.domain.charts import ChartSpec
 from app.domain.labels import TEMPLATE_VERSION, Label, paginate
+from app.repo.charts import ChartDrawer
+
+log = get_logger(__name__)
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 
@@ -115,6 +120,25 @@ def to_pdf(html: str) -> Rendered:
 
 
 class WeasyRenderer:
+    def __init__(self, charts: ChartDrawer | None = None) -> None:
+        self.charts = charts
+
+    async def with_chart(self, view: dict[str, Any]) -> dict[str, Any]:
+        """Draws the summary's chart, if it has one, and puts the picture in the view. A chart
+        that cannot be drawn (no browser, too slow, an error) is left out and the page says so;
+        the table below it has the same figures."""
+        spec = view.get("chart")
+        if not spec:
+            return view
+        picture = None
+        if self.charts is not None:
+            try:
+                picture = await self.charts.draw(ChartSpec.from_view(spec))
+            except Exception:
+                log.exception("chart_error", title=spec.get("title"))
+        src = ("data:image/png;base64," + base64.b64encode(picture).decode()) if picture else None
+        return {**view, "chart": {**spec, "src": src}}
+
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
         html = render_html(labels, phone)
         return await asyncio.to_thread(to_pdf, html)
@@ -132,5 +156,5 @@ class WeasyRenderer:
         return await asyncio.to_thread(to_pdf, html)
 
     async def summary(self, view: dict[str, Any], template_version: str) -> Rendered:
-        html = render_summary_html(view, template_version)
+        html = render_summary_html(await self.with_chart(view), template_version)
         return await asyncio.to_thread(to_pdf, html)

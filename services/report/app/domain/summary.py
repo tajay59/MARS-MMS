@@ -484,7 +484,7 @@ def cell_text(value: Any, zone: str) -> str:
 
 
 def pdf_view(doc: Doc, *, subtitle: str, filters: str, zone: str, generated_at: datetime,
-             generated_by: str) -> dict[str, Any]:
+             generated_by: str, chart: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return {
         "title": doc.title, "subtitle": subtitle, "filters": filters, "zone": zone,
         "kpis": [{"label": k, "value": v} for k, v in doc.kpis],
@@ -493,7 +493,7 @@ def pdf_view(doc: Doc, *, subtitle: str, filters: str, zone: str, generated_at: 
              "rows": [[cell_text(c, zone) for c in row] for row in t.rows]}
             for t in doc.tables
         ],
-        "notes": doc.notes,
+        "notes": doc.notes, "chart": dict(chart) if chart else None,
         "generated": cell_text(generated_at.replace(second=0, microsecond=0), zone),
         "generated_by": generated_by,
     }

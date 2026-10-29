@@ -13,7 +13,7 @@ from mms_common import safecsv
 from mms_common.errors import NotFound
 from mms_common.logging import get_logger
 
-from app.domain import summary
+from app.domain import charts, summary
 from app.domain.labels import JobType
 from app.domain.summary import TEMPLATE_VERSION, Kind
 from app.jobs.labels import Retry
@@ -66,11 +66,13 @@ async def render_summary(svc: Services, job_id: str) -> None:
             body = "".join(safecsv.rows(doc.main.columns, doc.main.rows)).encode("utf-8")
             pages = None
         else:
+            spec = charts.chart_for(doc, zone)
             view = summary.pdf_view(
                 doc, subtitle=summary.TYPES[kind].description,
                 filters=filters_text(params, len(stations), zone, kind, p,
                                      now.astimezone(ZoneInfo(zone)).date()),
-                zone=zone, generated_at=now, generated_by=job.get("requested_by_name") or "")
+                zone=zone, generated_at=now, generated_by=job.get("requested_by_name") or "",
+                chart=spec.to_view() if spec else None)
             rendered = await svc.renderer.summary(view, TEMPLATE_VERSION)
             body, pages = rendered.pdf, rendered.pages
         key = object_key(job_id, fmt)

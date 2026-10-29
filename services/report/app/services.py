@@ -17,6 +17,7 @@ from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
 from app.config import Settings
+from app.repo.charts import ChromiumCharts
 from app.repo.media import MediaClient, MediaSource
 from app.repo.operations import FactsSource, LabelSource, OperationsClient, VisitLocks
 from app.repo.render import Renderer, WeasyRenderer
@@ -61,8 +62,11 @@ def make_stations(
     return OperationsClient(settings.ops_url, tokens, http)
 
 
-def make_renderer() -> Renderer:
-    return WeasyRenderer()
+def make_renderer(settings: Settings | None = None) -> Renderer:
+    settings = settings or Settings()
+    charts = (ChromiumCharts(settings.chromium_path, settings.chart_timeout_s)
+              if settings.charts == "chromium" else None)
+    return WeasyRenderer(charts)
 
 
 class QueueJobs:
