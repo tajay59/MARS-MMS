@@ -66,6 +66,15 @@ class PasswordReset(_Data):
     email_hash: str
 
 
+@register("auth.sessions_revoked")
+class SessionsRevoked(_Data):
+    """Every refresh session and access token ended at once, by an operator after a restore from
+    backup (W20-9). `count` is the refresh sessions that were still open."""
+
+    reason: str
+    count: int
+
+
 @register("auth.token_reuse_detected")
 class TokenReuseDetected(_Data):
     """A rotated refresh token was presented after the 30 s grace: its family is revoked."""

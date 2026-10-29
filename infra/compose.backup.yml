@@ -1,0 +1,87 @@
+# Backups (TRD §16.4; W20-6, W20-7). An overlay, like compose.monitoring.yml:
+#
+#   docker compose -f compose.yml -f compose.prod.yml -f compose.monitoring.yml -f compose.backup.yml up -d
+#
+# `backup` dumps MongoDB every night, encrypts the dump to BACKUP_AGE_RECIPIENT (a public key; the
+# private key is not on this host) and copies it to the backup host with rclone. `filer-sync`
+# copies every SeaweedFS change to the backup host's SeaweedFS as it happens; `backup` compares the
+# two every night. Locally and in CI the "backup host" is compose.backup-host.yml and a volume.
+#
+# These services are in the `backup` profile: set COMPOSE_PROFILES=backup in infra/.env on the host
+# that takes backups (tests and the restore drill start `backup` by name, which needs no profile).
+#
+# infra/.env needs BACKUP_DB_PASSWORD and BACKUP_AGE_RECIPIENT. For a real backup host also
+# BACKUP_REMOTE=backup:/srv/mms-backups with RCLONE_CONFIG_BACKUP_TYPE=sftp, RCLONE_CONFIG_BACKUP_HOST,
+# _USER and _KEY_FILE (or _PASS, obscured with `rclone obscure`), and BACKUP_REPLICA_FILER.
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  backup:
+    <<: *restart
+    profiles: [backup]
+    build:
+      context: .
+      dockerfile: backup/Dockerfile
+    image: ${MMS_REGISTRY:-mms}/backup:${MMS_TAG:-local}
+    environment:
+      BACKUP_MONGO_URI: mongodb://backup:${BACKUP_DB_PASSWORD:?set BACKUP_DB_PASSWORD}@mongo:27017/?authSource=admin&directConnection=true
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-:local:/backups}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-14}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-12}
+      BACKUP_REPLICA_S3_ENDPOINT: ${BACKUP_REPLICA_S3_ENDPOINT:-}
+      BACKUP_S3_ACCESS_KEY: ${ADMIN_S3_ACCESS_KEY:?}
+      BACKUP_S3_SECRET_KEY: ${ADMIN_S3_SECRET_KEY:?}
+      RCLONE_CONFIG_BACKUP_TYPE: ${RCLONE_CONFIG_BACKUP_TYPE:-}
+      RCLONE_CONFIG_BACKUP_HOST: ${RCLONE_CONFIG_BACKUP_HOST:-}
+      RCLONE_CONFIG_BACKUP_USER: ${RCLONE_CONFIG_BACKUP_USER:-}
+      RCLONE_CONFIG_BACKUP_KEY_FILE: ${RCLONE_CONFIG_BACKUP_KEY_FILE:-}
+      RCLONE_CONFIG_BACKUP_PASS: ${RCLONE_CONFIG_BACKUP_PASS:-}
+    volumes:
+      - backup-data:/backups
+      - backup-state:/state
+      - textfile:/textfile
+      # What `backup config` archives: the host's .env and secrets (read only)
+      - ${MMS_ENV_FILE:-./.env}:/config/env:ro
+      - ${MMS_SECRETS_DIR:-./secrets}:/config/secrets:ro
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+      textfile-init:
+        condition: service_completed_successfully
+    mem_limit: 256m
+    networks: [backend]
+
+  # A volume belongs to root until something changes it, and `backup` runs as a user of its own.
+  textfile-init:
+    profiles: [backup]
+    image: busybox:1.37.0
+    command: ["chown", "10002:10002", "/textfile"]
+    volumes:
+      - textfile:/textfile
+    restart: "no"
+
+  # Follows the primary filer and applies each change to the backup host's filer (W20-7).
+  filer-sync:
+    <<: *restart
+    profiles: [backup]
+    image: chrislusf/seaweedfs:4.48
+    entrypoint: ["/usr/bin/weed"]
+    command:
+      - filer.sync
+      - -a=seaweedfs:8888
+      - -b=${BACKUP_REPLICA_FILER:-seaweedfs-replica:8888}
+      - -a.path=/buckets
+      - -b.path=/buckets  # the same place on the backup host: the default is /
+      - -isActivePassive
+    depends_on: [seaweedfs]
+    mem_limit: 128m
+    networks: [backend]
+
+volumes:
+  backup-data:
+  backup-state:
+  textfile:

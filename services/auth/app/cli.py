@@ -12,6 +12,11 @@
         Organizations from the existing system's `entities` export (decision W5-8). A dry run unless
         --commit; organizations already there are skipped, so it can run again.
 
+    python -m app.cli revoke-all-sessions [--reason restore]
+        Ends every session: all refresh tokens, and every access token issued so far. Run it after
+        a restore from backup (the dump brings back users and sessions as they were) and when a
+        signing key may have leaked. Everyone signs in again. Recorded as `auth.sessions_revoked`.
+
 All go through the same rules and the outbox, so the audit trail records them (`user.created`,
 `org.created`).
 """
@@ -94,6 +99,42 @@ async def create_admin(email: str, name: str, password: str) -> int:
         print(f"Admin {doc['email']} created")
         return 0
     finally:
+        await client.close()
+
+
+async def revoke_all_sessions(reason: str) -> int:
+    from mms_common.auth import revocation
+    from redis.asyncio import Redis
+
+    from app.repo import sessions
+
+    settings = Settings()
+    clock = SystemClock()
+    client = mongo.connect(settings.mongo_uri)
+    db = client[settings.mongo_db]
+    redis = Redis.from_url(settings.redis_url)
+    try:
+        now = clock.now()
+        emitter = Emitter(db, clock, CLI, correlation_id=None)
+        counted = 0
+
+        async def save(s: AsyncClientSession) -> None:
+            nonlocal counted
+            counted = await sessions.revoke_all(db, now, session=s)
+            await emitter.emit(
+                ev.SessionsRevoked(reason=reason, count=counted), type_="auth.sessions_revoked",
+                key="sessions", resource=("auth", "sessions"), aggregate_version=0, org_id=None,
+                session=s,
+            )
+
+        await mongo.in_transaction(client, save)
+        # After the database: a token refused for a session that was not ended is only a login
+        # again, but the other order could leave a session open.
+        await revocation.revoke_all(redis, now)
+        print(f"{counted} session(s) ended; every access token issued before now is refused")
+        return 0
+    finally:
+        await redis.aclose()
         await client.close()
 
 
@@ -199,6 +240,9 @@ def main(argv: list[str] | None = None) -> int:
     admin.add_argument("--email", required=True)
     admin.add_argument("--name", required=True)
     commands.add_parser("seed")
+    revoke = commands.add_parser("revoke-all-sessions",
+                                 help="end every session (after a restore from backup)")
+    revoke.add_argument("--reason", default="restore", choices=["restore", "key_rotation"])
     orgs = commands.add_parser("import-orgs",
                                help="organizations from the existing system's export")
     orgs.add_argument("file")
@@ -212,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Can't read {args.file}: {exc}", file=sys.stderr)
             return 1
         return asyncio.run(import_orgs(args.file, content, args.commit))
+    if args.command == "revoke-all-sessions":
+        return asyncio.run(revoke_all_sessions(args.reason))
     if args.command == "create-admin":
         password = os.environ.get("AUTH_ADMIN_PASSWORD") or getpass.getpass("Password: ")
         if len(password) < 10:

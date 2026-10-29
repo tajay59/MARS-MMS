@@ -75,6 +75,7 @@ services:
       PLATFORM_NOTIFICATION_DB_PASSWORD: ${PLATFORM_NOTIFICATION_DB_PASSWORD:?}
       PLATFORM_AUDIT_DB_PASSWORD: ${PLATFORM_AUDIT_DB_PASSWORD:?}
       MONITOR_DB_PASSWORD: ${MONITOR_DB_PASSWORD:-}
+      BACKUP_DB_PASSWORD: ${BACKUP_DB_PASSWORD:-}
     volumes:
       - ./mongo/init.js:/opt/mms/init.js:ro
     restart: "no"
