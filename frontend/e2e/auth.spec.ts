@@ -55,7 +55,7 @@ test('J1: a client registers, an admin approves, the client logs in @J1 @AUTH-1 
   await admin.getByLabel('Password', { exact: true }).fill(seedPassword())
   await submitPaced(admin, 'Log in')
   await expect(admin).toHaveURL(/\/dashboard$/)
-  await admin.getByRole('link', { name: /Registrations pending/ }).click()
+  await admin.getByRole('link', { name: /^Review them/ }).click()
   await expect(admin).toHaveURL(/\/admin\/registrations$/)
   await checkA11y(admin, '/admin/registrations')
   await admin.getByRole('button', { name: client.name, exact: true }).click()

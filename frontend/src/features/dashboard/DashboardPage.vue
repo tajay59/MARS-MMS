@@ -1,71 +1,72 @@
 <template>
-  <PageBody :subtitle="greeting" title="Dashboard">
-    <template v-if="isClient && canAct" #actions>
-      <v-btn color="primary" :prepend-icon="mdiPlus" :to="{ name: 'request-new' }">Report a problem</v-btn>
+  <PageBody :subtitle="subtitle" title="Dashboard">
+    <template #actions>
+      <v-btn v-if="isClient && canAct" color="primary" :prepend-icon="mdiPlus" :to="{ name: 'request-new' }">Report a problem</v-btn>
+
+      <v-btn
+        v-else-if="!isClient"
+        :loading="loading"
+        :prepend-icon="mdiRefresh"
+        variant="outlined"
+        @click="reload"
+      >Refresh</v-btn>
     </template>
 
-    <!-- The pane: what needs this person now. Filters join it with the stations (phase 2). -->
-    <PaneContent>
-      <section aria-labelledby="attention-h" class="flex flex-col gap-1 px-3">
-        <h3 id="attention-h" class="m-0 px-2 pb-1 text-sm font-semibold text-surface-900">Needs your attention</h3>
-
-        <router-link
-          v-if="isAdmin"
-          class="flex items-center gap-3 rounded-card p-3 hover:bg-surface-100"
-          :to="{ name: 'admin-registrations' }"
-        >
-          <span class="flex min-w-0 grow flex-col">
-            <span class="font-medium text-surface-900">Registrations pending</span>
-            <span class="text-sm text-surface-600">Check and approve new accounts</span>
-          </span>
-
-          <span class="font-heading text-h2 tabular-nums text-surface-900">{{ registrations.pending ?? '—' }}</span>
-        </router-link>
-
-        <p v-else class="m-0 px-2 text-sm text-surface-600">Nothing needs you right now.</p>
-      </section>
-    </PaneContent>
-
-    <div class="flex flex-col gap-8">
+    <div class="flex flex-col gap-5">
       <InstallCard />
 
-      <MyVisits v-if="canAttend" />
+      <FeedbackBanner v-if="problem === 'failed'" type="error">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="grow">We couldn’t load the figures.</span>
+          <v-btn size="small" variant="text" @click="reload">Try again</v-btn>
+        </div>
+      </FeedbackBanner>
 
-      <section class="flex max-w-2xl flex-col gap-2">
-        <h2 class="m-0 text-h3 text-surface-900">{{ next.title }}</h2>
-        <p class="m-0 text-surface-600">{{ next.text }}</p>
-      </section>
+      <AdminDashboardView v-if="view === 'admin'" :data="admin" :loading="loading" :unavailable="unavailable" />
+      <TechnicianDashboardView v-else-if="view === 'technician'" :data="technician" :loading="loading" :unavailable="unavailable" />
+      <ClientDashboardView v-else :data="client" :loading="loading" :unavailable="unavailable" />
     </div>
   </PageBody>
 </template>
 
 <script lang="ts" setup>
-  import { mdiPlus } from '@mdi/js'
+  import { mdiPlus, mdiRefresh } from '@mdi/js'
   import { storeToRefs } from 'pinia'
-  import { computed, onMounted } from 'vue'
+  import { computed } from 'vue'
   import InstallCard from '@/app/pwa/InstallCard.vue'
+  import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import PageBody from '@/components/PageBody.vue'
-  import PaneContent from '@/components/PaneContent.vue'
-  import MyVisits from '@/features/visits/MyVisits.vue'
-  import { useRegistrationsStore } from '@/stores/registrations'
   import { useSessionStore } from '@/stores/session'
+  import AdminDashboardView from './AdminDashboardView.vue'
+  import ClientDashboardView from './ClientDashboardView.vue'
+  import { isAdminView, isClientView, isTechnicianView, ownView } from './dashboard'
+  import TechnicianDashboardView from './TechnicianDashboardView.vue'
+  import { useDashboard } from './useDashboard'
 
-  // One dashboard per role (AFD §3). Phase 1 has the admin's registrations widget (J1 step 3);
-  // each role's widgets arrive with the features they count.
+  // One dashboard per role (AFD §3, PRD SUM-4 to SUM-6): the admin's, which a Viewer sees without
+  // the actions, the technician's and the client's. Each is figures from the server, kept a minute
+  // there and looked at again here, and never kept on the device.
   const session = useSessionStore()
-  const { user, isAdmin, isClient, canAct } = storeToRefs(session)
-  const registrations = useRegistrationsStore()
+  const { user, isClient, canAct, roles } = storeToRefs(session)
 
-  // Technicians and admins attend visits; clients and viewers don't
-  const canAttend = computed(() => session.hasAnyRole(['technician', 'admin']))
-  const greeting = computed(() => `Signed in as ${user.value?.name ?? ''}`)
-  const next = computed(() => isClient.value
-    ? { title: 'Your stations and requests', text: 'Station pages arrive in phase 2 and reporting a problem in phase 3.' }
-    : { title: 'Your work', text: 'Claim requests from the queue, then plan and run their visits from Work.' })
+  const view = computed(() => ownView(roles.value))
+  const { data, loading, problem, reload } = useDashboard(() => view.value)
+  const unavailable = computed(() => problem.value === 'offline')
+  const admin = computed(() => data.value && isAdminView(data.value) ? data.value : null)
+  const technician = computed(() => data.value && isTechnicianView(data.value) ? data.value : null)
+  const client = computed(() => data.value && isClientView(data.value) ? data.value : null)
 
-  onMounted(() => {
-    if (isAdmin.value) {
-      void registrations.refresh()
-    }
+  const subtitle = computed(() => {
+    const first = (user.value?.name ?? '').split(' ', 1)[0]
+    const hello = isClient.value ? 'Welcome' : greeting()
+    return `${hello}${first ? `, ${first}` : ''}. These figures update every minute.`
   })
+
+  function greeting (now: Date = new Date()): string {
+    const hour = now.getHours()
+    if (hour < 12) {
+      return 'Good morning'
+    }
+    return hour < 18 ? 'Good afternoon' : 'Good evening'
+  }
 </script>
