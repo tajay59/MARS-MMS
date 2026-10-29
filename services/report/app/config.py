@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     # PDF is drawn with what is ready (TRD 3.4: five minutes)
     draft_wait_s: int = 300
     draft_tick_s: int = 30  # how often the cron reads stale facts and queues first PDFs
+    # How long a dashboard's figures are kept in Redis (TRD 11.2): 0 turns the cache off
+    dashboard_cache_s: int = 60
 
     # --- Signatures (W17-5, W17-6; PRD RPT-4, Q2)
     # The sentence shown above the signature and stored with it, as the person saw it

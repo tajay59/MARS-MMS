@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.8 |
+| **Version** | 1.9 |
 | **Date** | 2026-10-28 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0: five services and six databases; SeaweedFS instead of MinIO; Nginx instead of Kong; `org_id` copied onto sensor installations and calibrations (closes B2); model documents reached through operations (B4); files start staff-only (ADR-19); station owners on visits; offline profile and PIN verifier on the device; read models rebuilt by backfill. B3 closed by TRD §5 indexes; B5 and B6 recorded as decisions |
@@ -11,6 +11,7 @@
 | **Changes in 1.3** | auth's `settings` collection (one document, `branding`: the organization's Material 3 brand colours, decision W4-12); the PWA keeps its last copy in `localStorage` (`mms-branding`), with the per-device `mms-motion` setting |
 | **Changes in 1.5** | Follows TRD 2.7 (decision W5-8): auth's `organizations` gain `short_name` and `external_id` (unique where set), copied into operations' `organizations`; `stations.external_id` (unique where set). Imported from the organization's existing system; its MQTT credentials are never copied |
 | **Changes in 1.4** | The stations module as built (TRD 2.6): operations' `organizations` copy (name, country, status) from auth's events and snapshot; `sensor_models.key` unique; `installations.source_action_id` unique only where set |
+| **Changes in 1.9** | Follows TRD 2.20 (W19 slice 2): `unit_facts` joins the read model, and `request_facts` carries `assigned_ids`. |
 | **Changes in 1.8** | Follows TRD 2.19 (W19 slice 1): `audit_checks` in the notification database holds the integrity checks of the audit chain and their results. |
 | **Changes in 1.7** | W17 as built (TRD, decisions W17-1 to W17-12): `signatures` and the visit report fields. A signature is `valid` or kept with `cleared_at` and `cleared_by`, binds to `report_version`, `content_version` and `content_hash`, and holds the drawing as bytes (`image`), not base64. A report gains `content_version`, `facts_version`, `facts_stale`, `staff_ids`, `lead_staff_id`, `ended_at`, `draft_pdf`, `final_pdf`, `finalize_*`, `unlock_pending`, `reminders_sent` and `remind_from` |
 | **Changes in 1.6** | Follows TRD 2.16 (decisions W11-16 to W11-35, 2026-10-22): the visit board. New collection `visit_elements` (Notes, Tasks, Recommendations, Config; one document per element, versioned, tombstoned on delete; client scope `org_id` + `shared` + an ended visit). Removed: the embedded work record (`site_visits.stations[].work` and `media[]`), `sensor_applications`, `checklist_templates` and `sensor_units.needs_review`. Media owners name an element and its section |
@@ -243,7 +244,7 @@ A station's board is a set of `visit_elements` documents rather than one embedde
 | `reports` | Visit, close-out, client-form, label and summary reports, all versions | `type`, `subject_ref` (e.g. `visit:{id}`), `request_id`, `org_id`, `number`, `version`, `status` (draft, finalizing, final, superseded), `content` (`facts`, `narrative`, `media_selection`), `content_version`, `facts_version`, `facts_stale`, `content_hash` (SHA-256 of what prints), `staff_ids`, `lead_staff_id`, `ended_at`, `draft_pdf`, `final_pdf`, `pdf_key`, `pdf_sha256`, `finalizing_at`, `finalize_attempts`, `finalize_error`, `finalized_at`, `finalized_by`, `unlock_pending`, `reminders_sent`, `remind_from`, `supersedes_id` | `org_id`, and `status = final` | `(subject_ref, version)` unique; `pdf_sha256`; `(type, status)`; `request_id` |
 | `signatures` | Signatures of the people who attended, on one report version. Never deleted: one that no longer applies is kept with `valid: false` | `report_id`, `report_version`, `content_version`, `content_hash` (of what prints, when signed), `signer_id`, `signer_name`, `role` (lead or attending), `typed_name`, `image` (PNG bytes, ≤ 100 KB, ≤ 1200 × 600 px), `attestation` (as shown), `signed_at`, `ip`, `user_agent`, `valid`, `cleared_at`, `cleared_by` (a person's id, `facts` or `reopen`) | Never read by a client: the drawing is served only inside `GET /reports/{id}` to staff, and a final PDF prints the signatures | `(report_id, report_version, valid)`; unique `(report_id, report_version, signer_id)` where `valid` |
 | `report_jobs` | Rendering jobs | `type`, `params`, `status`, `requested_by` | Own jobs | — |
-| `request_facts`, `visit_facts`, `station_facts`, `calibration_facts`, `sensor_events` | Read model for dashboards and summary reports, built from events and backfill | Each carries `org_id` and the `aggregate_version` it was built from | `org_id` | `(org_id, status)` on `request_facts`; `(org_id, due_at)` on `calibration_facts` |
+| `request_facts` (with `assigned_ids`), `visit_facts`, `station_facts`, `calibration_facts`, `unit_facts` (unit, status, station, `due_at`), `sensor_events` | Read model for dashboards and summary reports, built from events and backfill | Each carries `org_id` and the `aggregate_version` it was built from | `org_id` | `(org_id, status)` on `request_facts`; `(org_id, due_at)` on `calibration_facts` |
 
 ### platform: notification and audit databases
 

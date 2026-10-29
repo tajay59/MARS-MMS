@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard
+         * @description The caller's own view by default. Asking for one the role does not have is refused.
+         */
+        get: operations["dashboard_api_v1_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports": {
         parameters: {
             query?: never;
@@ -260,6 +280,90 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminDashboard */
+        AdminDashboard: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            figures: components["schemas"]["AdminFigures"];
+            /** Reports Awaiting */
+            reports_awaiting: components["schemas"]["AwaitingReport"][];
+            /** Requests By Status */
+            requests_by_status: components["schemas"]["StatusCount"][];
+            /** Stations By Country */
+            stations_by_country: components["schemas"]["CountryRow"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "admin";
+        };
+        /** AdminFigures */
+        AdminFigures: {
+            /** Calibrations Due Soon */
+            calibrations_due_soon: number;
+            /** Calibrations Overdue */
+            calibrations_overdue: number;
+            /** Failed Calibrations */
+            failed_calibrations: number;
+            /** In Client Review */
+            in_client_review: number;
+            /** Reports Awaiting Finalization */
+            reports_awaiting_finalization: number;
+            /** Requests Awaiting Approval */
+            requests_awaiting_approval: number;
+            /** Unassigned Queue */
+            unassigned_queue: number;
+            /** Upcoming Visits */
+            upcoming_visits: number;
+        };
+        /** AwaitingReport */
+        AwaitingReport: {
+            /** Age Days */
+            age_days: number;
+            /** Lead Name */
+            lead_name: string | null;
+            /** Number */
+            number: string;
+            /** Report Id */
+            report_id: string;
+            /** Request Id */
+            request_id: string;
+            /** Station Codes */
+            station_codes: string[];
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id: string;
+        };
+        /** ClientDashboard */
+        ClientDashboard: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            figures: components["schemas"]["ClientFigures"];
+            /** Recent Reports */
+            recent_reports: components["schemas"]["RecentReport"][];
+            stations: components["schemas"]["StationStatusCounts"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "client";
+        };
+        /** ClientFigures */
+        ClientFigures: {
+            /** Awaiting Our Review */
+            awaiting_our_review: number;
+            /** Open Requests */
+            open_requests: number;
+            /** Upcoming Visits */
+            upcoming_visits: number;
+        };
         /**
          * ContentPatch
          * @description PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.
@@ -280,6 +384,21 @@ export interface components {
         CorrectionOut: {
             /** Correcting */
             correcting: boolean;
+        };
+        /** CountryRow */
+        CountryRow: {
+            /** Country */
+            country: string;
+            /** Decommissioned */
+            decommissioned: number;
+            /** Degraded */
+            degraded: number;
+            /** Offline */
+            offline: number;
+            /** Operational */
+            operational: number;
+            /** Total */
+            total: number;
         };
         /** DownloadOut */
         DownloadOut: {
@@ -400,6 +519,21 @@ export interface components {
             pdf: components["schemas"]["PdfState"];
             /** State */
             state: string;
+        };
+        /** RecentReport */
+        RecentReport: {
+            /** Finalized At */
+            finalized_at: string | null;
+            /** Number */
+            number: string;
+            /** Report Id */
+            report_id: string;
+            /** Request Id */
+            request_id: string | null;
+            /** Type */
+            type: string;
+            /** Version */
+            version: number;
         };
         /**
          * ReopenIn
@@ -574,6 +708,51 @@ export interface components {
             /** Valid */
             valid: boolean;
         };
+        /** StationStatusCounts */
+        StationStatusCounts: {
+            /** Decommissioned */
+            decommissioned: number;
+            /** Degraded */
+            degraded: number;
+            /** Offline */
+            offline: number;
+            /** Operational */
+            operational: number;
+        };
+        /** StatusCount */
+        StatusCount: {
+            /** Count */
+            count: number;
+            /** Status */
+            status: string;
+        };
+        /** TechnicianDashboard */
+        TechnicianDashboard: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            figures: components["schemas"]["TechnicianFigures"];
+            /** Reports To Finalize */
+            reports_to_finalize: components["schemas"]["AwaitingReport"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "technician";
+        };
+        /** TechnicianFigures */
+        TechnicianFigures: {
+            /** My Assigned */
+            my_assigned: number;
+            /** My Reports To Finalize */
+            my_reports_to_finalize: number;
+            /** My Upcoming Visits */
+            my_upcoming_visits: number;
+            /** Queue */
+            queue: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -612,6 +791,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    dashboard_api_v1_dashboard_get: {
+        parameters: {
+            query?: {
+                view?: ("admin" | "technician" | "client") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDashboard"] | components["schemas"]["TechnicianDashboard"] | components["schemas"]["ClientDashboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_reports_api_v1_reports_get: {
         parameters: {
             query?: {

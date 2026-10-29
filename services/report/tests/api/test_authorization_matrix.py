@@ -24,6 +24,9 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/api/v1/reports/jobs/{job_id}"): roles("technician", "admin", "viewer"),
     # Visit reports (W16): staff read drafts; a client reads only a final report of their own
     # organization (the route filters, rule 6); only attending staff and admins ask for a preview.
+    # The dashboards (W19-7): every signed-in role reads its own view; the route refuses a view
+    # that is not the role's (403 wrong_view) and a client's figures are scoped by organization.
+    ("GET", "/api/v1/dashboard"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports/{report_id}"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports/{report_id}/download"): roles("technician", "admin", "viewer", "client"),
