@@ -64,7 +64,7 @@ AUD1: dict[str, tuple[str, ...]] = {
         "client_report.submitted", "report.generated", "report.closeout_generated",
     ),
     "QR regeneration": ("qr.regenerated",),
-    "security": ("auth.token_reuse_detected",),
+    "security": ("auth.token_reuse_detected", "auth.sessions_revoked"),
     "brand colour changes": ("branding.updated",),
 }
 

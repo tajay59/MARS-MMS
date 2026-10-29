@@ -112,6 +112,13 @@ async def revoke_family(db: Db, family_id: str, now: datetime, session: Session 
     )
 
 
+async def revoke_all(db: Db, now: datetime, *, session: Session = None) -> int:
+    """End every open refresh session (an operator, after a restore). Returns how many were open."""
+    result = await col(db).update_many({"revoked_at": None}, {"$set": {"revoked_at": now}},
+                                       session=session)
+    return int(result.modified_count)
+
+
 async def revoke_users(
     db: Db,
     user_ids: list[str],

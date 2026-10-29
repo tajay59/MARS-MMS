@@ -241,6 +241,21 @@ async def test_the_check_names_the_first_broken_record_and_nothing_else(trail):
 
 
 @pytest.mark.req("AUD-5")
+async def test_the_operator_command_checks_the_chain_and_the_record_a_backup_noted(trail):
+    """What restore.sh runs (W20-8): intact, broken, and "the head the backup recorded"."""
+    from app import cli
+
+    db = trail[0].state.audit_db
+    assert await cli.check(db) == (0, "audit chain ok: 7 records")
+    head = await db["audit_events"].find_one({"seq": 7})
+    assert (await cli.check(db, 7, head["hash"]))[0] == 0
+    assert (await cli.check(db, 7, "0" * 64))[0] == 2  # intact, but not what was backed up
+    assert (await cli.check(db, 99, head["hash"]))[0] == 2  # that record is missing
+    await db["audit_events"].update_one({"seq": 3}, {"$set": {"action": "visit.cancelled"}})
+    assert await cli.check(db) == (1, "audit chain BROKEN at seq 3")
+
+
+@pytest.mark.req("AUD-5")
 async def test_a_deleted_tail_and_a_deleted_middle_are_both_found(trail):
     app, _, _, _, _, _, _ = trail
     db = app.state.audit_db
