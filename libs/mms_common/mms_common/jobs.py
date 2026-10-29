@@ -15,15 +15,19 @@ runs once, and a job being worked on is not queued again).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from redis.asyncio import Redis
 
+from mms_common import metrics
 from mms_common.logging import get_logger
 
 log = get_logger(__name__)
+
+DEPTH_EVERY_S = 5.0
 
 # Claim the earliest due job: move its score to the lease end and return it. Atomic.
 _CLAIM = """
@@ -83,18 +87,25 @@ async def run_worker(
     acks the job; `Retry` puts it back for later; any other error is logged and the job comes
     back when its lease runs out."""
     running: set[asyncio.Task[None]] = set()
+    depth_due = 0.0
 
     async def run(job_id: str) -> None:
         try:
-            await handler(job_id)
+            with metrics.timed(metrics.JOB_DURATION, queue.name):
+                await handler(job_id)
         except Retry as r:
             await queue.reschedule(job_id, r.defer_s)
         except Exception:  # noqa: BLE001 - leave the lease to expire; the job runs again
+            metrics.JOB_FAILURES.labels(queue.name).inc()
             log.exception("job_failed", queue=queue.name, job_id=job_id)
         else:
             await queue.ack(job_id)
 
     while not stop.is_set():
+        if time.monotonic() >= depth_due:
+            depth_due = time.monotonic() + DEPTH_EVERY_S
+            with contextlib.suppress(Exception):  # Redis trouble is seen elsewhere; keep working
+                metrics.JOB_QUEUE_DEPTH.labels(queue.name).set(await queue.size())
         if len(running) < concurrency:
             job_id = await queue.claim()
             if job_id is not None:

@@ -25,7 +25,10 @@ from app.repo import audit, audit_checks
 log = get_logger(__name__)
 Db = Any
 
-chain_ok = Gauge("audit_chain_ok", "1 when the last audit chain check passed, 0 when it broke")
+chain_ok = Gauge(
+    "audit_chain_ok", "1 when the last audit chain check passed, 0 when it broke",
+    multiprocess_mode="livemostrecent",
+)
 SYSTEM: dict[str, Any] = {
     "user_id": None, "name": "System", "roles": [], "ip": None, "user_agent": None,
     "device_id": None,

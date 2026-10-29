@@ -279,6 +279,14 @@ async def stuck_finalizing(db: Db, before: datetime) -> list[dict[str, Any]]:
     return [d async for d in cursor.limit(50)]
 
 
+async def oldest_finalizing(db: Db) -> datetime | None:
+    """When the report that has been finalizing longest started (None when none is)."""
+    doc = await col(db).find_one(
+        {"status": "finalizing"}, projection={"finalizing_at": 1}, sort=[("finalizing_at", 1)]
+    )
+    return doc.get("finalizing_at") if doc else None
+
+
 async def unlock_owed(db: Db) -> list[dict[str, Any]]:
     cursor = col(db).find({"unlock_pending": {"$ne": None}})
     return [d async for d in cursor.limit(50)]
