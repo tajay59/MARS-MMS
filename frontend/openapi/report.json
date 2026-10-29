@@ -497,7 +497,8 @@
           "annual_summary",
           "station_asset",
           "sensor_reliability",
-          "configuration_history"
+          "configuration_history",
+          "technician_workload"
         ],
         "title": "Kind",
         "type": "string"

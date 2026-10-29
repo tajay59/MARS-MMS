@@ -106,6 +106,7 @@ def request_data(doc: dict[str, Any]) -> dict[str, Any]:
         "assigned_staff_ids": list(doc.get("assigned_staff_ids", [])),
         "milestones": dict(doc.get("milestones") or {}),
         "reopen_count": doc.get("reopen_count"),
+        "assigned_staff_names": {i: n for i, n in doc.get("assigned_staff", [])},
     }
 
 
@@ -122,6 +123,7 @@ def visit_data(visit: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]
             for s in visit["stations"]
         ],
         "time_zone": next((s["time_zone"] for s in visit["stations"] if s.get("time_zone")), None),
+        "staff_names": {p["id"]: p["name"] for p in visit.get("staff", [])},
     }
 
 
@@ -136,6 +138,7 @@ def visit_snapshot(visit: dict[str, Any]) -> dict[str, Any]:
         "started_at": visit.get("started_at"), "ended_at": visit.get("ended_at"),
         "additional_visit_required": visit.get("additional_visit_required"),
         "report_status": visit.get("report_status"),
+        "staff_names": {p["id"]: p["name"] for p in visit.get("staff", [])},
     }
 
 

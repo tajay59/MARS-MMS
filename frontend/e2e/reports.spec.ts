@@ -48,11 +48,11 @@ test('A PDF with a period is made and the form refuses a backwards period @REQ-S
   await expect(row.getByRole('link', { name: 'Download' })).toBeVisible({ timeout: READY })
 })
 
-test('Station asset, Configuration history and Sensor reliability are made from the real inventory @REQ-SUM-1 @J10', async ({ watched: page }) => {
+test('Station asset, Configuration history, Sensor reliability and Technician workload are made from the real inventory @REQ-SUM-1 @J10', async ({ watched: page }) => {
   await logIn(page, 'admin@example.org')
   for (const [type, title] of [
     ['station_asset', 'Station asset'], ['sensor_reliability', 'Sensor reliability'],
-    ['configuration_history', 'Configuration history'],
+    ['configuration_history', 'Configuration history'], ['technician_workload', 'Technician workload'],
   ]) {
     await page.goto(`/reports?type=${type}`)
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
@@ -82,7 +82,7 @@ test('A client sees three reports for their own organization and cannot ask for 
   await expect(page.getByRole('link', { name: 'Station history' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Client activity' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Station asset' })).toBeVisible()
-  for (const hidden of ['Request turnaround', 'Calibration due', 'Network status', 'Monthly summary', 'Annual summary', 'Sensor reliability', 'Configuration history']) {
+  for (const hidden of ['Request turnaround', 'Calibration due', 'Network status', 'Monthly summary', 'Annual summary', 'Sensor reliability', 'Configuration history', 'Technician workload']) {
     await expect(page.getByRole('link', { name: hidden })).toHaveCount(0)
   }
   await page.getByRole('link', { name: 'Client activity' }).click()

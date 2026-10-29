@@ -169,6 +169,7 @@ def snapshot_source(name: str = "Alpha") -> Pages:
         "request_id": REQUEST, "ref": "MR-2026-0042", "org_id": ORG, "station_ids": [STATION],
         "category": "fault", "priority": "normal", "status": "closed", "title": "x",
         "assigned_staff_ids": ["u-1", "u-2"],
+        "assigned_staff_names": {"u-1": "Devon Clarke", "u-2": "Aisha Mohammed"},
         "aggregate_version": 7, "milestones": {"closed_at": "2026-10-09T10:00:00Z"},
     }
     visit_item = {
@@ -176,6 +177,7 @@ def snapshot_source(name: str = "Alpha") -> Pages:
         "status": "ended", "planned_start": T0.isoformat(), "planned_end": T0.isoformat(),
         "staff_ids": ["u-1"], "lead_staff_id": "u-1", "station_ids": [STATION],
         "started_at": T0.isoformat(), "ended_at": "2026-10-05T11:00:00Z", "aggregate_version": 5,
+        "staff_names": {"u-1": "Devon Clarke", "u-3": "Kemar Brown"},
     }
     cal = {
         "calibration_id": CAL, "unit_id": "u-1", "station_id": STATION, "method": "lab",
@@ -230,6 +232,10 @@ async def test_the_backfill_pages_through_every_entity_and_a_repeat_writes_nothi
     assert request_row["assigned_ids"] == ["u-1", "u-2"]  # who is on it, for a technician's view
     unit = await report.db["unit_facts"].find_one({"_id": "u-1"})
     assert (unit["status"], unit["station_id"], unit["serial"]) == ("installed", STATION, "SN-1")
+    names = {d["_id"]: d["name"] async for d in report.db["staff_facts"].find()}
+    assert names == {"u-1": "Devon Clarke", "u-2": "Aisha Mohammed", "u-3": "Kemar Brown"}
+    assert "staff_names" not in request_row and "staff_names" not in (
+        await report.db["visit_facts"].find_one({"_id": VISIT}))  # names live in their own place
     model = await report.db["model_facts"].find_one({"_id": "m-1"})
     assert (model["manufacturer"], model["interval_days"]) == ("Vaisala", 365)
     config = await report.db["config_facts"].find_one({"_id": "cfg-1"})
@@ -308,4 +314,15 @@ async def test_models_configuration_versions_and_installations_come_from_events(
     got = await report.db["installation_facts"].find_one({"_id": "ins-9"})
     assert got["installed_at"] == datetime(2026, 9, 1) and got["removed_at"] == datetime(2026, 10, 4)
     assert (got["serial"], got["model_id"], got["parameter"]) == ("SN-9", "m-9", "AT")
+    assert not dead
+
+
+async def test_a_name_in_an_event_is_kept_and_a_newer_name_replaces_it(report):
+    p, dead = await processor(report)
+    await p.process(visit("visit.scheduled", 1, "planned", staff_names={"u-1": "Devon Clark"}))
+    await p.process(visit("visit.rescheduled", 2, "planned", changed_fields=["staff_ids"],
+                          staff_names={"u-1": "Devon Clarke"}))
+    # an older event arriving late changes the row's status not at all, and the name is the latest seen
+    assert (await report.db["staff_facts"].find_one({"_id": "u-1"}))["name"] == "Devon Clarke"
+    assert (await report.db["visit_facts"].find_one({"_id": VISIT}))["aggregate_version"] == 2
     assert not dead

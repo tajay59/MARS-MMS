@@ -5,8 +5,8 @@ rows, `build` turns them into a `Doc` of tables, the job writes it as CSV (the m
 draws it as a PDF. A summary has no report number, version or signature, and it is not found by
 `/reports/verify`; its footer says who made it and when. No I/O here (rule 7).
 
-Built: ten of the eleven types. Technician workload needs staff names, which the read model
-does not hold, and the charts (headless Chromium) follow with it.
+Built: all eleven types. The names in Technician workload come from `staff_facts`, filled from
+the names the operations events and snapshots carry.
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ class Kind(StrEnum):
     STATION_ASSET = "station_asset"
     SENSOR_RELIABILITY = "sensor_reliability"
     CONFIGURATION_HISTORY = "configuration_history"
+    TECHNICIAN_WORKLOAD = "technician_workload"
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,8 @@ TYPES: dict[Kind, TypeInfo] = {t.key: t for t in (
     TypeInfo(Kind.CONFIGURATION_HISTORY, "Configuration history",
              "The configuration versions saved for each station, and the visit behind each.",
              False),
+    TypeInfo(Kind.TECHNICIAN_WORKLOAD, "Technician workload",
+             "Requests, visits, hours on site and signatures for each technician.", False),
 )}
 
 
@@ -125,14 +128,19 @@ class Doc:
         return self.tables[0]
 
 
-def days_between(a: datetime | None, b: datetime | None) -> float | None:
+def seconds_between(a: datetime | None, b: datetime | None) -> float | None:
     if a is None or b is None:
         return None
     if a.tzinfo is None:
         a = a.replace(tzinfo=UTC)
     if b.tzinfo is None:
         b = b.replace(tzinfo=UTC)
-    return round((b - a).total_seconds() / 86400, 1)
+    return (b - a).total_seconds()
+
+
+def days_between(a: datetime | None, b: datetime | None) -> float | None:
+    seconds = seconds_between(a, b)
+    return None if seconds is None else round(seconds / 86400, 1)
 
 
 def nearest_rank(values: list[float], percent: int) -> float | None:
@@ -405,6 +413,43 @@ def configuration_history(data: Mapping[str, Any]) -> Doc:
     )
 
 
+def technician_workload(data: Mapping[str, Any]) -> Doc:
+    names = data["names"]
+    table: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "now": 0, "closed": 0, "attended": 0, "led": 0, "hours": 0.0, "signed": 0})
+    for r in data["open"]:
+        for who in r.get("assigned_ids") or []:
+            table[who]["now"] += 1
+    for r in data["closed"]:
+        for who in r.get("assigned_ids") or []:
+            table[who]["closed"] += 1
+    for v in data["visits"]:
+        spent = seconds_between(v.get("started_at"), v.get("ended_at"))
+        for who in v.get("staff_ids") or []:
+            table[who]["attended"] += 1
+            table[who]["hours"] += max(spent or 0.0, 0.0) / 3600
+        if v.get("lead_staff_id"):
+            table[v["lead_staff_id"]]["led"] += 1
+    for who, n in data["signed"].items():
+        table[who]["signed"] += n
+    rows: list[list[Any]] = []
+    for who, t in table.items():
+        rows.append([names.get(who, "Unknown person"), t["now"], t["closed"], t["attended"],
+                     t["led"], round(t["hours"], 1), t["signed"]])
+    rows.sort(key=lambda r: (-r[3], r[0]))
+    return Doc(
+        Kind.TECHNICIAN_WORKLOAD, "Technician workload",
+        kpis=[("Technicians", str(len(rows))), ("Visits ended", str(len(data["visits"]))),
+              ("Hours on site", f"{sum(r[5] for r in rows):g}")],
+        tables=[Table("By technician", ["Technician", "Assigned now", "Closed", "Visits attended",
+                                        "Visits led", "Hours on site", "Reports signed"], rows,
+                      right=(1, 2, 3, 4, 5, 6))],
+        notes=["Assigned now counts open requests. Closed counts requests closed in the period "
+               "that the person was on. Hours on site run from a visit's start to its end for "
+               "everyone who attended. Reports signed counts signatures given in the period."],
+    )
+
+
 BUILDERS: dict[Kind, Callable[[Mapping[str, Any]], Doc]] = {
     Kind.STATION_HISTORY: station_history,
     Kind.CLIENT_ACTIVITY: client_activity,
@@ -416,6 +461,7 @@ BUILDERS: dict[Kind, Callable[[Mapping[str, Any]], Doc]] = {
     Kind.STATION_ASSET: station_asset,
     Kind.SENSOR_RELIABILITY: sensor_reliability,
     Kind.CONFIGURATION_HISTORY: configuration_history,
+    Kind.TECHNICIAN_WORKLOAD: technician_workload,
 }
 
 

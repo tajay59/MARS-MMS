@@ -12,7 +12,7 @@ import type { SummaryIn, SummaryJob, SummaryKind, SummaryType } from '@/api/mode
 const GROUPS: readonly { label: string, types: readonly string[] }[] = [
   { label: 'Stations', types: ['station_history', 'station_asset', 'configuration_history', 'network_status'] },
   { label: 'Calibration and sensors', types: ['calibration_due', 'sensor_reliability'] },
-  { label: 'Requests and people', types: ['client_activity', 'request_turnaround'] },
+  { label: 'Requests and people', types: ['client_activity', 'request_turnaround', 'technician_workload'] },
   { label: 'Maintenance', types: ['monthly_summary', 'annual_summary'] },
 ]
 

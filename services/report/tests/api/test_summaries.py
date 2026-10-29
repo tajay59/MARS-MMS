@@ -30,6 +30,7 @@ async def seed(report) -> None:
     await db["request_facts"].insert_many([
         {"_id": "r1", "ref": "MR-2026-0001", "org_id": ORG_A, "station_ids": [STATION_1],
          "category": "fault", "priority": "normal", "status": "closed", "submitted_at": T,
+         "assigned_ids": ["t1"],
          "approved_at": T + timedelta(hours=7), "assigned_at": T + timedelta(days=1),
          "first_visit_at": T + timedelta(days=3), "closed_at": T + timedelta(days=9),
          "reopen_count": 0, "aggregate_version": 1},
@@ -39,7 +40,9 @@ async def seed(report) -> None:
     ])
     await db["visit_facts"].insert_many([
         {"_id": "v1", "ref": "VR-2026-0001-01", "request_id": "r1", "org_id": ORG_A,
-         "status": "ended", "station_ids": [STATION_1], "ended_at": T + timedelta(days=3)},
+         "status": "ended", "station_ids": [STATION_1], "ended_at": T + timedelta(days=3),
+         "started_at": T + timedelta(days=3) - timedelta(hours=3), "staff_ids": ["t1", "t2"],
+         "lead_staff_id": "t1"},
         {"_id": "v2", "ref": "VR-2026-0002-01", "request_id": "r2", "org_id": ORG_B,
          "status": "ended", "station_ids": [STATION_2], "ended_at": T + timedelta(days=4)},
     ])
@@ -66,6 +69,13 @@ async def seed(report) -> None:
          "created_at": T + timedelta(days=3), "aggregate_version": 1},
         {"_id": "cfg2", "station_id": STATION_2, "number": 1, "file_count": 1, "visit_id": None,
          "created_at": T + timedelta(days=3), "aggregate_version": 1},
+    ])
+    await db["staff_facts"].insert_many([
+        {"_id": "t1", "name": "Devon Clarke"}, {"_id": "t2", "name": "Aisha Mohammed"},
+    ])
+    await db["signatures"].insert_many([
+        {"_id": "sg1", "report_id": "d1", "signer_id": "t1", "signed_at": T + timedelta(days=4)},
+        {"_id": "sg2", "report_id": "d2", "signer_id": "t1", "signed_at": T + timedelta(days=40)},
     ])
     await db["calibration_facts"].insert_many([
         {"_id": "c1", "sensor_unit_id": "u1", "station_id": STATION_1, "org_id": ORG_A,
@@ -326,3 +336,21 @@ async def test_configuration_history_and_sensor_reliability_for_staff(report):
     assert row["Mean days in service"] == "20.0" and row["In service now"] == "2"
     for kind in ("configuration_history", "sensor_reliability"):
         assert (await ask(report, "client_a1", type=kind, **FIRST)).status_code == 403
+
+
+@pytest.mark.req("SUM-1")
+async def test_technician_workload_names_people_and_counts_their_signatures(report):
+    await seed(report)
+    done = await run(report, (await ask(
+        report, "admin", type="technician_workload", format="csv", **FIRST)).json())
+    text = (await download(report, done)).decode().lstrip("\ufeff")
+    rows = {r["Technician"]: r for r in csv.DictReader(io.StringIO(text))}
+    devon = rows["Devon Clarke"]
+    assert (devon["Visits attended"], devon["Visits led"], devon["Hours on site"]) == ("1", "1", "3.0")
+    assert devon["Reports signed"] == "1"  # the other signature is outside the period
+    assert rows["Aisha Mohammed"]["Visits attended"] == "1" and rows["Aisha Mohammed"]["Visits led"] == "0"
+    assert devon["Closed"] == "1"
+    # staff only: a client is refused
+    assert (await ask(report, "client_a1", type="technician_workload", **FIRST)).status_code == 403
+    assert (await ask(report, "tech1", type="technician_workload", format="csv", **FIRST)
+            ).status_code == 202

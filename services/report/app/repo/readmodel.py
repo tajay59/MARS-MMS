@@ -18,6 +18,13 @@ async def put(
 ) -> bool:
     """Write `row` if its `aggregate_version` is newer. A visit keeps the times and counts that
     later events do not repeat (`started_at` survives `visit.station_arrived`)."""
+    names = row.pop("staff_names", None)
+    if names:
+        # Who the ids are, for the workload summary. A name is harmless to keep even when the
+        # row that brought it is older than the stored one.
+        for staff_id, name in names.items():
+            await db[rm.STAFF].update_one(
+                {"_id": staff_id}, {"$set": {"name": name}}, upsert=True, session=session)
     if collection == rm.INSTALLS:
         # Merged field by field, in any order (an installation is written by two events)
         fields = {k: v for k, v in row.items() if k != "_id"}

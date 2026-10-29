@@ -148,6 +148,20 @@ async def fetch(
         found = await _rows(db, rm.VISITS, {
             "_id": {"$in": [c["visit_id"] for c in data["configs"] if c.get("visit_id")]}})
         data["visit_refs"] = {v["_id"]: v.get("ref", "") for v in found}
+    elif kind is Kind.TECHNICIAN_WORKLOAD and p is not None:
+        data["visits"] = await _rows(db, rm.VISITS, visits_in)
+        data["open"] = await _rows(db, rm.REQUESTS, {
+            "status": {"$in": list(dash.OPEN_STATUSES)}, "assigned_ids": {"$ne": []},
+            **_where(scope)})
+        data["closed"] = await _rows(db, rm.REQUESTS, {
+            "status": "closed", **_within("closed_at", p), **_where(scope)})
+        data["signed"] = await _signatures(db, p)
+        people = {who for v in data["visits"] for who in v.get("staff_ids") or []}
+        people |= {who for key in ("open", "closed") for r in data[key]
+                     for who in r.get("assigned_ids") or []}
+        people |= set(data["signed"])
+        data["names"] = {s["_id"]: s["name"] async for s in db[rm.STAFF].find(
+            {"_id": {"$in": list(people)}})}
     elif kind is Kind.NETWORK_STATUS:
         restrict = _where(scope)
         data["last_visit"] = await _per_station(
@@ -192,3 +206,12 @@ async def _last_calibrations(db: Db, unit_ids: list[str]) -> dict[str, dict[str,
                     "result": {"$first": "$result"}}},
     ]
     return {r["_id"]: r async for r in await db[rm.CALIBRATIONS].aggregate(pipeline)}
+
+
+async def _signatures(db: Db, p: Period) -> dict[str, int]:
+    """How many signatures each person gave in the period."""
+    pipeline: list[dict[str, Any]] = [
+        {"$match": _within("signed_at", p)},
+        {"$group": {"_id": "$signer_id", "n": {"$sum": 1}}},
+    ]
+    return {r["_id"]: int(r["n"]) async for r in await db["signatures"].aggregate(pipeline)}
