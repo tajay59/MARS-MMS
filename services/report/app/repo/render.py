@@ -45,6 +45,8 @@ class Renderer(Protocol):
 
     async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered: ...
 
+    async def summary(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
 
 def qr_data_uri(url: str) -> str:
     """The QR code as an SVG data URI, black on white with the standard quiet zone. Level M
@@ -100,6 +102,11 @@ def render_closeout_html(view: dict[str, Any], template_version: str) -> str:
         v=view, template_version=template_version)
 
 
+def render_summary_html(view: dict[str, Any], template_version: str) -> str:
+    """A summary report as HTML (W19). `view` is `domain/summary.pdf_view`."""
+    return _env.get_template("summary.html.j2").render(v=view, template_version=template_version)
+
+
 def to_pdf(html: str) -> Rendered:
     from weasyprint import HTML  # noqa: PLC0415 - imports Pango; keep it out of API start-up
 
@@ -124,3 +131,6 @@ class WeasyRenderer:
         html = render_closeout_html(view, template_version)
         return await asyncio.to_thread(to_pdf, html)
 
+    async def summary(self, view: dict[str, Any], template_version: str) -> Rendered:
+        html = render_summary_html(view, template_version)
+        return await asyncio.to_thread(to_pdf, html)

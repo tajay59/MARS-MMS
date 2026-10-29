@@ -428,3 +428,55 @@ h1 {
   break-inside: avoid;
 }
 
+
+/* --- Summary reports (W19): the same page as the visit report, with figures and plain tables */
+.summary .kpis {
+  display: flex;
+  gap: 8mm;
+  margin: 4mm 0 6mm;
+}
+
+.summary .kpis div {
+  background: #f0f4f7;
+  padding: 3mm 4mm;
+  min-width: 34mm;
+}
+
+.summary .kpis dt {
+  font-size: 8pt;
+  color: #40484c;
+}
+
+.summary .kpis dd {
+  margin: 0;
+  font-size: 15pt;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary table.rows {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+
+.summary table.rows th,
+.summary table.rows td {
+  text-align: left;
+  padding: 1.4mm 2mm;
+  border-bottom: 0.2mm solid #dee3e6;
+}
+
+.summary table.rows th.r,
+.summary table.rows td.r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary table.rows thead {
+  display: table-header-group; /* the header repeats on every page */
+}
+
+.summary table.rows tr {
+  break-inside: avoid;
+}

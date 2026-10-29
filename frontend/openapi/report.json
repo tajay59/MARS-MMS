@@ -480,9 +480,23 @@
       },
       "JobType": {
         "enum": [
-          "labels"
+          "labels",
+          "summary"
         ],
         "title": "JobType",
+        "type": "string"
+      },
+      "Kind": {
+        "enum": [
+          "station_history",
+          "client_activity",
+          "request_turnaround",
+          "calibration_due",
+          "network_status",
+          "monthly_summary",
+          "annual_summary"
+        ],
+        "title": "Kind",
         "type": "string"
       },
       "LabelsIn": {
@@ -1258,6 +1272,283 @@
         "title": "StatusCount",
         "type": "object"
       },
+      "SummaryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "due_in_days": {
+            "default": 30,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Due In Days",
+            "type": "integer"
+          },
+          "format": {
+            "default": "pdf",
+            "enum": [
+              "pdf",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "org_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Id"
+          },
+          "station_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Ids"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "type": {
+            "$ref": "#/components/schemas/Kind"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "SummaryIn",
+        "type": "object"
+      },
+      "SummaryJob": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "format": {
+            "enum": [
+              "pdf",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "period_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period From"
+          },
+          "period_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period To"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "type": {
+            "$ref": "#/components/schemas/Kind"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "format",
+          "status",
+          "error",
+          "period_from",
+          "period_to",
+          "created_at",
+          "finished_at",
+          "file_name",
+          "rows",
+          "pages",
+          "download_url",
+          "expires_at"
+        ],
+        "title": "SummaryJob",
+        "type": "object"
+      },
+      "SummaryType": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "formats": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "uses_period": {
+            "title": "Uses Period",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "description",
+          "uses_period",
+          "formats"
+        ],
+        "title": "SummaryType",
+        "type": "object"
+      },
       "TechnicianDashboard": {
         "properties": {
           "as_of": {
@@ -1730,6 +2021,186 @@
         "summary": "Start Labels",
         "tags": [
           "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary": {
+      "post": {
+        "operationId": "start_api_v1_reports_summary_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummaryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary/jobs": {
+      "get": {
+        "description": "The person's own summaries of the last `REPORT_SUMMARY_KEEP_DAYS` days, newest first.",
+        "operationId": "mine_api_v1_reports_summary_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SummaryJob"
+                  },
+                  "title": "Response Mine Api V1 Reports Summary Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mine",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_api_v1_reports_summary_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary/types": {
+      "get": {
+        "description": "What this person may ask for: a client three, staff all that are built.",
+        "operationId": "types_api_v1_reports_summary_types_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SummaryType"
+                  },
+                  "title": "Response Types Api V1 Reports Summary Types Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Types",
+        "tags": [
+          "summary reports"
         ]
       }
     },

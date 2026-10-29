@@ -27,6 +27,15 @@ TABLE: dict[Route, Expect] = {
     # The dashboards (W19-7): every signed-in role reads its own view; the route refuses a view
     # that is not the role's (403 wrong_view) and a client's figures are scoped by organization.
     ("GET", "/api/v1/dashboard"): roles("technician", "admin", "viewer", "client"),
+    # Summary reports (W19-9): every role reads the list of types it may run and its own jobs;
+    # running one is a POST that changes nothing of anyone's work, so a Viewer may (self service).
+    # A client's three types and own organization are enforced in the route and the repository.
+    ("GET", "/api/v1/reports/summary/types"): roles("technician", "admin", "viewer", "client"),
+    ("POST", "/api/v1/reports/summary"): roles(
+        "technician", "admin", "viewer", "client", self_service=True),
+    ("GET", "/api/v1/reports/summary/jobs"): roles("technician", "admin", "viewer", "client"),
+    ("GET", "/api/v1/reports/summary/jobs/{job_id}"): roles(
+        "technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports/{report_id}"): roles("technician", "admin", "viewer", "client"),
     ("GET", "/api/v1/reports/{report_id}/download"): roles("technician", "admin", "viewer", "client"),
