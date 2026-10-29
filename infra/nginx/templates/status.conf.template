@@ -1,0 +1,10 @@
+# Counters for nginx-prometheus-exporter (W20-3). Port 8081 is not published and serves nothing
+# else: only containers on the Docker network can reach it, and the real sites (80, 443) have no
+# route to it.
+server {
+  listen 8081;
+  access_log off;
+
+  location = /stub_status { stub_status; }
+  location / { return 404; }
+}

@@ -14,10 +14,14 @@ acl() {
 }
 
 apply() {
-  local name="$1" produce="$2" consume="$3" groups="$4"
+  local name="$1" produce="$2" consume="$3" groups="$4" describe="$5" describe_groups="$6" optional="$7"
   local var="KAFKA_${name^^}_PASSWORD"
   local password="${!var:-}"
   if [ -z "$password" ]; then
+    if [ "$optional" = true ]; then
+      echo "user $name: $var is not set, skipped"
+      return 0
+    fi
     echo "$var is not set" >&2
     exit 1
   fi
@@ -30,22 +34,27 @@ apply() {
   for topic in $produce; do acl "$name" --operation Write --operation Describe --topic "$topic"; done
   for topic in $consume; do acl "$name" --operation Read --operation Describe --topic "$topic"; done
   for group in $groups; do acl "$name" --operation Read --group "$group"; done
+  for topic in $describe; do acl "$name" --operation Describe --topic "$topic"; done
+  for group in $describe_groups; do acl "$name" --operation Describe --group "$group"; done
   echo "user $name: produce [$produce] consume [$consume] groups [$groups]"
 }
 
-name="" produce="" consume="" groups=""
+name="" produce="" consume="" groups="" describe="" describe_groups="" optional=""
 while IFS= read -r line; do
   line="${line%%#*}"
   case "$line" in
     *"- name:"*)
-      [ -n "$name" ] && apply "$name" "$produce" "$consume" "$groups"
+      [ -n "$name" ] && apply "$name" "$produce" "$consume" "$groups" "$describe" "$describe_groups" "$optional"
       name="$(echo "${line#*name:}" | tr -d '[:space:]')"
-      produce="" consume="" groups=""
+      produce="" consume="" groups="" describe="" describe_groups="" optional=""
       ;;
     *"produce:"*) produce="$(echo "${line#*produce:}" | xargs)" ;;
     *"consume:"*) consume="$(echo "${line#*consume:}" | xargs)" ;;
+    *"describe_groups:"*) describe_groups="$(echo "${line#*describe_groups:}" | xargs)" ;;
+    *"describe:"*) describe="$(echo "${line#*describe:}" | xargs)" ;;
+    *"optional:"*) optional="$(echo "${line#*optional:}" | xargs)" ;;
     *"groups:"*) groups="$(echo "${line#*groups:}" | xargs)" ;;
   esac
 done < "$FILE"
-[ -n "$name" ] && apply "$name" "$produce" "$consume" "$groups"
+[ -n "$name" ] && apply "$name" "$produce" "$consume" "$groups" "$describe" "$describe_groups" "$optional"
 echo "kafka users done"

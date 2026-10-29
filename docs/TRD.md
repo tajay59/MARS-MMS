@@ -1328,7 +1328,7 @@ The first install must be quick on a phone's link, because until it ends the pho
 | redis | redis:7.4 | `appendonly yes` |
 | seaweedfs | chrislusf/seaweedfs (pinned) | `weed server -s3` (master, volume, filer, S3 gateway); data on a dedicated disk |
 | clamav | clamav/clamav | Daily signature updates |
-| prometheus, grafana, loki, alloy, kafka-exporter, mongodb-exporter, redis-exporter, nginx-prometheus-exporter | official | Monitoring |
+| prometheus, alertmanager, grafana, loki, alloy, node-exporter, kafka-exporter, mongodb-exporter, redis-exporter, nginx-prometheus-exporter, docker-socket-proxy | official, tags pinned | Monitoring (`compose.monitoring.yml`, W20-2 to W20-4). Alerts are Prometheus rules with promtool tests, sent by Alertmanager; Grafana only displays; Alloy reads logs through the proxy on a private network |
 
 ### 16.2 Host sizing (production)
 

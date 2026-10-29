@@ -1,0 +1,109 @@
+# The alerts of TRD §16.5 (W20-2). Each has a promtool test in ../tests/mms.test.yml: one case that
+# makes it fire and one that keeps it quiet. Change an expression and its test together.
+groups:
+  - name: mms-availability
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"services|workers"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.service }} is not answering"
+          description: "Prometheus could not scrape {{ $labels.service }} for 2 minutes."
+
+      - alert: MetricsMissing
+        expr: count(up{job="services"}) < 5
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Fewer than five API services are being scraped"
+          description: "Prometheus sees {{ $value }} of the 5 API services; a target was removed or never started."
+
+      # Needs some traffic: one failed request in a quiet minute is not an incident.
+      - alert: High5xxRate
+        expr: |
+          (
+            sum by (service) (rate(http_requests_total{status="5xx"}[5m]))
+            / sum by (service) (rate(http_requests_total[5m]))
+          ) > 0.02
+          and sum by (service) (rate(http_requests_total[5m])) > 0.02
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.service }} answers more than 2% of requests with a server error"
+          description: "{{ $value | humanizePercentage }} of {{ $labels.service }} requests failed over 5 minutes."
+
+  - name: mms-events
+    rules:
+      # A message in a dead-letter topic is an event no consumer could apply. The topic's own
+      # size is used, not a counter that resets when a service restarts.
+      - alert: DeadLetterNotEmpty
+        expr: |
+          sum by (topic) (
+            kafka_topic_partition_current_offset{topic=~"mms\\.dlq\\..+"}
+            - kafka_topic_partition_oldest_offset{topic=~"mms\\.dlq\\..+"}
+          ) > 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.topic }} holds {{ $value }} dead-lettered event(s)"
+          description: "Find the cause in the consumer's log, fix it and replay (CLAUDE.md, audit dead letters)."
+
+      - alert: OutboxStuck
+        expr: outbox_oldest_unpublished_seconds > 300
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.service }}'s outbox has an event waiting {{ $value | humanizeDuration }}"
+          description: "The relay is not publishing: Kafka or Redis may be down, or no worker holds the lease."
+
+      - alert: ConsumerLag
+        expr: consumer_lag_seconds > 300
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.service }}'s group {{ $labels.group }} has made no progress for {{ $value | humanizeDuration }}"
+          description: "Messages are waiting and none has been committed."
+
+      - alert: ReportFinalizingLong
+        expr: reports_finalizing_oldest_seconds > 1800
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: "A report has been finalizing for {{ $value | humanizeDuration }}"
+          description: "The finalize job may have stopped. The resume job takes it up again; check the report-worker."
+
+  - name: mms-host
+    rules:
+      - alert: DiskAlmostFull
+        expr: |
+          (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"}
+               / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"}) > 0.80
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full"
+          description: "Free space before media and Mongo stop writing (TRD R7)."
+
+      - alert: BackupMissing
+        expr: time() - backup_last_success_timestamp_seconds > 93600
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "No good {{ $labels.kind }} backup for {{ $value | humanizeDuration }}"
+          description: "The last good run is more than 26 hours old."
+
+      - alert: AuditChainBroken
+        expr: audit_chain_ok == 0
+        labels: {severity: critical}
+        annotations:
+          summary: "The audit chain check failed"
+          description: "Open the audit log's integrity check for the first bad record (rule 10)."
+
+      - alert: ClamAvSignaturesOld
+        expr: clamav_signature_age_seconds > 259200
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "ClamAV's signatures are {{ $value | humanizeDuration }} old"
+          description: "freshclam is not updating; uploads are scanned against old signatures."

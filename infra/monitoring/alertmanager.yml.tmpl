@@ -1,0 +1,31 @@
+# Alertmanager for AWS-MMS (W20-2). Alertmanager does not read the environment itself, so
+# alertmanager-entrypoint.sh fills the __NAME__ words from it before starting. Email goes through
+# the same relay as the platform's mail (T3); locally that is Mailpit.
+global:
+  smtp_smarthost: "__ALERT_SMTP_HOST__:__ALERT_SMTP_PORT__"
+  smtp_from: "__ALERT_FROM__"
+  smtp_auth_username: "__ALERT_SMTP_USERNAME__"
+  smtp_auth_password: "__ALERT_SMTP_PASSWORD__"
+  smtp_require_tls: __ALERT_SMTP_REQUIRE_TLS__
+
+route:
+  receiver: admins
+  group_by: [alertname, service]
+  group_wait: __ALERT_GROUP_WAIT__
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: admins
+    email_configs:
+      - to: "__MMS_ALERT_EMAILS__"
+        send_resolved: true
+        headers:
+          Subject: '[MMS __MMS_ENVIRONMENT__] {{ .Status | toUpper }} {{ .GroupLabels.alertname }}{{ if .GroupLabels.service }} ({{ .GroupLabels.service }}){{ end }}'
+        text: |
+          {{ range .Alerts }}{{ .Annotations.summary }}
+
+          {{ .Annotations.description }}
+          Severity: {{ .Labels.severity }}   Started: {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+
+          {{ end }}

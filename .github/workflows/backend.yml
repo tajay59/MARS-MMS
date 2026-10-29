@@ -193,6 +193,23 @@ jobs:
             --add-host seaweedfs:127.0.0.1 \
             nginx:1.31.7-alpine /docker-entrypoint.sh nginx -t
 
+  # The alert rules are code: each has a promtool test that makes it fire and one that keeps it
+  # quiet (W20-2). The live stack (targets, dashboards, the alert mail) is tested in `stack`.
+  monitoring:
+    name: monitoring rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: promtool
+        run: |
+          docker run --rm --entrypoint promtool -v "$PWD/infra/monitoring:/m:ro" prom/prometheus:v3.5.0 check config /m/prometheus.yml
+          docker run --rm --entrypoint promtool -v "$PWD/infra/monitoring:/m:ro" prom/prometheus:v3.5.0 test rules /m/tests/mms.test.yml
+
+      - name: Dashboards are valid JSON
+        run: for f in infra/monitoring/grafana/dashboards/*.json; do python -m json.tool "$f" > /dev/null; done
+
   stack:
     name: compose stack
     runs-on: ubuntu-24.04
@@ -215,17 +232,17 @@ jobs:
         with:
           python-version: "3.13"
 
-      - run: pip install httpx pymongo redis boto3 pytest
+      - run: pip install httpx pymongo redis boto3 pytest pyyaml
 
       - name: Start the stack
         working-directory: infra
         run: |
           cp .env.example .env
-          docker compose -f compose.yml -f compose.dev.yml up -d --build
+          docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml up -d --build
           # Each one-shot init container must finish with 0. They wait for their store to be
           # healthy first, so once they are done Mongo, Kafka and SeaweedFS are ready.
           for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
-            cid="$(docker compose -f compose.yml -f compose.dev.yml ps -aq "$svc")"
+            cid="$(docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml ps -aq "$svc")"
             for _ in $(seq 1 120); do
               [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
               sleep 2
@@ -237,7 +254,7 @@ jobs:
           # Then the application services must report healthy.
           for svc in auth operations media report platform; do
             for _ in $(seq 1 60); do
-              cid="$(docker compose -f compose.yml -f compose.dev.yml ps -q "$svc")"
+              cid="$(docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml ps -q "$svc")"
               [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
               sleep 2
             done
@@ -269,9 +286,9 @@ jobs:
       - name: Logs on failure
         if: failure()
         working-directory: infra
-        run: docker compose -f compose.yml -f compose.dev.yml logs --no-color --tail 100
+        run: docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml logs --no-color --tail 100
 
       - name: Stop the stack
         if: always()
         working-directory: infra
-        run: docker compose -f compose.yml -f compose.dev.yml down -v
+        run: docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml down -v
