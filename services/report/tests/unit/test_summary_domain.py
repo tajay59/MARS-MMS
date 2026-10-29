@@ -53,9 +53,9 @@ def test_a_period_is_checked():
 
 
 @pytest.mark.req("SUM-3")
-def test_a_client_may_run_two_of_the_built_types_and_staff_all():
+def test_a_client_may_run_three_types_and_staff_all():
     client = {k for k in Kind if summary.allowed(k, client=True)}
-    assert client == {Kind.STATION_HISTORY, Kind.CLIENT_ACTIVITY}
+    assert client == {Kind.STATION_HISTORY, Kind.CLIENT_ACTIVITY, Kind.STATION_ASSET}
     assert all(summary.allowed(k, client=False) for k in Kind)
     assert set(summary.TYPES) == set(Kind) == set(summary.BUILDERS)
 
@@ -162,3 +162,63 @@ def test_file_names_say_the_report_and_the_period_only():
     assert summary.file_name(Kind.REQUEST_TURNAROUND, p, "pdf") == (
         "request-turnaround_2026-01-01_2026-09-30.pdf")
     assert summary.file_name(Kind.NETWORK_STATUS, p, "csv") == "network-status.csv"
+
+
+MODELS = {"m1": {"_id": "m1", "manufacturer": "Vaisala", "model": "HMP155", "kind": "sensor"},
+          "m2": {"_id": "m2", "manufacturer": "Campbell", "model": "CS106", "kind": "sensor"}}
+
+
+@pytest.mark.req("SUM-1")
+def test_station_asset_lists_what_is_installed_with_its_calibration_dates():
+    doc = summary.build(Kind.STATION_ASSET, {
+        "now": NOW, "stations": STATIONS, "models": MODELS,
+        "units": {"u1": {"due_at": NOW - timedelta(days=2)}, "u2": {"due_at": NOW + timedelta(days=9)}},
+        "last_cal": {"u1": {"at": at(1)}},
+        "installs": [
+            {"unit_id": "u2", "station_id": "s2", "parameter": "RH", "model_id": "m2",
+             "serial": "B-2", "installed_at": at(3)},
+            {"unit_id": "u1", "station_id": "s1", "parameter": "AT", "model_id": "m1",
+             "serial": "A-1", "installed_at": at(2)},
+        ]})
+    assert [r[0] for r in doc.main.rows] == ["BB-BGI-001", "JM-KIN-001"]  # by station code
+    row = doc.main.rows[1]
+    assert row[2:5] == ["AT", "Vaisala HMP155", "A-1"] and row[6] == at(1) and row[7] < NOW
+    assert doc.main.rows[0][6] is None  # never calibrated
+    assert dict(doc.kpis) == {"Stations": "2", "Sensors installed": "2", "Calibrations overdue": "1"}
+
+
+@pytest.mark.req("SUM-1")
+def test_sensor_reliability_counts_per_model_and_sorts_the_worst_first():
+    doc = summary.build(Kind.SENSOR_RELIABILITY, {
+        "models": MODELS,
+        "units": {"u1": {"model_id": "m1"}, "u2": {"model_id": "m2"}},
+        "installed": [{"model_id": "m1"}, {"model_id": "m1"}, {"model_id": "m2"}],
+        "removed": [{"model_id": "m1", "installed_at": at(1), "removed_at": at(11)},
+                    {"model_id": "m1", "installed_at": at(1), "removed_at": at(21)}],
+        "open": [{"model_id": "m2"}, {"model_id": "m1"}],
+        "failed": [{"sensor_unit_id": "u2"}, {"sensor_unit_id": "u2"}, {"sensor_unit_id": "u1"}]})
+    names = [r[0] for r in doc.main.rows]
+    assert names == ["Campbell CS106", "Vaisala HMP155"]  # two failures before one
+    campbell, vaisala = doc.main.rows
+    assert campbell[2:] == [1, 0, 2, None, 1]
+    assert vaisala[2:] == [2, 2, 1, 15.0, 1]
+    assert dict(doc.kpis) == {"Models": "2", "Removals": "2", "Failed calibrations": "3"}
+
+
+def test_a_sensor_of_a_model_nobody_knows_is_still_counted():
+    doc = summary.build(Kind.SENSOR_RELIABILITY, {
+        "models": {}, "units": {}, "installed": [{"model_id": "gone"}], "removed": [],
+        "open": [], "failed": []})
+    assert doc.main.rows[0][0] == "Unknown model"
+
+
+@pytest.mark.req("SUM-1")
+def test_configuration_history_names_the_visit_and_orders_by_time():
+    doc = summary.build(Kind.CONFIGURATION_HISTORY, {
+        "stations": STATIONS, "visit_refs": {"v1": "VR-2026-0001-01"},
+        "configs": [
+            {"created_at": at(9), "station_id": "s1", "number": 4, "file_count": 3, "visit_id": "v1"},
+            {"created_at": at(2), "station_id": "s2", "number": 1, "file_count": 1, "visit_id": None}]})
+    assert [r[2] for r in doc.main.rows] == [1, 4]
+    assert doc.main.rows[1] == [at(9), "JM-KIN-001", 4, 3, "VR-2026-0001-01"]
+    assert dict(doc.kpis) == {"Versions saved": "2", "Stations changed": "2"}

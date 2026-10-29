@@ -44,10 +44,28 @@ async def seed(report) -> None:
          "status": "ended", "station_ids": [STATION_2], "ended_at": T + timedelta(days=4)},
     ])
     await db["unit_facts"].insert_many([
-        {"_id": "u1", "serial": "SN-A", "status": "installed", "station_id": STATION_1,
+        {"_id": "u1", "serial": "SN-A", "model_id": "m1", "status": "installed", "station_id": STATION_1,
          "due_at": report.clock.now() - timedelta(days=2)},
-        {"_id": "u2", "serial": "SN-B", "status": "installed", "station_id": STATION_2,
+        {"_id": "u2", "serial": "SN-B", "model_id": "m1", "status": "installed", "station_id": STATION_2,
          "due_at": report.clock.now() + timedelta(days=5)},
+    ])
+    await db["model_facts"].insert_many([
+        {"_id": "m1", "kind": "sensor", "manufacturer": "Vaisala", "model": "HMP155",
+         "parameters": ["AT"], "interval_days": 365, "aggregate_version": 1},
+    ])
+    await db["installation_facts"].insert_many([
+        {"_id": "i1", "unit_id": "u1", "serial": "SN-A", "model_id": "m1", "station_id": STATION_1,
+         "parameter": "AT", "installed_at": T},
+        {"_id": "i2", "unit_id": "u2", "serial": "SN-B", "model_id": "m1", "station_id": STATION_2,
+         "parameter": "AT", "installed_at": T, "removed_at": T + timedelta(days=20)},
+        {"_id": "i3", "unit_id": "u2", "serial": "SN-C", "model_id": "m1", "station_id": STATION_2,
+         "parameter": "RH", "installed_at": T + timedelta(days=21)},
+    ])
+    await db["config_facts"].insert_many([
+        {"_id": "cfg1", "station_id": STATION_1, "number": 2, "file_count": 3, "visit_id": "v1",
+         "created_at": T + timedelta(days=3), "aggregate_version": 1},
+        {"_id": "cfg2", "station_id": STATION_2, "number": 1, "file_count": 1, "visit_id": None,
+         "created_at": T + timedelta(days=3), "aggregate_version": 1},
     ])
     await db["calibration_facts"].insert_many([
         {"_id": "c1", "sensor_unit_id": "u1", "station_id": STATION_1, "org_id": ORG_A,
@@ -74,7 +92,7 @@ async def download(report, finished: dict) -> bytes:
 
 
 @pytest.mark.req("SUM-1")
-async def test_staff_see_every_built_type_and_a_client_two(report):
+async def test_staff_see_every_built_type_and_a_client_three(report):
     async def names(who):
         r = await report.http.get("/api/v1/reports/summary/types", headers=report.bearer(who))
         assert r.status_code == 200, r.text
@@ -83,7 +101,7 @@ async def test_staff_see_every_built_type_and_a_client_two(report):
     everything = {k.value for k in rules.Kind}
     for who in ("admin", "tech1", "viewer"):
         assert await names(who) == everything
-    assert await names("client_a1") == {"station_history", "client_activity"}
+    assert await names("client_a1") == {"station_history", "client_activity", "station_asset"}
 
 
 @pytest.mark.req("SUM-1")
@@ -272,3 +290,39 @@ async def test_old_summaries_and_their_files_are_removed_after_the_keep_time(rep
     listed = await report.http.get("/api/v1/reports/summary/jobs", headers=report.bearer("admin"))
     assert [j["id"] for j in listed.json()] == [fresh["id"]]
     assert key.startswith("summaries/")
+
+
+@pytest.mark.req("SUM-3")
+async def test_a_client_sees_their_own_sensors_in_the_station_asset_report(report):
+    await seed(report)
+    mine = (await ask(report, "client_a1", type="station_asset", format="csv")).json()
+    done = await run(report, mine, "client_a1")
+    assert done["status"] == "done" and done["rows"] == 1
+    text = (await download(report, done)).decode().lstrip("\ufeff")
+    rows = list(csv.DictReader(io.StringIO(text)))
+    assert rows[0]["Serial"] == "SN-A" and rows[0]["Model"] == "Vaisala HMP155"
+    assert "SN-C" not in text and "BB-BGI-001" not in text  # another organization's sensor
+    staff = (await ask(report, "admin", type="station_asset", format="csv")).json()
+    both = (await download(report, await run(report, staff))).decode()
+    assert "SN-A" in both and "SN-C" in both
+    assert "SN-B" not in both  # taken out, so no longer installed
+
+
+@pytest.mark.req("SUM-1")
+async def test_configuration_history_and_sensor_reliability_for_staff(report):
+    await seed(report)
+    configs = await run(report, (await ask(
+        report, "admin", type="configuration_history", format="csv", **FIRST)).json())
+    text = (await download(report, configs)).decode().lstrip("\ufeff")
+    rows = list(csv.DictReader(io.StringIO(text)))
+    assert [r["Version"] for r in rows] == ["2", "1"] or {r["Version"] for r in rows} == {"1", "2"}
+    assert {r["Visit"] for r in rows} == {"VR-2026-0001-01", ""}
+    reliability = await run(report, (await ask(
+        report, "viewer", type="sensor_reliability", format="csv", **FIRST)).json(), "viewer")
+    text = (await download(report, reliability)).decode().lstrip("\ufeff")
+    [row] = list(csv.DictReader(io.StringIO(text)))
+    assert row["Model"] == "Vaisala HMP155"
+    assert (row["Installed"], row["Removed"], row["Failed calibrations"]) == ("3", "1", "1")
+    assert row["Mean days in service"] == "20.0" and row["In service now"] == "2"
+    for kind in ("configuration_history", "sensor_reliability"):
+        assert (await ask(report, "client_a1", type=kind, **FIRST)).status_code == 403

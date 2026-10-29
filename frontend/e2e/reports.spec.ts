@@ -48,6 +48,24 @@ test('A PDF with a period is made and the form refuses a backwards period @REQ-S
   await expect(row.getByRole('link', { name: 'Download' })).toBeVisible({ timeout: READY })
 })
 
+test('Station asset, Configuration history and Sensor reliability are made from the real inventory @REQ-SUM-1 @J10', async ({ watched: page }) => {
+  await logIn(page, 'admin@example.org')
+  for (const [type, title] of [
+    ['station_asset', 'Station asset'], ['sensor_reliability', 'Sensor reliability'],
+    ['configuration_history', 'Configuration history'],
+  ]) {
+    await page.goto(`/reports?type=${type}`)
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+    await page.getByText('CSV, the table only').click()
+    if (type !== 'station_asset') {
+      await page.getByRole('button', { name: 'This year' }).click()
+    }
+    await generate(page)
+    const row = page.getByRole('row', { name: new RegExp(`${title}.*csv`, 'i') }).first()
+    await expect(row.getByRole('link', { name: 'Download' })).toBeVisible({ timeout: READY })
+  }
+})
+
 test('A Viewer makes every report and changes nothing else @REQ-SUM-1 @NFR-6 @J10', async ({ watched: page }) => {
   await logIn(page, 'viewer@example.org')
   await page.goto('/reports?type=calibration_due')
@@ -58,12 +76,13 @@ test('A Viewer makes every report and changes nothing else @REQ-SUM-1 @NFR-6 @J1
   await expect(page.getByRole('row', { name: /Calibration due/ }).first()).toBeVisible()
 })
 
-test('A client sees two reports for their own organization and cannot ask for a staff one @REQ-SUM-3 @NFR-6 @J10', async ({ watched: page }) => {
+test('A client sees three reports for their own organization and cannot ask for a staff one @REQ-SUM-3 @NFR-6 @J10', async ({ watched: page }) => {
   await logIn(page, 'client.a1@example.org')
   await page.goto('/reports')
   await expect(page.getByRole('link', { name: 'Station history' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Client activity' })).toBeVisible()
-  for (const hidden of ['Request turnaround', 'Calibration due', 'Network status', 'Monthly summary', 'Annual summary']) {
+  await expect(page.getByRole('link', { name: 'Station asset' })).toBeVisible()
+  for (const hidden of ['Request turnaround', 'Calibration due', 'Network status', 'Monthly summary', 'Annual summary', 'Sensor reliability', 'Configuration history']) {
     await expect(page.getByRole('link', { name: hidden })).toHaveCount(0)
   }
   await page.getByRole('link', { name: 'Client activity' }).click()

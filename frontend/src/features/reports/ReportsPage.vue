@@ -278,6 +278,7 @@
     station_history: mdiHistory, network_status: mdiRadioTower, calibration_due: mdiClockOutline,
     client_activity: mdiAccountOutline, request_turnaround: mdiProgressClock,
     monthly_summary: mdiCalendarBlankOutline, annual_summary: mdiTableLarge,
+    station_asset: mdiRadioTower, configuration_history: mdiTableLarge, sensor_reliability: mdiAlertOutline,
   }
   const chip = {
     making: 'bg-primary-50 text-primary-800 dark:bg-primary-900 dark:text-primary-100',

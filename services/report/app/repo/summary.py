@@ -120,6 +120,34 @@ async def fetch(
         data["units"] = await _rows(db, rm.UNITS, {
             "status": "installed", "due_at": {"$lt": now + timedelta(days=due_in_days)},
             **_where(scope, "station_id", org=False)})
+    elif kind is Kind.STATION_ASSET:
+        installs = await _rows(db, rm.INSTALLS, {
+            "removed_at": None, **_where(scope, "station_id", org=False)})
+        unit_ids = [i["unit_id"] for i in installs]
+        data["installs"] = installs
+        units = await _rows(db, rm.UNITS, {"_id": {"$in": unit_ids}})
+        data["units"] = {u["_id"]: u for u in units}
+        data["models"] = await _models(db, [i.get("model_id") for i in installs])
+        data["last_cal"] = await _last_calibrations(db, unit_ids)
+    elif kind is Kind.SENSOR_RELIABILITY and p is not None:
+        where = _where(scope, "station_id", org=False)
+        data["installed"] = await _rows(db, rm.INSTALLS, {**where, **_within("installed_at", p)})
+        data["removed"] = await _rows(db, rm.INSTALLS, {**where, **_within("removed_at", p)})
+        data["open"] = await _rows(db, rm.INSTALLS, {"removed_at": None, **where})
+        data["failed"] = await _rows(db, rm.CALIBRATIONS, {
+            "voided": {"$ne": True}, "result": "fail", **_within("at", p), **where})
+        failed_units = await _rows(db, rm.UNITS, {
+            "_id": {"$in": [c["sensor_unit_id"] for c in data["failed"]]}})
+        data["units"] = {u["_id"]: u for u in failed_units}
+        involved = [i.get("model_id") for key in ("installed", "removed", "open")
+                    for i in data[key]] + [u.get("model_id") for u in failed_units]
+        data["models"] = await _models(db, involved)
+    elif kind is Kind.CONFIGURATION_HISTORY and p is not None:
+        data["configs"] = await _rows(db, rm.CONFIGS, {
+            **_within("created_at", p), **_where(scope, "station_id", org=False)})
+        found = await _rows(db, rm.VISITS, {
+            "_id": {"$in": [c["visit_id"] for c in data["configs"] if c.get("visit_id")]}})
+        data["visit_refs"] = {v["_id"]: v.get("ref", "") for v in found}
     elif kind is Kind.NETWORK_STATUS:
         restrict = _where(scope)
         data["last_visit"] = await _per_station(
@@ -148,3 +176,19 @@ async def fetch(
     else:
         raise ValidationFailed("This report needs a period", code="invalid_period")
     return data
+
+
+async def _models(db: Db, ids: list[Any]) -> dict[str, dict[str, Any]]:
+    wanted = list({i for i in ids if i})
+    return {m["_id"]: m for m in await _rows(db, rm.MODELS, {"_id": {"$in": wanted}})}
+
+
+async def _last_calibrations(db: Db, unit_ids: list[str]) -> dict[str, dict[str, Any]]:
+    """The newest calibration that still counts for each unit."""
+    pipeline: list[dict[str, Any]] = [
+        {"$match": {"sensor_unit_id": {"$in": unit_ids}, "voided": {"$ne": True}}},
+        {"$sort": {"at": -1}},
+        {"$group": {"_id": "$sensor_unit_id", "at": {"$first": "$at"},
+                    "result": {"$first": "$result"}}},
+    ]
+    return {r["_id"]: r async for r in await db[rm.CALIBRATIONS].aggregate(pipeline)}

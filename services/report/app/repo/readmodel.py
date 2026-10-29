@@ -18,6 +18,12 @@ async def put(
 ) -> bool:
     """Write `row` if its `aggregate_version` is newer. A visit keeps the times and counts that
     later events do not repeat (`started_at` survives `visit.station_arrived`)."""
+    if collection == rm.INSTALLS:
+        # Merged field by field, in any order (an installation is written by two events)
+        fields = {k: v for k, v in row.items() if k != "_id"}
+        await db[collection].update_one({"_id": row["_id"]}, {"$set": fields}, upsert=True,
+                                        session=session)
+        return True
     if collection == rm.VISITS:
         stored = await db[collection].find_one({"_id": row["_id"]}, session=session)
         if stored is not None:

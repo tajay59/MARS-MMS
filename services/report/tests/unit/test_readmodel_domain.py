@@ -95,6 +95,7 @@ def test_every_event_and_snapshot_entity_has_a_builder():
     assert set(rm.BUILDERS) >= wanted
     assert set(rm.UNIT_EVENTS) <= set(rm.BUILDERS)
     assert set(rm.SNAPSHOT_ENTITIES) == {
-        "stations", "requests", "visits", "calibrations", "sensor_units",
+        "stations", "requests", "visits", "calibrations", "sensor_units", "sensor_models",
+        "config_versions", "installations",
     }
     assert not any(t.startswith("visit.element") for t in rm.BUILDERS)

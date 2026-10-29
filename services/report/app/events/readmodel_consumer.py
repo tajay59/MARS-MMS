@@ -45,6 +45,26 @@ def handlers(db: AsyncDatabase[dict[str, Any]]) -> dict[str, Handler]:
         )
         await readmodel.void_calibration(db, data["calibration_id"], session)
 
+    async def config_created(
+        payload: BaseModel, envelope: Envelope, session: AsyncClientSession
+    ) -> None:
+        data = {**payload.model_dump(), "config_id": envelope.resource.id,
+                "created_at": envelope.occurred_at}
+        await readmodel.put(db, rm.CONFIGS, rm.config_row(data, 1), session)
+
+    def installation(field: str) -> Handler:
+        async def handle(
+            payload: BaseModel, envelope: Envelope, session: AsyncClientSession
+        ) -> None:
+            data = payload.model_dump()
+            row = rm.install_row({**data, field: data["at"]})
+            await readmodel.put(db, rm.INSTALLS, row, session)
+
+        return handle
+
     out = {event: writer(collection, build) for event, (collection, build) in rm.BUILDERS.items()}
     out["calibration.voided"] = calibration_voided
+    out["config.version_created"] = config_created
+    out["sensor.installed"] = installation("installed_at")
+    out["sensor.removed"] = installation("removed_at")
     return out

@@ -16,9 +16,17 @@ describe('grouped', () => {
   })
 
   it('keeps a type it does not know in Other, so a new report still shows', () => {
-    const groups = grouped([type('station_history'), type('sensor_reliability')])
+    const groups = grouped([type('station_history'), type('technician_workload')])
     expect(groups.at(-1)).toMatchObject({ label: 'Other' })
-    expect(groups.at(-1)?.types[0]?.type).toBe('sensor_reliability')
+    expect(groups.at(-1)?.types[0]?.type).toBe('technician_workload')
+  })
+
+  it('files the asset, configuration and sensor reports where people look for them', () => {
+    const groups = grouped([type('sensor_reliability'), type('station_asset'), type('configuration_history'), type('calibration_due')])
+    expect(groups.map(g => [g.label, g.types.map(t => t.type)])).toEqual([
+      ['Stations', ['station_asset', 'configuration_history']],
+      ['Calibration and sensors', ['calibration_due', 'sensor_reliability']],
+    ])
   })
 
   it('opens on the first type of the first group', () => {

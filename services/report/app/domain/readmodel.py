@@ -25,7 +25,10 @@ REQUESTS = "request_facts"
 VISITS = "visit_facts"
 CALIBRATIONS = "calibration_facts"
 UNITS = "unit_facts"
-COLLECTIONS = (STATIONS, REQUESTS, VISITS, CALIBRATIONS, UNITS)
+MODELS = "model_facts"
+CONFIGS = "config_facts"
+INSTALLS = "installation_facts"
+COLLECTIONS = (STATIONS, REQUESTS, VISITS, CALIBRATIONS, UNITS, MODELS, CONFIGS, INSTALLS)
 
 # What a later event does not repeat: kept from the stored row when the new one lacks it
 VISIT_KEEP = ("started_at", "ended_at", "additional_visit_required", "element_counts",
@@ -50,6 +53,7 @@ VISIT_EVENTS = (
 STATION_EVENTS = ("station.created", "station.updated")
 CALIBRATION_EVENTS = ("calibration.recorded",)
 UNIT_EVENTS = ("sensor_unit.created", "sensor_unit.updated")
+MODEL_EVENTS = ("sensor_model.created", "sensor_model.updated")
 
 
 def when(value: Any) -> datetime | None:
@@ -120,6 +124,41 @@ def unit_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
     }
 
 
+def model_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
+    return {
+        "_id": data["model_id"], "kind": data["kind"], "manufacturer": data["manufacturer"],
+        "model": data["model"], "parameters": list(data.get("parameters") or []),
+        "interval_days": data.get("default_calibration_interval_days"),
+        "aggregate_version": version,
+    }
+
+
+def config_row(data: Mapping[str, Any], version: int) -> dict[str, Any]:
+    """A configuration version is written once and never changes (CFG-2): its row is too."""
+    return {
+        "_id": data["config_id"], "station_id": data["station_id"], "number": data["version"],
+        "file_count": data.get("file_count") or 0, "visit_id": data.get("visit_id"),
+        "created_at": when(data["created_at"]), "aggregate_version": version,
+    }
+
+
+# What an installation row may hold. An event or a snapshot item names some of these; the repository
+# merges what is named, so a removal that arrives before its installation still ends up right.
+INSTALL_FIELDS = ("unit_id", "serial", "model_id", "station_id", "parameter", "installed_at",
+                  "removed_at")
+
+
+def install_row(data: Mapping[str, Any]) -> dict[str, Any]:
+    """The fields of an installation that `data` names: nothing is set to None, so an old
+    snapshot cannot undo a removal that an event already recorded."""
+    row: dict[str, Any] = {"_id": data["installation_id"]}
+    for key in INSTALL_FIELDS:
+        value = data.get(key)
+        if value is not None:
+            row[key] = when(value) if key.endswith("_at") else value
+    return row
+
+
 def keep_from(
     stored: Mapping[str, Any], row: dict[str, Any], keep: tuple[str, ...]
 ) -> dict[str, Any]:
@@ -136,6 +175,7 @@ BUILDERS: dict[str, tuple[str, Builder]] = {
     **{t: (VISITS, visit_row) for t in VISIT_EVENTS},
     **{t: (CALIBRATIONS, calibration_row) for t in CALIBRATION_EVENTS},
     **{t: (UNITS, unit_row) for t in UNIT_EVENTS},
+    **{t: (MODELS, model_row) for t in MODEL_EVENTS},
 }
 
 # What `/internal/snapshot/<entity>` fills
@@ -145,4 +185,7 @@ SNAPSHOT_ENTITIES: dict[str, tuple[str, Builder]] = {
     "visits": (VISITS, visit_row),
     "calibrations": (CALIBRATIONS, calibration_row),
     "sensor_units": (UNITS, unit_row),
+    "sensor_models": (MODELS, model_row),
+    "config_versions": (CONFIGS, config_row),
+    "installations": (INSTALLS, lambda data, _version: install_row(data)),
 }

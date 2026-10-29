@@ -20,6 +20,7 @@ from app.api.visits import report_facts, report_lock
 from app.domain.visits import elements as element_rules
 from app.events.publish import (
     calibration_data,
+    model_data,
     request_data,
     station_data,
     unit_data,
@@ -261,11 +262,35 @@ async def unlock_visit(
     return LockOut(visit_id=visit_id, locked=locked, visit_version=visit["version"])
 
 
+def installation_snapshot(doc: dict[str, Any], unit: dict[str, Any]) -> dict[str, Any]:
+    """An installation as the report service keeps it: when a unit went in and came out, with the
+    unit's serial and model (W19-6). Shaped like `sensor.installed` and `sensor.removed`."""
+    return {
+        "installation_id": doc["_id"], "unit_id": doc["sensor_unit_id"],
+        "serial": unit.get("serial", ""), "model_id": unit.get("model_id", ""),
+        "station_id": doc["station_id"], "parameter": doc.get("parameter"),
+        "installed_at": doc["installed_at"], "removed_at": doc.get("removed_at"),
+        "aggregate_version": int(doc.get("version", 1)),
+    }
+
+
+def config_snapshot(doc: dict[str, Any]) -> dict[str, Any]:
+    """A configuration version: written once and never changed (CFG-2), so its read-model
+    version is always 1. `version` here is the number the station shows."""
+    return {
+        "config_id": doc["_id"], "station_id": doc["station_id"], "version": doc["version"],
+        "file_count": len(doc.get("files", [])), "visit_id": doc.get("visit_id"),
+        "created_at": doc["created_at"], "aggregate_version": 1,
+    }
+
+
 @router.get("/internal/snapshot/{entity}")
 async def snapshot(
     svc: SnapshotReader,
     ctx: CtxDep,
-    entity: Annotated[str, Path(pattern="^(stations|sensor_units|calibrations|requests|visits)$")],
+    entity: Annotated[str, Path(pattern=(
+        "^(stations|sensor_units|calibrations|requests|visits|sensor_models|installations"
+        "|config_versions)$"))],
     after: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 500,
 ) -> SnapshotPage:
@@ -281,6 +306,15 @@ async def snapshot(
         items = [{**request_data(d), "aggregate_version": d["version"]} for d in result.items]
     elif entity == "visits":
         items = [{**visit_snapshot(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "sensor_models":
+        items = [{**model_data(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "installations":
+        units = {u["_id"]: u async for u in ctx.db["sensor_units"].find(
+            {"_id": {"$in": [d["sensor_unit_id"] for d in result.items]}})}
+        items = [installation_snapshot(d, units.get(d["sensor_unit_id"], {}))
+                 for d in result.items]
+    elif entity == "config_versions":
+        items = [config_snapshot(d) for d in result.items]
     else:
         items = [
             {**calibration_data(d, None), "aggregate_version": d["version"]}

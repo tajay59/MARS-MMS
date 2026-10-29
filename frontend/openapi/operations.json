@@ -12977,7 +12977,7 @@
             "name": "entity",
             "required": true,
             "schema": {
-              "pattern": "^(stations|sensor_units|calibrations|requests|visits)$",
+              "pattern": "^(stations|sensor_units|calibrations|requests|visits|sensor_models|installations|config_versions)$",
               "title": "Entity",
               "type": "string"
             }
