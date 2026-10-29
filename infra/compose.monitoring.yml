@@ -1,0 +1,184 @@
+# Monitoring (TRD §16.1, §16.5; W20-2 to W20-4). Added to the stack with its own file so the
+# application can run without it:
+#
+#   docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml up -d
+#   (production: -f compose.yml -f compose.prod.yml -f compose.monitoring.yml)
+#
+# Nothing is published but the loopback ports below, for an SSH tunnel or the VPN (TRD §15).
+# The host needs MONITOR_DB_PASSWORD, KAFKA_MONITOR_PASSWORD, GRAFANA_ADMIN_PASSWORD and
+# MMS_ALERT_EMAILS in infra/.env; mongo-init and kafka-init create the exporters' users from them.
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  prometheus:
+    <<: *restart
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    mem_limit: 512m
+    networks: [backend]
+
+  alertmanager:
+    <<: *restart
+    image: prom/alertmanager:v0.28.1
+    entrypoint: ["/bin/sh", "/opt/mms/alertmanager-entrypoint.sh"]
+    environment:
+      MMS_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+      MMS_ALERT_EMAILS: ${MMS_ALERT_EMAILS:?set the admin addresses to alert, separated by commas}
+      ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-${PLATFORM_SMTP_HOST:-mailpit}}
+      ALERT_SMTP_PORT: ${ALERT_SMTP_PORT:-${PLATFORM_SMTP_PORT:-1025}}
+      ALERT_FROM: ${ALERT_FROM:-${PLATFORM_MAIL_FROM:-MARS-MMS <no-reply@mms.localhost>}}
+      ALERT_SMTP_USERNAME: ${ALERT_SMTP_USERNAME:-${PLATFORM_SMTP_USERNAME:-}}
+      ALERT_SMTP_PASSWORD: ${ALERT_SMTP_PASSWORD:-${PLATFORM_SMTP_PASSWORD:-}}
+      ALERT_SMTP_REQUIRE_TLS: ${ALERT_SMTP_REQUIRE_TLS:-false}
+      ALERT_GROUP_WAIT: ${ALERT_GROUP_WAIT:-30s}
+    volumes:
+      - ./monitoring/alertmanager.yml.tmpl:/etc/alertmanager/alertmanager.yml.tmpl:ro
+      - ./monitoring/alertmanager-entrypoint.sh:/opt/mms/alertmanager-entrypoint.sh:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    mem_limit: 64m
+    networks: [backend]
+
+  loki:
+    <<: *restart
+    image: grafana/loki:3.5.1
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./monitoring/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    mem_limit: 512m
+    networks: [backend]
+
+  # Container logs reach Loki through a proxy that answers only the container calls Alloy needs.
+  # It sits on a network of its own with Alloy: `inspect` shows a container's environment, which
+  # holds secrets, so no application container may be able to reach it.
+  docker-proxy:
+    <<: *restart
+    image: tecnativa/docker-socket-proxy:0.3.0
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1  # Alloy lists a container's networks
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    mem_limit: 32m
+    networks: [logs]
+
+  alloy:
+    <<: *restart
+    image: grafana/alloy:v1.9.1
+    command: ["run", "--storage.path=/var/lib/alloy/data", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
+    environment:
+      MMS_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
+    volumes:
+      - ./monitoring/alloy.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on: [loki, docker-proxy]
+    mem_limit: 192m
+    networks: [backend, logs]
+
+  grafana:
+    <<: *restart
+    image: grafana/grafana:12.0.2
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "false"  # alerts are Prometheus rules (W20-2)
+      GF_ALERTING_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/mms-dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    depends_on: [prometheus, loki]
+    mem_limit: 256m
+    networks: [backend]
+
+  node-exporter:
+    <<: *restart
+    image: prom/node-exporter:v1.9.1
+    command:
+      - --path.rootfs=/host
+      - --collector.textfile.directory=/textfile
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|host/.+)($$|/)
+    volumes:
+      # `rslave` shows mounts made later. Docker Desktop refuses it: set NODE_EXPORTER_ROOT_FLAGS= (empty) there.
+      - /:/host:ro${NODE_EXPORTER_ROOT_FLAGS-,rslave}
+      - textfile:/textfile:ro
+    mem_limit: 64m
+    networks: [backend]
+
+  nginx-exporter:
+    <<: *restart
+    image: nginx/nginx-prometheus-exporter:1.4.2
+    command: ["--nginx.scrape-uri=http://nginx:8081/stub_status"]
+    depends_on: [nginx]
+    mem_limit: 32m
+    networks: [backend]
+
+  # The exporters have users of their own with the least they need (TRD §15): a Mongo
+  # clusterMonitor user, a Kafka user that may only describe topics and groups, and Redis' password.
+  mongodb-exporter:
+    <<: *restart
+    image: percona/mongodb_exporter:0.44.0
+    command: ["--collector.diagnosticdata", "--collector.replicasetstatus", "--compatible-mode"]
+    environment:
+      MONGODB_URI: mongodb://monitor:${MONITOR_DB_PASSWORD:?set MONITOR_DB_PASSWORD}@mongo:27017/admin?directConnection=true
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    mem_limit: 64m
+    networks: [backend]
+
+  redis-exporter:
+    <<: *restart
+    image: oliver006/redis_exporter:v1.74.0
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    mem_limit: 32m
+    networks: [backend]
+
+  kafka-exporter:
+    <<: *restart
+    image: danielqsj/kafka-exporter:v1.9.0
+    command:
+      - --kafka.server=kafka:9092
+      - --sasl.enabled
+      - --sasl.mechanism=scram-sha512
+      - --sasl.username=monitor
+      - --sasl.password=${KAFKA_MONITOR_PASSWORD:?set KAFKA_MONITOR_PASSWORD}
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    mem_limit: 64m
+    networks: [backend]
+
+networks:
+  logs:
+    internal: true
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  loki-data:
+  alloy-data:
+  grafana-data:
+  textfile:
