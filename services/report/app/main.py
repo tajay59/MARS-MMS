@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, Response
 from mms_common import logging as mms_logging
-from mms_common import migrations, mongo
+from mms_common import metrics, migrations, mongo
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.tokens import KeySource
@@ -176,6 +176,9 @@ def create_app(
                     lambda: summary.purge_old(app.state.services), stop, first_delay_s=120.0,
                 )),
                 # Takes up a finalize a worker left half done, and unlocks owed to operations
+                asyncio.create_task(metrics.refresh_every(
+                    30.0, lambda: resume.gauge_finalizing(app.state.services), stop,
+                )),
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "resume", settings.resume_tick_s,
                     lambda: resume.tick(app.state.services), stop, first_delay_s=20.0,

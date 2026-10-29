@@ -118,6 +118,24 @@ async def test_the_same_batch_twice_changes_nothing(ops):
     assert await ops.db["sync_operations"].count_documents({}) == 3
 
 
+async def test_each_answer_is_counted_by_result_and_never_by_operation(ops):
+    """W20-1: the numbers hypercare reads. No operation id is a label."""
+    from prometheus_client import REGISTRY, generate_latest
+
+    def count(result: str) -> float:
+        return REGISTRY.get_sample_value(
+            "sync_ops_total", {"result": result, "reason": "none"}
+        ) or 0.0
+
+    applied, duplicate = count("applied"), count("duplicate")
+    visit, [one, _] = await planned(ops)
+    batch = [op("visit.start", visit), op("station.arrive", visit, {"station_id": one["id"]})]
+    await answers(ops, "tech1", batch)
+    await answers(ops, "tech1", batch)
+    assert count("applied") - applied == 2 and count("duplicate") - duplicate == 2
+    assert batch[0]["op_id"] not in generate_latest(REGISTRY).decode()
+
+
 async def test_an_operation_that_is_already_true_online_is_applied_without_a_second_effect(ops):
     # The phone's answer was lost, then the same work was done on the web: nothing doubles
     visit, [one, _] = await planned(ops)

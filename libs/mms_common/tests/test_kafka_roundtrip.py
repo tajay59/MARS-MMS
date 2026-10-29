@@ -8,6 +8,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from prometheus_client import REGISTRY
 from pydantic import BaseModel
 from pymongo import AsyncMongoClient
 from redis.asyncio import Redis
@@ -94,12 +95,29 @@ async def test_outbox_to_kafka_to_consumer(mongo_uri, redis_url, kafka_bootstrap
 
         processor = EventProcessor(client, consumer_db, {"demo.approved": handler},
                                    to_dlq, clock)
-        task = asyncio.create_task(run_consumer(bootstrap, f"{service}-group", [topic], processor))
+        group = f"{service}-group"
+        task = asyncio.create_task(
+            run_consumer(bootstrap, group, [topic], processor, backlog_every_s=0.2)
+        )
         try:
             async def all_applied() -> bool:
                 return await consumer_db.read_model.count_documents({}) == 3
 
             await wait_for(all_applied)
+
+            # The group is caught up: W20's numbers say so (applied events, nothing waiting).
+            async def reported() -> bool:
+                return (
+                    REGISTRY.get_sample_value(
+                        "events_consumed_total", {"group": group, "outcome": "applied"}
+                    ) == 3
+                    and REGISTRY.get_sample_value(
+                        "consumer_backlog_messages", {"group": group}
+                    ) == 0
+                    and REGISTRY.get_sample_value("consumer_lag_seconds", {"group": group}) == 0
+                )
+
+            await wait_for(reported)
         finally:
             task.cancel()
             with pytest.raises(asyncio.CancelledError):

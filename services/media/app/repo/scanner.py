@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import struct
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Protocol
 
 from app.domain.media import ScanStatus
@@ -84,6 +85,18 @@ class _ClamdSession:
             pass
 
 
+def parse_signature_date(reply: bytes) -> datetime | None:
+    """clamd's VERSION answer is `ClamAV 1.4.3/27850/Wed Oct 28 08:30:00 2026`: the third part is
+    when the signature database was built. None when it cannot be read."""
+    parts = reply.rstrip(b"\0\n").decode(errors="replace").split("/")
+    if len(parts) < 3:
+        return None
+    try:
+        return datetime.strptime(parts[2].strip(), "%a %b %d %H:%M:%S %Y").replace(tzinfo=UTC)
+    except ValueError:
+        return None
+
+
 class ClamdScanner:
     def __init__(self, host: str, port: int, timeout_s: float = 10.0) -> None:
         self._host, self._port, self._timeout = host, port, timeout_s
@@ -98,6 +111,20 @@ class ClamdScanner:
         except (OSError, TimeoutError) as e:
             raise ScannerUnavailable(str(e)) from e
         return _ClamdSession(reader, writer)
+
+    async def signatures_built(self) -> datetime | None:
+        """When ClamAV's signature database was built (TRD §16.5: older than 3 days is an alert)."""
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self._host, self._port), self._timeout
+            )
+            writer.write(b"zVERSION\0")
+            await writer.drain()
+            reply = await asyncio.wait_for(reader.readuntil(b"\0"), self._timeout)
+            writer.close()
+        except (OSError, TimeoutError, asyncio.IncompleteReadError):
+            return None
+        return parse_signature_date(reply)
 
     async def ping(self) -> bool:
         try:

@@ -67,7 +67,7 @@ def get(web, path, host=MMS, **kw):
 # --- Nginx: routing ------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("path", ["/internal/service-token", "/.well-known/jwks.json"])
+@pytest.mark.parametrize("path", ["/internal/service-token", "/.well-known/jwks.json", "/metrics"])
 def test_internal_and_jwks_are_never_routed(web, path):
     assert get(web, path).status_code == 404
 
