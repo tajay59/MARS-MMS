@@ -480,3 +480,21 @@ h1 {
 .summary table.rows tr {
   break-inside: avoid;
 }
+
+/* A summary's chart (W19-11): drawn by Chromium as a picture three times its size */
+.summary figure.chart {
+  margin: 0 0 6mm;
+  break-inside: avoid;
+}
+
+.summary figure.chart figcaption {
+  font-size: 10pt;
+  font-weight: 600;
+  margin-bottom: 2mm;
+}
+
+.summary figure.chart img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

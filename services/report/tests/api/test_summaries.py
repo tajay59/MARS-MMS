@@ -143,6 +143,9 @@ async def test_the_worker_draws_a_pdf_the_link_downloads(report):
     assert view["title"] == "Request turnaround" and view["generated_by"] == SEED_USERS["admin"].name
     assert "2026-10-01 to 2026-10-31" in view["filters"] and "America/Jamaica" in view["filters"]
     assert view["tables"][0]["rows"][0][0] == "MR-2026-0001"
+    # the chart is chosen from the same table and travels with the view (W19-11)
+    assert view["chart"]["title"] == "Days to close, by category"
+    assert view["chart"]["categories"] and view["chart"]["alt"].startswith("Days to close")
 
 
 @pytest.mark.req("SUM-2")

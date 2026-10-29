@@ -106,6 +106,10 @@ jobs:
       # tests. Coverage target: 70% overall (TP); domain/ is checked in review.
       - name: Tests
         run: pytest -q --cov --cov-report=term --cov-fail-under=70
+        # The report service draws one chart with a real browser in its tests (W19-11): the
+        # runner has Chrome; elsewhere the test is skipped.
+        env:
+          REPORT_CHROMIUM_PATH: ${{ matrix.service == 'report' && 'google-chrome' || '' }}
 
       # The frontend's API types come from frontend/openapi/<service>.json: it must match.
       - name: OpenAPI matches frontend/openapi

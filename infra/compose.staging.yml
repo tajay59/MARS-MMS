@@ -60,7 +60,7 @@ services:
     mem_limit: 256m
 
   report-worker:
-    mem_limit: 384m
+    mem_limit: 768m  # a chart in a summary PDF runs Chromium beside the worker (W19-11)
 
   platform:
     mem_limit: 512m

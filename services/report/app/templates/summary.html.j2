@@ -21,6 +21,18 @@
   </dl>
   {% endif %}
 
+  {% if v.chart %}
+  <figure class="chart">
+    <figcaption>{{ v.chart.title }}</figcaption>
+    {% if v.chart.src %}
+    <img src="{{ v.chart.src }}" alt="{{ v.chart.alt }}">
+    {% else %}
+    <p class="muted">The chart could not be drawn. The table below has the same figures.</p>
+    {% endif %}
+    {% if v.chart.note %}<p class="muted note">{{ v.chart.note }}</p>{% endif %}
+  </figure>
+  {% endif %}
+
   {% for t in v.tables %}
   <section>
     <h2>{{ t.title }}</h2>

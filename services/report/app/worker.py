@@ -61,7 +61,7 @@ async def main() -> None:
     operations = make_stations(settings, clock, http)
     svc = Services(
         settings=settings, clock=clock, client=client, db=client[settings.mongo_db],
-        storage=make_storage(settings), stations=operations, renderer=make_renderer(),
+        storage=make_storage(settings), stations=operations, renderer=make_renderer(settings),
         jobs=NoJobs(), facts=operations, media=make_media(settings, clock, http),
         locks=operations,
     )

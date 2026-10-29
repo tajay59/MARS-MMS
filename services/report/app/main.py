@@ -112,7 +112,7 @@ def create_app(
             settings=settings, clock=clock, client=client, db=db,
             storage=storage or make_storage(settings),
             stations=stations or operations,
-            renderer=renderer or make_renderer(),
+            renderer=renderer or make_renderer(settings),
             jobs=jobs or QueueJobs(JobQueue(redis, QUEUE)),
             facts=facts or operations, media=media or make_media(settings, clock, http),
             locks=locks or operations,

@@ -30,7 +30,7 @@ include = ["app*"]
 
 # The Jinja templates and print stylesheet ship inside the package.
 [tool.setuptools.package-data]
-app = ["templates/*"]
+app = ["templates/*", "charts/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

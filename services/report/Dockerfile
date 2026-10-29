@@ -3,11 +3,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 
 # WeasyPrint draws PDFs with Pango; Inter and JetBrains Mono are the brand fonts (DBD), so
-# labels and reports print the same as the app. No browser is needed for these templates.
+# labels and reports print the same as the app. Chromium (the Debian package, so security fixes
+# arrive with the image scan) draws the charts of the summary reports (W19-11): one process at a
+# time, started by the worker on a page it writes itself, never reachable from the network.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 \
-        fonts-inter fonts-jetbrains-mono fontconfig \
+        fonts-inter fonts-jetbrains-mono fontconfig chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Build context is the repository root (compose passes `context: ..`) so mms_common is available.

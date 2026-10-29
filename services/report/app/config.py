@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     summary_time_zone: str = "America/Jamaica"
     summary_keep_days: int = 30
     summary_max_days: int = 1096
+    # Charts in the summary PDFs (W19-11): `chromium` draws them with the browser in the report
+    # image; `off` leaves them out (a report prints its table alone). A chart that takes longer
+    # than `chart_timeout_s` is left out.
+    charts: str = "chromium"
+    chromium_path: str = "chromium"
+    chart_timeout_s: int = 30
 
     # --- Signatures (W17-5, W17-6; PRD RPT-4, Q2)
     # The sentence shown above the signature and stored with it, as the person saw it
