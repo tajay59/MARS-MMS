@@ -93,6 +93,14 @@ groups:
           summary: "No good {{ $labels.kind }} backup for {{ $value | humanizeDuration }}"
           description: "The last good run is more than 26 hours old."
 
+      - alert: RestoreDrillOld
+        expr: time() - restore_drill_last_success_timestamp_seconds > 691200
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "No restore drill has passed for {{ $value | humanizeDuration }}"
+          description: "The weekly drill proves the backups can be restored (NFR-9); run it by hand and read its log."
+
       - alert: AuditChainBroken
         expr: audit_chain_ok == 0
         labels: {severity: critical}
