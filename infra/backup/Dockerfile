@@ -2,7 +2,7 @@
 # Built on the Mongo image so mongodump, mongorestore and mongosh are the same version as the
 # server; adds rclone (copies to the backup host), age (encrypts) and Python for the retention
 # rule. Runs as a user of its own and holds no key that can decrypt a backup.
-FROM mongo:8.0.34
+FROM mongo:8.3.13
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends rclone age python3-minimal ca-certificates \
