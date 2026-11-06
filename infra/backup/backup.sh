@@ -73,7 +73,7 @@ backup_mongo() {
   rclone copy "$work/$file" "$REMOTE/mongo/"
   rclone copy "$work/${file%.age}.json" "$REMOTE/mongo/"
   # The copy on the backup host must be byte for byte the file that was made
-  rclone check "$work" "$REMOTE/mongo" --one-way --include "mms-${stamp}.*" --quiet
+  rclone check "$work" "$REMOTE/mongo" --one-way --include "mms-${stamp}.*"
   rm -rf "$work"
   prune_mongo
   prom mongo "backup_last_success_timestamp_seconds=$(date +%s)" "backup_last_size_bytes=$size" \
@@ -137,7 +137,7 @@ check_objects() {
   # BACKUP_BUCKETS narrows the check to some buckets (the tests); the default is every bucket
   for bucket in ${BACKUP_BUCKETS:-$(rclone lsf primary: | tr -d /)}; do
     # One way: files the replica holds that the primary deleted are for the replica's own versioning
-    if ! rclone check "primary:$bucket" "replica:$bucket" --one-way --quiet; then
+    if ! rclone check "primary:$bucket" "replica:$bucket" --one-way; then
       log "objects: $bucket differs from its replica"
       ok=0
     fi

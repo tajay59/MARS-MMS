@@ -17,7 +17,7 @@ import time
 import uuid
 
 import pytest
-from backup_support import INFRA, available, in_backup, make_key, take_backup
+from backup_support import INFRA, available, compose, in_backup, make_key, take_backup
 
 pytestmark = pytest.mark.skipif(not available(), reason="the local stack is not running")
 
@@ -103,6 +103,9 @@ def test_a_damaged_backup_is_refused_before_anything_is_stopped(backup, key):
 @pytest.mark.req("NFR-9")
 def test_the_replica_matches_and_a_lost_object_is_noticed():
     """`weed filer.sync` fills the replica; the nightly check proves it and finds a loss."""
+    # filer-sync is in the `backup` profile, so a plain `up -d` leaves it out: start it by name
+    started = compose("up", "-d", "filer-sync", timeout=300)
+    assert started.returncode == 0, started.stderr[-400:]
     bucket = f"drill-{uuid.uuid4().hex[:8]}"
     scope = {"BACKUP_BUCKETS": bucket}
     setup = (
