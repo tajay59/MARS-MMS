@@ -74,6 +74,7 @@ services:
       REPORT_DB_PASSWORD: ${REPORT_DB_PASSWORD:?}
       PLATFORM_NOTIFICATION_DB_PASSWORD: ${PLATFORM_NOTIFICATION_DB_PASSWORD:?}
       PLATFORM_AUDIT_DB_PASSWORD: ${PLATFORM_AUDIT_DB_PASSWORD:?}
+      MONITOR_DB_PASSWORD: ${MONITOR_DB_PASSWORD:-}
     volumes:
       - ./mongo/init.js:/opt/mms/init.js:ro
     restart: "no"
@@ -148,6 +149,7 @@ services:
       KAFKA_MEDIA_PASSWORD: ${KAFKA_MEDIA_PASSWORD:?}
       KAFKA_PLATFORM_PASSWORD: ${KAFKA_PLATFORM_PASSWORD:?}
       KAFKA_REPORT_PASSWORD: ${KAFKA_REPORT_PASSWORD:?}
+      KAFKA_MONITOR_PASSWORD: ${KAFKA_MONITOR_PASSWORD:-}
     volumes:
       - ./kafka/create-topics.sh:/opt/mms/create-topics.sh:ro
       - ./kafka/topics.yml:/opt/mms/topics.yml:ro

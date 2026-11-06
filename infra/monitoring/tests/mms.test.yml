@@ -1,0 +1,234 @@
+# promtool unit tests for ../rules/mms.yml (W20-2): every alert fires when it should and stays
+# quiet when it should not, including the `for:` window. Run:
+#   docker run --rm --entrypoint promtool -v "$PWD/infra/monitoring:/m:ro" prom/prometheus:v3.5.0 \
+#     test rules /m/tests/mms.test.yml
+rule_files:
+  - ../rules/mms.yml
+
+evaluation_interval: 15s
+
+tests:
+  # --- ServiceDown ---------------------------------------------------------------------------
+  - name: a service that stops answering raises ServiceDown after two minutes
+    interval: 15s
+    input_series:
+      - series: 'up{job="services", service="media"}'
+        values: '1x20 0x40'
+      - series: 'up{job="services", service="auth"}'
+        values: '1x60'
+    alert_rule_test:
+      - {eval_time: 4m, alertname: ServiceDown, exp_alerts: []}      # still up
+      - {eval_time: 6m, alertname: ServiceDown, exp_alerts: []}      # down, inside the 2 minutes
+      - eval_time: 9m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: services, service: media}
+            exp_annotations:
+              summary: "media is not answering"
+              description: "Prometheus could not scrape media for 2 minutes."
+
+  - name: a worker with no web server is watched the same way
+    interval: 15s
+    input_series:
+      - series: 'up{job="workers", service="report-worker"}'
+        values: '0x40'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: workers, service: report-worker}
+            exp_annotations:
+              summary: "report-worker is not answering"
+              description: "Prometheus could not scrape report-worker for 2 minutes."
+
+  # --- MetricsMissing ------------------------------------------------------------------------
+  - name: fewer than five scraped services raises MetricsMissing
+    interval: 15s
+    input_series:
+      - {series: 'up{job="services", service="auth"}', values: '1x60'}
+      - {series: 'up{job="services", service="operations"}', values: '1x60'}
+      - {series: 'up{job="services", service="media"}', values: '1x60'}
+      - {series: 'up{job="services", service="report"}', values: '1x60'}
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: MetricsMissing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "Fewer than five API services are being scraped"
+              description: "Prometheus sees 4 of the 5 API services; a target was removed or never started."
+
+  - name: five scraped services keep MetricsMissing quiet
+    interval: 15s
+    input_series:
+      - {series: 'up{job="services", service="auth"}', values: '1x60'}
+      - {series: 'up{job="services", service="operations"}', values: '1x60'}
+      - {series: 'up{job="services", service="media"}', values: '1x60'}
+      - {series: 'up{job="services", service="report"}', values: '1x60'}
+      - {series: 'up{job="services", service="platform"}', values: '1x60'}
+    alert_rule_test:
+      - {eval_time: 8m, alertname: MetricsMissing, exp_alerts: []}
+
+  # --- High5xxRate ---------------------------------------------------------------------------
+  - name: about 9 percent server errors for five minutes raise High5xxRate
+    interval: 15s
+    input_series:
+      - {series: 'http_requests_total{service="auth", status="2xx"}', values: '0+10x80'}
+      - {series: 'http_requests_total{service="auth", status="5xx"}', values: '0+1x80'}
+    alert_rule_test:
+      - {eval_time: 3m, alertname: High5xxRate, exp_alerts: []}      # inside the window
+      - eval_time: 12m
+        alertname: High5xxRate
+        exp_alerts:
+          - exp_labels: {severity: critical, service: auth}
+            exp_annotations:
+              summary: "auth answers more than 2% of requests with a server error"
+              description: "9.091% of auth requests failed over 5 minutes."
+
+  - name: no errors keep High5xxRate quiet
+    interval: 15s
+    input_series:
+      - {series: 'http_requests_total{service="auth", status="2xx"}', values: '0+10x80'}
+      - {series: 'http_requests_total{service="auth", status="5xx"}', values: '0x80'}
+    alert_rule_test:
+      - {eval_time: 12m, alertname: High5xxRate, exp_alerts: []}
+
+  - name: one error a minute in a quiet service is not an incident
+    interval: 1m
+    input_series:
+      - {series: 'http_requests_total{service="media", status="5xx"}', values: '0+1x30'}
+    alert_rule_test:
+      - {eval_time: 20m, alertname: High5xxRate, exp_alerts: []}
+
+  # --- DeadLetterNotEmpty --------------------------------------------------------------------
+  - name: a dead-lettered event raises DeadLetterNotEmpty
+    interval: 15s
+    input_series:
+      - {series: 'kafka_topic_partition_current_offset{topic="mms.dlq.audit", partition="0"}', values: '0x10 3x30'}
+      - {series: 'kafka_topic_partition_oldest_offset{topic="mms.dlq.audit", partition="0"}', values: '0x40'}
+      - {series: 'kafka_topic_partition_current_offset{topic="mms.operations.events", partition="0"}', values: '500x40'}
+      - {series: 'kafka_topic_partition_oldest_offset{topic="mms.operations.events", partition="0"}', values: '0x40'}
+    alert_rule_test:
+      - {eval_time: 1m, alertname: DeadLetterNotEmpty, exp_alerts: []}
+      - eval_time: 6m
+        alertname: DeadLetterNotEmpty
+        exp_alerts:
+          - exp_labels: {severity: critical, topic: mms.dlq.audit}
+            exp_annotations:
+              summary: "mms.dlq.audit holds 3 dead-lettered event(s)"
+              description: "Find the cause in the consumer's log, fix it and replay (CLAUDE.md, audit dead letters)."
+
+  - name: empty dead-letter topics keep it quiet, even when the log was trimmed
+    interval: 15s
+    input_series:
+      - {series: 'kafka_topic_partition_current_offset{topic="mms.dlq.media", partition="0"}', values: '7x40'}
+      - {series: 'kafka_topic_partition_oldest_offset{topic="mms.dlq.media", partition="0"}', values: '7x40'}
+    alert_rule_test:
+      - {eval_time: 6m, alertname: DeadLetterNotEmpty, exp_alerts: []}
+
+  # --- OutboxStuck, ConsumerLag, ReportFinalizingLong ----------------------------------------
+  - name: an outbox row waiting over five minutes raises OutboxStuck
+    interval: 15s
+    input_series:
+      - {series: 'outbox_oldest_unpublished_seconds{service="operations"}', values: '0x10 400x30'}
+      - {series: 'outbox_oldest_unpublished_seconds{service="auth"}', values: '12x40'}
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: OutboxStuck
+        exp_alerts:
+          - exp_labels: {severity: critical, service: operations}
+            exp_annotations:
+              summary: "operations's outbox has an event waiting 6m 40s"
+              description: "The relay is not publishing: Kafka or Redis may be down, or no worker holds the lease."
+
+  - name: a group with no progress for five minutes raises ConsumerLag
+    interval: 15s
+    input_series:
+      - {series: 'consumer_lag_seconds{service="platform", group="audit"}', values: '0x10 400x30'}
+      - {series: 'consumer_lag_seconds{service="platform", group="notification"}', values: '20x40'}
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ConsumerLag
+        exp_alerts:
+          - exp_labels: {severity: critical, service: platform, group: audit}
+            exp_annotations:
+              summary: "platform's group audit has made no progress for 6m 40s"
+              description: "Messages are waiting and none has been committed."
+
+  - name: a report finalizing over thirty minutes raises ReportFinalizingLong
+    interval: 15s
+    input_series:
+      - {series: 'reports_finalizing_oldest_seconds{service="report"}', values: '0x10 2000x30'}
+    alert_rule_test:
+      - {eval_time: 1m, alertname: ReportFinalizingLong, exp_alerts: []}
+      - eval_time: 6m
+        alertname: ReportFinalizingLong
+        exp_alerts:
+          - exp_labels: {severity: warning, service: report}
+            exp_annotations:
+              summary: "A report has been finalizing for 33m 20s"
+              description: "The finalize job may have stopped. The resume job takes it up again; check the report-worker."
+
+  # --- DiskAlmostFull ------------------------------------------------------------------------
+  - name: a disk over eighty percent for ten minutes raises DiskAlmostFull
+    interval: 1m
+    input_series:
+      - {series: 'node_filesystem_avail_bytes{mountpoint="/data", fstype="ext4", device="sda1"}', values: '15x60'}
+      - {series: 'node_filesystem_size_bytes{mountpoint="/data", fstype="ext4", device="sda1"}', values: '100x60'}
+      - {series: 'node_filesystem_avail_bytes{mountpoint="/", fstype="ext4", device="sda2"}', values: '60x60'}
+      - {series: 'node_filesystem_size_bytes{mountpoint="/", fstype="ext4", device="sda2"}', values: '100x60'}
+    alert_rule_test:
+      - {eval_time: 5m, alertname: DiskAlmostFull, exp_alerts: []}
+      - eval_time: 12m
+        alertname: DiskAlmostFull
+        exp_alerts:
+          - exp_labels: {severity: warning, mountpoint: /data, fstype: ext4, device: sda1}
+            exp_annotations:
+              summary: "/data is 85% full"
+              description: "Free space before media and Mongo stop writing (TRD R7)."
+
+  # --- BackupMissing -------------------------------------------------------------------------
+  - name: a backup older than twenty-six hours raises BackupMissing
+    interval: 1m
+    input_series:
+      - {series: 'backup_last_success_timestamp_seconds{kind="mongo"}', values: '0x1700'}
+      - {series: 'backup_last_success_timestamp_seconds{kind="objects"}', values: '0+60x1700'}
+    alert_rule_test:
+      - {eval_time: 20h, alertname: BackupMissing, exp_alerts: []}
+      - eval_time: 28h
+        alertname: BackupMissing
+        exp_alerts:
+          - exp_labels: {severity: critical, kind: mongo}
+            exp_annotations:
+              summary: "No good mongo backup for 1d 4h 0m 0s"
+              description: "The last good run is more than 26 hours old."
+
+  # --- AuditChainBroken ----------------------------------------------------------------------
+  - name: a failed chain check raises AuditChainBroken at once
+    interval: 15s
+    input_series:
+      - {series: 'audit_chain_ok{service="platform"}', values: '1x10 0x10'}
+    alert_rule_test:
+      - {eval_time: 1m, alertname: AuditChainBroken, exp_alerts: []}
+      - eval_time: 4m
+        alertname: AuditChainBroken
+        exp_alerts:
+          - exp_labels: {severity: critical, service: platform}
+            exp_annotations:
+              summary: "The audit chain check failed"
+              description: "Open the audit log's integrity check for the first bad record (rule 10)."
+
+  # --- ClamAvSignaturesOld -------------------------------------------------------------------
+  - name: signatures older than three days for an hour raise ClamAvSignaturesOld
+    interval: 15s
+    input_series:
+      - {series: 'clamav_signature_age_seconds{service="media"}', values: '3600x10 300000x320'}
+    alert_rule_test:
+      - {eval_time: 30m, alertname: ClamAvSignaturesOld, exp_alerts: []}
+      - eval_time: 75m
+        alertname: ClamAvSignaturesOld
+        exp_alerts:
+          - exp_labels: {severity: warning, service: media}
+            exp_annotations:
+              summary: "ClamAV's signatures are 3d 11h 20m 0s old"
+              description: "freshclam is not updating; uploads are scanned against old signatures."

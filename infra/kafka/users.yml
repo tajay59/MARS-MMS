@@ -6,6 +6,9 @@
 #   consume: topics it reads
 #   groups:  consumer groups it joins (group ID = consumer name, TRD §8.5)
 # A new service adds its user here, and its password to every .env and to kafka-init.
+#   describe:        topics it may only look at (Describe: sizes and offsets)
+#   describe_groups: consumer groups it may only look at (Describe: lag)
+#   optional: true   skipped, not an error, when its password is not set
 
 users:
   - name: auth
@@ -26,3 +29,8 @@ users:
     consume: mms.auth.events mms.operations.events mms.media.events mms.report.events
     groups: audit notification
     produce: mms.dlq.audit mms.dlq.notification
+  # The Kafka exporter (monitoring): sizes and lag, no reading of messages, no joining groups.
+  - name: monitor
+    optional: true
+    describe: mms.auth.events mms.operations.events mms.media.events mms.report.events mms.dlq.audit mms.dlq.notification mms.dlq.operations mms.dlq.media mms.dlq.report
+    describe_groups: operations media report audit notification
