@@ -75,7 +75,14 @@ export function usePwa (): void {
 
   watch(needRefresh, waiting => {
     if (waiting) {
-      updates.waiting(() => updateServiceWorker(true))
+      updates.waiting(async () => {
+        // vite-plugin-pwa reloads only for updates workbox-window found itself (`isUpdate`). A release
+        // our own check finds while the app is open (registration.update() above) counts as
+        // "external" there, so the new worker would take control and the page would stay on the old
+        // code (finding F19). Reload when the worker changes, whichever way it was found.
+        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
+        await updateServiceWorker(true)
+      })
     }
   }, { immediate: true })
 }

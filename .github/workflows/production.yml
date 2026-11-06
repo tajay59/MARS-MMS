@@ -1,0 +1,175 @@
+# Deploy to production, by hand (TRD §18; W20-12). Staging deploys by itself on every merge to
+# main; production never does:
+#
+#   Actions > production > Run workflow > tag = the commit SHA of a release that is on staging
+#
+# - the `production` environment holds the approval (Settings > Environments > production >
+#   Required reviewers), so nothing reaches the host until a person has said yes
+# - a rollback is this workflow with the previous tag. `rollback-guard.sh` refuses to go back over
+#   a migration or an event schema change unless "allow_older_schema" is ticked (see the runbook)
+# - it does nothing until the repository variable PRODUCTION_HOST exists, as the staging deploy
+#   did before its host was ready. Host preparation: docs site, Infrastructure > Production.
+#
+# Variables: PRODUCTION_HOST, PRODUCTION_USER, PRODUCTION_URL. Secrets: PRODUCTION_SSH_KEY,
+# PRODUCTION_KNOWN_HOSTS (environment secrets of `production`).
+name: production
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Commit SHA of the release (its images are in GHCR)"
+        required: true
+        type: string
+      allow_older_schema:
+        description: "Allow going back over a migration or event change (read the runbook first)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: check the release
+    if: vars.PRODUCTION_HOST != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: The tag is a release on main
+        id: resolve
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          tag="$(git rev-parse --verify "$INPUT_TAG^{commit}")"
+          git merge-base --is-ancestor "$tag" origin/main || { echo "::error::$tag is not on main"; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Release $tag"
+
+      - name: Every image exists
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          set -eu
+          repo="ghcr.io/$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for image in auth operations media report platform web; do
+            docker manifest inspect "$repo/$image:$TAG" > /dev/null || { echo "::error::$repo/$image:$TAG is missing"; exit 1; }
+            echo "$image ok"
+          done
+
+  deploy:
+    name: deploy to production
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    env:
+      HOST: ${{ vars.PRODUCTION_HOST }}
+      USER_AT: ${{ vars.PRODUCTION_USER }}@${{ vars.PRODUCTION_HOST }}
+      TAG: ${{ needs.check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/production
+          chmod 600 ~/.ssh/production
+          echo "${{ secrets.PRODUCTION_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          printf 'Host %s\n  IdentityFile ~/.ssh/production\n  IdentitiesOnly yes\n' "$HOST" > ~/.ssh/config
+
+      - name: Is it safe to go from what runs to this release?
+        env:
+          ALLOW: ${{ inputs.allow_older_schema && '--allow-older-schema' || '' }}
+        run: |
+          set -eu
+          deployed="$(ssh "$USER_AT" cat /opt/mms/.deployed-tag 2> /dev/null || true)"
+          echo "Now running: ${deployed:-nothing recorded}"
+          if [ -n "$deployed" ]; then
+            # shellcheck disable=SC2086
+            bash infra/scripts/rollback-guard.sh "$TAG" "$deployed" $ALLOW
+          fi
+
+      # The host keeps its own infra/.env, TLS certificates and secrets
+      - name: Copy the stack definition
+        run: |
+          rsync -az --delete \
+            --exclude .env --exclude secrets/ --exclude 'nginx/certs/' --exclude 'nginx/carry/' \
+            --exclude tests/ --exclude spikes/ --exclude data/ --exclude __pycache__/ \
+            infra/ "$USER_AT:/opt/mms/infra/"
+
+      - name: Pull and start the release
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            ssh "$USER_AT" docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          ssh "$USER_AT" MMS_TAG="$TAG" sh -s <<'EOF'
+          set -eu
+          cd /opt/mms/infra
+          compose="docker compose -f compose.yml -f compose.prod.yml -f compose.production.yml -f compose.monitoring.yml -f compose.backup.yml"
+          $compose pull --quiet
+          $compose build backup
+          for attempt in 1 2 3 4 5; do
+            $compose up -d --no-build --remove-orphans && break
+            if [ "$attempt" = 5 ]; then
+              $compose ps -a
+              exit 1
+            fi
+            echo "up failed (attempt $attempt of 5); trying again in 30 s"
+            sleep 30
+          done
+          # A script mounted into a container is not part of its config: recreate SeaweedFS when it changed
+          want="$(sha256sum seaweedfs/seaweedfs-entrypoint.sh | cut -d' ' -f1)"
+          if [ "$(cat /opt/mms/.seaweedfs-entrypoint.sha256 2>/dev/null || true)" != "$want" ]; then
+            $compose up -d --no-deps --force-recreate seaweedfs
+            echo "$want" > /opt/mms/.seaweedfs-entrypoint.sha256
+          fi
+          for svc in auth operations media report platform clamav; do
+            for _ in $(seq 1 100); do
+              status="$(docker inspect -f '{{.State.Health.Status}}' "$($compose ps -q "$svc")")"
+              [ "$status" = healthy ] && break
+              sleep 3
+            done
+            echo "$svc: $status"
+            if [ "$status" != healthy ]; then
+              $compose ps -a
+              $compose logs --tail 40 "$svc"
+              exit 1
+            fi
+          done
+          # Only now is this the release that runs: the next deploy compares with it
+          echo "$MMS_TAG" > /opt/mms/.deployed-tag
+          docker logout ghcr.io
+          EOF
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Smoke tests
+        working-directory: frontend
+        env:
+          MMS_E2E_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test --project=chromium --grep @smoke

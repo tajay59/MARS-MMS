@@ -68,3 +68,54 @@ test('a new release waits for the user, survives "Later" and applies on "Reload 
     writeFileSync(swFile, original)
   }
 })
+
+/*
+  A rollback is an update (W20-12). Production goes back by deploying the previous tag, which
+  serves the previous sw.js bytes. The browser compares bytes, not versions, so a phone on the
+  newer build installs the older one through the same waiting-worker lifecycle: the same prompt,
+  never a silent reload, and the worker keeps its file name.
+*/
+test('going back to an earlier release prompts like any update and settles @NFR-4', async ({ watched: page }) => {
+  const prompt = page.getByText('A new version of MARS-MMS is ready')
+  const lookForRelease = () => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  const takeIt = async () => {
+    await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'Reload now' }).click()])
+    await expect(page.getByRole('heading', { name: 'Log in' })).toBeVisible()
+    await expect(prompt).toBeHidden()
+  }
+
+  await page.goto('/login')
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready
+  })
+  await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
+  const workerUrl = await page.evaluate(() => navigator.serviceWorker.controller!.scriptURL)
+  expect(new URL(workerUrl).pathname).toBe('/sw.js')
+
+  const earlier = readFileSync(swFile)
+  try {
+    // Release N+1 reaches the phone and is taken.
+    writeFileSync(swFile, Buffer.concat([earlier, Buffer.from(`\n// release N+1 ${Date.now()}\n`)]))
+    await lookForRelease()
+    await expect(prompt).toBeVisible()
+    await takeIt()
+
+    // The deploy is rolled back: the server now has release N's bytes again.
+    writeFileSync(swFile, earlier)
+    await lookForRelease()
+    await expect(prompt).toBeVisible()
+    const waiting = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration()
+      return { waiting: Boolean(registration?.waiting), url: registration?.waiting?.scriptURL }
+    })
+    expect(waiting).toEqual({ waiting: true, url: workerUrl })
+    await takeIt()
+
+    // Settled: nothing is waiting and a further look finds nothing new.
+    await lookForRelease()
+    await expect(prompt).toBeHidden()
+    expect(await page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting))).toBe(false)
+  } finally {
+    writeFileSync(swFile, earlier)
+  }
+})
