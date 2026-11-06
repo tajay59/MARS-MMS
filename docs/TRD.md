@@ -1386,6 +1386,8 @@ The full plan, with fixtures, seed users, CI stages, tests by phase and traceabi
 | Field test | Real Android and iOS devices | Full visit in a no-signal area, restart and PIN unlock, sync on return, sign the report next day |
 | Load (light) | Locust | 50 concurrent users; 20 simultaneous video uploads; a 1-hour soak |
 
+**Load test as built (W20 slice 6, decision W20-11):** `infra/loadtest/` holds the mix (clients, staff, technicians syncing 20 operations), the uploads, a seeder for five times the demo data and `check_thresholds.py` (reads under 1 s at the 95th percentile, failures under 1%, a summary report within 2 minutes, the outbox under 30 s, nothing in the dead-letter topics). CI runs a five-user smoke on every pull request; the full test is `loadtest.yml`, by hand, on a host with no real data. First local run (a laptop, lower bounds): 6,375 requests, 0 failures, reads under 53 ms at the 95th percentile; five 96 MiB videos took a median of 371 s to process, one at a time (R7, R8).
+
 Each rule in `CLAUDE.md` has a test that fails the build when it is broken (TP "Rule-enforcement tests"). Time-dependent code reads an injectable clock from `mms_common.time`.
 
 Coverage targets: 90% for `domain/` packages; 70% overall.
