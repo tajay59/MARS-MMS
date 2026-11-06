@@ -234,6 +234,8 @@ jobs:
           cp .env.example .env
           mkdir -p ../frontend/dist
           docker compose up -d --build
+          # In the `backup` profile, so `up` does not build it
+          docker compose build backup
           for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
             cid="$(docker compose ps -aq "$svc")"
             for _ in $(seq 1 120); do

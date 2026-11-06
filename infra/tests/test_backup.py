@@ -44,7 +44,7 @@ def test_the_dump_is_encrypted_and_the_manifest_describes_it(backup):
     header, manifest_text, digest = out.split("---")
     assert header.startswith("age-encryption.org/v1")  # not a mongodump archive
     manifest = json.loads(manifest_text)
-    assert manifest["file"] == backup and manifest["size"] > 100_000
+    assert manifest["file"] == backup and manifest["size"] > 1_000  # a fresh CI stack dumps about 10 KB
     assert digest.split()[0] == manifest["sha256"]
     assert manifest["audit_head"]["seq"] >= 0
     assert len(manifest["audit_head"]["hash"] or "x" * 64) == 64

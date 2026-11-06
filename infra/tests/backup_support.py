@@ -53,9 +53,11 @@ def make_key(directory: Path) -> tuple[str, Path]:
     result = compose("run", "--rm", "--no-deps", "-T", "--entrypoint", "age-keygen", "backup")
     assert result.returncode == 0, result.stderr[-400:]
     path = directory / "age-key.txt"
-    path.write_text(result.stdout, encoding="utf-8")
-    public = next(line.split()[-1] for line in result.stdout.splitlines()
-                  if line.lower().startswith("# public key"))
+    # Only the key's own lines: on a fresh runner `compose run` builds the image first and its
+    # progress comes out on stdout too
+    lines = [line for line in result.stdout.splitlines() if line.startswith(("#", "AGE-SECRET-KEY-"))]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    public = next(line.split()[-1] for line in lines if line.lower().startswith("# public key"))
     return public, path
 
 
