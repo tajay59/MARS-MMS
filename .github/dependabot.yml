@@ -1,0 +1,74 @@
+# Version updates (W20 slice 5, TRD §15): one pull request a week per ecosystem, grouped, so a
+# review is one change and not forty. Security updates are separate and immediate (Dependabot
+# alerts are on in the repository).
+#
+# Major versions of the data stores and the base images are never proposed here: MongoDB, Kafka,
+# Redis, SeaweedFS and Python move by decision (an ADR and a restore test), not by a bot. Pins that
+# exist for a reason say so where they are (for example pypdfium2 in services/report/visual).
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directories:
+      - /libs/mms_common
+      - /services/*
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    labels: [dependencies]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      frontend:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    labels: [dependencies]
+
+  - package-ecosystem: docker
+    directories:
+      - /services/*
+      - /infra/nginx
+      - /infra/backup
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      images:
+        patterns: ["*"]
+    labels: [dependencies]
+
+  - package-ecosystem: docker-compose
+    directory: /infra
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      stack:
+        patterns: ["*"]
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies]

@@ -1,0 +1,17 @@
+# ZAP baseline rules (id<TAB>IGNORE|WARN|FAIL<TAB>name), read by infra/scripts/zap-baseline.sh and security.yml.
+# Each line has its reason above it, who accepted it and when to look again. Only high risk alerts fail the job.
+
+# A 13-digit number in a bundled library is not a time of ours (checked in the vendor chunk) · accepted 2026-11-06 · review by 2027-05-06
+10096	IGNORE	(Timestamp Disclosure - Unix)
+
+# Information only: this is a single page app by design · accepted 2026-11-06 · review by 2027-05-06
+10109	IGNORE	(Modern Web Application)
+
+# Information only: hashed assets are public and immutable on purpose, and index.html, sw.js and the
+# manifest are no-cache on purpose (TRD 2.1); every API response is no-store · accepted 2026-11-06 · review by 2027-05-06
+10015	IGNORE	(Re-examine Cache-control Directives)
+10049	IGNORE	(Storable and Cacheable Content)
+
+# NOT ignored, so a regression stays visible: 10055 (the CSP; style-src 'unsafe-inline' is accepted for
+# Vuetify, ASVS checklist D-5) and 90004 (Cross-Origin-Opener/Resource-Policy; Cross-Origin-Embedder-Policy
+# is left out on purpose, see TRD 15).

@@ -1,0 +1,116 @@
+# Security checks that are not tests of our own code (W20 slice 5; TRD §15, §18; ASVS L2 V14).
+#
+# - pip-audit on the runtime dependencies of the library and each service, and npm audit on the
+#   frontend's, on every pull request and every day (a new CVE needs no change of ours)
+# - a passive OWASP ZAP baseline of staging every night
+#
+# Trivy scans every image in images.yml; this file covers the dependency lists and the running site.
+#
+# THE REPOSITORY IS PUBLIC: run logs and artifacts are readable by anyone. The ZAP job therefore
+# prints counts only and uploads no report. When it fails, run `infra/scripts/zap-baseline.sh`
+# against staging yourself for the details, and keep an open finding in a private place until it is
+# fixed (plan decision 8).
+#
+# Accepting a vulnerability: add its id to .github/pip-audit-ignore.txt with the reason, who
+# accepted it and when to look again. An entry with no reason fails the check.
+name: security
+
+on:
+  pull_request:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: pip-audit ${{ matrix.package }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [auth, operations, media, report, platform]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # Runtime dependencies only (no dev extras): that is what the image contains. pip itself is
+      # brought up to date first: the image uninstalls it, so its own advisories are not ours.
+      - name: Install the service and the audit tool
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit ./libs/mms_common ./services/${{ matrix.package }}
+
+      - name: Audit
+        run: |
+          set -eu
+          args=""
+          while IFS= read -r line; do
+            line="${line%%#*}"; id="$(echo "$line" | tr -d '[:space:]')"
+            [ -n "$id" ] && args="$args --ignore-vuln $id"
+          done < .github/pip-audit-ignore.txt
+          # An entry needs its reason: "ID  # why · accepted by · review by"
+          if grep -vE '^\s*(#|$)' .github/pip-audit-ignore.txt | grep -vqE '#.+'; then
+            echo "::error::an entry in .github/pip-audit-ignore.txt has no reason"; exit 1
+          fi
+          # shellcheck disable=SC2086
+          pip-audit --progress-spinner off --skip-editable $args
+
+  libs:
+    name: pip-audit mms_common
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit ./libs/mms_common
+          pip-audit --progress-spinner off --skip-editable
+
+  npm:
+    name: npm audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+      # What ships to phones: the production dependencies, high and critical fail the check
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+  zap:
+    name: ZAP baseline of staging
+    # Nightly and by hand only: a pull request does not scan a shared server
+    if: github.event_name != 'pull_request' && vars.STAGING_URL != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Passive: it spiders the site and reads the responses, it attacks nothing. The staging edge
+      # is shared with other sites, so there is no active scan. -I: warnings do not fail the job.
+      - name: Baseline scan
+        env:
+          TARGET: ${{ vars.STAGING_URL }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/zap" && chmod 777 "$RUNNER_TEMP/zap"
+          cp .zap/rules.tsv "$RUNNER_TEMP/zap/rules.tsv"
+          docker run --rm -v "$RUNNER_TEMP/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable             zap-baseline.py -t "$TARGET" -c rules.tsv -J report.json -I -m 3             > "$RUNNER_TEMP/zap/out.txt" 2>&1 || true
+          # Counts only (the log is public); fails on a high risk alert
+          python3 .zap/summarize.py "$RUNNER_TEMP/zap/report.json"

@@ -1,0 +1,3 @@
+# Vulnerabilities accepted in the runtime dependencies (.github/workflows/security.yml).
+# One id per line with the reason, who accepted it and when to look again:
+# PYSEC-0000-00000  # reason · accepted by <name> on <date> · review by <date>
