@@ -15,7 +15,7 @@ dependencies = [
   "pymongo>=4.13",
   "redis>=6",
   "httpx",
-  "argon2-cffi>=23",
+  "argon2-cffi>=25.1.0",
   "cryptography>=44",
   "prometheus-client",
   "tzdata",
