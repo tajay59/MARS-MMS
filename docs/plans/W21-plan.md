@@ -23,6 +23,16 @@ Release 0.7.0 is on staging and checked by people, the dependency updates are de
 4. **Security decisions D-1 to D-5** for the product owner (table below).
 5. **Docs:** docs site status, changelog and decisions W21-1 onward; IP.md "W21 as built"; CLAUDE.md state.
 
+## Status (2026-11-06)
+
+- **Slice 1 done:** #151 merged; release 0.7.0 deployed to staging, `@smoke` 3 of 3 passed.
+- **Slice 3 under way:** #123 (Actions) merged. The 21 Python version-floor PRs (#130 to #150) are applied as one change in #152. #127 (`npm-run-all2` 9, needs Node `^22.22.2 || ^24.15 || >=26`; this PC has 24.6.0, so run `npm install` with a newer Node or expect an engine warning) waits for its branch update and CI.
+- **Held, each needs its own look:**
+  - #128 TypeScript 7: `openapi-typescript@7.13.0` does not accept it (ERESOLVE). Close and revisit when it does.
+  - #126 ESLint 10, #129 `@types/node` 26, #125 frontend group: a check is failing on each; some of these are the Mongo start flake (rerun), not the code.
+  - #122 and #124 (`infra` images): move **Mongo 8.0.34 to 8.3.13** on staging, whose database holds the real stations, plus Prometheus 3.5 to 3.15, Grafana 12.0 to 12.4, SeaweedFS 4.48 to 4.50 and others. A server upgrade needs a plan (feature compatibility version, a backup first, and the rollback guard refuses going back). Do not merge as a batch; split Mongo from the monitoring images.
+- **Mongo start flake:** `mongo did not start in 90 s` still hits some runners despite `GLIBC_TUNABLES`. Look at the runner kernel range before W22.
+
 ## Staging checks for release 0.7
 
 - An admin and a Viewer run each summary report type (PDF and CSV) for real stations and compare the dashboards with what they know (IP, staging release 0.7).
