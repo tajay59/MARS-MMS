@@ -7,11 +7,11 @@ account emails (W4, NOT-3); WebSocket and in-app notifications follow in Phase 3
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from mms_common import logging as mms_logging
 from mms_common import migrations, mongo
 from mms_common.auth import Authenticator, install_auth
@@ -164,6 +164,18 @@ def create_app(
     app.state.settings = settings
     app.state.clock = clock
     install(app, ready_checks)
+
+    @app.middleware("http")
+    async def no_store(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """API responses never sit in a browser, proxy or service-worker cache (§13.3; ASVS 8.2.1).
+        Notifications, preferences and the audit log are personal."""
+        response = await call_next(request)
+        if request.url.path.startswith(("/api/", "/internal/")):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     app.include_router(notification_routes.router)
     app.include_router(ws.router)
     app.include_router(audit_routes.router)

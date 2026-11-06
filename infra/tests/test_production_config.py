@@ -130,3 +130,12 @@ def test_the_mail_is_not_the_development_mailbox(production):
     env = services(production)["platform"]["environment"]
     assert env["PLATFORM_SMTP_HOST"] == "smtp.example.org"
 
+
+
+def test_our_containers_keep_no_capabilities_and_cannot_gain_any(production):
+    """ASVS 14.1 (W20 slice 5): the services and workers run as a non-root user with every Linux
+    capability dropped and no-new-privileges. Third-party images are left as their vendors ship them."""
+    for name in APP_SERVICES:
+        service = services(production)[name]
+        assert service.get("cap_drop") == ["ALL"], name
+        assert "no-new-privileges:true" in service.get("security_opt", []), name

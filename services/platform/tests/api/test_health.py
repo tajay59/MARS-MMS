@@ -39,3 +39,27 @@ async def test_openapi_is_disabled_in_production(env, expected):
 def test_production_refuses_an_unencrypted_relay():
     with pytest.raises(ValueError, match="PLATFORM_SMTP_SECURITY"):
         Settings(environment="production", smtp_security="none")
+
+
+@pytest.mark.parametrize(
+    "path", ["/api/v1/notifications", "/api/v1/audit/events", "/internal/snapshot/x"]
+)
+async def test_api_responses_are_never_cacheable(path):
+    """ASVS 8.2.1: notifications, preferences and the audit log are personal data. Even the
+    refusal of a request without a token must not be stored by a browser or proxy."""
+    async def ok() -> bool:
+        return True
+
+    app = create_app(Settings(), ready_checks={"mongo": ok})
+    async with client(app) as c:
+        response = await c.get(path)
+    assert response.headers["cache-control"] == "no-store"
+
+
+async def test_health_is_not_the_api_and_is_left_alone():
+    async def ok() -> bool:
+        return True
+
+    app = create_app(Settings(), ready_checks={"mongo": ok})
+    async with client(app) as c:
+        assert "cache-control" not in (await c.get("/health")).headers

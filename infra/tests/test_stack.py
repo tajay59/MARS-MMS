@@ -44,7 +44,8 @@ EXPECTED_CSP = (
     f"default-src 'self'; img-src 'self' https://{FILES} data: "
     f"blob:; media-src 'self' https://{FILES} blob:; connect-src 'self' https://{FILES} "
     f"wss://{MMS}; script-src 'self'; worker-src 'self'; "
-    "style-src 'self' 'unsafe-inline'"
+    "style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; "
+    "form-action 'self'; object-src 'none'"
 )
 
 
@@ -110,6 +111,8 @@ def test_security_headers_on_every_kind_of_response(web, path):
     assert h["referrer-policy"] == "strict-origin-when-cross-origin"
     assert h["strict-transport-security"].startswith("max-age=31536000")
     assert "camera=(self)" in h["permissions-policy"]
+    assert h["cross-origin-opener-policy"] == "same-origin"
+    assert h["cross-origin-resource-policy"] == "same-origin"
 
 
 def test_request_id_is_kept_or_generated(web):

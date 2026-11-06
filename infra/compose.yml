@@ -12,6 +12,14 @@ name: mms
 x-restart: &restart
   restart: unless-stopped
 
+# Our own containers run as a non-root user already; they also keep no Linux capabilities and cannot
+# gain any (setuid binaries, file capabilities). Third-party images (the data stores, Nginx) are left
+# as their vendors ship them. Headless Chromium in report-worker runs with --no-sandbox, which a
+# container needs anyway, and needs none of these capabilities (ASVS 14.1; W20 slice 5).
+x-hardened: &hardened
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
 services:
   nginx:
     <<: *restart
@@ -193,7 +201,7 @@ services:
   # repository root because they install libs/mms_common.
 
   auth:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/auth/Dockerfile
@@ -227,7 +235,7 @@ services:
     networks: [backend]
 
   operations:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/operations/Dockerfile
@@ -252,7 +260,7 @@ services:
   # The documents path (Phase 2): presigned multipart uploads, the owner check, visibility and
   # the file checks. media-worker runs the checks (type, checksum, virus scan) from a Redis queue.
   media:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/media/Dockerfile
@@ -284,7 +292,7 @@ services:
     networks: [backend]
 
   media-worker:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/media/Dockerfile
@@ -297,7 +305,7 @@ services:
   # Label sheets (QR-6) and, from Phase 6, visit reports: Jinja templates drawn to PDF by
   # WeasyPrint. report-worker draws them from a Redis queue; the API only queues and answers.
   report:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/report/Dockerfile
@@ -326,7 +334,7 @@ services:
     networks: [backend]
 
   report-worker:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/report/Dockerfile
@@ -356,7 +364,7 @@ services:
     networks: [backend]
 
   platform:
-    <<: *restart
+    <<: [*restart, *hardened]
     build:
       context: ..
       dockerfile: services/platform/Dockerfile
