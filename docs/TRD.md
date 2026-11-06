@@ -1356,6 +1356,8 @@ Approximate memory budget: MongoDB 4 GB, Kafka 2 GB, ClamAV 3 GB, Python service
 
 Restore is tested quarterly into staging, including an audit chain verification, and the results are recorded. Targets: RPO ≤ 24 h, RTO ≤ 8 h.
 
+**As built (W20 slice 3, decisions W20-6 to W20-9).** One `backup` container (Mongo tools, `rclone`, `age`) dumps with `--oplog`, encrypts to a public key that is the only key on the host, writes a manifest (SHA-256, the audit chain's head) and copies the file to the backup host, comparing it byte for byte; `filer-sync` replicates the buckets and a nightly `rclone check --one-way` proves it. `infra/scripts/restore.sh` restores in a fixed order (dry run, stop services, restore, empty Redis, reset every consumer group to the start, start services, **end every session**, rebuild the read model, check the audit chain) and a drill runs it on every pull request and weekly in CI (`restore-drill.yml`), ending in the chain check. **A restore cannot bring back work done after the dump** (finding F18): a phone deletes its copy once the server confirms (OFF-8), so the runbook has the operator list the visits synced after the dump time for the technicians. Alerts: `BackupMissing` (26 h) and `RestoreDrillOld` (8 days).
+
 ### 16.5 Observability
 
 - **Logs:** JSON via `structlog`, with `service`, `request_id`, `correlation_id`, `user_id`, `event_id`. Nginx sets `X-Request-ID`; it is propagated in httpx calls and becomes the event `correlation_id`. Alloy ships container logs to Loki.

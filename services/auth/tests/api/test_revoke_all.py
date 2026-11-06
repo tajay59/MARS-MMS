@@ -66,7 +66,9 @@ async def test_the_revocation_is_recorded_with_how_many_sessions_it_ended(operat
 async def test_one_key_ends_the_tokens_of_every_service(auth):
     """Services other than auth only read Redis: the single key is what they check."""
     token_at = int(auth.clock.now().timestamp())
-    assert not await revocation.is_revoked(auth.redis, user_id="u1", org_id=None, issued_at=token_at)
+    assert not await revocation.is_revoked(
+        auth.redis, user_id="u1", org_id=None, issued_at=token_at
+    )
     await revocation.revoke_all(auth.redis, auth.clock.now())
     assert await revocation.is_revoked(auth.redis, user_id="u1", org_id=None, issued_at=token_at)
     assert not await revocation.is_revoked(

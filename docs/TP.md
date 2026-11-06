@@ -169,7 +169,7 @@ Display tests cover stations in several IANA zones across a DST change.
 
 ### Operations (NFR-3, NFR-9)
 
-- A weekly job restores the latest production backup into staging and runs the audit integrity check. The first run is the W20 restore test; after that it runs continuously.
+- A weekly job restores the latest production backup into staging and runs the audit integrity check. The first run is the W20 restore test; after that it runs continuously. **As built (W20 slice 3):** `restore-drill.yml` runs the drill on a CI stack every Monday and the job `backup and restore` runs it on every pull request (backup, restore, dead sessions, audit chain); the restore into staging from a real backup is still done by hand.
 - `rclone check` confirms the SeaweedFS replica matches the primary.
 - `import_stations.py` against a bad-rows fixture reports each error with its row number (STN-8).
 - Every alert in TRD §16.5 is fired once on staging and its email checked.

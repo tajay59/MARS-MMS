@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tempfile
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 from backup_support import INFRA, available, compose, in_backup, make_key, take_backup
@@ -51,12 +53,8 @@ def test_the_dump_is_encrypted_and_the_manifest_describes_it(backup):
 @pytest.mark.req("NFR-9")
 def test_only_the_private_key_opens_it(backup, key):
     _, private = key
-    other_public, other_private = None, None  # a second key pair, to prove the wrong one fails
-    import tempfile
-    from pathlib import Path
-
-    with tempfile.TemporaryDirectory() as tmp:
-        other_public, other_private = make_key(Path(tmp))
+    with tempfile.TemporaryDirectory() as tmp:  # a second key pair, to prove the wrong one fails
+        _, other_private = make_key(Path(tmp))
         wrong = in_backup(
             f'age -d -i /id/key.txt /backups/mongo/{backup} > /dev/null',
             volumes=(f"{other_private}:/id/key.txt:ro",),
