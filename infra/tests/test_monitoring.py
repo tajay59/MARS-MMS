@@ -163,11 +163,16 @@ def test_container_logs_reach_loki_with_service_and_level_labels():
         return {"service", "environment"} <= labels
 
     wait_for(lines, seconds=90)
-    r = httpx.get(
-        f"{GRAFANA}/api/datasources/proxy/uid/loki/loki/api/v1/query_range",
-        params={"query": '{service="operations"}', "limit": 1}, auth=GRAFANA_AUTH, timeout=15,
-    )
-    assert r.json()["data"]["result"], "no log line from operations"
+
+    def operations_line() -> bool:
+        # The labels can exist from another service's lines before operations' first line is shipped.
+        r = httpx.get(
+            f"{GRAFANA}/api/datasources/proxy/uid/loki/loki/api/v1/query_range",
+            params={"query": '{service="operations"}', "limit": 1}, auth=GRAFANA_AUTH, timeout=15,
+        )
+        return bool(r.json()["data"]["result"])
+
+    wait_for(operations_line, seconds=90)
 
 
 def test_every_alert_reaches_the_admins_mailbox():
