@@ -210,6 +210,69 @@ jobs:
       - name: Dashboards are valid JSON
         run: for f in infra/monitoring/grafana/dashboards/*.json; do python -m json.tool "$f" > /dev/null; done
 
+  # Backups and the restore drill (W20-6 to W20-9): a real dump is encrypted, copied, checked and
+  # restored into the running stack, and the audit chain must still verify. It stops and starts the
+  # application services, so it has its own stack. The weekly run is .github/workflows/restore-drill.yml.
+  backup:
+    name: backup and restore
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: pip install httpx pymongo redis boto3 pytest pyyaml
+
+      - name: Start the stack with the backup host
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: |
+          cp .env.example .env
+          mkdir -p ../frontend/dist
+          docker compose up -d --build
+          # In the `backup` profile, so `up` does not build it
+          docker compose build backup
+          for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
+            cid="$(docker compose ps -aq "$svc")"
+            for _ in $(seq 1 120); do
+              [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
+              sleep 2
+            done
+            code="$(docker inspect -f '{{.State.ExitCode}}' "$cid")"
+            echo "$svc exited with $code"
+            [ "$code" = 0 ]
+          done
+          for svc in auth operations media report platform; do
+            for _ in $(seq 1 60); do
+              cid="$(docker compose ps -q "$svc")"
+              [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ]
+          done
+
+      - name: Backup, retention and restore tests
+        working-directory: infra
+        run: pytest tests/test_retention.py tests/test_backup.py tests/test_restore.py -q -rs -s -W ignore::urllib3.exceptions.InsecureRequestWarning
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: docker compose logs --no-color --tail 100
+
+      - name: Stop the stack
+        if: always()
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: docker compose down -v
+
   stack:
     name: compose stack
     runs-on: ubuntu-24.04
@@ -264,7 +327,8 @@ jobs:
 
       - name: Stack tests
         working-directory: infra
-        run: pytest tests -q -rs -W ignore::urllib3.exceptions.InsecureRequestWarning
+        # The backup and restore tests have their own job: the drill stops the services
+        run: pytest tests -q -rs -W ignore::urllib3.exceptions.InsecureRequestWarning --ignore=tests/test_backup.py --ignore=tests/test_restore.py
 
       # Journeys in a real browser through the stack (TP "End-to-end"): J1, J2, the offline shell.
       - name: Playwright journeys

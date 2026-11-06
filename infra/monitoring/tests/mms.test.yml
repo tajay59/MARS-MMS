@@ -203,6 +203,21 @@ tests:
               summary: "No good mongo backup for 1d 4h 0m 0s"
               description: "The last good run is more than 26 hours old."
 
+  # --- RestoreDrillOld -----------------------------------------------------------------------
+  - name: a restore drill older than eight days raises RestoreDrillOld
+    interval: 1m
+    input_series:
+      - {series: 'restore_drill_last_success_timestamp_seconds{kind="drill"}', values: '0x14000'}
+    alert_rule_test:
+      - {eval_time: 7d, alertname: RestoreDrillOld, exp_alerts: []}
+      - eval_time: 9d
+        alertname: RestoreDrillOld
+        exp_alerts:
+          - exp_labels: {severity: warning, kind: drill}
+            exp_annotations:
+              summary: "No restore drill has passed for 9d 0h 0m 0s"
+              description: "The weekly drill proves the backups can be restored (NFR-9); run it by hand and read its log."
+
   # --- AuditChainBroken ----------------------------------------------------------------------
   - name: a failed chain check raises AuditChainBroken at once
     interval: 15s

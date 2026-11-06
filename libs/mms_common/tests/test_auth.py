@@ -173,6 +173,18 @@ async def test_token_of_a_disabled_user_is_refused(issuer, clock, store):
     assert await status(app, "GET", "/api/v1/things", issuer.token("tech1")) == 200
 
 
+@pytest.mark.req("AUTH-11")
+async def test_one_key_ends_every_token_issued_before_it(issuer, clock, store):
+    """After a restore from backup (W20-9) nobody keeps an old session."""
+    app = make_app(issuer, clock, store)
+    old = [issuer.token(who) for who in ("tech1", "admin", "client_a1")]
+    await revocation.revoke_all(store, clock.now())
+    for token in old:
+        assert (await call(app, "GET", "/api/v1/me", token)).status_code == 401
+    clock.advance(seconds=2)
+    assert await status(app, "GET", "/api/v1/me", issuer.token("tech1")) == 200
+
+
 @pytest.mark.req("ORG-4")
 async def test_tokens_of_a_deactivated_org_are_refused(issuer, clock, store):
     app = make_app(issuer, clock, store)

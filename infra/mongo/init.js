@@ -45,6 +45,10 @@ upsertUser("auth", "auth", env.AUTH_DB_PASSWORD, [{ role: "readWrite", db: "auth
 upsertUser("operations", "operations", env.OPS_DB_PASSWORD, [{ role: "readWrite", db: "operations" }]);
 upsertUser("media", "media", env.MEDIA_DB_PASSWORD, [{ role: "readWrite", db: "media" }]);
 upsertUser("report", "report", env.REPORT_DB_PASSWORD, [{ role: "readWrite", db: "report" }]);
+// The backup job (W20-6) may read everything and write nothing: the built-in `backup` role.
+if (env.BACKUP_DB_PASSWORD) {
+  upsertUser("admin", "backup", env.BACKUP_DB_PASSWORD, [{ role: "backup", db: "admin" }]);
+}
 // The monitoring exporter (W20-3) may read server status and nothing else.
 if (env.MONITOR_DB_PASSWORD) {
   upsertUser("admin", "monitor", env.MONITOR_DB_PASSWORD, [{ role: "clusterMonitor", db: "admin" }]);
