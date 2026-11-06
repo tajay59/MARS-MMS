@@ -273,6 +273,85 @@ jobs:
           COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
         run: docker compose down -v
 
+  # The load test script, small (W20 slice 6): five users for a minute through the gateway on a fresh
+  # stack, judged by the same thresholds as the full run. It is here so the script cannot rot; the
+  # full run (50 users, 20 uploads, an hour) is loadtest.yml, on a host that can take it.
+  load:
+    name: load smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: compose.yml:compose.dev.yml
+      LOAD_CONNECT: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: pip install locust httpx
+
+      - name: Start the stack
+        working-directory: infra
+        run: |
+          cp .env.example .env
+          mkdir -p ../frontend/dist
+          docker compose up -d --build
+          for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
+            cid="$(docker compose ps -aq "$svc")"
+            for _ in $(seq 1 120); do
+              [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.ExitCode}}' "$cid")" = 0 ]
+          done
+          for svc in auth operations media report platform; do
+            for _ in $(seq 1 60); do
+              cid="$(docker compose ps -q "$svc")"
+              [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ]
+          done
+
+      - name: Seed the users, the demo stations and a small volume
+        working-directory: infra
+        run: |
+          docker compose exec -T -e AUTH_SEED_PASSWORD=dev-seed-password-1 auth python -m app.cli seed
+          for _ in $(seq 1 30); do
+            docker compose exec -T operations python -m app.cli seed | tee /tmp/seed.txt
+            grep -q Errors /tmp/seed.txt || break
+            sleep 2
+          done
+          cd loadtest
+          python seed_volume.py --stations 12 --requests 30 --visits 10
+
+      - name: Five users for a minute
+        working-directory: infra/loadtest
+        run: |
+          mkdir -p out
+          locust -f locustfile.py --headless -u 5 -r 1 -t 75s --csv out/smoke --only-summary --exit-code-on-error 0
+          python check_thresholds.py out/smoke
+
+      - name: Statistics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load-smoke
+          path: infra/loadtest/out/*.csv
+          retention-days: 7
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: infra
+        run: docker compose logs --no-color --tail 80
+
+      - name: Stop the stack
+        if: always()
+        working-directory: infra
+        run: docker compose down -v
+
   stack:
     name: compose stack
     runs-on: ubuntu-24.04

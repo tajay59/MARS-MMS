@@ -1,0 +1,100 @@
+# The full load test (W20 slice 6; plan decision W20-11): 50 users in the ordinary mix, 20 videos
+# uploaded at once and a one-hour soak, judged by infra/loadtest/check_thresholds.py.
+#
+#   Actions > load test > Run workflow
+#
+# Run it on a host that can take it and has no real data: THE PRODUCTION HOST BEFORE GO-LIVE (wiped
+# afterwards), never the shared staging server, which has other sites on it. The site is the
+# repository VARIABLE LOAD_URL and the seed users' password the SECRET LOAD_PASSWORD (a run's inputs
+# are visible to everyone on a public repository, a variable and a secret are not). The seeder
+# refuses any host that is not local unless the operator says it is a throwaway, which this
+# workflow does when "no_real_data" is ticked. The seed users must exist on that host (auth `seed`
+# refuses production: create them by hand for the run and delete them after).
+name: load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      no_real_data:
+        description: "I confirm the site in the variable LOAD_URL holds no real data and will be wiped afterwards"
+        required: true
+        default: false
+        type: boolean
+      users:
+        description: "Virtual users in the mix"
+        default: "50"
+        type: string
+      uploaders:
+        description: "Videos uploaded at once"
+        default: "20"
+        type: string
+      video_mib:
+        description: "Size of each video in MiB"
+        default: "100"
+        type: string
+      duration:
+        description: "How long the mix runs (Locust syntax, 1h for the soak)"
+        default: "1h"
+        type: string
+      seed:
+        description: "Seed the 5x volume first (250 stations, 1000 requests, 500 visits)"
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: load test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    if: inputs.no_real_data
+    env:
+      LOAD_URL: ${{ vars.LOAD_URL }}
+      LOAD_PASSWORD: ${{ secrets.LOAD_PASSWORD }}
+      LOAD_UPLOADERS: ${{ inputs.uploaders }}
+      UPLOAD_FILE: out/video.mp4
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: pip install locust httpx
+
+      # The seeder refuses a host that is not local unless it is named a throwaway; ticking
+      # no_real_data is that statement
+      - name: The host is a throwaway
+        run: echo "LOAD_ALLOW_HOST=$(python -c "import os,urllib.parse as u;print(u.urlsplit(os.environ['LOAD_URL']).hostname)")" >> "$GITHUB_ENV"
+
+      - name: A video to upload
+        working-directory: infra/loadtest
+        run: |
+          mkdir -p out
+          sudo apt-get install -y -qq ffmpeg > /dev/null
+          ffmpeg -y -loglevel error -f lavfi -i "testsrc2=size=1280x720:rate=30,noise=alls=20:allf=t"             -t "$(( ${{ inputs.video_mib }} * 8 / 6 + 1 ))" -c:v libx264 -preset ultrafast -b:v 6M -maxrate 6M             -bufsize 12M -pix_fmt yuv420p -movflags +faststart out/video.mp4
+          ls -l out/video.mp4
+
+      - name: Seed the volume
+        if: inputs.seed
+        working-directory: infra/loadtest
+        run: python seed_volume.py
+
+      - name: The mix and the uploads
+        working-directory: infra/loadtest
+        run: |
+          locust -f locustfile.py,uploads.py --headless             -u "$(( ${{ inputs.users }} + ${{ inputs.uploaders }} ))" -r 2 -t "${{ inputs.duration }}"             --csv out/run --only-summary --exit-code-on-error 0
+
+      - name: Verdict
+        working-directory: infra/loadtest
+        run: python check_thresholds.py out/run --window 3600
+
+      - name: Statistics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load-test
+          path: infra/loadtest/out/*.csv
+          retention-days: 30

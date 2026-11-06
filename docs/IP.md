@@ -330,6 +330,8 @@ Each build phase ends with a staging release (0.1 to 0.7) for staff only. Client
 
 **Exit criteria:** production runs with monitoring and test alerts delivered; a restore into staging passes the audit chain check; no open high or critical security findings; the load test meets NFR-2.
 
+**W20 as built (2026-11-06):** everything that does not need a production host is built and tested. Metrics and 12 alerts with `promtool` tests, the monitoring stack and the alert mail into Mailpit (slices 1 and 2); backups, the weekly restore drill and `revoke-all-sessions` (slice 3); `compose.production.yml`, the by-hand deploy with approval and a rollback guard, and a fix for "Reload now" (slice 4); the ASVS L2 review with five deviations for the product owner to decide, the cross-organization run through Nginx, dependency audits and a nightly ZAP baseline (slice 5); the load test, a CI smoke of it and release 0.7.0 (slice 6). **Still open, because they need people or hosts:** a production host and a backup host, the backup key holder, alert recipients, the first production deploy, one alert fired for real, a restore into staging from a real backup, the full load run on the production host, and the five security decisions D-1 to D-5.
+
 ## Buffer (W21–W22)
 
 Two weeks of slack, about 10% of the build, held at the end rather than spread across phases. Weekly slips over 3 days draw it down. If it is unused, Phase 8 starts early, or RPT-11 and deferred **S** requirements are built.
