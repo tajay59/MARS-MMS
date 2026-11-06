@@ -16,12 +16,14 @@ from typing import Any, Protocol
 
 from pymongo.asynchronous.collection import AsyncCollection
 
+from mms_common import metrics
 from mms_common.logging import get_logger
 from mms_common.outbox import LeaderLease, OutboxRelay, Produce
 from mms_common.time import Clock
 
 POLL_S = 1.0
 ERROR_BACKOFF_S = 5.0
+GAUGE_EVERY_S = 5.0  # how often the age of the oldest unpublished row is read
 
 log = get_logger(__name__)
 
@@ -49,24 +51,33 @@ async def run_relay(
     watcher = asyncio.create_task(_watch(outbox, wake)) if watch else None
     producer: Producer | None = None
     relay: OutboxRelay | None = None
+    gauged = None
     try:
         while not stop.is_set():
             delay = poll_s
+            now = clock.now()
+            if gauged is None or (now - gauged).total_seconds() >= GAUGE_EVERY_S:
+                gauged = now
+                await _gauge_oldest(outbox, clock)
             try:
                 if relay is None and await lease.acquire_or_renew():
                     producer, produce = await open_producer()
                     relay = OutboxRelay(outbox, lease, produce, topic, clock, batch_size)
+                    metrics.OUTBOX_LEADER.labels(topic).set(1)
+                    metrics.OUTBOX_LEADER_CHANGES.labels(topic).inc()
                     log.info("outbox_leader", topic=topic)
                 if relay is not None:
                     sent = await relay.run_once()
                     if not lease.held:
                         log.info("outbox_lease_lost", topic=topic)
+                        metrics.OUTBOX_LEADER.labels(topic).set(0)
                         await _close(producer)
                         producer, relay = None, None
                     elif sent >= batch_size:
                         delay = 0  # more waiting: carry on at once
             except Exception:  # noqa: BLE001 - Kafka or Redis unavailable: retry, keep serving
                 log.exception("outbox_relay_failed", topic=topic)
+                metrics.OUTBOX_LEADER.labels(topic).set(0)
                 await _close(producer)
                 producer, relay = None, None
                 delay = ERROR_BACKOFF_S
@@ -74,6 +85,7 @@ async def run_relay(
                 wake.clear()
                 await _wait_any(stop, wake, delay)
     finally:
+        metrics.OUTBOX_LEADER.labels(topic).set(0)
         if watcher is not None:
             watcher.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -81,6 +93,18 @@ async def run_relay(
         await _close(producer)
         with contextlib.suppress(Exception):
             await lease.release()
+
+
+async def _gauge_oldest(outbox: AsyncCollection[dict[str, Any]], clock: Clock) -> None:
+    """The age of the oldest row still waiting: W20's alert for a relay that has stopped."""
+    try:
+        oldest = await outbox.find_one(
+            {"published_at": None}, projection={"created_at": 1}, sort=[("created_at", 1)]
+        )
+    except Exception:  # noqa: BLE001 - Mongo trouble shows up as the service being not ready
+        return
+    created = oldest["created_at"] if oldest else None
+    metrics.OUTBOX_OLDEST.set(metrics.age_seconds(created, clock.now()))
 
 
 async def _close(producer: Producer | None) -> None:

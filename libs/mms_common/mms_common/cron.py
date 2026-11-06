@@ -7,9 +7,11 @@ one that gets the lock runs the job for that interval.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
+from mms_common import metrics
 from mms_common.ids import new_id
 from mms_common.logging import get_logger
 
@@ -34,7 +36,11 @@ async def run_once_locked(
     try:
         await body()
     except Exception:  # noqa: BLE001 - a failed run is logged and retried next interval
+        metrics.CRON_RUNS.labels(job, "error").inc()
         log.exception("cron_failed", job=job)
+    else:
+        metrics.CRON_RUNS.labels(job, "ok").inc()
+        metrics.CRON_LAST_SUCCESS.labels(job).set(time.time())
     return True
 
 

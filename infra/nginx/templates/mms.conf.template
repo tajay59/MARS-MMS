@@ -31,6 +31,8 @@ server {
   # Never routed: internal endpoints and JWKS (TRD §2.1, §15).
   location ^~ /internal/ { return 404; }
   location ^~ /.well-known/ { return 404; }
+  # Metrics are for Prometheus on the internal network only (W20-3).
+  location = /metrics { return 404; }
 
   # Reserved for the integrations release (PRD §10).
   location ^~ /api/v1/integrations/ {

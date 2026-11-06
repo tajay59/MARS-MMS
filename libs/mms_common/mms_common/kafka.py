@@ -5,16 +5,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
+from mms_common import metrics
 from mms_common.consumer import EventProcessor, SendToDlq
 from mms_common.logging import get_logger
 
 RESTART_BACKOFF_S = 5.0
+BACKLOG_EVERY_S = 15.0
 
 log = get_logger(__name__)
 
@@ -100,6 +103,7 @@ def dlq_sender(
 
     async def send(raw: bytes, reason: str) -> None:
         await producer.send_and_wait(topic, value=raw, headers=[("reason", reason.encode()[:1000])])
+        metrics.DLQ_MESSAGES.labels(consumer_service).inc()
 
     return send
 
@@ -110,6 +114,7 @@ async def run_consumer(
     topics: list[str],
     processor: EventProcessor,
     auth: KafkaAuth | None = None,
+    backlog_every_s: float = BACKLOG_EVERY_S,
 ) -> None:
     """Group ID = consumer name. Manual commit only after the message is handled or
     dead-lettered (`EventProcessor.process` returns)."""
@@ -122,13 +127,46 @@ async def run_consumer(
         **_options(auth),
     )
     await consumer.start()
+    tracker = metrics.LagTracker()
+    watcher = asyncio.create_task(_watch_backlog(consumer, group, tracker, backlog_every_s))
     try:
         async for message in consumer:
             if message.value is not None:
-                await processor.process(message.value)
+                outcome = await processor.process(message.value)
+                metrics.EVENTS_CONSUMED.labels(group, outcome.value).inc()
             await consumer.commit()
+            tracker.progress(time.monotonic())
     finally:
+        watcher.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watcher
+        metrics.CONSUMER_BACKLOG.labels(group).set(0)
+        metrics.CONSUMER_LAG.labels(group).set(0)
         await consumer.stop()
+
+
+async def _watch_backlog(
+    consumer: AIOKafkaConsumer, group: str, tracker: metrics.LagTracker, every_s: float
+) -> None:
+    """How many messages wait for this group, and for how long it has made no progress. Never
+    stops the consumer: a failed reading is skipped."""
+    while True:
+        await asyncio.sleep(every_s)
+        try:
+            backlog = await _backlog(consumer)
+        except Exception:  # noqa: BLE001 - a rebalance in progress: look again next time
+            log.warning("backlog_unreadable", group=group)
+            continue
+        metrics.CONSUMER_BACKLOG.labels(group).set(backlog)
+        metrics.CONSUMER_LAG.labels(group).set(tracker.observe(backlog, time.monotonic()))
+
+
+async def _backlog(consumer: AIOKafkaConsumer) -> int:
+    partitions = consumer.assignment()
+    if not partitions:
+        return 0
+    ends = await consumer.end_offsets(partitions)
+    return sum([max(0, ends[p] - await consumer.position(p)) for p in partitions])
 
 
 async def consume_forever(

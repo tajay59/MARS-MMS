@@ -1359,7 +1359,7 @@ Restore is tested quarterly into staging, including an audit chain verification,
 ### 16.5 Observability
 
 - **Logs:** JSON via `structlog`, with `service`, `request_id`, `correlation_id`, `user_id`, `event_id`. Nginx sets `X-Request-ID`; it is propagated in httpx calls and becomes the event `correlation_id`. Alloy ships container logs to Loki.
-- **Metrics:** `prometheus-fastapi-instrumentator` per service, nginx-prometheus-exporter, MongoDB, Redis and Kafka exporters, and custom metrics for outbox lag, leader-lease changes, consumer lag, DLQ size, media job duration, sync results by conflict reason, and report render time.
+- **Metrics (as built, W20-1):** `mms_common.metrics` in every service instead of `prometheus-fastapi-instrumentator` (request counts and durations by route template, never by path; the names are in the docs site, decision W20-1). The API images run two uvicorn workers and merge their files through `PROMETHEUS_MULTIPROC_DIR`; the queue workers serve port 9100. "Consumer lag" is the seconds a group has had messages waiting without committing one. `/metrics` is a 404 at the gateway. Also nginx-prometheus-exporter, MongoDB, Redis and Kafka exporters, and custom metrics for outbox lag, leader-lease changes, consumer lag, DLQ size, media job duration, sync results by conflict reason, and report render time.
 - **Dashboards:** API latency and error rate per service, consumer lag per group, media queue, sync results, disk usage.
 - **Alerts (email):** service down > 2 min; 5xx rate > 2% for 5 min; any DLQ topic non-empty; oldest unpublished outbox row > 5 min; consumer lag > 5 min; a report in `finalizing` > 30 min; disk > 80%; backup job failed or missing; audit integrity check failed; ClamAV signatures older than 3 days.
 

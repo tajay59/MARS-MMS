@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 import segno
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from mms_common import metrics
 from mms_common.logging import get_logger
 from PIL import Image
 
@@ -140,21 +141,22 @@ class WeasyRenderer:
         return {**view, "chart": {**spec, "src": src}}
 
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
-        html = render_html(labels, phone)
-        return await asyncio.to_thread(to_pdf, html)
+        with metrics.timed(metrics.REPORT_RENDER, "labels"):
+            return await asyncio.to_thread(to_pdf, render_html(labels, phone))
 
     async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
-        html = render_visit_html(view, template_version)
-        return await asyncio.to_thread(to_pdf, html)
+        with metrics.timed(metrics.REPORT_RENDER, "visit_report"):
+            return await asyncio.to_thread(to_pdf, render_visit_html(view, template_version))
 
     async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered:
-        html = render_client_form_html(view, template_version)
-        return await asyncio.to_thread(to_pdf, html)
+        with metrics.timed(metrics.REPORT_RENDER, "client_form"):
+            return await asyncio.to_thread(to_pdf, render_client_form_html(view, template_version))
 
     async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered:
-        html = render_closeout_html(view, template_version)
-        return await asyncio.to_thread(to_pdf, html)
+        with metrics.timed(metrics.REPORT_RENDER, "closeout"):
+            return await asyncio.to_thread(to_pdf, render_closeout_html(view, template_version))
 
     async def summary(self, view: dict[str, Any], template_version: str) -> Rendered:
-        html = render_summary_html(await self.with_chart(view), template_version)
-        return await asyncio.to_thread(to_pdf, html)
+        with metrics.timed(metrics.REPORT_RENDER, "summary"):
+            html = render_summary_html(await self.with_chart(view), template_version)
+            return await asyncio.to_thread(to_pdf, html)

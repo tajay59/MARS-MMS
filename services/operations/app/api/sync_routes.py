@@ -15,6 +15,7 @@ from dataclasses import replace
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Response
+from mms_common import metrics
 from mms_common.auth import User, require_roles
 from mms_common.errors import ValidationFailed
 from pydantic import BaseModel, ValidationError
@@ -183,6 +184,8 @@ async def sync(body: SyncIn, user: Worker, ctx: CtxDep) -> SyncOut:
         answers.append(answer)
         reported.append((op.visit_id, op.type, answer))
     await _tell_of_conflicts(ctx, user, rules.conflicts_to_report(reported))
+    for a in answers:
+        metrics.SYNC_OPS.labels(a.status, a.code or "none").inc()
     return SyncOut(answers=[
         AnswerOut(op_id=a.op_id, status=a.status, code=a.code, message=a.message,
                   retryable=a.retryable, current=a.current, result=a.result)

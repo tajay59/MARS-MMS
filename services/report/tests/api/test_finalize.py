@@ -322,6 +322,25 @@ async def test_a_report_left_finalizing_is_taken_up_again_and_finishes(report):
     await invariant(report)
 
 
+async def test_the_longest_finalizing_report_is_a_gauge_in_seconds(report):
+    """TRD §16.5: the alert for a report in `finalizing` over 30 minutes reads this."""
+    from prometheus_client import REGISTRY
+
+    def gauge() -> float:
+        return REGISTRY.get_sample_value("reports_finalizing_oldest_seconds") or 0.0
+
+    await resume.gauge_finalizing(report.svc)
+    assert gauge() == 0  # none finalizing
+    d = await signed(report)
+    await post(report, d, "finalize")
+    report.clock.advance(minutes=12)
+    await resume.gauge_finalizing(report.svc)
+    assert gauge() == 720
+    await finalize_report(report.svc, d["_id"])
+    await resume.gauge_finalizing(report.svc)
+    assert gauge() == 0
+
+
 @pytest.mark.req("RPT-5")
 @pytest.mark.parametrize("fault", ["lock", "lock_down", "facts_down", "facts_gone", "changed",
                                    "render", "store"])

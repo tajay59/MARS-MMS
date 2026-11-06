@@ -11,9 +11,17 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from mms_common import metrics
+
 from app.jobs.finalize import job_id, release_lock
 from app.repo import reports
 from app.services import Services
+
+
+async def gauge_finalizing(svc: Services) -> None:
+    """TRD §16.5: a report in `finalizing` for over 30 minutes raises an alert."""
+    since = await reports.oldest_finalizing(svc.db)
+    metrics.REPORTS_FINALIZING_OLDEST.set(metrics.age_seconds(since, svc.clock.now()))
 
 
 async def tick(svc: Services) -> dict[str, int]:

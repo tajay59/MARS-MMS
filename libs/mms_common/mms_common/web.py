@@ -1,5 +1,5 @@
 """FastAPI plumbing every service shares: request IDs, problem-details errors, and the
-`/health`, `/ready` and `/metrics` endpoints (TRD §3.0)."""
+`/health`, `/ready` and `/metrics` endpoints (TRD §3.0), and request metrics."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ import structlog
 from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from mms_common.errors import AppError
 from mms_common.ids import new_id
 from mms_common.logging import bind_request
+from mms_common.metrics import MetricsMiddleware, render
 
 REQUEST_ID_HEADER = "X-Request-ID"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -31,6 +31,7 @@ def install(app: FastAPI, ready_checks: dict[str, ReadyCheck] | None = None) -> 
     """
     checks = ready_checks if ready_checks is not None else {}
     app.state.ready_checks = checks
+    app.add_middleware(MetricsMiddleware)
 
     @app.middleware("http")
     async def request_id(
@@ -105,6 +106,7 @@ def install(app: FastAPI, ready_checks: dict[str, ReadyCheck] | None = None) -> 
 
     @router.get("/metrics")
     async def metrics() -> Response:
-        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+        body, content_type = render()
+        return Response(body, media_type=content_type)
 
     app.include_router(router)
