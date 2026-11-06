@@ -3915,6 +3915,89 @@ flowchart TD
           </div>
         </div>
 
+        <div class="sub" id="infrastructure-production">
+          <h3>Production (W20 slice 4: defined and tested; no host yet)</h3>
+          <p>Production runs <code>compose.yml</code> + <code>compose.prod.yml</code> + <code>compose.production.yml</code> + <code>compose.monitoring.yml</code> + <code>compose.backup.yml</code> (with <code>COMPOSE_PROFILES=backup</code> in the host&rsquo;s <code>.env</code>). <code>compose.production.yml</code> is the part that is not staging: a memory limit on every container, ClamAV always on with <code>MEDIA_SCAN_MODE=clamd</code> (the services refuse <code>off</code> in production, MED-3), and the stores&rsquo; memory settings. <b>No production host exists in the repository&rsquo;s records</b> (plan question 1; B1, T6, T8), so nothing here has run on one: it is tested by rendering the files and by the checks below.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Container</th><th>Limit</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td>mongo</td><td class="num">4 GB</td><td>WiredTiger cache 2 GB</td></tr>
+                <tr><td>clamav</td><td class="num">3 GB</td><td>Signatures in memory; 256 MB streams (video)</td></tr>
+                <tr><td>media-worker</td><td class="num">2 GB</td><td>ffmpeg, one video at a time</td></tr>
+                <tr><td>kafka</td><td class="num">2 GB</td><td>Heap 1 GB</td></tr>
+                <tr><td>report-worker</td><td class="num">1.5 GB</td><td>WeasyPrint and headless Chromium for the charts</td></tr>
+                <tr><td>seaweedfs</td><td class="num">1 GB</td><td></td></tr>
+                <tr><td>auth, operations, platform, media, report, redis</td><td class="num">0.5 GB each</td><td></td></tr>
+                <tr><td>nginx</td><td class="num">128 MB</td><td></td></tr>
+                <tr><td>monitoring and backup (their own files)</td><td class="num">about 2.2 GB</td><td>Prometheus, Loki, Grafana, Alloy, Alertmanager, the exporters, <code>backup</code>, <code>filer-sync</code></td></tr>
+                <tr><td><b>Total of the limits</b></td><td class="num"><b>18.9 GB</b></td><td>On the 32 GB host of TRD §16.2; the test fails above 21 GB</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><b>What is tested without a host.</b> <code>infra/tests/test_production_config.py</code> renders the files together and fails if production would publish anything but Nginx&rsquo;s 80 and 443 (the monitoring tools publish on <code>127.0.0.1</code> only), run Mailpit or the dev secrets, build an image on the host (except <code>backup</code>), run without scanning or ClamAV, leave a long-running container without a memory limit or a restart policy, or exceed the memory budget. <code>infra/tests/test_rollback_guard.py</code> covers the rollback rule below. <code>/docs</code> is off whenever <code>*_ENVIRONMENT=production</code>, which the first test proves for every service.</p>
+          <p><b>Deploying.</b> <code>production.yml</code> is run by hand (Actions › production › Run workflow) with the commit SHA of a release that is on staging. It checks that the commit is on <code>main</code> and that all six images exist, waits for a person to approve in the <code>production</code> environment, runs the rollback guard, copies the stack definition, pulls, starts, waits for the five services and ClamAV to be healthy, writes <code>/opt/mms/.deployed-tag</code> and runs the <code>@smoke</code> tests against <code>PRODUCTION_URL</code>. It does nothing until the variable <code>PRODUCTION_HOST</code> exists.</p>
+          <p><b>Rolling back</b> is the same workflow with the previous tag. A phone on the newer build installs the older service worker through the ordinary waiting-worker prompt (never a silent reload; <code>update.spec.ts</code> proves it, and finding F19 was found writing that test). <code>infra/scripts/rollback-guard.sh</code> refuses to go back over a <b>migration</b> (they run forward only, so older code would run on a database the newer code changed) or an <b>event schema change</b> (a consumer must never be older than the events it reads, W20-2) unless &ldquo;allow_older_schema&rdquo; is ticked after reading what changed. If it refuses, the fix is a new release that reverts the change, not a rollback.</p>
+          <figure class="diagram" id="production-deploy" data-title="Deploying and rolling back production" data-kind="Workflow diagram">
+            <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    A["Run workflow: tag = a release on staging"] --> B{"On main, and all six&lt;br/&gt;images in GHCR?"}
+    B -->|no| X["Stop: nothing touched"]
+    B -->|yes| C["A person approves&lt;br/&gt;(environment production)"]
+    C --> D{"Newer, or a rollback?"}
+    D -->|"newer"| F
+    D -->|"rollback"| E{"Migration or event&lt;br/&gt;schema changed in between?"}
+    E -->|"yes, and not allowed"| X2["Refused: ship a revert as a new release"]
+    E -->|"no, or allowed after reading"| F["rsync infra/, pull, up -d --no-build"]
+    F --> G{"auth, operations, media, report,&lt;br/&gt;platform, clamav healthy?"}
+    G -->|no| H["Fail with logs; .deployed-tag unchanged"]
+    G -->|yes| I["Write .deployed-tag, run @smoke"]
+    I --> J["Phones see the update prompt,&lt;br/&gt;both ways"]
+</pre>
+            </div>
+            <figcaption>The tag file is written only after the release is healthy, so the next guard compares with what really runs.</figcaption>
+          </figure>
+          <figure class="diagram" id="production-architecture" data-title="Production hosts, networks and what is published" data-kind="Architecture diagram">
+            <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart LR
+    Phones["Phones and browsers"] -->|"443, TLS"| N["nginx (web image)"]
+    Office["Staff on SSH or the VPN"] -.->|"127.0.0.1 tunnel"| Mon
+    subgraph Prod["Production host: 8 vCPU, 32 GB"]
+        N --> Svc["auth, operations, media, report, platform&lt;br/&gt;+ media-worker, report-worker"]
+        N -->|"files host, presigned"| S[("SeaweedFS")]
+        Svc --> M[("MongoDB rs0")]
+        Svc --> K[("Kafka")]
+        Svc --> R[("Redis")]
+        Svc --> C["ClamAV"]
+        subgraph Mon["Monitoring, not published"]
+            P["Prometheus + Alertmanager"] --> G["Grafana"]
+            L["Loki + Alloy"] --> G
+        end
+        Bk["backup + filer-sync"]
+    end
+    Bk -->|"ciphertext, rclone"| BH
+    S -->|"filer.sync"| BH
+    subgraph BH["Backup host"]
+        D[("dumps")]
+        RS[("SeaweedFS replica")]
+    end
+    P -->|"email"| Admins["MMS_ALERT_EMAILS"]
+</pre>
+            </div>
+            <figcaption>Only Nginx faces the network. The private key that opens a backup is on neither host.</figcaption>
+          </figure>
+          <p>To prepare the production host (the staging steps below apply, with these differences):</p>
+          <ol>
+            <li><b>Host:</b> 8 vCPU, 32 GB RAM, 200 GB SSD for the system and databases and 1 TB or more of RAID-1 for SeaweedFS (TRD §16.2), full-disk encryption (B1), Docker Engine with Compose 2.24.4 or later, <code>rsync</code>, a deploy user in the <code>docker</code> group. <b>Check the kernel:</b> MongoDB 8 will not start on Linux 6.19 to 7.0.13 (SERVER-121912, see the CI gotchas); if the host has one, set <code>GLIBC_TUNABLES=glibc.pthread.rseq=1</code> on <code>mongo</code> or wait for 7.0.14.</li>
+            <li><b>Network:</b> only 80 and 443 open to the world, SSH from the office or VPN only; DNS for <code>MMS_HOST</code> and <code>FILES_HOST</code>; a real certificate for both names in <code>MMS_TLS_DIR</code>.</li>
+            <li><b><code>/opt/mms/infra/.env</code>:</b> every secret regenerated; <code>MMS_ENVIRONMENT=production</code>, <code>MMS_REGISTRY</code>, the SMTP relay (T3), <code>COMPOSE_PROFILES=backup</code>, <code>BACKUP_AGE_RECIPIENT</code> (the organization&rsquo;s <b>public</b> key), <code>BACKUP_REMOTE</code> and the SFTP settings of the backup host, <code>BACKUP_REPLICA_FILER</code>, <code>BACKUP_REPLICA_S3_ENDPOINT</code>, <code>MMS_ALERT_EMAILS</code> (two addresses, one outside this mail domain), <code>GRAFANA_ADMIN_PASSWORD</code>, <code>MONITOR_DB_PASSWORD</code>, <code>KAFKA_MONITOR_PASSWORD</code>.</li>
+            <li><b>GitHub:</b> variables <code>PRODUCTION_HOST</code>, <code>PRODUCTION_USER</code>, <code>PRODUCTION_URL</code>; environment <code>production</code> with required reviewers and the secrets <code>PRODUCTION_SSH_KEY</code> and <code>PRODUCTION_KNOWN_HOSTS</code>.</li>
+            <li><b>Before real traffic:</b> the first deploy, <code>create-admin</code>, one alert fired for real into the admins&rsquo; mailbox (IP exit), a backup taken and decrypted once by the key&rsquo;s holder, a restore into staging, and the full load test (slice 6) with the data wiped after.</li>
+          </ol>
+        </div>
+
         <div class="sub" id="infrastructure-staging">
           <h3>Staging</h3>
           <p>Staging (issue #4) runs <code>compose.yml</code> + <code>compose.prod.yml</code> + <code>compose.staging.yml</code>: images from GHCR tagged with the commit SHA, no builds, no Mailpit. <code>release.yml</code> deploys every push to <code>main</code>. Staff only until the Phase 8 pilot.</p>
@@ -4020,6 +4103,8 @@ flowchart TD
                   <tr><td><code>backend.yml</code></td><td>Every pull request, and from <code>release.yml</code>: <code>mms_common</code> (Ruff, mypy, tests with throwaway containers); one job per service (<code>auth</code>, <code>platform</code>: Ruff, mypy, tests, coverage ≥ 70%; auth's OpenAPI against <code>frontend/openapi</code>); the service template in both variants; <code>nginx -t</code>; the Compose stack built and tested, then the Playwright journeys</td><td><span class="badge built">Built (W2–W4)</span></td></tr>
                   <tr><td><code>images.yml</code></td><td>Every pull request (build and scan only), and from <code>release.yml</code> with <code>push: true</code>: images <code>auth</code>, <code>platform</code>, <code>web</code>; Trivy fails on fixable HIGH or CRITICAL (exceptions in <code>.trivyignore</code> with a reason and review date)</td><td><span class="badge built">Built (W4)</span></td></tr>
                   <tr><td><code>release.yml</code></td><td>Push to <code>main</code> or by hand, never two at once: checks → images pushed to GHCR → staging deploy over SSH → <code>@smoke</code> tests. The deploy job is skipped until the <code>STAGING_*</code> repository variables exist (see Infrastructure › Staging)</td><td><span class="badge progress">Built (W4) · host pending</span></td></tr>
+                  <tr><td><code>restore-drill.yml</code></td><td>Mondays 03:17 UTC and by hand: the same job as <code>backup and restore</code> in <code>backend.yml</code> (a real backup, a restore into a CI stack, dead sessions, the audit chain check).</td><td>Built (W20 slice 3)</td></tr>
+                  <tr><td><code>production.yml</code></td><td>By hand with a release SHA, after approval in the <code>production</code> environment: checks the images, runs the rollback guard, deploys over SSH, waits for health, runs <code>@smoke</code>. A rollback is the same run with the previous SHA. Does nothing until <code>PRODUCTION_HOST</code> is set.</td><td>Built (W20 slice 4); never run, no host</td></tr>
                 </tbody>
               </table>
             </div>
@@ -4286,6 +4371,7 @@ flowchart TD
                 <tr><td>W20-7</td><td><b>Objects are replicated continuously and checked nightly (slice 3, as built).</b> <code>filer-sync</code> is in the <code>backup</code> profile, so a plain <code>up</code> does not start it: tests and the host start it by name. The nightly check is one-way, so objects the replica keeps after the primary deleted them (its own versioning) are not reported.</td><td>2026-11-06</td></tr>
                 <tr><td>W20-8</td><td><b>A restore is a script, and a drill proves it (slice 3, as built).</b> The seven steps above, in that order, with the consumer groups reset to the start and Redis emptied. The CI job <code>backup and restore</code> runs the drill on every pull request and <code>restore-drill.yml</code> weekly; both end in the audit chain check. The backup and restore tests are not in the stack job (it has about five minutes to spare and the drill stops services).</td><td>2026-11-06</td></tr>
                 <tr><td>W20-9</td><td><b>After a restore everyone signs in again (slice 3, as built; finding F18).</b> <code>revoke-all-sessions</code> ends every refresh session and writes a Redis revocation for every user and organization (<code>revoke_all</code> in <code>mms_common.auth.revocation</code>), so a user disabled since the backup, or a token revoked since, cannot come back by being restored. The audit trail of what changed between the backup and the failure is not in the dump; the runbook says so.</td><td>2026-11-06</td></tr>
+                <tr><td>W20-12</td><td><b>Production deploys by hand and rolls back by tag (slice 4, as built).</b> <code>production.yml</code> takes a release SHA, needs approval, and ends in the smoke tests; <code>compose.production.yml</code> holds what is not staging (limits, ClamAV on). <b>A rollback is refused over a migration or an event schema change</b> (<code>rollback-guard.sh</code>): migrations run forward only and a consumer must not be older than the events it reads, so going back there would corrupt or dead-letter, and the way out is a revert shipped as a new release. <b>The tag file is written after the release is healthy</b>, so the guard compares with what really runs. <b>A rollback is an update on the phone</b>: the older <code>sw.js</code> installs through the waiting-worker prompt like any other. Writing that test found that &ldquo;Reload now&rdquo; did nothing when the release was found while the app was open (finding F19, fixed in <code>usePwa</code>: reload on <code>controllerchange</code>).</td><td>2026-11-06</td></tr>
                 <tr><td>W18-5</td><td><b>The review, client report and Reports screens (slice 5, as built; boards: the "AWS-MMS W18 screens" sheet, approved 2026-10-28).</b> <code>/requests/:id/review</code> (<code>features/requests/review/</code>: <code>ReviewPage</code>, <code>RejectDialog</code>, <code>useReview</code>, the pure <code>review.ts</code> that picks the state of the review and the words of a refused answer): the final visit reports and the client's own reports open in the app's PDF sheet (<code>PdfSheet</code>), Accept is the W17 <code>SignDialog</code> with the client's wording (<code>attestation</code> on the request detail, given only to a client in Client Review) and an optional comment, Reject asks for a reason of 5 to 1,000 characters. Both name the review the page read (<code>reviewing</code>). The request page gains the Client Review banner with <b>Review and sign off</b>, a closed banner, and a <b>Reports</b> tab (<code>features/requests/reports/</code>: the close-out leads, replaced versions follow, then each visit's report and the client reports; it looks again every 8 seconds while a PDF is being made). <code>/requests/:id/client-reports/new</code> and <code>/:reportId</code> (<code>features/requests/clientReports/</code>): the draft is made when a kind is chosen, saved 0.8 seconds after typing under its <code>version</code>, one save at a time, and a failed save is retried every 5 seconds with the text kept in the page. Nothing is kept on the device and no worker or chunk is added: the precache stays at 29 files. Reviewed with <code>web-design-guidelines</code>.</td></tr>
                 <tr><td>W18-4</td><td><b>Review notifications (slice 4, as built).</b> One planner for the client's review and what follows (<code>_plan_review</code>, <code>REVIEW_EVENTS</code>): every client of the organization is asked to review and reminded, by app and email (preference <code>request.client_review</code>, button "Review the work", link <code>/requests/{id}/review</code>); a rejection tells the assigned staff and every admin with the client's reason, by app and email (<code>request.reopened</code>); an acceptance or automatic close tells the client's colleagues, the team and the admins in the app; a client report tells the team and admins in the app, once even if its PDF is drawn again; the first close-out tells the clients in the app, a corrected one also by email (<code>report.closeout</code>, button "Read the report"). The notification group now reads <code>mms.report.events</code>: until now no <code>report.*</code> event reached it (W17's notifications are planned on the same topic). Nobody is told of a draft: staff only, rule 6.</td></tr>
                 <tr><td>W18-3</td><td><b>The close-out report (slice 3, as built).</b> <code>request.closed</code> makes a <code>closeout</code> report at once (number <code>CO-YYYY-NNNN</code>, version 1, status <code>rendering</code>); the worker (<code>jobs/render_closeout.py</code>, <code>closeout:&lt;id&gt;</code>, queued by a 30-second tick) reads <code>GET /internal/requests/{id}/closeout-facts</code> (now version 2: client reports and the review the decision answered), draws <code>closeout.html.j2</code> and in one transaction makes it <code>final</code>, supersedes the version it replaces and adds <code>report.closeout_generated</code> (ids only). It is final as soon as drawn, never signed, edited or reopened (409 <code>not_reopenable</code>); the drawing is kept only as its SHA-256 in the record. A correction after closure (W18-12) is handled where the visit report becomes final: version n + 1 (<code>expects</code> the corrected version), or joined to a close-out still to be drawn (<code>inputs_seq</code> makes a draw that missed it be redone). The record waits up to five minutes for operations to show the corrected version; one that fails three times is drawn again an hour later, because nobody can try again for it. A client reads final and superseded close-outs of their organization; <code>POST /reports/verify</code> finds every version. Visual baselines: <code>closeout-accepted</code>, <code>closeout-auto</code>, <code>closeout-corrected</code> and <code>client-form</code>.</td></tr>
@@ -4460,6 +4546,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-11-06</td><td>P7 &middot; W20 (slice 4)</td><td><b>The production stack, defined</b> (decision W20-12, finding F19). <code>infra/compose.production.yml</code> (limits totalling 18.9 GB, ClamAV on), <code>infra/scripts/rollback-guard.sh</code>, <code>.github/workflows/production.yml</code> (by hand, approval, rollback by tag; never run: no host), <code>infra/tests/test_production_config.py</code> (8) and <code>test_rollback_guard.py</code> (9), Playwright <code>update.spec.ts</code> gains a rollback test. <b>Fix:</b> &ldquo;Reload now&rdquo; did not reload when the release was found while the app was open (<code>usePwa</code> now reloads on <code>controllerchange</code>). Two charts: deploy and rollback, production architecture (Mermaid; the draw.io version is not drawn).</td></tr>
               <tr><td>2026-11-06</td><td>P7 &middot; W20 (slice 3)</td><td><b>Backups and the restore drill</b> (decisions W20-6 to W20-9, finding F18). <code>infra/backup/</code> (<code>backup.sh</code>, <code>loop.sh</code>, <code>retention.py</code>), <code>compose.backup.yml</code> (<code>backup</code>, <code>filer-sync</code>), <code>compose.backup-host.yml</code> (a second SeaweedFS), <code>infra/scripts/restore.sh</code>; auth <code>revoke-all-sessions</code> and <code>auth.sessions_revoked</code>; platform <code>verify-audit</code>; the <code>backup</code> user in Mongo; the alert <code>RestoreDrillOld</code> (12 rules, promtool tests); CI job <code>backup and restore</code> and <code>restore-drill.yml</code>. Tests: retention 6, backup 6, the drill 1 (155 s), revoke-all 3. Found on the first full run: rclone refuses <code>--quiet</code> beside <code>RCLONE_LOG_LEVEL</code>; Redis&rsquo;s append-only file was cut short when the disk filled (<code>redis-check-aof --fix</code>). Three charts: backup data flow, restore sequence, which restore.</td></tr>
               <tr><td>2026-10-29</td><td>P7 &middot; W20 (slice 2)</td><td><b>Monitoring and alerts</b> (decisions W20-2 to W20-4). <code>infra/compose.monitoring.yml</code>: Prometheus, Alertmanager, Grafana, Loki, Alloy, node, Nginx, Mongo, Redis and Kafka exporters, a Docker socket proxy; the 11 alert rules with promtool tests; five provisioned dashboards; <code>monitor</code> users in Mongo and Kafka (optional); Nginx status on an unpublished port. A <code>monitoring rules</code> CI job and 18 live stack tests, including the alert mail drill.</td></tr>
               <tr><td>2026-10-29</td><td>P7 &middot; W20 (slice 1)</td><td><b>Metrics</b> (decision W20-1). <code>mms_common.metrics</code> and its hooks in the web layer, outbox relay, consumer, job queue and cron; <code>sync_ops_total</code> in operations, PDF render times and the longest-finalizing gauge in report, ClamAV signature age in media; two-worker merging in every API Dockerfile and the service template; scrape port 9100 on the queue workers; <code>/metrics</code> is a 404 at the gateway. 15 new library tests, 4 service tests and a stack check.</td></tr>

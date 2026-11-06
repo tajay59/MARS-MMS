@@ -1336,12 +1336,14 @@ The first install must be quick on a phone's link, because until it ends the pho
 
 Approximate memory budget: MongoDB 4 GB, Kafka 2 GB, ClamAV 3 GB, Python services ~2.5 GB, media-worker 2 GB, report-worker 1.5 GB (includes headless Chromium), SeaweedFS 1 GB, Redis 0.5 GB, monitoring 2 GB. That totals about 18.5 GB, leaving headroom.
 
+**As built (W20 slice 4):** `compose.production.yml` sets a `mem_limit` on every container from this budget (the limits total 18.9 GB, monitoring and backup included) and `infra/tests/test_production_config.py` fails above 21 GB.
+
 **Storage estimate:** a 1-minute 720p clip ≈ 10–20 MB; a WebP photo ≈ 0.3–0.6 MB. A heavy visit is ≈ 400 MB processed. At about 10 visits a month, that is up to ≈ 50 GB a year, plus originals for 30 days (≈ 10 GB rolling).
 
 ### 16.3 Environments and configuration
 
 - `local`: `compose.yml` + `compose.dev.yml` (hot reload, seeded data, Mailpit for email, self-signed TLS).
-- `staging` and `production`: `compose.yml` + `compose.prod.yml`; images tagged with the commit SHA.
+- `staging` and `production`: `compose.yml` + `compose.prod.yml`; images tagged with the commit SHA. Production adds `compose.production.yml` (limits, ClamAV on, `MEDIA_SCAN_MODE=clamd`), `compose.monitoring.yml` and `compose.backup.yml`; staging adds `compose.staging.yml`.
 - **Interim staging host (2026-10-17, decision W4-8):** a shared server (`rnd.yanacreations.com`, files host `files.yanacreations.com`, about 2 GB of free memory) instead of the dedicated second host in §16.2. `compose.staging.yml` is added after `compose.prod.yml`: the server's own edge Nginx terminates TLS and passes both names to the MMS Nginx, which keeps every rule of §2.1 and §15 and trusts the edge's `X-Real-IP`; the data stores are capped. Timings measured there (IP W11) are lower bounds, not production figures.
 - Configuration via environment variables (`pydantic-settings`), prefixed per service: `AUTH_`, `OPS_`, `MEDIA_`, `REPORT_`, `PLATFORM_` (for example `OPS_MONGO_URI`, `OPS_AUTO_CLOSE_DAYS`).
 
@@ -1395,7 +1397,7 @@ Coverage targets: 90% for `domain/` packages; 70% overall.
 2. Build Docker images for changed components, tagged `sha-<commit>`; scan them with Trivy.
 3. On `main`: push images to the registry and deploy to staging (`docker compose pull && up -d` over SSH). Run Playwright smoke tests.
 4. Nightly on staging: the full Playwright suite in Chromium, Firefox and WebKit, visual regression and an OWASP ZAP baseline scan. Weekly: a restore drill with the audit chain check, and mutation tests on the state machines. A nightly failure blocks the next production deploy.
-5. Production deploy: manual approval, the same images, then smoke tests. Rollback is redeploying the previous tag.
+5. Production deploy: manual approval, the same images, then smoke tests. Rollback is redeploying the previous tag. **As built (W20-12):** `production.yml` is run by hand with a release SHA; `infra/scripts/rollback-guard.sh` refuses a rollback over a migration or an event schema change unless the operator allows it after reading what changed (migrations run forward only; a consumer must not be older than the events it reads). A rollback reaches phones as an ordinary service-worker update (F19).
 6. Database changes: forward-only migration scripts per service (`migrations/NNNN_*.py`), run on startup with a lock in `_migrations`.
 7. Kafka topics and the Nginx gateway config are declared in the repo (`infra/kafka/topics.yml`, `infra/nginx/`) and applied on deploy.
 

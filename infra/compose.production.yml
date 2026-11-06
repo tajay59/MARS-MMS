@@ -1,0 +1,74 @@
+# The production host (TRD §16.2, §16.3; W20-12). Added after compose.prod.yml, which production
+# shares with staging:
+#
+#   cd /opt/mms/infra
+#   MMS_TAG=<sha> docker compose -f compose.yml -f compose.prod.yml -f compose.production.yml \
+#       -f compose.monitoring.yml -f compose.backup.yml pull
+#   (the same files with `up -d --no-build --remove-orphans`; .github/workflows/production.yml does it)
+#
+# What it adds to compose.prod.yml:
+# - a memory limit on every container, from the budget of §16.2 (about 18.5 GB of 32 GB, so one
+#   runaway service cannot starve MongoDB; the limits are also what the sizing is checked against)
+# - ClamAV always on and MEDIA_SCAN_MODE=clamd: the services refuse `off` in production (MED-3),
+#   so a host that cannot run ClamAV is not a production host (TRD T8)
+# - the stores' memory settings that match those limits
+#
+# The host's infra/.env still needs MMS_ENVIRONMENT=production. infra/tests/test_production_config.py
+# renders these files together and fails if production would publish a port, run Mailpit, build an
+# image on the host, scan nothing, or leave a container without a limit.
+
+services:
+  nginx:
+    mem_limit: 128m
+
+  mongo:
+    # WiredTiger's cache is half of the container's memory minus 1 GB by default; say so
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/tmp/mongo-keyfile",
+              "--wiredTigerCacheSizeGB", "2"]
+    mem_limit: 4g
+
+  kafka:
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms1g -Xmx1g"
+    mem_limit: 2g
+
+  redis:
+    mem_limit: 512m
+
+  seaweedfs:
+    mem_limit: 1g
+
+  auth:
+    mem_limit: 512m
+
+  operations:
+    mem_limit: 512m
+
+  platform:
+    mem_limit: 512m
+
+  media:
+    environment:
+      MEDIA_SCAN_MODE: clamd
+    mem_limit: 512m
+
+  # Video is decoded and encoded by ffmpeg, one at a time (R7, R8)
+  media-worker:
+    environment:
+      MEDIA_SCAN_MODE: clamd
+    mem_limit: 2g
+    depends_on:
+      clamav:
+        condition: service_healthy
+
+  report:
+    mem_limit: 512m
+
+  # WeasyPrint, and headless Chromium beside it for the charts in a summary PDF (W19-11)
+  report-worker:
+    mem_limit: 1536m
+
+  # No profile here: in compose.yml it is in `scan` for machines that cannot run it
+  clamav:
+    profiles: !reset []
+    mem_limit: 3g
