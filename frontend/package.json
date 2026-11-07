@@ -54,7 +54,7 @@
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.0",
-    "eslint": "^9.39.4",
+    "eslint": "^10.14.0",
     "eslint-config-vuetify": "^4.3.4",
     "fake-indexeddb": "^6.2.6",
     "jsdom": "^29.1.1",
