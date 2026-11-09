@@ -14,7 +14,7 @@ x-restart: &restart
 services:
   prometheus:
     <<: *restart
-    image: prom/prometheus:v3.5.0
+    image: prom/prometheus:v3.16.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -30,7 +30,7 @@ services:
 
   alertmanager:
     <<: *restart
-    image: prom/alertmanager:v0.28.1
+    image: prom/alertmanager:v0.34.2
     entrypoint: ["/bin/sh", "/opt/mms/alertmanager-entrypoint.sh"]
     environment:
       MMS_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
@@ -53,7 +53,7 @@ services:
 
   loki:
     <<: *restart
-    image: grafana/loki:3.5.1
+    image: grafana/loki:3.7.9
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./monitoring/loki.yml:/etc/loki/loki.yml:ro
@@ -66,7 +66,7 @@ services:
   # holds secrets, so no application container may be able to reach it.
   docker-proxy:
     <<: *restart
-    image: tecnativa/docker-socket-proxy:0.3.0
+    image: tecnativa/docker-socket-proxy:v0.5.0
     environment:
       CONTAINERS: 1
       NETWORKS: 1  # Alloy lists a container's networks
@@ -78,7 +78,7 @@ services:
 
   alloy:
     <<: *restart
-    image: grafana/alloy:v1.9.1
+    image: grafana/alloy:v1.21.3
     command: ["run", "--storage.path=/var/lib/alloy/data", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
     environment:
       MMS_ENVIRONMENT: ${MMS_ENVIRONMENT:-local}
@@ -91,7 +91,7 @@ services:
 
   grafana:
     <<: *restart
-    image: grafana/grafana:12.0.2
+    image: grafana/grafana:12.4.14
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
@@ -113,7 +113,7 @@ services:
 
   node-exporter:
     <<: *restart
-    image: prom/node-exporter:v1.9.1
+    image: prom/node-exporter:v1.12.1
     command:
       - --path.rootfs=/host
       - --collector.textfile.directory=/textfile
@@ -127,7 +127,7 @@ services:
 
   nginx-exporter:
     <<: *restart
-    image: nginx/nginx-prometheus-exporter:1.4.2
+    image: nginx/nginx-prometheus-exporter:1.5.0
     command: ["--nginx.scrape-uri=http://nginx:8081/stub_status"]
     depends_on: [nginx]
     mem_limit: 32m
@@ -137,7 +137,7 @@ services:
   # clusterMonitor user, a Kafka user that may only describe topics and groups, and Redis' password.
   mongodb-exporter:
     <<: *restart
-    image: percona/mongodb_exporter:0.44.0
+    image: percona/mongodb_exporter:0.54.0
     command: ["--collector.diagnosticdata", "--collector.replicasetstatus", "--compatible-mode"]
     environment:
       MONGODB_URI: mongodb://monitor:${MONITOR_DB_PASSWORD:?set MONITOR_DB_PASSWORD}@mongo:27017/admin?directConnection=true
@@ -149,7 +149,7 @@ services:
 
   redis-exporter:
     <<: *restart
-    image: oliver006/redis_exporter:v1.74.0
+    image: oliver006/redis_exporter:v1.97.0
     environment:
       REDIS_ADDR: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
@@ -158,7 +158,7 @@ services:
 
   kafka-exporter:
     <<: *restart
-    image: danielqsj/kafka-exporter:v1.9.0
+    image: danielqsj/kafka-exporter:v1.11.0
     command:
       - --kafka.server=kafka:9092
       - --sasl.enabled

@@ -23,7 +23,7 @@ x-hardened: &hardened
 services:
   nginx:
     <<: *restart
-    image: nginx:1.31.7-alpine
+    image: nginx:1.31.8-alpine
     depends_on:
       seaweedfs:
         condition: service_started
@@ -49,7 +49,7 @@ services:
 
   mongo:
     <<: *restart
-    image: mongo:8.0.34
+    image: mongo:8.3.13
     entrypoint: ["/bin/bash", "/opt/mms/mongo-entrypoint.sh"]
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/tmp/mongo-keyfile"]
     environment:
@@ -70,7 +70,7 @@ services:
 
   # One-shot: initiates rs0 and creates one user per service database (rule 1, TRD §15).
   mongo-init:
-    image: mongo:8.0.34
+    image: mongo:8.3.13
     depends_on:
       mongo:
         condition: service_healthy
@@ -91,7 +91,7 @@ services:
 
   redis:
     <<: *restart
-    image: redis:7.4.11-alpine
+    image: redis:7.4.12-alpine
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?}"]
     volumes:
       - redis-data:/data
@@ -168,7 +168,7 @@ services:
 
   seaweedfs:
     <<: *restart
-    image: chrislusf/seaweedfs:4.48
+    image: chrislusf/seaweedfs:4.52
     entrypoint: ["/bin/sh", "/opt/mms/seaweedfs-entrypoint.sh"]
     environment:
       APP_ORIGIN: https://${MMS_HOST}
@@ -186,7 +186,7 @@ services:
 
   # One-shot: creates the four private buckets (TRD §10.1).
   seaweedfs-init:
-    image: chrislusf/seaweedfs:4.48
+    image: chrislusf/seaweedfs:4.52
     depends_on:
       seaweedfs:
         condition: service_started
