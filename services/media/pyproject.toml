@@ -17,7 +17,7 @@ dependencies = [
   "httpx",
   "boto3",
   "pillow>=11",
-  "pillow-heif>=0.21",
+  "pillow-heif>=1.8.1",
 ]
 
 [project.optional-dependencies]
