@@ -10,7 +10,7 @@ dependencies = [
   "mms-common",
   "fastapi",
   "uvicorn[standard]>=0.54.0",
-  "pydantic>=2.14.2",
+  "pydantic>=2.14.3",
   "pydantic-settings",
   "pymongo>=4.13",
   "redis>=8.1.0",
