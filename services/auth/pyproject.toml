@@ -16,7 +16,7 @@ dependencies = [
   "redis>=8.1.0",
   "httpx",
   "argon2-cffi>=25.1.0",
-  "cryptography>=44",
+  "cryptography>=50.0.2",
   "prometheus-client",
   "tzdata",
 ]
