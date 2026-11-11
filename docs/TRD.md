@@ -52,7 +52,7 @@ AWS-MMS is built as **five FastAPI services**, split by business capability. Ngi
 | Frontend | Vue 3.5 (Composition API, TypeScript), Vite, **Vuetify 4** (`vite-plugin-vuetify`, themes and global defaults set to the brand), Material Design Icons (`@mdi/js`, SVG), **Tailwind CSS 4** (no preflight, in a cascade layer between Vuetify's), Pinia, Vue Router, Dexie.js, vite-plugin-pwa (Workbox, `injectManifest`), Web Locks API, Leaflet + Leaflet.markercluster, jsQR (QR decoding in a same-origin worker; `qr-scanner` is not used, finding F16), qrcode (drawing a station's label), signature_pad, date-fns + @date-fns/tz, ApexCharts (`vue3-apexcharts`) |
 | Backend | Python 3.13, FastAPI, Pydantic v2, PyMongo async API (`AsyncMongoClient`), httpx, aiokafka, structlog |
 | Background jobs | `mms_common.jobs` (a Redis queue with a lease) and Redis-locked cron (arq was planned; see §9) |
-| Database | MongoDB 8 replica set |
+| Database | MongoDB 9 replica set |
 | Event streaming | Apache Kafka 4.x (KRaft mode, no ZooKeeper) |
 | Cache / queues / pub-sub | Redis 7.4+ (AOF persistence) |
 | Object storage | **SeaweedFS** (S3 API). See R6 |
@@ -1323,7 +1323,7 @@ The first install must be quick on a phone's link, because until it ends the pho
 | media-worker | same image as media | `python -m app.worker` (Redis queue); `cpus: 2` |
 | report | python:3.13-slim + WeasyPrint dependencies + Chromium (Playwright) | API |
 | report-worker | same image as report | Redis queue |
-| mongo | mongo:8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
+| mongo | mongo:9.0.8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
 | kafka | apache/kafka:4.x | KRaft combined mode; data on SSD |
 | kafka-ui | kafbat/kafka-ui | Internal only |
 | redis | redis:7.4 | `appendonly yes` |
