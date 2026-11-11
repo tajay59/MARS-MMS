@@ -2,8 +2,11 @@ FROM python:3.13-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 
+# Security fixes the base image has not picked up yet: a scan reports a package as soon as
+# Debian ships a fix, and the python image is rebuilt later.
 # ffmpeg makes the playable copy of a phone's video (TRD §10); photos use Pillow from pip.
 RUN apt-get update \
+    && apt-get -y upgrade \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
