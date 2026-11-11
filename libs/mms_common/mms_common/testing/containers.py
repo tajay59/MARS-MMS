@@ -15,6 +15,7 @@ import socket
 import subprocess
 import time
 import uuid
+import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -77,9 +78,13 @@ def _wait(check, what: str, seconds: int = 90, container: tuple[str, str] | None
     detail = ""
     if container:
         docker, name = container
-        logs = subprocess.run([docker, "logs", "--tail", "30", name], capture_output=True,
+        logs = subprocess.run([docker, "logs", "--tail", "80", name], capture_output=True,
                               text=True)
-        detail = f"\n{logs.stdout}{logs.stderr}"
+        # mongosh runs through `docker exec` while we wait and leaves a stream of harmless chown
+        # lines in the log, which used to push mongod's own output out of the tail.
+        lines = [line for line in f"{logs.stdout}{logs.stderr}".splitlines()
+                 if "am-unknown.json.lock" not in line][-30:]
+        detail = "\n" + "\n".join(lines)
     raise TimeoutError(f"{what} did not start in {seconds} s{detail}")
 
 
@@ -105,7 +110,15 @@ def mongo_uri(docker):
             )
             return "true" in r.stdout
 
-        _wait(initiated, "mongo", container=(docker, name))
+        # On some CI runners mongod hangs at start without writing a line (SERVER-121912 and kin:
+        # seen in W21 on mms_common, report and media). A restarted process gets a fresh start, so
+        # one restart after 45 s turns that flake into a short delay; the warning keeps count.
+        try:
+            _wait(initiated, "mongo", seconds=45, container=(docker, name))
+        except TimeoutError as first:
+            warnings.warn(f"mongod did not start in 45 s; restarting once. {first}", stacklevel=1)
+            subprocess.run([docker, "restart", name], capture_output=True, check=False)
+            _wait(initiated, "mongo (after a restart)", container=(docker, name))
         _wait(primary, "mongo primary", container=(docker, name))
         # directConnection: the set advertises "localhost:27017", unreachable from the host.
         yield f"mongodb://127.0.0.1:{port}/?directConnection=true"
