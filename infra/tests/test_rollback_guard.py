@@ -86,6 +86,32 @@ def test_another_line_of_history_is_refused(history):
     assert guard(history, "other", "e").returncode == 1
 
 
+@pytest.fixture
+def mongo_history(tmp_path):
+    run(tmp_path, GIT, "init", "-q", "-b", "main")
+    old = commit(tmp_path, "old image", {"infra/compose.yml": "  mongo:\n    image: mongo:8.0.34\n"})
+    code = commit(tmp_path, "code only", {"services/auth/app/main.py": "x = 1"})
+    new = commit(tmp_path, "new image", {"infra/compose.yml": "  mongo:\n    image: mongo:9.0.8\n"})
+    later = commit(tmp_path, "docs only", {"docs/x.md": "z"})
+    return {"repo": tmp_path, "old": old, "code": code, "new": new, "later": later}
+
+
+def test_a_rollback_over_a_mongodb_image_change_is_refused(mongo_history):
+    result = guard(mongo_history, "code", "later")
+    assert result.returncode == 1
+    assert "MongoDB image" in result.stderr and "--allow-older-schema" in result.stderr
+
+
+def test_a_rollback_that_keeps_the_mongodb_image_is_allowed(mongo_history):
+    result = guard(mongo_history, "new", "later")
+    assert result.returncode == 0 and "safe to go back" in result.stdout
+
+
+def test_the_operator_can_go_back_over_a_mongodb_image_change(mongo_history):
+    result = guard(mongo_history, "code", "later", "--allow-older-schema")
+    assert result.returncode == 0 and "going back anyway" in result.stdout
+
+
 def test_an_unknown_commit_is_a_usage_error(history):
     result = run(history["repo"], BASH, str(SCRIPT), "0" * 40, history["a"])
     assert result.returncode == 2

@@ -13,7 +13,7 @@ services:
   # One-shot: a self-signed certificate for MMS_HOST and FILES_HOST, made once.
   # Uses the Mongo image because it already ships openssl: no extra image, no package install.
   dev-certs:
-    image: mongo:8.0.34
+    image: mongo:9.0.8
     entrypoint: ["/bin/sh", "/opt/mms/dev-certs.sh"]
     environment:
       MMS_HOST: ${MMS_HOST}
@@ -25,7 +25,7 @@ services:
 
   # One-shot: the auth signing key, made once (infra/secrets, git-ignored).
   dev-secrets:
-    image: mongo:8.0.34
+    image: mongo:9.0.8
     entrypoint: ["/bin/sh", "/opt/mms/dev-secrets.sh"]
     volumes:
       - ./scripts/dev-secrets.sh:/opt/mms/dev-secrets.sh:ro

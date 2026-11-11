@@ -49,7 +49,7 @@ services:
 
   mongo:
     <<: *restart
-    image: mongo:8.0.34
+    image: mongo:9.0.8
     entrypoint: ["/bin/bash", "/opt/mms/mongo-entrypoint.sh"]
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/tmp/mongo-keyfile"]
     environment:
@@ -70,7 +70,7 @@ services:
 
   # One-shot: initiates rs0 and creates one user per service database (rule 1, TRD §15).
   mongo-init:
-    image: mongo:8.0.34
+    image: mongo:9.0.8
     depends_on:
       mongo:
         condition: service_healthy
