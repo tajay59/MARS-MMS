@@ -205,7 +205,7 @@ Read these before writing a new document or any code. Requirement IDs (AUTH-1, R
   - `platform`: the notification and audit modules, with two databases and two DB users.
 - **Edge and gateway:** Nginx handles TLS, the SPA, path routing to services, `limit_req` rate limits, `X-Request-ID`, and the `files.` host for SeaweedFS. Nginx does not verify JWTs; each service does.
 - **Data:**
-  - A single MongoDB 8 replica set (`rs0`) with **one database and one DB user per service** (`platform` has two).
+  - A single MongoDB 9 replica set (`rs0`) with **one database and one DB user per service** (`platform` has two).
   - Files go to SeaweedFS (S3 API) through presigned direct uploads.
   - Kafka 4.x (KRaft) carries domain events between services.
   - Redis 7.4 holds jobs (arq), cache, leader leases, the login throttle and WebSocket pub/sub.
