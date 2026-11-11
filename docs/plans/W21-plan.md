@@ -30,8 +30,24 @@ Release 0.7.0 is on staging and checked by people, the dependency updates are de
 - **Held, each needs its own look:**
   - #128 TypeScript 7: `openapi-typescript@7.13.0` does not accept it (ERESOLVE). Close and revisit when it does.
   - #126 ESLint 10, #129 `@types/node` 26, #125 frontend group: a check is failing on each; some of these are the Mongo start flake (rerun), not the code.
-  - #122 and #124 (`infra` images): move **Mongo 8.0.34 to 8.3.13** on staging, whose database holds the real stations, plus Prometheus 3.5 to 3.15, Grafana 12.0 to 12.4, SeaweedFS 4.48 to 4.50 and others. A server upgrade needs a plan (feature compatibility version, a backup first, and the rollback guard refuses going back). Do not merge as a batch; split Mongo from the monitoring images.
+  - #122 and #154 (`infra` images): propose **Mongo 8.0.34 to 8.3.13** plus Prometheus 3.5 to 3.15, Grafana 12.0 to 12.4, SeaweedFS 4.48 to 4.50 and others. Superseded for Mongo by the decision to go to MongoDB 9 (section below); #154's other images are looked at on their own after that merges.
+  - **Update 2026-11-11:** the Trivy fix (zlib1g, #168) is merged; #169 groups Dependabot by dependency; #156 to #167 (floor bumps only) were closed; #128 closed (TypeScript 7).
 - **Mongo start flake:** `mongo did not start in 90 s` still hits some runners despite `GLIBC_TUNABLES`. Look at the runner kernel range before W22.
+
+## MongoDB 9 (decided 2026-11-11, decisions W21-1 and W21-2)
+
+The product owner chose MongoDB 9, not the 8.3 that Dependabot proposed (#122, #154). `mongo:9.0.8` is pinned in the stack, the dev stack, the backup image and the test fixture; `pymongo>=4.18` (first fully compatible release). 8.0 to 9.0 is a direct upgrade and needs FCV 8.0. Local proof: `mms_common` 149 tests on a real 9.0.8 container, platform and auth suites, then CI on the PR.
+
+**Staging runbook (by hand; the PR's merge restarts `mongo` on the new image, which is step 1):**
+
+1. **Deploy** (merge). Compose recreates `mongo` on 9.0.8 with the existing volume. mongod 9 opens FCV 8.0 data. The way back is open: a rollback to the previous SHA needs `--allow-older-schema` in the guard (decision W21-2), and runs 8.0.34 on the unchanged data.
+2. **Check, before anything else:** every service healthy; `mongosh ... --eval 'db.adminCommand({getParameter:1, featureCompatibilityVersion:1})'` still says `8.0`; the station list loads; `verify-audit` on the chain is clean; Grafana's Mongo panels fill (the `percona/mongodb_exporter:0.44.0` image against a 9.0 server is the one thing not tested in CI); look for `ExceededMemoryLimit` in the service logs (9.0 limits one operation to 1 GB or 20% of memory).
+3. **Soak** a few days with real use. Rolling back is still safe in this window.
+4. **Back up for real** with the new backup image (`backup.sh mongo`), copy it off the host, and run the restore into staging as the drill (this also closes the open W20 exit check).
+5. **Raise FCV** only then: `db.adminCommand({setFeatureCompatibilityVersion: "9.0", confirm: true})` on the primary. **From here a rollback means a restore from the backup in step 4.** Never put this in `infra/mongo/init.js`: it runs on every `up` and would close the door by itself.
+6. When 9.0.8 has been stable for the soak: close #122 and #154 as superseded (Dependabot recreates #154 for the monitoring images without the Mongo lines), and, if a run on a CI kernel that failed before passes without `GLIBC_TUNABLES`, drop that variable.
+
+Not covered here: production. The same steps apply when the host exists; do them on staging first.
 
 ## Staging checks for release 0.7
 
