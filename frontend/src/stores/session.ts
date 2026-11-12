@@ -1,4 +1,4 @@
-import type { Me, MePatch, Role } from '@/api/models'
+import type { Me, MePatch, Role, TokenResponse } from '@/api/models'
 import type { EndReason } from '@/app/auth/session'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -16,6 +16,10 @@ import { forgetLogout, rememberLogin } from '@/offline/account'
 import { type OfflineProfile, offlineState } from '@/offline/session'
 import { useThemeStore } from './theme'
 
+export type LoginResult
+  = | { kind: 'signed_in', user: Me }
+    | { kind: 'challenge', challenge: string, enrol: boolean }
+
 const STAFF_ROLES: ReadonlySet<Role> = new Set(['technician', 'admin', 'viewer'])
 
 /*
@@ -28,6 +32,10 @@ export const useSessionStore = defineStore('session', () => {
   /** Why the last session ended, for the /login banner; cleared by the next login. */
   const endedReason = ref<EndReason | null>(null)
   const ready = ref(false)
+  /** Recovery codes left after one was used to log in, said until dismissed (W22). */
+  const recoveryNotice = ref<number | null>(null)
+  /** The setup window's end, for the banner: reactive, because the session changes under it. */
+  const mfaRequiredBy = ref<string | null>(currentSession()?.mfaRequiredBy ?? null)
   /*
     The app started with no signal and this phone has an offline session: the PIN comes first
     (AUTH-12). `unlockState` says what /unlock shows: the keypad (`ready`), or that offline unlock
@@ -43,6 +51,10 @@ export const useSessionStore = defineStore('session', () => {
   onSessionChange((session, reason) => {
     const before = user.value?.id
     user.value = session?.user ?? null
+    mfaRequiredBy.value = session?.mfaRequiredBy ?? null
+    if (!session) {
+      recoveryNotice.value = null
+    }
     offline.value = false
     if (session) {
       locked.value = false
@@ -145,8 +157,29 @@ export const useSessionStore = defineStore('session', () => {
     })
   }
 
-  async function login (email: string, password: string): Promise<Me> {
-    return startSession(await authApi.login(email, password)).user
+  /**
+   * The password step. A person with two-step sign-in (or who must set it up now) gets a
+   * `challenge` instead of a session: the code step finishes it (W22).
+   */
+  async function login (email: string, password: string): Promise<LoginResult> {
+    const answer = await authApi.login(email, password)
+    if ('mfa_required' in answer) {
+      return { kind: 'challenge', challenge: answer.challenge, enrol: answer.enrol }
+    }
+    return { kind: 'signed_in', user: startSession(answer).user }
+  }
+
+  function noteRecoveryUsed (left: number): void {
+    recoveryNotice.value = left
+  }
+
+  function dismissRecoveryNotice (): void {
+    recoveryNotice.value = null
+  }
+
+  /** The code step, or enrolment at sign-in, gave a session. */
+  function finishLogin (answer: TokenResponse): Me {
+    return startSession(answer).user
   }
 
   async function acceptInvitation (token: string, password: string): Promise<Me> {
@@ -160,6 +193,13 @@ export const useSessionStore = defineStore('session', () => {
       // Offline or the server is down: the session still ends on this device
     }
     endSession('logged_out')
+  }
+
+  /** Read the profile again, after two-step sign-in was turned on or off. */
+  async function reloadMe (): Promise<Me> {
+    const me = await authApi.me()
+    updateUser(me)
+    return me
   }
 
   async function updateProfile (patch: MePatch): Promise<Me> {
@@ -187,8 +227,14 @@ export const useSessionStore = defineStore('session', () => {
     disableUnlock,
     reconnect,
     login,
+    finishLogin,
+    mfaRequiredBy,
+    recoveryNotice,
+    noteRecoveryUsed,
+    dismissRecoveryNotice,
     acceptInvitation,
     logout,
     updateProfile,
+    reloadMe,
   }
 })

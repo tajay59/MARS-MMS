@@ -25,6 +25,8 @@ export interface Session {
   expiresAt: number
   /** When the refresh cookie expires: the offline PIN session's `offline_until` (TRD §6.1). */
   refreshExpiresAt: string
+  /** The role needs two-step sign-in and the person has none: the end of their setup window (W22). */
+  mfaRequiredBy: string | null
 }
 
 /** Why a refresh ended the session: the /login banner (AFD §5.2, §6). */
@@ -81,6 +83,7 @@ export function fromTokenResponse (body: TokenResponse, now = Date.now()): Sessi
     user: body.user,
     expiresAt: now + body.expires_in * 1000,
     refreshExpiresAt: body.refresh_expires_at,
+    mfaRequiredBy: body.mfa_setup?.required_by ?? null,
   }
 }
 
@@ -95,7 +98,8 @@ export function startSession (body: TokenResponse): Session {
 /** Replace the cached profile after PATCH /me, keeping the token. */
 export function updateUser (user: Me): void {
   if (current) {
-    apply({ ...current, user })
+    // Two-step sign-in turned on ends the setup nudge; turning it off is refused for the roles that need it
+    apply({ ...current, user, mfaRequiredBy: user.totp_enabled ? null : current.mfaRequiredBy })
   }
 }
 

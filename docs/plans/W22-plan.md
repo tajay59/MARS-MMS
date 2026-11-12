@@ -62,6 +62,16 @@ Where the build differs from the text above:
 - **`AUTH_TOTP_KEY` is required by `compose.yml`** (`:?`) and by the service outside `local`. `.env.example` has a dev value. **Staging's `infra/.env` needs a generated key (`openssl rand -base64 32`) before this merges**, or the deploy stops at "required variable missing" without changing anything.
 - Until slice 3, an admin with two-step sign-in on cannot sign in through the current screens (the app does not send `supports_mfa`, so it gets 401 `update_required`). Nobody is enrolled on staging; do not enrol anyone before 0.8.
 
+**Slice 3 (screens) is built** on `feat/p7-w22-totp-screens` (stacked on slice 1), from the "AWS-MMS W22 screens" boards approved 2026-11-12 (answers: reset is a danger button; no print; no reason on reset; the banner on all pages). `features/auth/twoStep/` (`LoginCodeStep`, `LoginEnrolStep`, `OtpField` on Vuetify's `VOtpInput`, `TwoStepQr` with the lazy `qrCode.ts`, `RecoveryCodes`, pure `twoStep.ts`), `features/profile/{TwoStepCard,TwoStepEnrolDialog,TwoStepProofDialog}`, `features/admin/TwoStepResetDialog`, `components/MfaNotices` (the banner, in the app and field shells, and the recovery-code toast), the session store's `login` (a `challenge` result), `finishLogin`, `reloadMe`, `mfaRequiredBy`. Playwright `e2e/totp.spec.ts` (four journeys; the code is computed in the test from the secret on screen, RFC 6238); Vitest 776.
+
+Where the build differs from the approved boards:
+
+- **Users is a table, not a list with a detail pane**, so Reset is a row action in a new "Two-step" column (a chip and a "Reset" button, not offered on your own row).
+- **No "On since" date** on the card: `Me` has no enrolment date. Adding `totp_enabled_at` is one field in auth if wanted.
+- **Enrolment at login** shows a plain "Your time to set this up has ended" (the challenge carries no date), and no step bar.
+- **The old-app message** ("Reload it, then log in") is mapped but can only be shown by an app that already knows `update_required`; the old app shows its generic wrong-password text. The update prompt is what moves phones to the new release.
+- My profile's form is filled when the person is known, not on every profile change, so turning two-step sign-in on or off does not wipe unsaved edits.
+
 ## Questions on defaults
 
 | # | Question | Default |
