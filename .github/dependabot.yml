@@ -16,10 +16,22 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # A floor in pyproject.toml is only raised when the new release no longer fits it: CI and the
+    # images install the newest release anyway, so a raised floor changes nothing at run time
+    # (W21: 21 such pull requests came in one week).
+    versioning-strategy: increase-if-necessary
+    # group-by makes one pull request per dependency across all the directories, not one per
+    # service. Major versions are their own group so a review of a major is never mixed with
+    # patches.
     groups:
       python:
         patterns: ["*"]
         update-types: [minor, patch]
+        group-by: dependency-name
+      python-major:
+        patterns: ["*"]
+        update-types: [major]
+        group-by: dependency-name
     labels: [dependencies]
 
   - package-ecosystem: npm
@@ -48,6 +60,7 @@ updates:
     groups:
       images:
         patterns: ["*"]
+        group-by: dependency-name
     labels: [dependencies]
 
   - package-ecosystem: docker-compose
