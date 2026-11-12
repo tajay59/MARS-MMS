@@ -22,6 +22,7 @@
     <!-- overscroll-none: no rubber-banding of the whole app in standalone mode (manifest-install.md §5) -->
     <v-main id="main" class="overscroll-none bg-background">
       <div class="flex min-h-full flex-col pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+        <MfaNotices />
         <slot />
       </div>
     </v-main>
@@ -70,6 +71,7 @@
   import { computed, provide } from 'vue'
   import { useRoute } from 'vue-router'
   import { fieldMenu } from '@/app/navigation'
+  import MfaNotices from '@/components/MfaNotices.vue'
   import SyncBadge from '@/components/SyncBadge.vue'
   import { fieldBar } from './fieldBar'
   import { shellKey } from './pane'

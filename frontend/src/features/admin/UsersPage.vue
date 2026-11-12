@@ -39,6 +39,7 @@
               <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Status</th>
               <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Roles</th>
               <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Organization</th>
+              <th class="px-4 py-3 text-xs font-medium text-surface-700" scope="col">Two-step</th>
               <th class="px-4 py-3 text-right text-xs font-medium text-surface-700" scope="col">Last login</th>
             </tr>
           </thead>
@@ -64,13 +65,32 @@
 
               <td class="px-4 text-surface-900">{{ orgName(row.org_id) }}</td>
 
+              <td class="px-4">
+                <span v-if="row.totp_enabled" class="flex flex-wrap items-center gap-1">
+                  <span class="inline-flex h-6 items-center gap-1 rounded-full bg-success-container px-2.5 text-xs font-medium text-on-success-container">
+                    <v-icon :icon="mdiCheck" size="14" />On
+                  </span>
+
+                  <v-btn
+                    v-if="row.id !== user?.id"
+                    :aria-label="`Reset two-step sign-in for ${row.name}`"
+                    class="text-primary"
+                    size="small"
+                    variant="text"
+                    @click="resetting = row"
+                  >Reset</v-btn>
+                </span>
+
+                <span v-else class="text-surface-600">Off</span>
+              </td>
+
               <td class="whitespace-nowrap px-4 text-right tabular-nums text-surface-900">
                 {{ row.last_login_at ? when(row.last_login_at) : 'Never' }}
               </td>
             </tr>
 
             <tr v-if="shown.length === 0">
-              <td class="px-4 py-8 text-center text-surface-600" colspan="5">No users with this status.</td>
+              <td class="px-4 py-8 text-center text-surface-600" colspan="6">No users with this status.</td>
             </tr>
           </tbody>
         </table>
@@ -169,13 +189,15 @@
       </form>
     </v-navigation-drawer>
 
+    <TwoStepResetDialog v-if="resetting" v-model="resetOpen" :user="resetting" @reset="reset" />
+
     <v-snackbar v-model="toast.show" location="bottom" :timeout="6000">{{ toast.text }}</v-snackbar>
   </PageBody>
 </template>
 
 <script lang="ts" setup>
   import type { OrgOut, Role, UserOut } from '@/api/models'
-  import { mdiClose, mdiPlus } from '@mdi/js'
+  import { mdiCheck, mdiClose, mdiPlus } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { computed, onMounted, reactive, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
@@ -189,6 +211,7 @@
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import { useSessionStore } from '@/stores/session'
+  import TwoStepResetDialog from './TwoStepResetDialog.vue'
 
   // /admin/users (AUTH-6, AUTH-11). Pending registrations live on /admin/registrations.
   type Filter = 'all' | 'active' | 'invited' | 'disabled'
@@ -218,6 +241,22 @@
   const errors = ref<Record<string, string>>({})
   const form = reactive({ name: '', email: '', role: 'technician' as Role, orgId: null as string | null, phone: '' })
   const toast = reactive({ show: false, text: '' })
+  // Someone who lost their phone and their recovery codes: another admin resets it (W22-8)
+  const resetting = ref<UserOut | null>(null)
+  const resetOpen = computed({
+    get: () => resetting.value !== null,
+    set: open => {
+      if (!open) {
+        resetting.value = null
+      }
+    },
+  })
+
+  function reset (updated: UserOut): void {
+    users.value = users.value.map(u => u.id === updated.id ? updated : u)
+    toast.text = `Two-step sign-in reset for ${updated.name}. They’re logged out and can set it up again.`
+    toast.show = true
+  }
 
   const filters: { value: Filter, label: string }[] = [
     { value: 'all', label: 'All' },

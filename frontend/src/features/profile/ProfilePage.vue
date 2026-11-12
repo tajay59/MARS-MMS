@@ -81,6 +81,8 @@
             label="New password"
           />
         </section>
+
+        <TwoStepCard v-if="!isClient" />
       </div>
 
       <div class="flex min-w-0 flex-col gap-6">
@@ -167,7 +169,7 @@
   import type { MePatch } from '@/api/models'
   import { storeToRefs } from 'pinia'
   import { computed, onBeforeUnmount, onMounted, reactive, ref, toRef, watch } from 'vue'
-  import { onBeforeRouteLeave } from 'vue-router'
+  import { onBeforeRouteLeave, useRoute } from 'vue-router'
   import { orgsApi } from '@/api/auth'
   import { ApiError, NetworkError } from '@/api/problem'
   import { focusFirstError } from '@/app/composables/focusFirstError'
@@ -185,9 +187,11 @@
   import { userHasPin } from '@/offline/account'
   import { useSessionStore } from '@/stores/session'
   import EmailPreferences from './EmailPreferences.vue'
+  import TwoStepCard from './TwoStepCard.vue'
 
   // /profile for every role (AUTH-13; DBD D2). Viewers may edit their own profile.
   const session = useSessionStore()
+  const route = useRoute()
   const { user, isClient } = storeToRefs(session)
 
   // The device PIN is for technicians and admins; viewers record nothing offline (AUTH-12)
@@ -205,9 +209,18 @@
   if (canInstall.value) {
     parts.splice(4, 0, { id: 'inst-h', label: 'Install the app' })
   }
+  if (!isClient.value) {
+    parts.splice(2, 0, { id: 'ts-h', label: 'Two-step sign-in' })
+  }
   if (canSetPin.value) {
     parts.splice(4, 0, { id: 'pin-sec-h', label: 'Offline PIN' })
   }
+
+  watch(() => route.hash, hash => {
+    if (hash === '#two-step') {
+      jump('ts-h')
+    }
+  })
 
   // Scrolls the view to a section and moves focus there, so keyboard users land in it too
   function jump (id: string): void {
@@ -240,7 +253,10 @@
     return tried.value && form.newPassword && !passwordOk.value ? passwordHint.value : undefined
   })
 
-  watch(user, me => {
+  // Filled when a person is known, not on every change of the profile: turning two-step sign-in
+  // on or off reloads it, and that must not wipe what someone has typed and not saved yet
+  watch(() => user.value?.id, () => {
+    const me = user.value
     if (me) {
       form.name = me.name
       form.phone = me.phone ?? ''
@@ -293,6 +309,9 @@
   }
   onMounted(async () => {
     window.addEventListener('beforeunload', warnOnUnload)
+    if (route.hash === '#two-step') {
+      jump('ts-h')
+    }
     if (user.value && canSetPin.value) {
       pinSet.value = await userHasPin(user.value.id)
     }

@@ -81,6 +81,7 @@
       class="flex min-w-0 grow flex-col bg-surface outline-none md:min-h-0 md:overflow-hidden"
       tabindex="-1"
     >
+      <MfaNotices />
       <slot />
     </main>
 
@@ -97,6 +98,7 @@
   import { useDisplay } from 'vuetify'
   import { dur, DURATION, EASE, gsap } from '@/app/motion'
   import { clientSections, sectionOf, sectionsFor, staffSections } from '@/app/navigation'
+  import MfaNotices from '@/components/MfaNotices.vue'
   import NotificationToast from '@/features/notifications/NotificationToast.vue'
   import { useNotificationsStore } from '@/stores/notifications'
   import { useRegistrationsStore } from '@/stores/registrations'
