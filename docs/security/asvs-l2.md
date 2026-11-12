@@ -1,6 +1,6 @@
 # AWS-MMS against OWASP ASVS 4.0.3, level 2
 
-Reviewed 2026-11-06 (W20 slice 5, plan decision W20-10) against the code on `main`, the running
+Reviewed 2026-11-06 (W20 slice 5, plan decision W20-10); lines 2.2.x, 2.8.x and 4.3.1 updated 2026-11-12 (W22, the second factor) against the code on `main`, the running
 local stack and an OWASP ZAP passive baseline. It lists the chapters that apply to a web
 application and API with file uploads: V2, V3, V4, V5, V7, V8, V9, V12, V13 and V14. V1
 (architecture), V6 (cryptography at rest), V10 (malicious code), V11 (business logic), V16
@@ -20,7 +20,7 @@ known design decision, not a hidden hole.
 | **Deviation** | Not done as ASVS words it; see the numbered deviation (D-n) and its decision |
 | **n/a** | The feature does not exist, so there is nothing to verify |
 
-**Summary: 89 lines. 80 met (10 of them with a note), 4 deviations from ASVS's wording (D-1 to D-4), 5 not applicable.** One more accepted trade-off sits on a line that is met (D-5, styles in the CSP).
+**Summary: 90 lines. 83 met (10 of them with a note), 2 deviations from ASVS's wording (D-3 and D-4), 5 not applicable.** D-1 (password length) and D-2 (the second factor) were closed on 2026-11-12. One more accepted trade-off sits on a line that is met (D-5, styles in the CSP).
 Fixed by this review: no `frame-ancestors`, `base-uri` or `form-action` in the CSP (14.4.x), no
 Cross-Origin-Opener-Policy, `Cache-Control: no-store` missing on the platform service's API
 (8.2.1), no capability drop on our containers (14.1). Added: the cross-organization run through
@@ -31,7 +31,7 @@ Nginx, `pip-audit` and `npm audit` in CI, Dependabot, a nightly ZAP baseline.
 | # | ASVS | What ASVS asks | What we do | Why, and what would close it |
 |---|---|---|---|---|
 | **D-1** | 2.1.1 | Passwords of at least 12 characters | At least **12** since 2026-11-12 (`AUTH-9`, `services/auth/app/domain/passwords.py`), checked against a breached list | **Decided 2026-11-12: raised to 12; closed.** Passwords already set stay valid until they are changed |
-| **D-2** | 2.2.x, 2.8.x | Multi-factor sign-in for the roles that can do most harm | None in v1; admins sign in with a password | Not in the PRD. An admin account is the one to protect. **Decided 2026-11-12: build TOTP for admins before the pilot** (decision W21-3; planned in `docs/plans/W22-plan.md`) |
+| **D-2** | 2.2.x, 2.8.x | Multi-factor sign-in for the roles that can do most harm | **Closed 2026-11-12 (W22, decision W22-1 to W22-10).** TOTP is required for admins (a 7-day setup window, then sign-in is blocked until enrolled), optional for other staff, and not offered to clients | The product owner answered D-2 on 2026-11-12: build it before the pilot. The second factor is asked at sign-in only, never at a refresh, so the 30-day session and the offline PIN are unchanged (D-3 still stands) |
 | **D-3** | 3.3.2 | Re-authentication after 12 hours, or 30 minutes idle, at L2 | A refresh session slides for **30 days** (`AUTH-12`); access tokens last 15 minutes | By design: a technician works offline for days and opens the app with a device PIN. Mitigations: 15-minute access tokens, an admin disabling a user ends every session at once (Redis revocation list), five wrong PINs require an online sign-in, a restore ends all sessions (W20-9). **Accepted 2026-11-12 (30 days, same for admins)** |
 | **D-4** | 9.2.2 | TLS on every connection, including between backend components | Traffic between our containers on the one host's private Docker network is not TLS; every store requires authentication (Mongo users, Kafka SASL/SCRAM, Redis password, service tokens) | Single host, no published ports except Nginx. **Accepted 2026-11-12 for one host**; add TLS between components if the stack is ever split across hosts. Backups leave the host over SFTP, encrypted before they leave |
 | **D-5** | 14.4.x | A CSP without `unsafe-inline` for styles | `style-src 'self' 'unsafe-inline'` | Vuetify writes inline style attributes. Scripts are `script-src 'self'` (no inline, no eval). **Accepted 2026-11-12**; revisit with a nonce when Vuetify supports it cleanly |
@@ -47,7 +47,7 @@ Nginx, `pip-audit` and `npm audit` in CI, Dependabot, a nightly ZAP baseline.
 | 2.1.7 breached passwords refused | Met, note | `repo/breached.py`: the HIBP range API (k-anonymity), a local file when it is unreachable; **fails open** with a metric when neither answers, so a break in the check never locks anyone out (W3) |
 | 2.1.9 no composition rules | Met | Length and list only |
 | 2.2.1 anti-automation | Met | Five failures lock an email for 15 minutes (`repo/throttle.py`, `test_five_failures_lock_the_email_for_15_minutes`); Nginx `limit_req` zone `auth` 10 a minute on login, register and reset |
-| 2.2.x multi-factor | **Deviation D-2** | None |
+| 2.2.x multi-factor | Met, note | `POST /api/v1/auth/login` answers a challenge instead of a session when the person has TOTP, and `POST /login/totp` finishes it (`services/auth/app/api/totp_routes.py`; `test_a_correct_password_alone_is_not_a_session`). Required for the `admin` role (`AUTH_TOTP_REQUIRED_ROLES`): inside the window an admin signs in and sees a banner, after it only through enrolment (`test_after_the_window_an_admin_signs_in_only_through_enrolment`). Wrong codes share the five-failure account lock (`test_five_wrong_codes_lock_the_account_for_the_password_too`). Note: not asked at a refresh (D-3), not offered to clients, optional for other staff |
 | 2.3.1 initial secrets random and expiring | Met | Invitation and reset links are random single-use tokens, 7 days and 1 hour (`test_reset_link_expires_after_an_hour`), minted when the email is sent and never put in an event (W3) |
 | 2.4.1 / 2.4.2 / 2.4.4 password storage | Met | Argon2id, time 3, 64 MiB, parallelism 4, per-password salt (`config.py`) |
 | 2.5.1 recovery secret not sent in clear | Met | Links, not passwords; the email carries a link to set one |
@@ -55,7 +55,8 @@ Nginx, `pip-audit` and `npm audit` in CI, Dependabot, a nightly ZAP baseline.
 | 2.5.3 recovery does not reveal the current password | Met | |
 | 2.5.4 no default accounts | Met | `create-admin` makes the first admin from a prompt or an environment variable; `seed` refuses production |
 | 2.5.6 recovery cannot be used to find accounts | Met | `test_reset_request_always_answers_202`, `test_registering_an_existing_email_looks_the_same_and_changes_nothing`, `test_wrong_password_and_unknown_email_look_the_same` |
-| 2.6 / 2.7 / 2.8 lookup secrets, out-of-band, one-time codes | n/a | None used |
+| 2.6 / 2.7 lookup secrets, out-of-band | n/a | None used |
+| 2.8.x one-time codes (TOTP) | Met | RFC 6238, HMAC-SHA1, 6 digits, 30 s, one step either side, **a step already used is refused** (`domain/totp.py`; `test_rfc_6238_vectors`, `test_a_step_already_used_is_a_replay`, `test_a_code_cannot_be_used_twice`). The secret is 20 random bytes, sealed with AES-GCM under `AUTH_TOTP_KEY` and bound to its user (`test_the_secret_is_sealed_at_rest_and_bound_to_its_user`); shown once. Ten recovery codes, hashed, single use (`test_a_recovery_code_signs_in_once_and_says_how_many_are_left`). The challenge between the two steps is a random single-use token kept in Redis for 5 minutes, at most 5 tries, bound to its purpose (`test_a_challenge_is_used_once`, `test_a_challenge_is_bound_to_its_purpose`). No secret, code or hash is in any event or log (`test_no_event_holds_a_secret_a_code_or_a_hash`) |
 | 2.10.1 / 2.10.2 service authentication | Met | Service tokens (short-lived, audience-checked, EdDSA) from `/internal/token`; secrets per service in the host's `.env`, never in the repo; Kafka, Mongo and Redis each need a login of their own |
 
 ## V3 Session management
@@ -85,7 +86,7 @@ Nginx, `pip-audit` and `npm audit` in CI, Dependabot, a nightly ZAP baseline.
 | 4.1.5 fail securely | Met | An unknown role fails at import (`test_unknown_role_name_fails_at_import`); an unreachable revocation list refuses |
 | 4.2.1 no direct object reference across users | Met | Org scope lives in the repository layer; out of scope answers 404 exactly like a missing record (ADR-16). **Proved from outside by `infra/tests/test_org_isolation.py`**: 25 checks through Nginx as a client of organization A against organization B's station, request, comments, sensor unit, QR token, and the lists |
 | 4.2.2 CSRF | Met | The API reads a bearer header, not a cookie; the one cookie is `SameSite=Strict` and read only by `/auth/refresh` and `/auth/logout` |
-| 4.3.1 administrative interfaces protected | Met, note | Admin routes need the `admin` role (matrix tests, every service). No second factor: D-2 |
+| 4.3.1 administrative interfaces protected | Met | Admin routes need the `admin` role (matrix tests, every service), and an admin signs in with a second factor (2.2.x, 2.8.x) |
 | 4.3.2 no directory browsing, no leftover files | Met | Nginx serves the SPA build and `/tiles/` only; `/.releases/`, `/internal/`, `/.well-known/`, `/metrics` answer 404 (`test_the_gateway_does_not_publish_metrics_or_internal_routes`) |
 | Authorization matrix | Met | `tests/api/test_authorization_matrix.py` in every service lists each route against each role and fails when a route is missing |
 

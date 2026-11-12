@@ -72,6 +72,8 @@ Where the build differs from the approved boards:
 - **The old-app message** ("Reload it, then log in") is mapped but can only be shown by an app that already knows `update_required`; the old app shows its generic wrong-password text. The update prompt is what moves phones to the new release.
 - My profile's form is filled when the person is known, not on every profile change, so turning two-step sign-in on or off does not wipe unsaved edits.
 
+**Slice 4 (close-out) is built** on `feat/p7-w22-closeout` (stacked on slice 3), 2026-11-12: the docs site (`#auth-twostep` with the sequence and the enforcement decision tree, the routes, settings, events, decisions W22-1 to W22-10 as built, status and changelog), TRD 2.25 (§6.1.2), PRD 1.6 (AUTH-14), AFD 1.9, BSD 1.12, TP 1.5, IP, CLAUDE.md, the ASVS review (2.2.x, 2.8.x and 4.3.1 now met: 90 lines, 83 met, 2 deviations, 5 n/a) and the frontend version 0.8.0. The build differs from the text above in one more place: the new-event count is six, not five, plus `mfa` on `auth.login_succeeded`. **Release 0.8.0 is not tagged or on staging yet**: it needs `AUTH_TOTP_KEY` on the host first, then the three PRs merged in order, then the staging check in the Exit section.
+
 ## Questions on defaults
 
 | # | Question | Default |
