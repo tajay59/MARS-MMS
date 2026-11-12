@@ -38,7 +38,7 @@ export class ApiError extends Error {
     this.body = body ?? {}
   }
 
-  /** The first message per body field: `{ password: 'Use at least 10 characters' }`. */
+  /** The first message per body field: `{ password: 'Use at least 12 characters' }`. */
   fieldErrors (): Record<string, string> {
     const out: Record<string, string> = {}
     for (const e of this.errors) {

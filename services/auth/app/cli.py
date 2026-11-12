@@ -42,7 +42,7 @@ from app import migrations as app_migrations
 from app.config import Settings
 from app.domain import org_import
 from app.domain import users as rules
-from app.domain.passwords import Hasher
+from app.domain.passwords import MIN_LENGTH, Hasher
 from app.events.publish import Emitter, ev
 from app.repo import organizations
 from app.repo import users as users_repo
@@ -260,13 +260,13 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(revoke_all_sessions(args.reason))
     if args.command == "create-admin":
         password = os.environ.get("AUTH_ADMIN_PASSWORD") or getpass.getpass("Password: ")
-        if len(password) < 10:
-            print("Use at least 10 characters", file=sys.stderr)
+        if len(password) < MIN_LENGTH:
+            print(f"Use at least {MIN_LENGTH} characters", file=sys.stderr)
             return 1
         return asyncio.run(create_admin(args.email, args.name, password))
     password = os.environ.get("AUTH_SEED_PASSWORD", "")
-    if len(password) < 10:
-        print("Set AUTH_SEED_PASSWORD (at least 10 characters)", file=sys.stderr)
+    if len(password) < MIN_LENGTH:
+        print(f"Set AUTH_SEED_PASSWORD (at least {MIN_LENGTH} characters)", file=sys.stderr)
         return 1
     return asyncio.run(seed(password))
 

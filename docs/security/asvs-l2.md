@@ -30,17 +30,17 @@ Nginx, `pip-audit` and `npm audit` in CI, Dependabot, a nightly ZAP baseline.
 
 | # | ASVS | What ASVS asks | What we do | Why, and what would close it |
 |---|---|---|---|---|
-| **D-1** | 2.1.1 | Passwords of at least 12 characters | At least **10** (`AUTH-9`, `services/auth/app/domain/passwords.py`), checked against a breached list | A product decision from the PRD. Closing it is one constant and the PRD line; passwords already set stay valid. **Recommended: raise to 12** |
-| **D-2** | 2.2.x, 2.8.x | Multi-factor sign-in for the roles that can do most harm | None in v1; admins sign in with a password | Not in the PRD. An admin account is the one to protect. **Recommended: TOTP for admins in a later release** (not before the pilot) |
-| **D-3** | 3.3.2 | Re-authentication after 12 hours, or 30 minutes idle, at L2 | A refresh session slides for **30 days** (`AUTH-12`); access tokens last 15 minutes | By design: a technician works offline for days and opens the app with a device PIN. Mitigations: 15-minute access tokens, an admin disabling a user ends every session at once (Redis revocation list), five wrong PINs require an online sign-in, a restore ends all sessions (W20-9). **Accept, or shorten for admins** |
-| **D-4** | 9.2.2 | TLS on every connection, including between backend components | Traffic between our containers on the one host's private Docker network is not TLS; every store requires authentication (Mongo users, Kafka SASL/SCRAM, Redis password, service tokens) | Single host, no published ports except Nginx. **Accept for one host**; add TLS between components if the stack is ever split across hosts. Backups leave the host over SFTP, encrypted before they leave |
-| **D-5** | 14.4.x | A CSP without `unsafe-inline` for styles | `style-src 'self' 'unsafe-inline'` | Vuetify writes inline style attributes. Scripts are `script-src 'self'` (no inline, no eval). **Accept**; revisit with a nonce when Vuetify supports it cleanly |
+| **D-1** | 2.1.1 | Passwords of at least 12 characters | At least **12** since 2026-11-12 (`AUTH-9`, `services/auth/app/domain/passwords.py`), checked against a breached list | **Decided 2026-11-12: raised to 12; closed.** Passwords already set stay valid until they are changed |
+| **D-2** | 2.2.x, 2.8.x | Multi-factor sign-in for the roles that can do most harm | None in v1; admins sign in with a password | Not in the PRD. An admin account is the one to protect. **Decided 2026-11-12: build TOTP for admins before the pilot** (decision W21-3; planned in `docs/plans/W22-plan.md`) |
+| **D-3** | 3.3.2 | Re-authentication after 12 hours, or 30 minutes idle, at L2 | A refresh session slides for **30 days** (`AUTH-12`); access tokens last 15 minutes | By design: a technician works offline for days and opens the app with a device PIN. Mitigations: 15-minute access tokens, an admin disabling a user ends every session at once (Redis revocation list), five wrong PINs require an online sign-in, a restore ends all sessions (W20-9). **Accepted 2026-11-12 (30 days, same for admins)** |
+| **D-4** | 9.2.2 | TLS on every connection, including between backend components | Traffic between our containers on the one host's private Docker network is not TLS; every store requires authentication (Mongo users, Kafka SASL/SCRAM, Redis password, service tokens) | Single host, no published ports except Nginx. **Accepted 2026-11-12 for one host**; add TLS between components if the stack is ever split across hosts. Backups leave the host over SFTP, encrypted before they leave |
+| **D-5** | 14.4.x | A CSP without `unsafe-inline` for styles | `style-src 'self' 'unsafe-inline'` | Vuetify writes inline style attributes. Scripts are `script-src 'self'` (no inline, no eval). **Accepted 2026-11-12**; revisit with a nonce when Vuetify supports it cleanly |
 
 ## V2 Authentication
 
 | ASVS | Result | Evidence |
 |---|---|---|
-| 2.1.1 length | **Deviation D-1** | `MIN_LENGTH = 10` in `domain/passwords.py` |
+| 2.1.1 length | Met (D-1 closed 2026-11-12) | `MIN_LENGTH = 12` in `domain/passwords.py` |
 | 2.1.2 long passwords allowed | Met, note | Up to 256 characters; ASVS asks for 64 allowed and over 128 refused. Harmless difference |
 | 2.1.3 / 2.1.4 no truncation, all characters | Met | The whole value is hashed (Argon2); no composition rules, only length and the breached list |
 | 2.1.5 / 2.1.6 users change their password with the current one | Met | `PATCH /api/v1/auth/me` takes `current_password` and `new_password` (`MePatch`) |
