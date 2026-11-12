@@ -3,6 +3,7 @@ clock, the seed users (TP), and helpers to read the outbox."""
 
 from __future__ import annotations
 
+import base64
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -13,17 +14,28 @@ import pytest_asyncio
 from argon2 import PasswordHasher
 from mms_common.events import Envelope, validate
 from mms_common.ids import new_id
-from mms_common.testing.seed import ORG_A, ORG_B, SEED_USERS, TestIssuer
+from mms_common.testing.seed import (
+    ADMIN_MFA_TOTP_SECRET,
+    ORG_A,
+    ORG_B,
+    SEED_USERS,
+    TestIssuer,
+)
 from mms_common.time import ManualClock
 from pymongo import AsyncMongoClient
 
 from app.config import Settings
+from app.domain import recovery, totp
 from app.main import create_app
+from app.repo import totp as totp_repo
 
 pytest_plugins = ["mms_common.testing.containers"]
 
 PASSWORD = "correct horse battery"  # noqa: S105 - every seed user's password, tests only
 BASE = "https://mms.test"
+TOTP_KEY = base64.b64encode(b"test-only-totp-key-32-bytes-long").decode()
+SECRET = totp.from_base32(ADMIN_MFA_TOTP_SECRET)
+RECOVERY = "ABCDE-FGHJK"  # one known, unused recovery code of `admin_mfa`
 _HASH = PasswordHasher(time_cost=1, memory_cost=1024, parallelism=1).hash(PASSWORD)
 
 
@@ -77,6 +89,18 @@ class Auth:
             "/api/v1/auth/login", json={"email": email, "password": password}
         )
 
+    def code(self, secret: bytes = SECRET, *, steps: int = 0) -> str:
+        """The authenticator app's code now (the test clock), `steps` periods away."""
+        return totp.code_at(secret, self.clock.now().timestamp() + steps * totp.STEP_S)
+
+    async def login_mfa(
+        self, email: str = "admin.mfa@example.org", client: httpx.AsyncClient | None = None
+    ) -> httpx.Response:
+        return await (client or self.http).post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": PASSWORD, "supports_mfa": True},
+        )
+
     async def user(self, key: str) -> dict[str, Any]:
         doc: dict[str, Any] = await self.db["users"].find_one({"_id": SEED_USERS[key].id})
         return doc
@@ -95,6 +119,15 @@ class Auth:
         return doc
 
 
+def _mfa_fields(user_id: str, now: datetime) -> dict[str, Any]:
+    """`admin_mfa` has two-step sign-in on, with a known secret and one known recovery code."""
+    sealed = totp_repo.seal(base64.b64decode(TOTP_KEY), SECRET, user_id)
+    _, records = recovery.generate()
+    records[0] = {"hash": recovery.hash_code(RECOVERY), "used_at": None}
+    return {"totp": {"secret_enc": sealed, "enabled_at": now, "last_step": 0},
+            "recovery_codes": records}
+
+
 async def _seed(db: Any, now: datetime) -> None:
     for org_id, name in ((ORG_A, "Organization A"), (ORG_B, "Organization B")):
         await db["organizations"].insert_one({
@@ -111,6 +144,7 @@ async def _seed(db: Any, now: datetime) -> None:
             "status": user.status, "rejection_reason": None, "last_login_at": None,
             "created_at": now, "updated_at": now, "created_by": None, "updated_by": None,
             "version": 1,
+            **(_mfa_fields(user.id, now) if user.key == "admin_mfa" else {}),
         })
 
 
@@ -124,7 +158,7 @@ async def auth(mongo_uri, redis_url):
     settings = Settings(
         mongo_uri=mongo_uri, mongo_db=db_name, redis_url=redis_url, run_background=False,
         app_url="https://mms.test", service_secrets={"platform": "platform-secret"},
-        argon2_time_cost=1, argon2_memory_kib=1024, argon2_parallelism=1,
+        argon2_time_cost=1, argon2_memory_kib=1024, argon2_parallelism=1, totp_key=TOTP_KEY,
     )
     from redis.asyncio import Redis
 

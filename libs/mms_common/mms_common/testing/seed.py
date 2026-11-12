@@ -20,6 +20,11 @@ from mms_common.auth.tokens import (
 )
 from mms_common.time import Clock
 
+# The admin with two-step sign-in turned on (W22): its authenticator secret is known, so tests and
+# the Playwright journeys can compute a code. Tests only; the secret is public in this repo.
+# `admin` stays without one, so every other service's tests and journeys sign in by password.
+ADMIN_MFA_TOTP_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"  # noqa: S105 - 20 bytes, base32
+
 ORG_A = "01900000-0000-7000-8000-00000000a000"
 ORG_B = "01900000-0000-7000-8000-00000000b000"
 
@@ -47,6 +52,7 @@ SEED_USERS: dict[str, SeedUser] = {
         SeedUser("client_a2", _id(0xA2), "Client A2", "client.a2@example.org", ("client",), ORG_A),
         SeedUser("client_b1", _id(0xB1), "Client B1", "client.b1@example.org", ("client",), ORG_B),
         SeedUser("admin", _id(0xAD), "Admin", "admin@example.org", ("admin",)),
+        SeedUser("admin_mfa", _id(0xAE), "Admin MFA", "admin.mfa@example.org", ("admin",)),
         SeedUser("tech1", _id(0x71), "Tech 1", "tech1@example.org", ("technician",)),
         SeedUser("tech2", _id(0x72), "Tech 2", "tech2@example.org", ("technician",)),
         SeedUser(

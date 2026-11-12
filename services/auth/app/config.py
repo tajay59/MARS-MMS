@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+
 from mms_common.kafka import KafkaAuth, kafka_auth
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -46,6 +48,15 @@ class Settings(BaseSettings):
     login_lock_s: int = 900
     reset_requests_per_hour: int = 3
 
+    # Second factor (W22). The key seals the TOTP secrets at rest: 32 random bytes, base64. Required
+    # outside `local`. Losing it makes every enrolled secret unreadable (every TOTP is then reset).
+    totp_key: SecretStr | None = None
+    totp_issuer: str = "MARS-MMS"
+    totp_grace_days: int = 7
+    totp_required_roles: list[str] = ["admin"]
+    mfa_challenge_ttl_s: int = 300
+    mfa_challenge_tries: int = 5
+
     # Breached-password check (AUTH-9, T1): "hibp" (k-anonymity range API, falling back to the
     # local file when unreachable), "file" (local SHA-1 list only) or "off" (tests only).
     breached_check: str = "hibp"
@@ -57,6 +68,17 @@ class Settings(BaseSettings):
     argon2_time_cost: int = 3
     argon2_memory_kib: int = 65536
     argon2_parallelism: int = 4
+
+    @property
+    def totp_key_bytes(self) -> bytes | None:
+        """The sealing key, or None when not set. A key that isn't 32 bytes of base64 is an error
+        at start-up, never a silent fallback."""
+        if self.totp_key is None:
+            return None
+        key = base64.b64decode(self.totp_key.get_secret_value(), validate=True)
+        if len(key) != 32:
+            raise ValueError("AUTH_TOTP_KEY must be 32 bytes, base64 encoded")
+        return key
 
     @property
     def docs_enabled(self) -> bool:

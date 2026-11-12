@@ -6,7 +6,9 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from mms_common.ids import UUID7_PATTERN
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+from app.domain import recovery
 
 Id = Annotated[str, StringConstraints(pattern=UUID7_PATTERN)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -46,6 +48,53 @@ class RegisterIn(In):
 
 class LoginIn(In):
     email: Annotated[str, StringConstraints(max_length=254)]
+    password: Password
+    # The app can show the second step. Without it, a person who needs one is told to reload the
+    # app instead of being sent a challenge it can't read (W22, "Old clients").
+    supports_mfa: bool = False
+
+
+Code = Annotated[str, StringConstraints(min_length=6, max_length=12)]
+RecoveryCode = Annotated[str, StringConstraints(min_length=10, max_length=24)]
+
+
+class OneFactor(In):
+    """A code from the authenticator app, or one recovery code: exactly one."""
+
+    code: Code | None = None
+    recovery_code: RecoveryCode | None = None
+
+    @model_validator(mode="after")
+    def exactly_one(self) -> OneFactor:
+        if (self.code is None) == (self.recovery_code is None):
+            raise ValueError("Give either code or recovery_code")
+        return self
+
+
+class LoginTotpIn(OneFactor):
+    challenge: Token
+
+
+class EnrolBeginIn(In):
+    challenge: Token
+
+
+class EnrolConfirmIn(In):
+    challenge: Token
+    code: Code
+
+
+class TotpBeginIn(In):
+    password: Password
+
+
+class TotpConfirmIn(In):
+    code: Code
+
+
+class TotpProofIn(OneFactor):
+    """Changing the second factor takes the password and a current code."""
+
     password: Password
 
 
@@ -165,6 +214,8 @@ class Me(BaseModel):
     time_zone: str | None
     theme: str
     status: str
+    totp_enabled: bool = False
+    recovery_codes_left: int = 0
 
     @classmethod
     def of(cls, doc: dict[str, Any]) -> Me:
@@ -178,7 +229,16 @@ class Me(BaseModel):
             time_zone=doc.get("time_zone"),
             theme=doc.get("theme", "system"),
             status=doc["status"],
+            totp_enabled=bool(doc.get("totp")),
+            recovery_codes_left=recovery.remaining(doc.get("recovery_codes")),
         )
+
+
+class MfaSetup(BaseModel):
+    """The person's role needs a second factor and they have none yet: the app shows a banner
+    until `required_by`, after which sign-in goes through enrolment."""
+
+    required_by: datetime
 
 
 class TokenResponse(BaseModel):
@@ -188,6 +248,29 @@ class TokenResponse(BaseModel):
     # When the refresh cookie expires: the PWA's offline_until for the PIN session (§6.1).
     refresh_expires_at: datetime
     user: Me
+    mfa_setup: MfaSetup | None = None
+    # Shown once, only in the answer that finishes an enrolment at sign-in.
+    recovery_codes: list[str] | None = None
+
+
+class MfaChallenge(BaseModel):
+    """A correct password is not a session yet. `enrol`: they must set up a second factor first."""
+
+    mfa_required: Literal[True] = True
+    enrol: bool = False
+    challenge: str
+    expires_in: int
+
+
+class TotpSetupOut(BaseModel):
+    """Shown once, while the person adds the account to their authenticator app."""
+
+    secret: str
+    otpauth_uri: str
+
+
+class RecoveryCodesOut(BaseModel):
+    recovery_codes: list[str]
 
 
 class Accepted(BaseModel):

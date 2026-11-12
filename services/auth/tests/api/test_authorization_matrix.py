@@ -23,6 +23,8 @@ from mms_common.testing.seed import ORG_A
 from app.config import Settings
 from app.main import create_app
 
+STAFF = roles("admin", "technician", "viewer", self_service=True)
+
 TABLE: dict[Route, Expect] = {
     # Public: the account pages before sign-in. refresh and logout use the cookie.
     ("POST", "/api/v1/auth/register"): Expect(PUBLIC),
@@ -35,6 +37,15 @@ TABLE: dict[Route, Expect] = {
     # Own profile: every role, viewers included (BSD "Own user profile").
     ("GET", "/api/v1/auth/me"): Expect(ANY),
     ("PATCH", "/api/v1/auth/me"): Expect(ANY, self_service=True),
+    # Two-step sign-in (W22): the second step is public (a challenge, not a token); managing it
+    # is for staff only (clients cannot opt in) and viewers may manage their own (self service).
+    ("POST", "/api/v1/auth/login/totp"): Expect(PUBLIC),
+    ("POST", "/api/v1/auth/login/totp/enrol/begin"): Expect(PUBLIC),
+    ("POST", "/api/v1/auth/login/totp/enrol/confirm"): Expect(PUBLIC),
+    ("POST", "/api/v1/auth/me/totp/begin"): STAFF,
+    ("POST", "/api/v1/auth/me/totp/confirm"): STAFF,
+    ("POST", "/api/v1/auth/me/totp/recovery-codes"): STAFF,
+    ("DELETE", "/api/v1/auth/me/totp"): STAFF,
     # Brand colours: everyone reads them, before sign-in too; admins change them (W4-12).
     ("GET", "/api/v1/auth/branding"): Expect(PUBLIC),
     ("PUT", "/api/v1/auth/branding"): roles("admin"),
@@ -45,6 +56,7 @@ TABLE: dict[Route, Expect] = {
     ("PATCH", "/api/v1/users/{id}"): roles("admin"),
     ("POST", "/api/v1/users/{id}/approve"): roles("admin"),
     ("POST", "/api/v1/users/{id}/reject"): roles("admin"),
+    ("POST", "/api/v1/users/{id}/totp/reset"): roles("admin"),
     # Organizations: staff read all, a client reads their own, admins write.
     ("GET", "/api/v1/organizations"): Expect(ANY),
     ("GET", "/api/v1/organizations/{id}"): Expect(ANY),

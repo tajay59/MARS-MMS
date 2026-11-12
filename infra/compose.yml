@@ -225,6 +225,9 @@ services:
       # Secrets other services exchange for service tokens (TRD §6.4).
       AUTH_SERVICE_SECRETS: '{"platform": "${PLATFORM_SERVICE_SECRET:?}", "operations": "${OPS_SERVICE_SECRET:?}", "media": "${MEDIA_SERVICE_SECRET:?}", "report": "${REPORT_SERVICE_SECRET:?}"}'
       AUTH_BREACHED_CHECK: ${AUTH_BREACHED_CHECK:-hibp}
+      # Seals the TOTP secrets at rest (W22-4): 32 random bytes, base64. Keep a copy with the other
+      # secrets: losing it makes every enrolled secret unreadable and every TOTP needs a reset.
+      AUTH_TOTP_KEY: ${AUTH_TOTP_KEY:?}
     volumes:
       - ${MMS_SECRETS_DIR:-./secrets}:/run/mms-secrets:ro
     healthcheck: &app-health

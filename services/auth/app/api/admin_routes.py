@@ -25,7 +25,9 @@ from app.api.schemas import (
     UserPage,
     UserPatch,
 )
+from app.domain import mfa
 from app.domain import users as rules
+from app.events import totp_reset
 from app.events.publish import Emitter, ev
 from app.repo import links, organizations, sessions
 from app.repo import users as users_repo
@@ -145,6 +147,14 @@ async def patch_user(id: IdPath, body: UserPatch, admin: Admin, ctx: CtxDep) -> 
         if org_id and org_id != current.get("org_id"):
             await organizations.require(ctx.db, org_id)
         changes["roles"], changes["org_id"] = roles, org_id
+        # Gaining a role that needs a second factor starts the setup window (W22-6).
+        gained = mfa.required(roles, ctx.settings.totp_required_roles) and not mfa.required(
+            current["roles"], ctx.settings.totp_required_roles
+        )
+        if gained and not current.get("totp"):
+            changes["mfa_grace_until"] = mfa.window_end(
+                ctx.clock.now(), ctx.settings.totp_grace_days
+            )
     new_status = current["status"]
     if body.status is not None and body.status != current["status"]:
         action = rules.Action.DISABLE if body.status == "disabled" else rules.Action.ENABLE
@@ -170,13 +180,32 @@ async def patch_user(id: IdPath, body: UserPatch, admin: Admin, ctx: CtxDep) -> 
             await emitter.user("user.disabled", ev.UserDisabled, updated, s, before=current)
         else:
             await emitter.user("user.updated", ev.UserUpdated, updated, s, before=current,
-                               changed_fields=sorted(changes))
+                               changed_fields=sorted(set(changes) - {"mfa_grace_until"}))
         return updated
 
     updated = await ctx.tx(save)
     if ends_sessions:
         # Roles live in the access token, so a role change also needs a fresh sign-in.
         await revocation.revoke_user(ctx.redis, id, now)
+    return UserOut.of(updated)
+
+
+@users.post("/{id}/totp/reset")
+async def reset_totp(id: IdPath, admin: Admin, ctx: CtxDep) -> UserOut:
+    """Someone lost their phone and their recovery codes (W22-8). Removes their second factor,
+    ends every session of theirs at once and restarts their setup window if their role needs one.
+    Never on yourself: another admin does that."""
+    if id == admin.id:
+        raise Conflict("Another admin has to reset your two-step sign-in", code="cannot_reset_self")
+    current = await users_repo.require(ctx.db, id)
+    if not current.get("totp"):
+        raise Conflict("They have no two-step sign-in to reset", code="totp_not_enabled")
+    now = ctx.clock.now()
+    emitter = ctx.emitter(admin)
+    updated = await totp_reset.apply(
+        ctx.tx, ctx.db, ctx.settings, current, emitter, now=now, via="admin", by=admin.id
+    )
+    await revocation.revoke_user(ctx.redis, id, now)
     return UserOut.of(updated)
 
 
