@@ -85,7 +85,13 @@ def test_the_container_will_not_run_without_a_key():
 def test_a_damaged_backup_is_refused_before_anything_is_stopped(backup, key):
     """restore.sh checks the file against its manifest first (decision W20-8)."""
     _, private = key
-    in_backup(f'printf X | dd of=/backups/mongo/{backup} bs=1 seek=100 conv=notrunc 2>/dev/null')
+    # The file is encrypted, so byte 100 is random: one run in 64 it is already "X" and a plain
+    # overwrite changes nothing (the restore then succeeds). Write a letter that differs from it.
+    in_backup(
+        f'f=/backups/mongo/{backup}; b=$(dd if=$f bs=1 skip=100 count=1 2>/dev/null); '
+        f'if [ "$b" = X ]; then c=Y; else c=X; fi; '
+        f'printf $c | dd of=$f bs=1 seek=100 conv=notrunc 2>/dev/null'
+    )
     try:
         r = subprocess.run(
             ["bash", "scripts/restore.sh", "--file", backup, "--identity", str(private), "--yes"],
