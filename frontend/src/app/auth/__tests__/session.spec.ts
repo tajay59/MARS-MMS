@@ -25,6 +25,8 @@ function tokenBody (n: number): TokenResponse {
       time_zone: null,
       theme: 'system',
       status: 'active',
+      totp_enabled: false,
+      recovery_codes_left: 0,
     },
   }
 }

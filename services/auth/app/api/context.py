@@ -17,8 +17,9 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.database import AsyncDatabase
 from redis.asyncio import Redis
 
-from app.api.schemas import Me, TokenResponse
+from app.api.schemas import Me, MfaSetup, TokenResponse
 from app.config import Settings
+from app.domain import mfa
 from app.domain.passwords import BreachedCheck, Hasher
 from app.events.publish import Emitter
 
@@ -84,11 +85,19 @@ class Ctx:
             org_id=user.get("org_id"),
             name=user["name"],
         )
+        grace = user.get("mfa_grace_until")
+        setup = (
+            MfaSetup(required_by=grace)
+            if grace and not user.get("totp")
+            and mfa.required(user["roles"], self.settings.totp_required_roles)
+            else None
+        )
         return TokenResponse(
             access_token=access,
             expires_in=15 * 60,
             refresh_expires_at=refresh_expires_at,
             user=Me.of(user),
+            mfa_setup=setup,
         )
 
     def device_label(self) -> str | None:

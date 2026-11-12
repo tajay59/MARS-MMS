@@ -10,7 +10,10 @@ from __future__ import annotations
 from typing import Any
 
 NEVER_SENT = frozenset(
-    {"password_hash", "token_hash", "successor_enc", "private_key_ref", "private_key"}
+    {
+        "password_hash", "token_hash", "successor_enc", "private_key_ref", "private_key",
+        "totp", "secret_enc", "last_step", "mfa_grace_until",
+    }
 )
 CONTACT = frozenset({"email", "phone"})
 

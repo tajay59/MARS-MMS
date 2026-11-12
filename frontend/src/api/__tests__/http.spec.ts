@@ -17,6 +17,8 @@ const user = {
   time_zone: null,
   theme: 'system',
   status: 'active',
+  totp_enabled: false,
+  recovery_codes_left: 0,
 }
 
 function auth (header: unknown): string | undefined {

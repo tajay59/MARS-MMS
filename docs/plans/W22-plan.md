@@ -47,6 +47,21 @@ An admin signs in with a password and a 6-digit code from an authenticator app. 
 3. **Front end** (`feat/p7-w22-totp-screens`): the sign-in second step in `LoginPage.vue`, `features/profile/TwoStepCard.vue` and its dialogs, the banner, the Users action, API client types, Vitest, Playwright `e2e/totp.spec.ts` (a small RFC 6238 function in the test; the clock is real, so the code is computed at the moment it is typed). The precache stays under 30 files (check `e2e/offline.spec.ts`).
 4. **Close-out.** Docs site (decisions, auth routes, settings, events, a sequence chart of the two-step sign-in and a decision chart of the enforcement rules), PRD (new requirement AUTH-14 and the D-2 line), TRD §6, AFD J2 and the profile page, BSD users fields, TP, ASVS review lines 2.2.x and 2.8.x to "met", CLAUDE.md. Release 0.8.0. Staging check: an admin enrols, signs out and in, uses a recovery code, is reset by another admin; the audit chain still verifies.
 
+## Status (2026-11-12)
+
+**Slice 1 (back end) is built** on `feat/p7-w22-totp-api` (stacked on this plan's branch), not committed yet. Auth 212 tests (91%), `mms_common` 149, platform 213 (the audit mapping gained a "second factor" action), Vitest 773, Ruff and mypy clean. Checked in slice 1: `session.reconnect()` signs in through the refresh cookie (`refreshSession`), never `/login`, so it cannot meet the code step.
+
+Where the build differs from the text above:
+
+- **A sixth event**, `auth.recovery_codes_regenerated` (a recovery sheet replaced is a security event), and an optional `mfa` (`totp` or `recovery`) on `auth.login_succeeded`.
+- **The window also starts at refresh.** An admin already signed in when 0.8 ships has a 30-day session and may not sign in again for weeks, so `refresh` starts the window (and the banner) too. Enforcement is still at sign-in only.
+- **`mfa_setup` rides on every `TokenResponse`** (login and refresh), so the banner survives a page reload. `Me` gains `totp_enabled` and `recovery_codes_left`.
+- **The password alone never clears the failure count** when a code is still owed: only a finished sign-in does, so someone with the password cannot reset the code limit by signing in again between guesses.
+- **Pending secrets live in Redis** (sealed, 10 minutes), not on the user record, until a code confirms them. The challenge has a purpose (`verify` or `enrol`) and cannot be used for the other.
+- **`admin_mfa`** is a new seed user (`mms_common.testing.seed`, public test secret); `admin` stays without a factor so no other service's tests or the Playwright journeys change. `python -m app.cli seed` enrols it when `AUTH_TOTP_KEY` is set.
+- **`AUTH_TOTP_KEY` is required by `compose.yml`** (`:?`) and by the service outside `local`. `.env.example` has a dev value. **Staging's `infra/.env` needs a generated key (`openssl rand -base64 32`) before this merges**, or the deploy stops at "required variable missing" without changing anything.
+- Until slice 3, an admin with two-step sign-in on cannot sign in through the current screens (the app does not send `supports_mfa`, so it gets 401 `update_required`). Nobody is enrolled on staging; do not enrol anyone before 0.8.
+
 ## Questions on defaults
 
 | # | Question | Default |
