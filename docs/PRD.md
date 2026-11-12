@@ -169,7 +169,7 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | AUTH-6 | Staff accounts are created by admins only. Admins can also invite client users directly. Invited users get an email to set their password. | M |
 | AUTH-7 | All users log in with email and password. | M |
 | AUTH-8 | Users can reset a forgotten password through a single-use emailed link valid for 1 hour. | M |
-| AUTH-9 | Passwords are at least 10 characters and must not be on a known breached-password list. | M |
+| AUTH-9 | Passwords are at least 12 characters and must not be on a known breached-password list. | M |
 | AUTH-10 | Repeated failed logins are rate-limited. Error messages do not reveal whether an email is registered. | M |
 | AUTH-11 | Admins can disable a user. A disabled user is logged out of all devices. | M |
 | AUTH-12 | Staff stay logged in on their field device for up to 30 days so they can work offline. If the app or phone restarts with no signal, they reopen their field work with a device PIN, set the first time they prepare a visit. Five wrong PINs require an online login; no work is lost. | M |

@@ -152,6 +152,14 @@ class NeverBreached:
 
 async def test_common_passwords_fail_even_without_a_list():
     with pytest.raises(ValidationFailed) as err:
-        await check_new_password("Password123", NeverBreached())
+        await check_new_password("Administrator", NeverBreached())
     assert err.value.extra["errors"][0]["code"] == "password_breached"
     await check_new_password("long enough and unusual", NeverBreached())
+
+
+@pytest.mark.req("AUTH-9")
+async def test_the_minimum_is_twelve_characters():
+    with pytest.raises(ValidationFailed) as err:
+        await check_new_password("x" * 11, NeverBreached())
+    assert err.value.extra["errors"][0]["code"] == "password_too_short"
+    await check_new_password("x" * 12, NeverBreached())
