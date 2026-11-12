@@ -858,7 +858,7 @@ sequenceDiagram
 ### 6.2 Passwords
 
 - Argon2id (`argon2-cffi`, parameters at least time=3, memory=64 MiB).
-- At least 10 characters, checked against a breached-password list (HIBP range API if outbound access is allowed, otherwise a local k-anonymity file; see T1).
+- At least 12 characters (W21-3, decision D-1), checked against a breached-password list (HIBP range API if outbound access is allowed, otherwise a local k-anonymity file; see T1).
 - Reset and invitation tokens: 256-bit, stored hashed, single use; 1-hour expiry for resets, 7 days for invitations. A successful reset revokes all refresh tokens and access tokens. **Minted on send:** the request creates a row with no token and emits `auth.password_reset_requested` (or `user.invited`); platform's notification module calls `POST /internal/account-links` when it sends the email, and auth mints the token then. No token ever passes through Kafka, the DLQ, the outbox or the audit trail. Minting again replaces the earlier token. An invited user whose link expired finishes through a reset, which activates them.
 - Breached-password check order: a built-in list of common passwords, then HIBP (`Add-Padding`), then the local file when HIBP is unreachable. With neither reachable the password is accepted and `auth_breached_check_unavailable_total` counts it, so an outage never blocks registration.
 - Registering an email that already has an account answers exactly like a new registration (202) and changes nothing. Reset requests are limited to 3 per email per hour, silently.

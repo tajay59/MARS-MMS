@@ -1,4 +1,4 @@
-"""Passwords (AUTH-9, TRD §6.2): Argon2id, at least 10 characters, not on a breached list."""
+"""Passwords (AUTH-9, TRD §6.2): Argon2id, at least 12 characters, not on a breached list."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from mms_common.errors import ValidationFailed
 
-MIN_LENGTH = 10
+MIN_LENGTH = 12
 MAX_LENGTH = 256  # Argon2 cost doesn't depend on length, but bound the request anyway
 
 # Checked even when the breached-password service is unreachable. Not a substitute for it.

@@ -444,7 +444,7 @@ Most errors keep the user on the same page with a message; only lost access or a
 | `/login` | 5 failed attempts | "Too many attempts, try again in 15 minutes" | Same page |
 | `/login` | Account still pending | Waiting-for-approval message | `/register/pending` |
 | `/login` | Account rejected, disabled, or organization deactivated | "This account cannot sign in. Contact the service desk." | Same page |
-| `/register` | Password under 10 characters or on a breached list | Inline field error | Same page |
+| `/register` | Password under 12 characters or on a breached list | Inline field error | Same page |
 | `/reset-password/:token`, `/invite/:token` | Link expired (1 hour / 7 days) or already used | "This link has expired" with **Send a new link** | `/forgot-password` |
 | `/requests/:id` | Client opens a request after it is Scheduled | **Edit** and **Cancel** are hidden; a note says to comment instead | Same page |
 | `/requests/:id`, Comments | Comment older than 15 minutes | **Edit** is hidden | Same page |

@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { computed } from 'vue'
 
-export const MIN_PASSWORD = 10
+export const MIN_PASSWORD = 12
 
 /** The live rule under a new-password field (AUTH-1: 10 or more characters). */
 export function usePasswordRule (password: Ref<string>, serverError: Ref<string | undefined>) {
