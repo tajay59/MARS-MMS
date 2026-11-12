@@ -57,7 +57,7 @@ services:
     ports: ["127.0.0.1:8333:8333"]  # S3 API, for infra/tests and debugging
 
   mailpit:
-    image: axllent/mailpit:v1.31.6
+    image: axllent/mailpit:v1.33.1
     restart: unless-stopped
     ports: ["127.0.0.1:8025:8025"]
     environment:
