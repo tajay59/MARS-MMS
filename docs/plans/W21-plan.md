@@ -63,7 +63,7 @@ Not covered here: production. The same steps apply when the host exists; do them
 | # | Question | Recommendation | Cost to close |
 |---|---|---|---|
 | D-1 | Minimum password length 10 or 12? | Raise to 12 | One constant and the PRD line (AUTH-9); existing passwords stay valid. |
-| D-2 | Second factor for admins? | Accept for the pilot; TOTP for admins in a later release | A feature (enrolment, recovery); not before the pilot. |
+| D-2 | Second factor for admins? | Accept for the pilot; TOTP for admins in a later release | A feature (enrolment, recovery); not before the pilot. **Answered 2026-11-12: build it before the pilot (W22).** |
 | D-3 | 30-day sliding sessions? | Accept (technicians work offline for days; PIN unlock, 15-minute access tokens, instant revocation) | None. Optionally shorten for admins. |
 | D-4 | No TLS between containers on the one host? | Accept for one host | Revisit if the stack is split across hosts. |
 | D-5 | `style-src 'unsafe-inline'`? | Accept (Vuetify writes inline styles) | Revisit when Vuetify supports nonces cleanly. |

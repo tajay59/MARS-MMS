@@ -3,14 +3,15 @@
 
 | | |
 |---|---|
-| **Version** | 1.11 |
-| **Date** | 2026-10-28 |
+| **Version** | 1.12 |
+| **Date** | 2026-11-12 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0: five services and six databases; SeaweedFS instead of MinIO; Nginx instead of Kong; `org_id` copied onto sensor installations and calibrations (closes B2); model documents reached through operations (B4); files start staff-only (ADR-19); station owners on visits; offline profile and PIN verifier on the device; read models rebuilt by backfill. B3 closed by TRD §5 indexes; B5 and B6 recorded as decisions |
 | **Changes in 1.2** | Follows TRD 2.1 (auth as built): reset and invitation rows hold no token until the link is minted on send; the sealed refresh successor; `organizations.name_key`; the Redis access-token revocation list in the enforcement layers |
 | **Changes in 1.3** | auth's `settings` collection (one document, `branding`: the organization's Material 3 brand colours, decision W4-12); the PWA keeps its last copy in `localStorage` (`mms-branding`), with the per-device `mms-motion` setting |
 | **Changes in 1.5** | Follows TRD 2.7 (decision W5-8): auth's `organizations` gain `short_name` and `external_id` (unique where set), copied into operations' `organizations`; `stations.external_id` (unique where set). Imported from the organization's existing system; its MQTT credentials are never copied |
 | **Changes in 1.4** | The stations module as built (TRD 2.6): operations' `organizations` copy (name, country, status) from auth's events and snapshot; `sensor_models.key` unique; `installations.source_action_id` unique only where set |
+| **Changes in 1.12** | Follows TRD 2.25 (W22): `users` gains `totp {secret_enc, enabled_at, last_step}`, `recovery_codes [{hash, used_at}]` and `mfa_grace_until`; Redis keeps the sign-in challenges (`auth:mfa:<hash>`, 5 minutes) and pending secrets (sealed, 10 minutes) |
 | **Changes in 1.11** | Follows TRD 2.22 (W19 slice 3b): the report read model also holds `model_facts`, `config_facts` and `installation_facts`. |
 | **Changes in 1.10** | Follows TRD 2.21 (W19 slice 3): `report_jobs` also holds summary reports (`type: summary`; `params`, `params_key`, `requested_by_name`, `result {key, format, sha256, bytes, rows, pages, file_name}`); the files are `summaries/<job id>.pdf\|csv` in `mms-reports` and are removed after 30 days. |
 | **Changes in 1.9** | Follows TRD 2.20 (W19 slice 2): `unit_facts` joins the read model, and `request_facts` carries `assigned_ids`. |
@@ -54,7 +55,7 @@ Object keys are never reused and no API overwrites a finalized report or a confi
 | Store | Holds | Lost on failure? |
 | --- | --- | --- |
 | Kafka (4 topics, 14-day retention) | Domain events in transit | Read models rebuilt from current state with `backfill.py` (TRD §8.6) |
-| Redis | Job queues, JWKS cache, login throttle, outbox leader leases, WebSocket fan-out, 60 s dashboard cache | Queued jobs re-enqueued by reconciliation crons |
+| Redis | Job queues, JWKS cache, login throttle (wrong codes count here too), second-factor challenges and pending secrets (minutes), outbox leader leases, WebSocket fan-out, 60 s dashboard cache | Queued jobs re-enqueued by reconciliation crons |
 | Device IndexedDB (Dexie) | Prepared visit bundles and files, offline board elements, queued operations and media, offline profile | Only until synced; deleted after the server confirms (OFF-8) or on logout (bundles and files only) |
 
 ### Databases by owning service
@@ -189,7 +190,7 @@ The tables below list each collection's purpose, the fields that matter for owne
 
 | Collection | Purpose | Key fields | Client scope | Indexes |
 | --- | --- | --- | --- | --- |
-| `users` | Every account, staff and client | `email`, `password_hash` (Argon2id), `roles[]`, `org_id` (clients only), `status`, `theme`, `time_zone` | Own record only | `email` unique; `status`; `org_id` |
+| `users` | Every account, staff and client | `email`, `password_hash` (Argon2id), `roles[]`, `org_id` (clients only), `status`, `theme`, `time_zone`, `totp` (`secret_enc` AES-GCM under `AUTH_TOTP_KEY`, `enabled_at`, `last_step`; absent when off), `recovery_codes` (`hash` SHA-256, `used_at`), `mfa_grace_until` (an admin's setup window) | Own record only | `email` unique; `status`; `org_id` |
 | `organizations` | Client organizations | `name`, `name_key` (unique ignoring case and spacing), `short_name`, `external_id` (its ID in the system its data came from, W5-8), `country` (ISO alpha-2), `contact_email`, `status` | Own org only | `name_key` unique; `external_id` unique where set |
 | `refresh_tokens` | Rotating sessions, 30 days from the last refresh | `user_id`, `token_hash`, `family_id`, `replaced_by`, `rotated_at` (30 s reuse grace), `successor_enc` (sealed under a key only the previous token can derive), `expires_at` | — | `token_hash` unique; `family_id`; `user_id`; TTL on `expires_at` |
 | `password_resets`, `invitations` | Single-use emailed tokens | `user_id`, `token_hash` (null until minted on send), `minted_at`, `expires_at`, `used_at`, `superseded` | — | `token_hash` unique where set; TTL on `expires_at` |

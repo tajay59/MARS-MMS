@@ -3,8 +3,8 @@
 
 | | |
 |---|---|
-| **Version** | 2.24 |
-| **Date** | 2026-10-23 |
+| **Version** | 2.25 |
+| **Date** | 2026-11-12 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
 | **Supersedes** | TRD 1.3 and all drafts in [drafts/](drafts/) |
@@ -19,6 +19,7 @@
 | **Changes in 2.6** | The stations module as built (IP Phase 2 W5, 2026-10-18, decisions W5-1 to W5-7). Sensor units are installed and removed by **actions**, `POST /api/v1/sensor-units/{id}/install` and `/remove`; `installed` is reached only through them (§3.2). `GET /api/v1/stations/facets` for the list's filters; the list pages by code (§3.2). New events `sensor_model.created` / `.updated`; a unit's events are keyed by its station while installed and by the unit while in stock (§8.1, §8.4). operations keeps a copy of the organizations from `org.*` events and auth's snapshot, read at every start with its own service secret (§3.2, §5.2, §8.6). The station import format (§3.2). `upsert_if_newer` reads before writing so a consumer's transaction is never aborted by a duplicate key (§8.6) |
 | **Changes in 2.7** | The station export (T4, decision W5-8, 2026-10-18): the organization's existing system is a MongoDB with `entities` and `sites` collections, brought in once from `mongoexport` files. Organizations gain `short_name` and `external_id` (unique where set) and carry them in `org.*` events and the snapshot (§5.1, §8.4); auth's `python -m app.cli import-orgs`. Stations gain `external_id` (unique where set; the list's search matches it), and the station import reads the `sites` export, one station per device (§3.2, §5.2). In the import, the country defaults to the organization's. Parameter codes may have up to 32 characters (was 16) and a station up to 40 of them, the API's limit, in the import too: the real export has codes of 18 characters and a device with 22 parameters |
 | **Changes in 2.8** | The documents path as built (IP Phase 2 W6, 2026-10-19, decisions W6-1 to W6-6). The **media service** exists: `POST /api/v1/uploads` is idempotent by `media_id` and joins an open upload of the same file by the same person (size and SHA-256); `complete` takes **no part list** because media lists the parts itself and checks them against the announced size; the file is then checked in `media-worker` in one pass (SHA-256, magic bytes, ClamAV) and is never `ready` without a scan result. `MEDIA_SCAN_MODE=clamd|off`, and `off` is refused in production (T8: staging). Operations gains **documents** (`GET/POST /api/v1/documents`, `PATCH /{id}`, `/{id}/download`, `GET /stations/{id}/documents`), **configuration versions** (`POST` only files that are `ready`, `GET`, `/{version}`, `/{version}/diff`), a calibration's `certificate_media_id`, `GET /internal/attachable` for the owner check, and a consumer for `media.processed` / `media.failed`. New events `document.uploaded`, `document.updated`, `config.version_created`, `media.visibility_requested` (operations) and the four `media.*` (§8.4). **Background jobs are a small Redis queue** (`mms_common.jobs`, a sorted set with a lease) instead of arq, which pins `redis<6` (§9). SeaweedFS runs `-volume.max=0` with 256 MB volumes: the default 8 slots ran out on the second bucket (§10.1, R6) |
+| **Changes in 2.25** | The second factor as built (IP buffer W22, 2026-11-12, decisions W22-1 to W22-10; §6.1.2, PRD AUTH-14). `POST /api/v1/auth/login` answers a challenge (`{mfa_required, enrol, challenge, expires_in}`) instead of a session for a person with TOTP; `POST /login/totp` and `/login/totp/enrol/{begin,confirm}` finish it; `/me/totp/*` and `POST /users/{id}/totp/reset` manage it. RFC 6238 TOTP in `domain/totp.py`, secret sealed with AES-GCM under `AUTH_TOTP_KEY`, ten hashed recovery codes, a 7-day setup window for admins, MFA at sign-in only (never at refresh). Six new `auth.*` security events (§8): `totp_enrolled`, `totp_disabled`, `totp_reset`, `mfa_failed`, `recovery_code_used`, `recovery_codes_regenerated`, and `mfa` on `login_succeeded`. `users` gains `totp`, `recovery_codes`, `mfa_grace_until` (BSD 1.12) |
 | **Changes in 2.24** | Charts in the summary PDFs as built (IP Phase 7 W19 slice 3d, 2026-10-29, decision W19-11; §11.1, R9). ApexCharts 4.7.0 (MIT) drawn by Debian's `chromium` in the report image, started by the worker for each chart (`--headless=new --screenshot`, a page and script written to a temporary folder, a Content-Security-Policy that allows local script files only) and embedded as a PNG. Not Playwright, and a PNG not an SVG (the legend is HTML). One chart per report, chosen from its own table (`domain/charts.py`); a chart that fails or takes over 30 s (`REPORT_CHART_TIMEOUT_S`) is left out with a note and the table still prints. Measured: image 1.51 GB, a chart 0.7 to 1.9 s, worker peak 383 MiB (was about 90), so the staging cap for `report-worker` is 768 MB. |
 | **Changes in 2.23** | Technician workload as built (IP Phase 7 W19 slice 3c, 2026-10-28, decision W19-7). The eleventh summary type, staff only. Request events carry an optional `assigned_staff_names` and visit events an optional `staff_names` (id to name, never an email or phone), so the report service keeps `staff_facts` without reading auth (rule 1). Each person's row: open requests now, requests closed in the period, visits attended and led, hours on site (from `started_at` to `ended_at`) and reports signed in the period. |
 | **Changes in 2.22** | Three more summary reports as built (IP Phase 7 W19 slice 3b, 2026-10-28, decision W19-6). **Station asset** (what is installed at each station now, with serials and calibration dates; a client may run it for their own organization, so a client now has three types, SUM-3), **Sensor reliability** (installs, removals, failed calibrations and mean days in service per model) and **Configuration history** (the versions saved per station and the visit behind each). They read three new read-model collections: `model_facts` (from `sensor_model.*` and the `sensor_models` snapshot), `config_facts` (from `config.version_created`, which takes its id from the resource and its time from the envelope, and the `config_versions` snapshot) and `installation_facts` (from `sensor.installed` and `sensor.removed`, which write one row between them and are merged field by field, in either order, and the `installations` snapshot). Operations' `/internal/snapshot/{entity}` serves `sensor_models`, `installations` and `config_versions` besides the five it had; an installation snapshot carries the unit's serial and model. Ten of eleven types exist; **Technician workload** (needs staff names, which no event or snapshot the report service reads carries) and the Chromium charts remain |
@@ -852,6 +853,53 @@ sequenceDiagram
             T->>T: /login with a reason banner, then back to the same page
         end
         T->>L: Release
+    end
+```
+
+#### 6.1.2 Second factor (W22, PRD AUTH-14)
+
+TOTP for admins, optional for other staff, never for clients. It is asked **at sign-in only**: a refresh, the service worker and the offline PIN never meet it, so nobody is interrupted in the field (decision W22-1; ADR-20 is untouched).
+
+- **Two steps, no half-session.** A correct password for a person with TOTP creates no session. `POST /api/v1/auth/login` answers `200 {"mfa_required": true, "enrol": false, "challenge": "<opaque>", "expires_in": 300}`. The challenge is a random token whose hash is a Redis key (`auth:mfa:<hash>`, 5 minutes, at most 5 tries, single use, with a purpose: `verify` or `enrol`). It is not a JWT and carries no rights. `POST /login/totp` with `{challenge, code}` or `{challenge, recovery_code}` then returns the normal `TokenResponse` and sets the refresh cookie. The login request needs `supports_mfa: true`; an older app without it gets 401 `update_required` instead of a challenge it cannot read.
+- **The same lock.** A wrong code counts on the per-account throttle that wrong passwords use (5 failures, 15 minutes), and the password alone never clears a count while a code is still owed. The answer says only "The code is incorrect". Nginx's per-IP limit (10 a minute) covers `/login/totp`.
+- **The algorithm.** RFC 6238: HMAC-SHA1, 6 digits, 30 s step, one step either side for clock drift. The last accepted step is stored in `users.totp.last_step` and a code at or before it is refused (replay). The server clock is the injectable `ctx.clock`.
+- **The secret.** 20 random bytes, shown once as base32 and as an `otpauth://` URI (issuer `MARS-MMS`). It is stored sealed with AES-GCM under `AUTH_TOTP_KEY` (32 bytes, base64) and bound to its user, so a copy of the database alone never gives it. Losing the key makes every enrolled secret unreadable: every TOTP is then reset. A pending secret lives in Redis (sealed, 10 minutes) until a code confirms it.
+- **Recovery.** Ten one-time codes (two groups of five base32 characters), stored as SHA-256 hashes and shown once; regenerating replaces all. A recovery code signs in once and the answer says how many are left. Another admin resets a lost phone (`POST /users/{id}/totp/reset`: admin only, never on oneself, ends the person's sessions, restarts their window); with no other admin, `python -m app.cli reset-totp --email …` on the server does the same and writes the same audit event.
+- **Enforcement.** `AUTH_TOTP_REQUIRED_ROLES` (default `admin`) and `AUTH_TOTP_GRACE_DAYS` (default 7). `users.mfa_grace_until` is set at the first sign-in or refresh after the release, and when a person is given the role. Inside the window an admin signs in as before and every `TokenResponse` (login and refresh) carries `mfa_setup: {required_by}` for the banner. After it, `/login` answers a challenge with `enrol: true` that allows only `/login/totp/enrol/begin` and `/confirm`, then signs in. Staff who opted in may turn it off; a role that requires it may not.
+- **Events.** `auth.totp_enrolled`, `auth.totp_disabled`, `auth.totp_reset` (with `via: admin | cli`), `auth.mfa_failed` (`reason`), `auth.recovery_code_used` (`remaining`), `auth.recovery_codes_regenerated`, and `mfa` (`totp | recovery`) on `auth.login_succeeded`. Never a secret, a code or a hash. Enabling does not end other sessions; turning it off or a reset does (the revocation list, AUTH-11). A password reset signs nobody in, so it cannot skip the code.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Admin
+    participant P as PWA (/login)
+    participant A as auth
+    participant R as Redis
+    participant M as auth DB (Mongo)
+
+    U->>P: Email and password
+    P->>A: POST /login (supports_mfa)
+    A->>A: Password, throttle, account status as in 6.1.1
+    alt Has TOTP
+        A->>R: auth:mfa:hash (user, purpose verify, 5 min, 5 tries)
+        A-->>P: 200 mfa_required, challenge
+        U->>P: 6-digit code, or a recovery code
+        P->>A: POST /login/totp
+        A->>R: Take the challenge (single use)
+        A->>A: Verify the code, one step either side, not a replay
+        alt Wrong
+            A->>R: Count on the account lock
+            A-->>P: 401 invalid_code
+        else Right
+            A->>M: Session + outbox auth.login_succeeded (mfa)
+            A-->>P: Access JWT + refresh cookie
+        end
+    else Admin without TOTP, still inside the window
+        A-->>P: Access JWT + refresh cookie, mfa_setup.required_by
+    else Admin without TOTP, window over
+        A-->>P: 200 mfa_required, enrol true, challenge
+        P->>A: /login/totp/enrol/begin, then /confirm with a code
+        A-->>P: Access JWT + refresh cookie + ten recovery codes
     end
 ```
 

@@ -3,10 +3,11 @@
 
 | | |
 |---|---|
-| **Version** | 1.4 (draft) |
-| **Date** | 2026-10-28 |
+| **Version** | 1.5 (draft) |
+| **Date** | 2026-11-12 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0 and IP 1.1: five services, Nginx gateway, SeaweedFS, weeks shifted to a W25 go-live. Offline merge tests replaced by station-owner and conflict-code tests. New tests for request status derivation, sensor-action reversal, the finalize saga, fail-closed file visibility, the offline PIN session, refresh-token races, the outbox leader lease, read-model backfill, service-worker cache clearing, the CSP tile host and multipart clean-up |
+| **Changes in 1.5** | The second factor's tests as built (W22, AUTH-14): RFC 6238 vectors, the drift window and replay; a challenge is single use, limited to 5 tries and bound to its purpose; no session before the code; wrong codes share the account lock and the password alone never clears it; recovery codes are single use; the setup window and the block after it; a reset ends sessions and cannot be done to oneself; no secret, code or hash in an event or the API; the old app is told to reload. Seed user `admin_mfa`; Playwright `e2e/totp.spec.ts` computes the code from the secret on screen |
 | **Changes in 1.4** | W17 as built: the finalize saga is tested at every interruption point against "a final report always has the lead's valid signature for exactly its content hash and the stored PDF's hash"; signatures are cleared only when the hash of what prints changes; only shared elements print; a reminder is sent once per level; Playwright J7 runs end to end (`reportSign.spec.ts`) |
 | **Changes in 1.3** | The visit board replaces the work record (TRD 2.16, decisions W11-16 to W11-35, 2026-10-22): the sensor-inventory corrections tests are replaced by board tests (edit rights, tombstones, task completion, sharing, Config versions, Recommendation to request); Phase 4's tests and exit checks follow |
 | **Changes in 1.2** | Where the Phase 1 harnesses live as built: `mms_common.testing` (seed users and token issuer, authorization matrix, client leak check, container fixtures as a pytest plugin); the template's `tests/api/test_authorization_matrix.py`; the J1/J2 end-to-end stack test into the audit chain |
@@ -164,6 +165,7 @@ Display tests cover stations in several IANA zones across a DST change.
 - JWT tests at each service, because Nginx doesn't verify tokens: wrong key, `alg: none`, `alg` confusion, expired token, refresh token used as an access token, a token for a disabled user.
 - `/internal/*` and `/.well-known/*` return 404 through Nginx and require a service token (or the internal network) inside.
 - Login throttling: the same message and similar timing for registered and unregistered emails after 5 failures (AUTH-10).
+- Second factor (AUTH-14, W22): `services/auth/tests/unit/test_totp.py` (RFC 6238 vectors, window, replay, recovery codes, who needs a factor, the setup window) and `tests/api/test_totp.py` (the attacks of the login suite repeated with a second factor: no session before the code, an old, used or foreign challenge, a recovery code twice, a challenge bound to its purpose, the shared lock, refresh never asks for a code, enrolment and reset rules, the secret sealed at rest, no secret or code in any event or API answer). Every new route is in the authorization matrix. Playwright `e2e/totp.spec.ts`: an admin signs in with a code and with a recovery code, an admin in the window sees the banner, a blocked admin is taken through enrolment, another admin resets a lost phone.
 - Security headers, HSTS, CSP, rate limits (including the office allowlist) checked on staging after each deploy.
 - OWASP ZAP baseline scan of staging nightly; `pip-audit`, `npm audit` and Trivy on every PR; the ASVS L2 review in W20. **As built (W20 slice 6):** `infra/loadtest/` (Locust: the 50-user mix, 20 uploaders, the 5x seed through the API, `check_thresholds.py` tested in `infra/tests/test_loadtest_thresholds.py`); CI runs five users for a minute on every pull request (`load smoke`) and `loadtest.yml` runs the full test by hand on a host with no real data. **As built (W20 slice 5):** `security.yml` runs `pip-audit` (any advisory in a runtime dependency fails; accepted ones are listed with a reason) and `npm audit --omit=dev` at high on every PR and nightly, plus a **passive** ZAP baseline of staging nightly that fails on a high risk alert and prints counts only (the repository is public); `infra/tests/test_org_isolation.py` is the cross-organization run through Nginx; the review is `docs/security/asvs-l2.md`.
 
@@ -185,6 +187,7 @@ One seed set serves every level, so a failure on staging can be reproduced local
 | Client A1, Client A2 | Client, organization A | Own-organization access; two clients on one request |
 | Client B1 | Client, organization B | Out-of-scope checks: must get 404 on everything of A's |
 | Admin | Admin | Approvals, assignment, owner changes, restores, audit log |
+| Admin MFA | Admin with two-step sign-in on | A known TOTP secret (public, test only) for the code step; `admin` stays without a factor so other suites and journeys do not change |
 | Tech 1, Tech 2 | Technician | Claiming; two technicians on one visit owning different stations (OFF-11) |
 | Tech-Admin | Technician + Admin | A staff user with several roles |
 | Viewer | Viewer | Read-only: 403 on every mutating route, no audit log |
