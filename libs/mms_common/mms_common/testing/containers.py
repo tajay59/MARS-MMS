@@ -23,7 +23,7 @@ import pytest
 import pytest_asyncio
 from pymongo import AsyncMongoClient
 
-MONGO_IMAGE = "mongo:8.0.34"
+MONGO_IMAGE = "mongo:9.0.8"
 REDIS_IMAGE = "redis:7.4.11-alpine"
 KAFKA_IMAGE = "apache/kafka:4.3.1"
 SEAWEEDFS_IMAGE = "chrislusf/seaweedfs:4.48"

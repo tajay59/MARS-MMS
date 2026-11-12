@@ -8,7 +8,9 @@
 # - a database migration: migrations run forward only, so the older code would run on a database
 #   the newer code changed, or
 # - an event schema: a consumer must never run an older image than the events it reads, or the
-#   events land in the dead-letter topics (found on the first run of the monitoring stack, W20-2).
+#   events land in the dead-letter topics (found on the first run of the monitoring stack, W20-2), or
+# - the MongoDB image: after a major upgrade's feature compatibility version is raised, the older
+#   server refuses the data (W21-2).
 # Anything else (a different history, a commit that is not an ancestor either way) is refused.
 # --allow-older-schema is for the day the operator has checked the changes by hand.
 #
@@ -41,8 +43,16 @@ fi
 echo "a rollback: $deployed -> $target"
 changed="$(git diff --name-only "$target" "$deployed" -- \
   ':(glob)services/*/app/migrations/**' ':(glob)libs/mms_common/mms_common/events/**' || true)"
+# The database server's image: once its feature compatibility version has been raised, the older
+# server will not open the data (MongoDB 9, W21), and a rollback would take the stack down.
+mongo_lines="$(git diff -U0 "$target" "$deployed" -- infra/compose.yml infra/compose.production.yml \
+  infra/backup/Dockerfile | grep -E '^[+-][^+-].*mongo:' || true)"
+if [ -n "$mongo_lines" ]; then
+  changed="${changed:+$changed
+}the MongoDB image (see the runbook: before the feature compatibility version is raised a rollback is safe, after it the data needs a restore)"
+fi
 if [ -z "$changed" ]; then
-  echo "no migration or event schema changed in between: safe to go back"
+  echo "no migration, event schema or database image changed in between: safe to go back"
   exit 0
 fi
 echo "these changed between the two releases:" >&2
@@ -51,5 +61,5 @@ if [ "$allow" = 1 ]; then
   echo "going back anyway (--allow-older-schema)"
   exit 0
 fi
-echo "refused: going back over a migration or event change needs --allow-older-schema (see the runbook)" >&2
+echo "refused: going back over a migration, event or database image change needs --allow-older-schema (see the runbook)" >&2
 exit 1

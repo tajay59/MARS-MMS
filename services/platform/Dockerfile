@@ -2,6 +2,12 @@ FROM python:3.13-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /srv
 
+# Security fixes the base image has not picked up yet: a scan reports a package as soon as
+# Debian ships a fix, and the python image is rebuilt later.
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && rm -rf /var/lib/apt/lists/*
+
 # Build context is the repository root (compose passes `context: ..`) so mms_common is available.
 COPY libs/mms_common /srv/libs/mms_common
 RUN pip install /srv/libs/mms_common
