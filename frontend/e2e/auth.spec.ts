@@ -31,7 +31,7 @@ test('J1: a client registers, an admin approves, the client logs in @J1 @AUTH-1 
   await page.getByLabel('Your organization').fill('Organization A')
   await page.getByLabel('Password', { exact: true }).fill('too short')
   await page.getByRole('button', { name: 'Register' }).click()
-  await expect(page.getByText('Use at least 10 characters')).toBeVisible()
+  await expect(page.getByText('Use at least 12 characters')).toBeVisible()
 
   await page.getByLabel('Password', { exact: true }).fill(client.password)
   await submitPaced(page, 'Register')
