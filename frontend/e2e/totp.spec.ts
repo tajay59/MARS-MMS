@@ -63,6 +63,26 @@ async function logout (page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/login$/)
 }
 
+/**
+  Sends the code step. The gateway allows ten sign-in requests a minute per address, and the code
+  step is one of them: when it answers "Too many attempts" the page keeps what was typed, so wait
+  and send it again. Returns as soon as the page has moved on or answered.
+*/
+async function submitCode (page: Page): Promise<void> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await page.getByRole('button', { name: 'Log in', exact: true }).click()
+    const outcome = await Promise.race([
+      page.getByText('Too many attempts').waitFor({ timeout: 8000 }).then(() => 'throttled' as const),
+      page.getByText('incorrect').first().waitFor({ timeout: 8000 }).then(() => 'answered' as const),
+      page.waitForURL(url => url.pathname !== '/login', { timeout: 8000 }).then(() => 'answered' as const),
+    ]).catch(() => 'answered' as const)
+    if (outcome !== 'throttled') {
+      return
+    }
+    await page.waitForTimeout(8000)
+  }
+}
+
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(150_000)
 
@@ -77,11 +97,11 @@ test('an admin with two-step sign-in logs in with a code, and a code works once 
 
   // A wrong code says only that it is incorrect, and the step stays open
   await type(page, '6-digit code', totp(MFA_SECRET, 5))
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page.getByText('That code is incorrect. Enter the current code from your app.')).toBeVisible()
 
   await type(page, '6-digit code', totp(MFA_SECRET))
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page).toHaveURL(/\/dashboard$/)
   // This admin has two-step sign-in on: no setup banner
   await expect(page.getByText(/Set up two-step sign-in/)).toHaveCount(0)
@@ -91,11 +111,11 @@ test('an admin with two-step sign-in logs in with a code, and a code works once 
   await logout(page)
   await password(page, MFA_ADMIN)
   await type(page, '6-digit code', code)
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page.getByText('That code is incorrect. Enter the current code from your app.')).toBeVisible()
   await nextStep(page)
   await type(page, '6-digit code', totp(MFA_SECRET))
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page).toHaveURL(/\/dashboard$/)
 })
 
@@ -145,7 +165,7 @@ test('a technician turns it on, uses a recovery code, makes new ones and turns i
   await page.getByRole('button', { name: 'Use a recovery code' }).click()
   await expect(page.getByRole('heading', { name: 'Use a recovery code' })).toBeVisible()
   await page.getByLabel('Recovery code').fill(codes[0]!)
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByText('You used a recovery code. 9 are left.')).toBeVisible()
   await page.getByRole('button', { name: 'Dismiss' }).click()
@@ -155,10 +175,10 @@ test('a technician turns it on, uses a recovery code, makes new ones and turns i
   await password(page, TECH)
   await page.getByRole('button', { name: 'Use a recovery code' }).click()
   await page.getByLabel('Recovery code').fill(codes[0]!)
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page.getByText('That recovery code is incorrect or already used.')).toBeVisible()
   await page.getByLabel('Recovery code').fill(codes[1]!)
-  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await submitCode(page)
   await expect(page).toHaveURL(/\/dashboard$/)
   await page.getByRole('button', { name: 'Dismiss' }).click()
 

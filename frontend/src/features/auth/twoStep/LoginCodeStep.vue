@@ -120,17 +120,28 @@
       }
       emit('done', user)
     } catch (error) {
-      code.value = ''
-      recovery.value = ''
+      if (!isGatewayLimit(error)) {
+        code.value = ''
+        recovery.value = ''
+      }
       explain(error)
     } finally {
       busy.value = false
     }
   }
 
+  /** A 429 from the gateway has no `retry_after`; the account lock (auth) always has one. */
+  function isGatewayLimit (error: unknown): boolean {
+    return error instanceof ApiError && error.status === 429 && error.retryAfter === undefined
+  }
+
   function explain (error: unknown): void {
     if (error instanceof NetworkError) {
       failure.value = { type: 'error', text: 'No connection. Check your signal and try again.' }
+    } else if (isGatewayLimit(error)) {
+      // The address is over Nginx's limit for sign-in requests: nothing is locked, and what was
+      // typed is kept, so waiting a minute and pressing Log in again is enough
+      failure.value = { type: 'warning', text: 'Too many attempts. Wait a minute, then try again.' }
     } else if (error instanceof ApiError && error.status === 429) {
       locked.value = true
       failure.value = { type: 'warning', text: 'Too many attempts. Try again in 15 minutes.' }
