@@ -8,6 +8,11 @@
         The TP seed users and organizations A and B, for local and staging only. Password from
         AUTH_SEED_PASSWORD. Idempotent.
 
+    python -m app.cli reset-totp --email ops@example.org
+        Removes someone's second factor (lost phone and recovery codes, and no other admin to reset
+        it from the Users page). Ends their sessions and restarts their setup window. Recorded as
+        `auth.totp_reset` with `via: cli`.
+
     python -m app.cli import-orgs FILE [--commit]
         Organizations from the existing system's `entities` export (decision W5-8). A dry run unless
         --commit; organizations already there are skipped, so it can run again.
@@ -42,7 +47,7 @@ from app import migrations as app_migrations
 from app.config import Settings
 from app.domain import org_import
 from app.domain import users as rules
-from app.domain.passwords import Hasher
+from app.domain.passwords import MIN_LENGTH, Hasher
 from app.events.publish import Emitter, ev
 from app.repo import organizations
 from app.repo import users as users_repo
@@ -138,6 +143,65 @@ async def revoke_all_sessions(reason: str) -> int:
         await client.close()
 
 
+async def _enrol_seed_admin(
+    db: AsyncDatabase[dict[str, Any]], settings: Settings, now: Any
+) -> bool:
+    """`admin_mfa` (tests and Playwright) has two-step sign-in with the public secret from
+    `mms_common.testing.seed`, when `AUTH_TOTP_KEY` is set. Written straight to the record: it is
+    a test account, so no audit event."""
+    from mms_common.testing.seed import ADMIN_MFA_TOTP_SECRET
+
+    from app.domain import recovery, totp
+    from app.repo import totp as totp_repo
+
+    key = settings.totp_key_bytes
+    user = SEED_USERS["admin_mfa"]
+    current = await users_repo.get(db, user.id)
+    if key is None or current is None or current.get("totp"):
+        return False
+    sealed = totp_repo.seal(key, totp.from_base32(ADMIN_MFA_TOTP_SECRET), user.id)
+    _, records = recovery.generate()
+    fields = totp_repo.enrolment_fields(sealed, records, now, 0)
+    await users_repo.col(db).update_one({"_id": user.id}, {"$set": fields})
+    return True
+
+
+async def reset_totp(email: str) -> int:
+    from mms_common.auth import revocation
+    from redis.asyncio import Redis
+
+    from app.events import totp_reset
+
+    settings = Settings()
+    clock = SystemClock()
+    client = mongo.connect(settings.mongo_uri)
+    db = client[settings.mongo_db]
+    redis = Redis.from_url(settings.redis_url)
+    try:
+        user = await users_repo.find_by_email(db, rules.normalize_email(email))
+        if user is None:
+            print(f"No account for {email}", file=sys.stderr)
+            return 1
+        if not user.get("totp"):
+            print(f"{user['email']} has no two-step sign-in to reset", file=sys.stderr)
+            return 1
+        now = clock.now()
+
+        async def tx(body: Any) -> Any:
+            return await mongo.in_transaction(client, body)
+
+        await totp_reset.apply(
+            tx, db, settings, user, Emitter(db, clock, CLI, correlation_id=None),
+            now=now, via="cli", by=None,
+        )
+        await revocation.revoke_user(redis, user["_id"], now)
+        print(f"Two-step sign-in removed for {user['email']}; they sign in again and set it up")
+        return 0
+    finally:
+        await redis.aclose()
+        await client.close()
+
+
 async def seed(password: str) -> int:
     settings = Settings()
     if settings.environment == "production":
@@ -176,7 +240,8 @@ async def seed(password: str) -> int:
                 password_hash=password_hash, now=now,
             )
             created += await _create_user(client, db, emitter, doc)
-        print(f"Seeded {created} users")
+        enrolled = await _enrol_seed_admin(db, settings, now)
+        print(f"Seeded {created} users" + (", admin_mfa has two-step sign-in" if enrolled else ""))
         return 0
     finally:
         await client.close()
@@ -243,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
     revoke = commands.add_parser("revoke-all-sessions",
                                  help="end every session (after a restore from backup)")
     revoke.add_argument("--reason", default="restore", choices=["restore", "key_rotation"])
+    reset = commands.add_parser("reset-totp", help="remove someone's second factor (lost phone)")
+    reset.add_argument("--email", required=True)
     orgs = commands.add_parser("import-orgs",
                                help="organizations from the existing system's export")
     orgs.add_argument("file")
@@ -256,17 +323,19 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Can't read {args.file}: {exc}", file=sys.stderr)
             return 1
         return asyncio.run(import_orgs(args.file, content, args.commit))
+    if args.command == "reset-totp":
+        return asyncio.run(reset_totp(args.email))
     if args.command == "revoke-all-sessions":
         return asyncio.run(revoke_all_sessions(args.reason))
     if args.command == "create-admin":
         password = os.environ.get("AUTH_ADMIN_PASSWORD") or getpass.getpass("Password: ")
-        if len(password) < 10:
-            print("Use at least 10 characters", file=sys.stderr)
+        if len(password) < MIN_LENGTH:
+            print(f"Use at least {MIN_LENGTH} characters", file=sys.stderr)
             return 1
         return asyncio.run(create_admin(args.email, args.name, password))
     password = os.environ.get("AUTH_SEED_PASSWORD", "")
-    if len(password) < 10:
-        print("Set AUTH_SEED_PASSWORD (at least 10 characters)", file=sys.stderr)
+    if len(password) < MIN_LENGTH:
+        print(f"Set AUTH_SEED_PASSWORD (at least {MIN_LENGTH} characters)", file=sys.stderr)
         return 1
     return asyncio.run(seed(password))
 

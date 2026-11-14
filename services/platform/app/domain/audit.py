@@ -65,6 +65,10 @@ AUD1: dict[str, tuple[str, ...]] = {
     ),
     "QR regeneration": ("qr.regenerated",),
     "security": ("auth.token_reuse_detected", "auth.sessions_revoked"),
+    "second factor: setup, use, failure, reset": (
+        "auth.totp_enrolled", "auth.totp_disabled", "auth.totp_reset", "auth.mfa_failed",
+        "auth.recovery_code_used", "auth.recovery_codes_regenerated",
+    ),
     "brand colour changes": ("branding.updated",),
 }
 

@@ -3,13 +3,14 @@
 
 | | |
 |---|---|
-| **Version** | 1.8 |
-| **Date** | 2026-10-28 |
+| **Version** | 1.9 |
+| **Date** | 2026-11-12 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows PRD 1.1 and TRD 2.0: a new **Unlock** page (offline PIN), station owners on visits (J5, J6), J6 checks preparation before the visit starts, reopened reports return the request to In progress (J7, J8), and new routing and edge states for offline sessions and sync conflicts. 37 pages |
 | **Changes in 1.2** | J1 step 2: the client types their organization's name (no public list of organizations); PRD 1.2 AUTH-1 |
 | **Changes in 1.3** | §5.1: staff and clients use the app shell (rail sections, pane tabs, view; DBD 1.4, decision W4-9). `/admin/registrations/:id` opens one registration (J1 step 4) |
 | **Changes in 1.4** | New admin page **Settings** (`/admin/settings/:part?`, decision W4-11): Appearance (the admin's own theme and, on this device, animations) and Brand colours (the Material 3 theme everyone sees, W4-12). Admin section tab after Audit log |
+| **Changes in 1.9** | J2 as built with a second factor (W22, 2026-11-12, PRD AUTH-14): **Log in** asks for a 6-digit code (or a recovery code) when the person has two-step sign-in; an admin inside the 7-day window sees a banner on every page with **Set up now**, and after it must set it up before getting in; **My profile** gains a **Two-step sign-in** card (set up, new recovery codes, turn off for staff who opted in); admins get **Reset** on Users |
 | **Changes in 1.8** | J7 as built (W17, 2026-10-28): **Preview PDF** opens the PDF in the app's own sheet, not a new tab (an iPhone tab shows a blob or a download sheet); the signature dialog has a typed-name option for people who cannot draw; Finalize can stop three ways (the board changed, the visit could not be locked, the PDF failed) and the page says which; a client reads the final report on the visit page and never sees a superseded version or the correction in progress; an admin who did not attend does not sign. The public verify page is dropped: verifying is an API only |
 | **Changes in 1.7** | W14 as built: `/sync` shows what waits by visit (counted from the phone, so right with no signal), progress while sending, "Keep MARS-MMS open" with a wake lock, and **Needs attention** with Export, Try again and Done with this; the start question for an unprepared visit says **Prepare now** or **Start anyway**; Reschedule, Cancel and Change owner warn when a phone holds the visit. |
 | **Changes in 1.6** | J6: the field stepper (Before → Work → After → Review) is replaced by the station's **board** of Notes, Tasks, Recommendations and Config, with the photo gate at departure removed (PRD 1.5 VIS-5 to VIS-8, VIS-6 dropped; decisions W11-16 to W11-35, 2026-10-22). The Checklist templates admin page is removed. J7 fixes facts on the board |
@@ -231,11 +232,16 @@ Login sends each user to their dashboard, or back to the page they were trying t
 
 | # | On page | User does | What happens / next page |
 |---|---|---|---|
-| 1 | `/login` | Enters email and password, clicks **Log in** | → the `next` page if one was saved (deep link, QR scan), else `/dashboard` |
+| 1 | `/login` | Enters email and password, clicks **Log in** | With two-step sign-in on, the page asks for the code first (rows 1b to 1d). Then → the `next` page if one was saved (deep link, QR scan), else `/dashboard` |
+| 1b | `/login` (code step) | Enters the 6-digit code from the authenticator app, clicks **Log in** | The same as row 1. A wrong code says "The code is incorrect" and counts toward the same lock as a wrong password; waiting more than 5 minutes asks for the password again. **Use a different account** goes back to the password |
+| 1c | `/login` (code step) | Clicks **Use a recovery code** and enters one saved when two-step sign-in was set up | Signs in; each code works once. A notice says how many are left and links to My profile |
+| 1d | `/login` (set-up step) | An admin whose 7-day window has ended enters the password, then scans the QR code (or types the key), enters a code and saves the ten recovery codes | Signed in. Nothing else opens until this is done |
 | 2 | `/login` | Clicks **Forgot password?** | → `/forgot-password` |
 | 3 | `/forgot-password` | Enters email, clicks **Send link** | Same page shows "If that email is registered, a link is on its way" whether or not it is |
 | 4 | Reset email | Clicks the link (valid 1 hour, single use) | → `/reset-password/:token` |
 | 5 | `/reset-password/:token` | Enters the new password twice, clicks **Save** | All other sessions are logged out → `/login` with a "Password changed" banner |
+
+**Two-step sign-in, as built (W22).** Required for admins, optional for other staff, never for clients. It is asked at sign-in only: a refresh, the offline PIN (`/unlock`) and a queued sync never ask for a code. An admin who has not set it up sees a banner (**Set up now**, with the date it becomes required) on every page, in the app and the field shell. **My profile → Two-step sign-in** sets it up (password, QR code and key, a code, then the ten recovery codes shown once), makes new recovery codes and, for staff who opted in, turns it off; admins cannot turn it off. A lost phone: another admin opens **Admin → Users** and chooses **Reset** on the person's row (never on their own); that person is logged out and has 7 days to set it up again. With no other admin, the operator runs `python -m app.cli reset-totp --email …` on the server. Sequence: [TRD §6.1.2](TRD.md#612-second-factor-w22-prd-auth-14).
 
 ### J3 · Report a fault
 
@@ -444,7 +450,7 @@ Most errors keep the user on the same page with a message; only lost access or a
 | `/login` | 5 failed attempts | "Too many attempts, try again in 15 minutes" | Same page |
 | `/login` | Account still pending | Waiting-for-approval message | `/register/pending` |
 | `/login` | Account rejected, disabled, or organization deactivated | "This account cannot sign in. Contact the service desk." | Same page |
-| `/register` | Password under 10 characters or on a breached list | Inline field error | Same page |
+| `/register` | Password under 12 characters or on a breached list | Inline field error | Same page |
 | `/reset-password/:token`, `/invite/:token` | Link expired (1 hour / 7 days) or already used | "This link has expired" with **Send a new link** | `/forgot-password` |
 | `/requests/:id` | Client opens a request after it is Scheduled | **Edit** and **Cancel** are hidden; a note says to comment instead | Same page |
 | `/requests/:id`, Comments | Comment older than 15 minutes | **Edit** is hidden | Same page |

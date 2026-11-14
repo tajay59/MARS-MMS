@@ -7,11 +7,14 @@ import type {
   InviteIn,
   Me,
   MePatch,
+  MfaChallenge,
   OrgIn,
   OrgOut,
   OrgPage,
+  RecoveryCodesOut,
   RegisterIn,
   TokenResponse,
+  TotpSetupOut,
   UserOut,
   UserPage,
   UserStatus,
@@ -22,8 +25,16 @@ const pub = { auth: false } as const
 
 export const authApi = {
   register: (body: RegisterIn) => api.post<{ status: string }>('/auth/register', body, pub),
+  // `supports_mfa`: this app can show the code step (W22). A person with two-step sign-in gets a
+  // challenge instead of a session.
   login: (email: string, password: string) =>
-    api.post<TokenResponse>('/auth/login', { email, password }, pub),
+    api.post<TokenResponse | MfaChallenge>('/auth/login', { email, password, supports_mfa: true }, pub),
+  loginTotp: (challenge: string, factor: TotpFactor) =>
+    api.post<TokenResponse>('/auth/login/totp', { challenge, ...factor }, pub),
+  enrolBegin: (challenge: string) =>
+    api.post<TotpSetupOut>('/auth/login/totp/enrol/begin', { challenge }, pub),
+  enrolConfirm: (challenge: string, code: string) =>
+    api.post<TokenResponse>('/auth/login/totp/enrol/confirm', { challenge, code }, pub),
   logout: () => api.post<void>('/auth/logout', undefined, pub),
   requestReset: (email: string) => api.post<{ status: string }>('/auth/password-reset/request', { email }, pub),
   confirmReset: (token: string, password: string) =>
@@ -32,6 +43,19 @@ export const authApi = {
     api.post<TokenResponse>('/auth/invitations/accept', { token, password }, pub),
   me: () => api.get<Me>('/auth/me'),
   updateMe: (body: MePatch) => api.patch<Me>('/auth/me', body),
+}
+
+/** A code from the authenticator app, or one recovery code (exactly one). */
+export type TotpFactor = { code: string } | { recovery_code: string }
+
+// Two-step sign-in, managed by a signed-in member of staff (W22)
+export const totpApi = {
+  begin: (password: string) => api.post<TotpSetupOut>('/auth/me/totp/begin', { password }),
+  confirm: (code: string) => api.post<RecoveryCodesOut>('/auth/me/totp/confirm', { code }),
+  newRecoveryCodes: (password: string, factor: TotpFactor) =>
+    api.post<RecoveryCodesOut>('/auth/me/totp/recovery-codes', { password, ...factor }),
+  turnOff: (password: string, factor: TotpFactor) =>
+    api.delete<void>('/auth/me/totp', { body: { password, ...factor } }),
 }
 
 export interface UserQuery {
@@ -49,6 +73,7 @@ export const usersApi = {
   invite: (body: InviteIn) => api.post<UserOut>('/users', body),
   approve: (id: string, body: ApproveIn) => api.post<UserOut>(`/users/${id}/approve`, body),
   reject: (id: string, reason: string) => api.post<UserOut>(`/users/${id}/reject`, { reason }),
+  resetTotp: (id: string) => api.post<UserOut>(`/users/${id}/totp/reset`),
 }
 
 export const orgsApi = {

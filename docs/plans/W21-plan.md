@@ -32,6 +32,7 @@ Release 0.7.0 is on staging and checked by people, the dependency updates are de
   - #126 ESLint 10, #129 `@types/node` 26, #125 frontend group: a check is failing on each; some of these are the Mongo start flake (rerun), not the code.
   - #122 and #154 (`infra` images): propose **Mongo 8.0.34 to 8.3.13** plus Prometheus 3.5 to 3.15, Grafana 12.0 to 12.4, SeaweedFS 4.48 to 4.50 and others. Superseded for Mongo by the decision to go to MongoDB 9 (section below); #154's other images are looked at on their own after that merges.
   - **Update 2026-11-11:** the Trivy fix (zlib1g, #168) is merged; #169 groups Dependabot by dependency; #156 to #167 (floor bumps only) were closed; #128 closed (TypeScript 7).
+- **Update 2026-11-11 (end of the first pass):** #169 (Dependabot grouping), #171 (the fixture restarts a Mongo that has not started), #155 (frontend group), #126 (ESLint 10) and #129 (`@types/node` 26) are merged, and #170 put MongoDB 9.0.8 on staging. Dependabot's next run opened #172 to #177: one pull request for all five Dockerfiles (#174), which shows the grouping works. Held, with reasons: #172 (15 monitoring and SeaweedFS images at once, none yet run together; look at it on staging, with `mongodb_exporter` against Mongo 9 first), #174 (Python 3.15; the TRD says 3.13), #176 (Pinia 4, a major), #177 (jsdom 31, a major), #173 (nginx patch; fine once its checks are green). #122 and #154 are superseded by the Mongo 9 decision and can be closed when the soak ends. Step 5 of the runbook (raise the FCV) has **not** been done.
 - **Mongo start flake:** `mongo did not start in 90 s` still hits some runners despite `GLIBC_TUNABLES`. Look at the runner kernel range before W22.
 
 ## MongoDB 9 (decided 2026-11-11, decisions W21-1 and W21-2)
@@ -62,7 +63,7 @@ Not covered here: production. The same steps apply when the host exists; do them
 | # | Question | Recommendation | Cost to close |
 |---|---|---|---|
 | D-1 | Minimum password length 10 or 12? | Raise to 12 | One constant and the PRD line (AUTH-9); existing passwords stay valid. |
-| D-2 | Second factor for admins? | Accept for the pilot; TOTP for admins in a later release | A feature (enrolment, recovery); not before the pilot. |
+| D-2 | Second factor for admins? | Accept for the pilot; TOTP for admins in a later release | A feature (enrolment, recovery); not before the pilot. **Answered 2026-11-12: build it before the pilot (W22).** |
 | D-3 | 30-day sliding sessions? | Accept (technicians work offline for days; PIN unlock, 15-minute access tokens, instant revocation) | None. Optionally shorten for admins. |
 | D-4 | No TLS between containers on the one host? | Accept for one host | Revisit if the stack is split across hosts. |
 | D-5 | `style-src 'unsafe-inline'`? | Accept (Vuetify writes inline styles) | Revisit when Vuetify supports nonces cleanly. |

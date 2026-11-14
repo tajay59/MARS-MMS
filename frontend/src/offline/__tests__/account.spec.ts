@@ -14,6 +14,7 @@ function session (id: string, roles: string[], name = 'Devon Brown'): Session {
     expiresAt: Date.now() + 900_000,
     refreshExpiresAt: new Date(Date.now() + (30 * DAY)).toISOString(),
     user: { id, name, roles, org_id: null, theme: 'system' } as Session['user'],
+    mfaRequiredBy: null,
   }
 }
 

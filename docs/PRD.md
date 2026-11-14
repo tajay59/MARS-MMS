@@ -3,9 +3,10 @@
 
 | | |
 |---|---|
-| **Version** | 1.5 |
-| **Date** | 2026-10-22 |
+| **Version** | 1.6 |
+| **Date** | 2026-11-12 |
 | **Status** | Final draft for approval |
+| **Changes in 1.6** | AUTH-14: a second factor (TOTP) for admins at sign-in, with recovery codes (decisions W22-1 to W22-10, 2026-11-12; closes ASVS deviation D-2). AUTH-10 and AUTH-11 cover the second step's failures and a reset |
 | **Changes in 1.5** | The visit board replaces the work record (decisions W11-16 to W11-35, 2026-10-22): a station on a visit is recorded as Notes, Tasks, Recommendations and Config (VIS-5, VIS-7, VIS-8 rewritten); VIS-6 dropped; checklist templates removed; sensor swaps, unknown serials and field calibrations are recorded on the Sensors page, not through a visit (SEN-4, SEN-5, CAL-1); a Config element's After files become a configuration version (CFG-4). §6.2, §9 phase 4 and Appendix A follow |
 | **Changes in 1.4** | REQ-7: a technician can release a claim, and an admin can unassign; the request returns to the queue when nobody is left (decision W9-4, 2026-10-21). Section 5.1 shows the Assigned to Approved move |
 | **Changes in 1.3** | AUD-1 also audits brand colour changes: admins can change the organization-wide colours on Settings (decision W4-12, 2026-10-17) |
@@ -169,11 +170,12 @@ Priorities: **M** = must have for launch, **S** = should have, **C** = could hav
 | AUTH-6 | Staff accounts are created by admins only. Admins can also invite client users directly. Invited users get an email to set their password. | M |
 | AUTH-7 | All users log in with email and password. | M |
 | AUTH-8 | Users can reset a forgotten password through a single-use emailed link valid for 1 hour. | M |
-| AUTH-9 | Passwords are at least 10 characters and must not be on a known breached-password list. | M |
+| AUTH-9 | Passwords are at least 12 characters and must not be on a known breached-password list. | M |
 | AUTH-10 | Repeated failed logins are rate-limited. Error messages do not reveal whether an email is registered. | M |
 | AUTH-11 | Admins can disable a user. A disabled user is logged out of all devices. | M |
 | AUTH-12 | Staff stay logged in on their field device for up to 30 days so they can work offline. If the app or phone restarts with no signal, they reopen their field work with a device PIN, set the first time they prepare a visit. Five wrong PINs require an online login; no work is lost. | M |
 | AUTH-13 | Users can edit their own name, phone, password and time-zone preference. | S |
+| AUTH-14 | Admins sign in with a password and a 6-digit code from an authenticator app (TOTP). It is required for the admin role after a 7-day setup window, and any staff member may turn it on from My profile; clients cannot. Ten one-time recovery codes are shown once. Another admin can reset a lost phone, or the operator can from the server. The code is asked at sign-in only, never when the session is refreshed, so field work and the offline PIN (AUTH-12) are not interrupted. A wrong code counts toward the same lock as a wrong password (AUTH-10). Setting up, turning off, resetting and failed codes are audited (AUD-1). | M |
 
 ### 4.2 Client organizations
 
