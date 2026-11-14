@@ -1,6 +1,6 @@
 // The operations service's routes (TRD §3.2). Shapes come from openapi/operations.json.
 
-import type { CalibrationPage, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, Places, QrResolved, QueuePage, RequestDetail, RequestIn, RequestPage, RequestPatch, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, Workload } from './models'
+import type { BoardElement, BoardElementIn, BoardElementList, BoardElementPut, BoardMediaIn, BoardMediaPatch, BoardRequestIn, CalibrationPage, ClientReportIn, ClientReportOut, ClientReportPage, ClientReportPatch, CommentIn, CommentOut, CommentPatch, ConfigDiff, ConfigVersionIn, ConfigVersionOut, DocumentIn, DocumentOut, DocumentPage, DocumentPatch, DownloadOut, DueList, EndVisitIn, FieldBundle, Places, QrResolved, QueuePage, RequestAcceptIn, RequestDetail, RequestIn, RequestPage, RequestPatch, RequestRejectIn, SensorModelIn, SensorModelList, SensorModelOut, SensorModelPatch, SensorUnitDetail, SensorUnitIn, SensorUnitOut, SensorUnitPage, SensorUnitPatch, StaffOut, StationDetail, StationDocuments, StationIn, StationPage, StationPatch, StationStatus, VisitIn, VisitOut, VisitPage, VisitPatch, Workload } from './models'
 import { api } from './http'
 
 export interface StationQuery {
@@ -66,6 +66,10 @@ export const requestsApi = {
     api.post<RequestDetail>(`/requests/${id}/assign`, { staff_ids: staffIds, version }),
   claim: (id: string) => api.post<RequestDetail>(`/requests/${id}/claim`, {}),
   release: (id: string) => api.post<RequestDetail>(`/requests/${id}/release`, {}),
+  // Client Review (REQ-13): a client signs the work off, or sends it back with a reason. Both name the
+  // review they read (`reviewing`: the detail's `review_started_at`), and sending one twice is safe.
+  accept: (id: string, body: RequestAcceptIn) => api.post<RequestDetail>(`/requests/${id}/accept`, body),
+  reject: (id: string, body: RequestRejectIn) => api.post<RequestDetail>(`/requests/${id}/reject`, body),
   workload: (signal?: AbortSignal) => api.get<Workload>('/requests/workload', { signal }),
   // Comments (REQ-9, REQ-10): oldest first. A client's list has no internal comment. `body.id` is
   // made on the device: sending it again returns the comment already posted (200).
@@ -79,6 +83,28 @@ export const requestsApi = {
     api.get<DownloadOut>(`/requests/${id}/attachments/${mediaId}/download`),
   commentFile: (id: string, commentId: string, mediaId: string) =>
     api.get<DownloadOut>(`/requests/${id}/comments/${commentId}/attachments/${mediaId}/download`),
+}
+
+// A client's own reports on a request (CRP-1 to CRP-5). A draft is private to its author and `version`
+// guards each change; a submitted report cannot change. A form's PDF is a report of the report service.
+export interface ClientReportQuery {
+  request_id?: string
+  station_id?: string
+  limit?: number
+}
+
+export const clientReportsApi = {
+  list: (query: ClientReportQuery = {}, signal?: AbortSignal) =>
+    api.get<ClientReportPage>('/client-reports', { query: { ...query }, signal }),
+  get: (id: string, signal?: AbortSignal) => api.get<ClientReportOut>(`/client-reports/${id}`, { signal }),
+  // `body.id` is made on the device: sending it again returns the draft already made (200)
+  create: (body: ClientReportIn) => api.post<ClientReportOut>('/client-reports', body),
+  update: (id: string, body: ClientReportPatch) => api.patch<ClientReportOut>(`/client-reports/${id}`, body),
+  // Idempotent. For a form whose PDF could not be drawn it is also Try again
+  submit: (id: string) => api.post<ClientReportOut>(`/client-reports/${id}/submit`, {}),
+  // Ten-minute links, asked for on click and never kept (TRD 7.6)
+  download: (id: string) => api.get<DownloadOut>(`/client-reports/${id}/download`),
+  file: (id: string, mediaId: string) => api.get<DownloadOut>(`/client-reports/${id}/attachments/${mediaId}/download`),
 }
 
 // Approved requests nobody has taken, oldest first (staff only; a client has no queue)
@@ -95,7 +121,7 @@ export const calibrationsApi = {
 
 export const sensorUnitsApi = {
   get: (id: string, signal?: AbortSignal) => api.get<SensorUnitDetail>(`/sensor-units/${id}`, { signal }),
-  list: (query: { model_id?: string, station_id?: string, status?: string, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
+  list: (query: { model_id?: string, station_id?: string, status?: string, needs_review?: boolean, q?: string, after?: string, limit?: number }, signal?: AbortSignal) =>
     api.get<SensorUnitPage>('/sensor-units', { query: { ...query }, signal }),
   // Staff who write (technician, admin). A unit reaches a station only through install (SEN-2).
   create: (body: SensorUnitIn) => api.post<SensorUnitOut>('/sensor-units', body),
@@ -143,4 +169,70 @@ export const configVersionsApi = {
     api.post<ConfigVersionOut>(`/stations/${stationId}/config-versions`, body),
   diff: (stationId: string, version: number, against?: number, signal?: AbortSignal) =>
     api.get<ConfigDiff>(`/stations/${stationId}/config-versions/${version}/diff`, { query: { against }, signal }),
+}
+
+export interface VisitQuery {
+  request_id?: string
+  staff_id?: string
+  status?: string
+  from?: string
+  to?: string
+  after?: string
+  limit?: number
+}
+
+// Visits (VIS-1 to VIS-4, VIS-9, VIS-11). A client sees their organization's only. The server
+// decides what a person may do (`actions` on a visit and on each station) and the page shows only
+// those. `body.id` of a new visit is made on the device: sending it again returns the visit made.
+// Each move is idempotent: the same move by the same person again returns the visit as it is.
+export const visitsApi = {
+  list: (query: VisitQuery = {}, signal?: AbortSignal) =>
+    api.get<VisitPage>('/visits', { query: { ...query }, signal }),
+  mine: (signal?: AbortSignal) => api.get<VisitPage>('/visits/mine', { signal }),
+  get: (id: string, signal?: AbortSignal) => api.get<VisitOut>(`/visits/${id}`, { signal }),
+  /** Active technicians and admins to pick from when scheduling (technicians and admins only) */
+  staff: (signal?: AbortSignal) => api.get<{ items: StaffOut[] }>('/visits/staff', { signal }),
+  schedule: (body: VisitIn) => api.post<VisitOut>('/visits', body),
+  update: (id: string, body: VisitPatch) => api.patch<VisitOut>(`/visits/${id}`, body),
+  cancel: (id: string, reason?: string) => api.post<VisitOut>(`/visits/${id}/cancel`, { reason: reason || null }),
+  restore: (id: string) => api.post<VisitOut>(`/visits/${id}/restore`, {}),
+  start: (id: string) => api.post<VisitOut>(`/visits/${id}/start`, {}),
+  arrive: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/arrive`, {}),
+  depart: (id: string, stationId: string) => api.post<VisitOut>(`/visits/${id}/stations/${stationId}/depart`, {}),
+  end: (id: string, body: EndVisitIn) => api.post<VisitOut>(`/visits/${id}/end`, body),
+  /** Everything a phone needs to carry the visit out with no signal; records where it is prepared (OFF-1). */
+  fieldBundle: (id: string, deviceId: string, signal?: AbortSignal) =>
+    api.get<FieldBundle>(`/visits/${id}/field-bundle`, { query: { device_id: deviceId }, signal }),
+}
+
+const board = (id: string, stationId: string) => `/visits/${id}/stations/${stationId}/elements`
+
+// A station's board (VIS-5, VIS-7; W11-16 to W11-35): Notes, Tasks, Recommendations and Config.
+// `body.id` of a new element is made on the device: the same id and content again returns it.
+// A save sends the whole content with `base_version` (409 `element_changed` with `current` when it
+// moved on); a delete leaves a tombstone (409 `element_deleted` for a late save). Files go on an
+// element after their upload, by `media_id`, and never change its version.
+export const boardApi = {
+  list: (id: string, stationId: string, signal?: AbortSignal) =>
+    api.get<BoardElementList>(board(id, stationId), { signal }),
+  get: (id: string, stationId: string, elementId: string, signal?: AbortSignal) =>
+    api.get<BoardElement>(`${board(id, stationId)}/${elementId}`, { signal }),
+  create: (id: string, stationId: string, body: BoardElementIn) =>
+    api.post<BoardElement>(board(id, stationId), body),
+  save: (id: string, stationId: string, elementId: string, body: BoardElementPut) =>
+    api.put<BoardElement>(`${board(id, stationId)}/${elementId}`, body),
+  remove: (id: string, stationId: string, elementId: string, baseVersion: number) =>
+    api.delete<void>(`${board(id, stationId)}/${elementId}`, { query: { base_version: baseVersion } }),
+  addMedia: (id: string, stationId: string, elementId: string, body: BoardMediaIn) =>
+    api.post<BoardElement>(`${board(id, stationId)}/${elementId}/media`, body),
+  changeMedia: (id: string, stationId: string, elementId: string, mediaId: string, body: BoardMediaPatch) =>
+    api.patch<BoardElement>(`${board(id, stationId)}/${elementId}/media/${mediaId}`, body),
+  removeMedia: (id: string, stationId: string, elementId: string, mediaId: string) =>
+    api.delete<BoardElement>(`${board(id, stationId)}/${elementId}/media/${mediaId}`),
+  /** After the end: a Config element's changed After files become the next version (W11-37). */
+  saveConfigVersion: (id: string, stationId: string, elementId: string) =>
+    api.post<BoardElement>(`${board(id, stationId)}/${elementId}/config-version`),
+  /** A new request from a recommendation; `body.id` is the request's, made on the device (W11-38). */
+  requestFrom: (id: string, stationId: string, elementId: string, body: BoardRequestIn) =>
+    api.post<BoardElement>(`${board(id, stationId)}/${elementId}/request`, body),
 }

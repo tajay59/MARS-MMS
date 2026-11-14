@@ -3,8 +3,8 @@
 
 | | |
 |---|---|
-| **Version** | 2.14 |
-| **Date** | 2026-10-19 |
+| **Version** | 2.25 |
+| **Date** | 2026-11-12 |
 | **Status** | Final draft for approval |
 | **Companion document** | [PRD.md](PRD.md) v1.2 (Product Requirements Document) |
 | **Supersedes** | TRD 1.3 and all drafts in [drafts/](drafts/) |
@@ -19,6 +19,17 @@
 | **Changes in 2.6** | The stations module as built (IP Phase 2 W5, 2026-10-18, decisions W5-1 to W5-7). Sensor units are installed and removed by **actions**, `POST /api/v1/sensor-units/{id}/install` and `/remove`; `installed` is reached only through them (§3.2). `GET /api/v1/stations/facets` for the list's filters; the list pages by code (§3.2). New events `sensor_model.created` / `.updated`; a unit's events are keyed by its station while installed and by the unit while in stock (§8.1, §8.4). operations keeps a copy of the organizations from `org.*` events and auth's snapshot, read at every start with its own service secret (§3.2, §5.2, §8.6). The station import format (§3.2). `upsert_if_newer` reads before writing so a consumer's transaction is never aborted by a duplicate key (§8.6) |
 | **Changes in 2.7** | The station export (T4, decision W5-8, 2026-10-18): the organization's existing system is a MongoDB with `entities` and `sites` collections, brought in once from `mongoexport` files. Organizations gain `short_name` and `external_id` (unique where set) and carry them in `org.*` events and the snapshot (§5.1, §8.4); auth's `python -m app.cli import-orgs`. Stations gain `external_id` (unique where set; the list's search matches it), and the station import reads the `sites` export, one station per device (§3.2, §5.2). In the import, the country defaults to the organization's. Parameter codes may have up to 32 characters (was 16) and a station up to 40 of them, the API's limit, in the import too: the real export has codes of 18 characters and a device with 22 parameters |
 | **Changes in 2.8** | The documents path as built (IP Phase 2 W6, 2026-10-19, decisions W6-1 to W6-6). The **media service** exists: `POST /api/v1/uploads` is idempotent by `media_id` and joins an open upload of the same file by the same person (size and SHA-256); `complete` takes **no part list** because media lists the parts itself and checks them against the announced size; the file is then checked in `media-worker` in one pass (SHA-256, magic bytes, ClamAV) and is never `ready` without a scan result. `MEDIA_SCAN_MODE=clamd|off`, and `off` is refused in production (T8: staging). Operations gains **documents** (`GET/POST /api/v1/documents`, `PATCH /{id}`, `/{id}/download`, `GET /stations/{id}/documents`), **configuration versions** (`POST` only files that are `ready`, `GET`, `/{version}`, `/{version}/diff`), a calibration's `certificate_media_id`, `GET /internal/attachable` for the owner check, and a consumer for `media.processed` / `media.failed`. New events `document.uploaded`, `document.updated`, `config.version_created`, `media.visibility_requested` (operations) and the four `media.*` (§8.4). **Background jobs are a small Redis queue** (`mms_common.jobs`, a sorted set with a lease) instead of arq, which pins `redis<6` (§9). SeaweedFS runs `-volume.max=0` with 256 MB volumes: the default 8 slots ran out on the second bucket (§10.1, R6) |
+| **Changes in 2.25** | The second factor as built (IP buffer W22, 2026-11-12, decisions W22-1 to W22-10; §6.1.2, PRD AUTH-14). `POST /api/v1/auth/login` answers a challenge (`{mfa_required, enrol, challenge, expires_in}`) instead of a session for a person with TOTP; `POST /login/totp` and `/login/totp/enrol/{begin,confirm}` finish it; `/me/totp/*` and `POST /users/{id}/totp/reset` manage it. RFC 6238 TOTP in `domain/totp.py`, secret sealed with AES-GCM under `AUTH_TOTP_KEY`, ten hashed recovery codes, a 7-day setup window for admins, MFA at sign-in only (never at refresh). Six new `auth.*` security events (§8): `totp_enrolled`, `totp_disabled`, `totp_reset`, `mfa_failed`, `recovery_code_used`, `recovery_codes_regenerated`, and `mfa` on `login_succeeded`. `users` gains `totp`, `recovery_codes`, `mfa_grace_until` (BSD 1.12) |
+| **Changes in 2.24** | Charts in the summary PDFs as built (IP Phase 7 W19 slice 3d, 2026-10-29, decision W19-11; §11.1, R9). ApexCharts 4.7.0 (MIT) drawn by Debian's `chromium` in the report image, started by the worker for each chart (`--headless=new --screenshot`, a page and script written to a temporary folder, a Content-Security-Policy that allows local script files only) and embedded as a PNG. Not Playwright, and a PNG not an SVG (the legend is HTML). One chart per report, chosen from its own table (`domain/charts.py`); a chart that fails or takes over 30 s (`REPORT_CHART_TIMEOUT_S`) is left out with a note and the table still prints. Measured: image 1.51 GB, a chart 0.7 to 1.9 s, worker peak 383 MiB (was about 90), so the staging cap for `report-worker` is 768 MB. |
+| **Changes in 2.23** | Technician workload as built (IP Phase 7 W19 slice 3c, 2026-10-28, decision W19-7). The eleventh summary type, staff only. Request events carry an optional `assigned_staff_names` and visit events an optional `staff_names` (id to name, never an email or phone), so the report service keeps `staff_facts` without reading auth (rule 1). Each person's row: open requests now, requests closed in the period, visits attended and led, hours on site (from `started_at` to `ended_at`) and reports signed in the period. |
+| **Changes in 2.22** | Three more summary reports as built (IP Phase 7 W19 slice 3b, 2026-10-28, decision W19-6). **Station asset** (what is installed at each station now, with serials and calibration dates; a client may run it for their own organization, so a client now has three types, SUM-3), **Sensor reliability** (installs, removals, failed calibrations and mean days in service per model) and **Configuration history** (the versions saved per station and the visit behind each). They read three new read-model collections: `model_facts` (from `sensor_model.*` and the `sensor_models` snapshot), `config_facts` (from `config.version_created`, which takes its id from the resource and its time from the envelope, and the `config_versions` snapshot) and `installation_facts` (from `sensor.installed` and `sensor.removed`, which write one row between them and are merged field by field, in either order, and the `installations` snapshot). Operations' `/internal/snapshot/{entity}` serves `sensor_models`, `installations` and `config_versions` besides the five it had; an installation snapshot carries the unit's serial and model. Ten of eleven types exist; **Technician workload** (needs staff names, which no event or snapshot the report service reads carries) and the Chromium charts remain |
+| **Changes in 2.21** | Summary reports as built (IP Phase 7 W19 slice 3, 2026-10-28, decisions W19-3 and W19-8 to W19-10). `GET /api/v1/reports/summary/types`, `POST /api/v1/reports/summary` (202), `GET /api/v1/reports/summary/jobs` and `/jobs/{id}` replace the single `POST /reports/summary` and `GET /reports/jobs/{id}` of the first design: a label job and a summary job have different results, so each has its own status route. A request is `{type, format: pdf\|csv, from, to, org_id?, country?, station_ids?, due_in_days?}`; the same person asking the same thing within a minute gets the same job. A job is a `report_jobs` record of type `summary` and a queue entry `summary:<id>`; the worker reads only the read model (no call to another service), builds a `Doc` of tables, and either writes the main table as CSV (`mms_common.safecsv`) or draws the PDF with WeasyPrint from `summary.html.j2`, storing `summaries/<id>.pdf\|csv`. A summary has no number, version or signature and `verify` does not find it; its footer says who made it and when. A month starts at 00:00 in `REPORT_SUMMARY_TIME_ZONE` (default America/Jamaica); times in a table are in that zone, times in a CSV are ISO 8601 UTC. A client may run Station history and Client activity for their own organization only: the organization comes from the token, a station outside it is 404, and the rows are read with both scopes. Files are removed after `REPORT_SUMMARY_KEEP_DAYS` (30). **Built: seven of the eleven types** (Station history, Client activity, Request turnaround, Calibration due, Network status, Monthly summary, Annual summary). Station asset, Sensor reliability, Configuration history and Technician workload need sensor models, configuration versions and staff names in the read model; the charts (§11.1, headless Chromium) follow with them |
+| **Changes in 2.20** | The dashboards' figures as built (IP Phase 7 W19 slice 2, 2026-10-28, decision W19-2). `GET /api/v1/dashboard?view=` answers each role its own view: admin (also the Viewer's), technician or client; asking for another role's is 403 `wrong_view`. It returns numbers and small aggregates from the read model and the reports, never lists with names: the admin's requests awaiting approval, unassigned queue, requests by status, requests in Client Review, calibrations overdue and due in 30 days, failed calibrations, reports awaiting finalization, upcoming visits and stations by country; the technician's assigned, queue, upcoming visits and reports to finalize; the client's stations by status, open requests, requests awaiting their review, upcoming visits and recent reports. Lists (upcoming visits, open requests) come from the operations pages that already carry names. Registrations pending (auth) and visits waiting to sync (the phone's IndexedDB) are not in this route. A client's figures are scoped by the token's organization in the repository and cached in Redis for `REPORT_DASHBOARD_CACHE_S` (default 60) under a key that holds that organization, never anything from the request. The read model gains `unit_facts` (from `sensor_unit.*` events and the `sensor_units` snapshot: status, station, calibration due) and `assigned_ids` on `request_facts`; migration `0006` marks older request rows version 0 so the backfill that runs at every start rewrites them |
+| **Changes in 2.19** | The audit log for people as built (IP Phase 7 W19 slice 1, 2026-10-28, decisions W19-1 to W19-5). `GET /api/v1/audit/events` (admin: actor by id or name, action, resource, organization, dates; cursor is the last `seq`; `total` counts to the export limit), `GET /api/v1/audit/events/export.csv` (admin; at most 50,000 rows, else 422 `too_many_records`; UTF-8 with a byte order mark; formula cells defused by `mms_common.safecsv`), `GET /api/v1/audit/resources/{kind}/{id}` (staff and the Viewer; kind `station`, `request` or `visit`; who, what, when and the **names** of changed fields, never the address, device, trace id, values or data; a request's History includes its visits, comments and reports through `metadata.request_id`, without board and file events), `POST /api/v1/audit/verify` (admin, 202; an `audit_checks` record that a worker takes within seconds), `GET /api/v1/audit/checks/{id}` and `/latest`. The check reads the chain in pages up to the head it read first, so a record appended meanwhile is not a break; a result names the first bad `seq` and nothing of the record. A nightly check is queued from `PLATFORM_AUDIT_CHECK_HOUR` (default 4) in the digest's time zone, and `audit_chain_ok` is a gauge for the alerts of W20. Exports and checks are appended to the chain as `audit.exported` and `audit.verified`. Results live in `audit_checks` in the notification database, because the audit user may not update `audit_events` (§5.6, §12) |
+| **Changes in 2.18** | The outbox, `/sync` and conflicts as built (IP Phase 5 W14, 2026-10-23, decisions W14-1 to W14-14; plan [plans/W14-plan.md](plans/W14-plan.md)). **`POST /api/v1/sync`** (§3.2.1, §7.3): a dispatcher over the existing route functions (technician and admin; at most 100 ops, 422 above); one answer per op (`applied`, `duplicate`, `conflict`, `error`, `skipped`); `sync_operations` is written in the op's own transaction and a conflict is never stored; `visit.sync_conflict` (facts only, once a day per visit, person and reason) tells the lead and admins. **On the phone** (§7.1 to §7.4): Dexie version 2; a prepared visit is local-first (every change and its op in one Dexie transaction, a save folds into an unsent create or update); the runner under the Web Lock `mms-sync` uploads files before the ops that need them; local copies go only after the server confirms (OFF-8). **Triggers** are app start, `online`, the app coming to the front, every 5 minutes, a local change and Sync now; **Background Sync is not used** (answered 2026-10-22). **Needs attention and Export** (§7.4): the phone keeps its copy of refused work; Export is one JSON file plus the files as taken, through the share sheet or as downloads; Done with this removes it. Starting an unprepared visit asks once (OFF-9). |
+| **Changes in 2.17** | Offline foundations as built (IP Phase 5 W13, 2026-10-22, decisions W13-1 to W13-14; plan [plans/W13-plan.md](plans/W13-plan.md)). **`GET /api/v1/visits/{id}/field-bundle?device_id=`** (§3.2.1): one JSON document (`bundle_version` 1, `prepared_at`, the visit, the request, each station with its sensors, calibration, latest configuration version, documents and board, and a flat `files[]` whose configuration files are `required`); attending staff and admins, planned or started visits only (409 `visit_not_preparable`); appends `{user_id, user_name, device_id, at}` to `prepared_on` (one per person and phone, ten at most) and emits **`visit.prepared`** in one transaction, without a version bump. `GET /visits/{id}` shows `prepared_on` to staff. The browser fetches each file through the ten-minute links (`/media/{id}`, `/documents/{id}/download`) and keeps it as a blob, never the link. §6.1: an unlocked phone is signed in from the cached profile with **no token** (`offline: true`) until a refresh succeeds. §7.1: `files` is keyed by `[visit_id+media_id]`; `blobs` rows in the state `diagnostic` belong to the storage check and the sync skips them. §7.6: a relabelled station still opens from an old bundle, since only the server knows. Finding F2 decided (an iPhone prepares only from the installed app); F3 is shown on `/sync`. |
+| **Changes in 2.16** | The visit board replaces the work record (2026-10-22, decisions W11-16 to W11-35). Each station on a visit has a board of elements in `visit_elements` (`note`, `task`, `recommendation`, `config`), each saved on its own with `base_version` and a tombstone on delete (§3.2.3). Removed: `WorkRecord`, `sensor_applications`, `checklist_templates`, media phases, the VIS-6 rule and `needs_review`; visits no longer change the sensor inventory. Config elements' After files become configuration versions at `end`; a Recommendation can start a request. Sync ops `element.*` replace `work.save` (§7.2, §7.4); events `visit.element_added`, `visit.element_updated`, `visit.element_deleted` replace `visit.work_updated` (§8.4). The field stepper is replaced by the board (§13.2) |
+| **Changes in 2.15** | The visits module as built (IP Phase 4 W10 slice 1, 2026-10-21, decisions W10-1 to W10-10). A visit is a `site_visits` document numbered `VR-YYYY-NNNN-NN`; its state table is one table (`domain/visits/state.py`). Every change to a visit takes the request's lock (`visit_seq`), writes the visit and its events, and derives the request's status (`domain/requests/recompute.py`) in one transaction (ADR-17). A station is in one live visit of a request at a time. Cancelling a request cancels its planned visits; **release is refused while a visit is live** (409 `has_visits`). New routes `POST /visits/{id}/stations/{sid}/arrive` and `/depart` (owner or admin); `POST /visits/{id}/end` takes `additional_visit_required`, `follow_up_notes` and `overrides[]` (VIS-6 is enforced in W12 with media). The lifecycle moves are idempotent and take the device's `at` time (at most 5 minutes ahead, 30 days back) so `/sync` can reuse them. Events: `visit.scheduled`, `.rescheduled`, `.cancelled`, `.restored`, `.started`, `.ended`, `.station_owner_changed` (`from_staff_id`, `to_staff_id`) and the new audit-only `.station_arrived` and `.station_departed`; every one carries the visit facts and never the notes. The request detail gains `visits` and the action `schedule_visit`. Clients see their organization's visits without `notes`. `GET /internal/snapshot/visits`. |
 | **Changes in 2.14** | Email, preferences and the weekly digest as built (IP Phase 3 W9 slice 4, 2026-10-21, decisions W9-13, W9-14). `email_queue` also carries the email that follows a notification and the digest (`kind: notification|digest`); the sender checks the person's choice when it sends. `GET/PUT /notifications/preferences` list only the types a role can be emailed about. The digest runs from platform's hourly tick, once per ISO week, from operations' new `GET /internal/calibrations/due`. Settings `PLATFORM_OPERATIONS_URL`, `PLATFORM_DIGEST_HOUR`, `PLATFORM_DIGEST_TZ`, `PLATFORM_DIGEST_WITHIN_DAYS`. |
 | **Changes in 2.13** | Notifications as built (IP Phase 3 W9 slice 3, 2026-10-21, decisions W9-9 to W9-12). The notification consumer also reads `mms.operations.events`; `user_directory` is built from `user.*` events and auth's snapshot. `GET /notifications` carries the unread count and takes `after`, `before`, `unread` and `group`; marking as read is self service. The WebSocket sends `ready` after it has subscribed, re-checks the token every 25 s (4401 on expiry or revocation) and accepts a new `auth` message to renew. `entity.updated` carries `kind` (`status`, `staff`, `comment`). Request events carry `assigned_staff_ids`. `platform` joins the OpenAPI export. |
 | **Changes in 2.12** | Comments and PDF attachments as built (IP Phase 3 W9 slice 2, 2026-10-21, decisions W9-5 to W9-8). `POST /requests/{id}/comments` is idempotent by a device-made `id`; the author edits within 15 minutes; staff may mark their own comment internal; the thread, the count and the owner check all filter internal comments for a client in the repository layer. Attachments are PDFs (5 per request or comment, 25 MB each), uploaded under `request:<id>` or `comment:<request id>:<id>` before the owner exists, and attach only when media has marked them `ready`. A request is created with `media_ids`. A client downloads through `GET /requests/{id}/attachments/{media_id}/download` or the comment version, never from media directly. `comment.added` and `comment.updated` carry no text. |
@@ -42,7 +53,7 @@ AWS-MMS is built as **five FastAPI services**, split by business capability. Ngi
 | Frontend | Vue 3.5 (Composition API, TypeScript), Vite, **Vuetify 4** (`vite-plugin-vuetify`, themes and global defaults set to the brand), Material Design Icons (`@mdi/js`, SVG), **Tailwind CSS 4** (no preflight, in a cascade layer between Vuetify's), Pinia, Vue Router, Dexie.js, vite-plugin-pwa (Workbox, `injectManifest`), Web Locks API, Leaflet + Leaflet.markercluster, jsQR (QR decoding in a same-origin worker; `qr-scanner` is not used, finding F16), qrcode (drawing a station's label), signature_pad, date-fns + @date-fns/tz, ApexCharts (`vue3-apexcharts`) |
 | Backend | Python 3.13, FastAPI, Pydantic v2, PyMongo async API (`AsyncMongoClient`), httpx, aiokafka, structlog |
 | Background jobs | `mms_common.jobs` (a Redis queue with a lease) and Redis-locked cron (arq was planned; see §9) |
-| Database | MongoDB 8 replica set |
+| Database | MongoDB 9 replica set |
 | Event streaming | Apache Kafka 4.x (KRaft mode, no ZooKeeper) |
 | Cache / queues / pub-sub | Redis 7.4+ (AOF persistence) |
 | Object storage | **SeaweedFS** (S3 API). See R6 |
@@ -75,7 +86,7 @@ AWS-MMS is built as **five FastAPI services**, split by business capability. Ngi
 | ADR-15 | All times are stored in UTC. Each station carries an IANA time zone used for display | Stations span several countries and time zones |
 | ADR-16 | A resource outside the user's scope returns **404**, not 403 | Doesn't reveal that other organizations' records exist |
 | ADR-17 | *New.* Once a request is assigned, its status is **derived** from its visits and visit reports and recomputed in the same transaction as every change (§3.2.2). A request may have several visits open at once | Supports parallel teams without status drift, and makes every transition idempotent |
-| ADR-18 | *New.* **One owner per station on a visit.** Only the owner edits that station's work record; any attending staff can add media | No offline merge is needed, so no edit is ever silently overwritten (PRD OFF-11 v1.1) |
+| ADR-18 | *New.* **One owner per station on a visit.** Only the owner records arrival and departure; any attending staff can add board elements, each edited by its author, the owner or an admin (amended 2026-10-22, W11-22) | No offline merge is needed, so no edit is ever silently overwritten (PRD OFF-11 v1.5) |
 | ADR-19 | *New.* **Files start staff-only.** The owning service makes a file client-visible with an outbox event in the same transaction that attaches it | Fail closed: a missed or late update hides a file rather than leaking it |
 | ADR-20 | *New.* **Offline field session:** a cached profile unlocked by a device PIN. Tokens are never stored on the device | Staff can reopen their work after a restart with no signal (OFF-3) without long-lived credentials on the phone |
 
@@ -127,7 +138,7 @@ Two host names point at the server, for example `mms.example.org` (the app) and 
 |---|---|---|
 | `/` | Static SPA build | `try_files … /index.html`; `sw.js`, `index.html`, `theme-init.js` and `manifest.webmanifest` served `no-cache` (F10); hashed assets cached for 1 year. The `web` image keeps the `/assets/` of every release replaced in the last 7 days, so open tabs and installed apps on an older build still load their chunks (F9, `infra/scripts/carry_assets.py`); the router turns a chunk-load error into the update prompt |
 | `/api/v1/auth`, `/api/v1/users`, `/api/v1/organizations` | `auth:8000` | Login, register and password-reset paths use the `auth` rate-limit zone |
-| `/api/v1/stations`, `/api/v1/sensor-models`, `/api/v1/sensor-units`, `/api/v1/calibrations`, `/api/v1/documents`, `/api/v1/qr`, `/api/v1/requests`, `/api/v1/queue`, `/api/v1/client-reports`, `/api/v1/my-work`, `/api/v1/visits`, `/api/v1/checklist-templates`, `/api/v1/sync` | `operations:8000` | |
+| `/api/v1/stations`, `/api/v1/sensor-models`, `/api/v1/sensor-units`, `/api/v1/calibrations`, `/api/v1/documents`, `/api/v1/qr`, `/api/v1/requests`, `/api/v1/queue`, `/api/v1/client-reports`, `/api/v1/my-work`, `/api/v1/visits`, `/api/v1/sync` | `operations:8000` | |
 | `/api/v1/media`, `/api/v1/uploads` | `media:8000` | |
 | `/api/v1/reports`, `/api/v1/dashboard` | `report:8000` | `/api/v1/reports/verify` uses the `auth` zone (public endpoint) |
 | `/api/v1/notifications`, `/api/v1/audit` | `platform:8000` | |
@@ -214,7 +225,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 
 ### 3.2 operations
 
-**Owns:** stations, sensor models, sensor units, installation history, calibrations, document metadata (per model and per station), configuration versions, QR tokens, map GeoJSON; maintenance requests and their state, queue and assignment, comments, attachments, client reports, client verification (with signature), auto-close; site visits, station owners, work records, checklist templates, field bundles and the sync endpoint.
+**Owns:** stations, sensor models, sensor units, installation history, calibrations, document metadata (per model and per station), configuration versions, QR tokens, map GeoJSON; maintenance requests and their state, queue and assignment, comments, attachments, client reports, client verification (with signature), auto-close; site visits, station owners, visit boards (`visit_elements`), field bundles and the sync endpoint.
 
 **Stations module**
 
@@ -233,7 +244,7 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | GET | `/api/v1/qr/{token}` | any (scoped) | Resolve a QR token → `{station_id, code, name, view: staff\|client}` (as built 2.9). A replaced token: 410 `qr_revoked` if the caller may see the station, else 404 (QR-4, rule 4) |
 | POST | `/api/v1/stations/{id}/qr/regenerate` | admin | New token; the old one is revoked into `qr_revoked` in the same transaction; emits `qr.regenerated` (no token in the event or the audit record). Returns the station (as built 2.9) |
 | GET / POST / PATCH | `/api/v1/sensor-models[/{id}]` | staff (write: technician, admin) | Sensor model catalogue |
-| GET / POST / PATCH | `/api/v1/sensor-units[/{id}]` | staff (write: technician, admin) | Units by serial; status (not `installed`); interval override; serial and model corrections; `needs_review` |
+| GET / POST / PATCH | `/api/v1/sensor-units[/{id}]` | staff (write: technician, admin) | Units by serial; status (not `installed`); interval override; serial and model corrections |
 | POST | `/api/v1/sensor-units/{id}/install` | technician, admin | Install a unit in stock at a station for a parameter; opens an installation (as built 2.6) |
 | POST | `/api/v1/sensor-units/{id}/remove` | technician, admin | Remove it with a reason into stock, repair or retirement; closes the installation (as built 2.6) |
 | GET | `/api/v1/calibrations/due?within_days=30` | staff | Units due or overdue (CAL-4) |
@@ -266,14 +277,17 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/requests/{id}/release` | technician, admin | Let go of a claim (admin: unassign all) → Approved when nobody is left (as built 2.11) |
 | GET | `/api/v1/requests/workload` | admin | Open requests per staff ID, for the Assign dialog |
 | POST | `/api/v1/requests/{id}/cancel` | client (own, Submitted / Approved / Assigned), admin (any state before Closed; reason required from Scheduled on) | → Cancelled. Planned visits are cancelled in the same transaction |
-| POST | `/api/v1/requests/{id}/verify` | client | `{outcome: accepted\|rejected, comment, signature?}`; a signature is required when accepted |
+| POST | `/api/v1/requests/{id}/accept` | client (own) | Client Review → Closed. `{reviewing, typed_name, image, attestation_accepted, comment?}`; `image` is the drawn signature as base64 PNG (W18-1, W18-3) |
+| POST | `/api/v1/requests/{id}/reject` | client (own) | Client Review → Reopened → Assigned (same staff) in one transaction. `{reviewing, reason}` (5 to 1000 characters) |
 | GET | `/api/v1/queue` | technician, admin, viewer (client: 404) | Approved, unassigned requests, oldest approval first |
 | GET / POST | `/api/v1/requests/{id}/comments` | scoped (internal hidden from clients); viewers read only | Flat thread; POST is idempotent by `id` (as built 2.12) |
 | PATCH | `/api/v1/requests/{id}/comments/{cid}` | author, within 15 min | Edit a comment (body; staff may also toggle `internal`) |
 | GET | `/api/v1/requests/{id}/attachments/{media_id}/download`, `/comments/{comment_id}/attachments/{media_id}/download` | scoped (internal hidden from clients) | Ten-minute link to a PDF. Files attach at creation (`media_ids` on `POST /requests`) or with a comment, not afterwards (as built 2.12) |
-| GET / POST | `/api/v1/client-reports` | client (own org), staff (read) | List; create (`kind: pdf\|form`, status draft) |
-| PATCH | `/api/v1/client-reports/{id}` | client (own, draft only) | Update the form draft |
-| POST | `/api/v1/client-reports/{id}/submit` | client | Submit (form → PDF rendered by report) |
+| GET / POST | `/api/v1/client-reports` | GET: client (own org: submitted reports and their own drafts), staff (submitted only); POST: client | List (`request_id`, `station_id` filters); create a draft `{id?, request_id, kind: pdf\|form, title?, report_date?, station_ids?}`, idempotent by `id` (as built, W18-9) |
+| GET / PATCH | `/api/v1/client-reports/{id}` | GET: scoped as above; PATCH: client (the author, draft only) | `{version, title?, report_date?, station_ids?, media_id? (pdf), summary?, observations?, data_quality_notes?, image_ids? (form)}`; a submitted report is 409 `not_a_draft` (CRP-4) |
+| POST | `/api/v1/client-reports/{id}/submit` | client (the author) | Draft → submitted; idempotent; `client_report.submitted` and, for files, `media.visibility_requested` (org) in the same transaction. A form report whose PDF failed is submitted again as Try again (`attempt` + 1) |
+| GET | `/api/v1/client-reports/{id}/download` | scoped | Ten-minute link to a PDF report's file; a form report's PDF is `GET /api/v1/reports/{report_id}/download` |
+| GET | `/api/v1/client-reports/{id}/attachments/{media_id}/download` | scoped | Ten-minute link to a picture attached to a form report |
 | GET | `/api/v1/my-work` | staff | My assigned requests |
 | GET | `/internal/requests/{id}` | service | Request, org, stations, staff and status (used by report) |
 
@@ -284,29 +298,31 @@ Every service exposes `GET /health` (process alive), `GET /ready` (Mongo, Redis 
 | POST | `/api/v1/visits` | assigned staff, admin | Schedule a visit: planned dates, staff, lead, `stations: [{station_id, owner_staff_id}]` (owner defaults to the lead) |
 | GET | `/api/v1/visits/mine` | staff | My upcoming and active visits |
 | GET | `/api/v1/visits?request_id=&staff_id=&from=&to=` | scoped | List |
-| GET | `/api/v1/visits/{id}` | scoped | Visit with stations, owners, work records and media links |
+| GET | `/api/v1/visits/{id}` | scoped | Visit with stations, owners and each station's board summary (`stations[].board`: counts by kind, incomplete tasks, latest thumbnail) |
 | PATCH | `/api/v1/visits/{id}` | assigned staff, admin | Planned: reschedule; change staff, lead, stations, owners, notes. Started: change station owners only (lead or admin; §7.4) |
 | POST | `/api/v1/visits/{id}/cancel` | assigned staff, admin | Planned → Cancelled. Warns when the visit is prepared on a device |
 | POST | `/api/v1/visits/{id}/restore` | admin | Cancelled → Planned, when work was recorded offline on a cancelled visit (§7.4) |
 | POST | `/api/v1/visits/{id}/start` | attending staff | Planned → Started |
-| PUT | `/api/v1/visits/{id}/stations/{sid}/work` | station owner | Save a work record (`base_version`; rejected when locked) |
-| POST | `/api/v1/visits/{id}/stations/{sid}/media` | attending staff | Link `media_id` with phase and caption |
-| POST | `/api/v1/visits/{id}/end` | attending staff | `{additional_visit_required, follow_up_notes, overrides[]}` |
-| GET | `/api/v1/visits/{id}/field-bundle` | attending staff | Offline package; records `prepared_by` device and user |
+| GET / POST | `/api/v1/visits/{id}/stations/{sid}/elements` | scoped (client: shared, ended) / attending staff, admin | The station's board; create an element (idempotent by `id`; §3.2.3) |
+| GET / PUT / DELETE | `/api/v1/visits/{id}/stations/{sid}/elements/{element_id}` | scoped / author, station owner, admin | Read, replace (`base_version`), delete (tombstone) |
+| POST / PATCH / DELETE | `/api/v1/visits/{id}/stations/{sid}/elements/{element_id}/media[/{media_id}]` | author, station owner, admin | Link a file to a section (`main`, `before`, `after`) with caption and `captured_at`; change the caption or hide; unlink |
+| POST | `/api/v1/visits/{id}/end` | attending staff | `{additional_visit_required, follow_up_notes}`; shares the media of shared elements and creates Config versions |
+| GET | `/api/v1/visits/{id}/field-bundle` | attending staff, admin | Offline package (W13): the request, the stations with sensors, calibration, latest configuration version, documents and boards, and `files[]`; query `device_id`; records `prepared_on` and emits `visit.prepared` |
 | POST | `/api/v1/sync` | staff | Apply a batch of offline operations (§7) |
-| GET / POST / PATCH | `/api/v1/checklist-templates[/{id}]` | admin (read: staff) | Templates, versioned |
-| POST | `/internal/visits/{id}/lock` | service (report) | Lock work records; idempotent per `{report_id, report_version}`; returns the final snapshot version |
+| POST | `/internal/visits/{id}/lock` | service (report) | Lock the visit's boards; idempotent per `{report_id, report_version}`; returns `{visit_id, locked, visit_version}` (as built, W17) |
 | POST | `/internal/visits/{id}/unlock` | service (report) | Unlock for correction or after a failed finalize; idempotent |
 | GET | `/internal/visits/{id}` | service | Full visit for report rendering |
+| GET | `/internal/client-reports/{id}` | service (report) | A submitted online-form report: title, date, stations with zones, summary, observations, data-quality notes, picture list, organization name. The event carries none of it (W18-10) |
+| GET | `/internal/requests/{id}/closeout-facts` | service (report) | What the close-out report prints: the request, timeline, visits with the report versions in force, the submitted client reports (title, kind, date, author, never their text), comments a client may read, and the client's decision with the drawn signature and the review it answered (`facts_version` 2; W18-3, W18-11) |
 | GET | `/internal/attachable?owner_ref=&user=` | service (media) | May this user attach a file here? Returns `org_id` |
 | POST | `/internal/labels` | service (report) | `{station_ids}` (1 to 200) → `[{station_id, code, name, qr_token, org_name, country}]` in the order asked, unknown stations left out. The only place report can read tokens (as built 2.9) |
 | GET | `/internal/snapshot/{stations\|requests\|visits\|sensor_units\|calibrations}` | service | Backfill (§8.6) |
 
 #### 3.2.1 Visit rules
 
-- **VIS-6** is enforced in the domain layer on depart and on `end`: each station needs ≥1 Before and ≥1 After image, or an override reason.
-- **Station owner (ADR-18).** Each station on a visit has `owner_staff_id`, one of the visit's staff (default: the lead). Only the owner records arrival, departure, the work record and the media override. Any attending staff can add media to any station. Admins can edit any station.
-- Work edits after `end` are allowed until the visit is locked; they re-run the sensor reconciliation (§3.2.3) and emit `visit.work_updated`.
+- **Station owner (ADR-18).** Each station on a visit has `owner_staff_id`, one of the visit's staff (default: the lead). Only the owner records arrival and departure. Any attending staff member adds elements to any station's board; an element is edited by its author, the station's owner or an admin (§3.2.3).
+- Board edits after `end` are allowed until the visit is locked; they emit `visit.element_*` and, for a Config element whose After files changed, a new configuration version.
+- VIS-6 (a Before and an After image per station) was dropped on 2026-10-22 (W11-34).
 
 #### 3.2.2 Request status (ADR-17)
 
@@ -334,21 +350,33 @@ def derive_status(req, visits) -> Status:
 
 - **Parallel visits.** A request may have several visits planned or started at once. Its status follows the busiest visit.
 - **Report reopened in Client Review** → a report is no longer final → **In progress**. `review_started_at` and `reminders_sent` are cleared, so reminders and auto-close stop. Re-finalizing starts a fresh Client Review.
-- **Report reopened after Closed** → the request stays Closed. The report service regenerates the close-out report when the corrected version is final, and the client is notified (PRD RPT-6).
+- **Report reopened after Closed** → the request stays Closed. When the corrected version is final the report service makes close-out version n + 1 in the same transaction that makes the visit report final (`supersedes_id`; the earlier one becomes `superseded` when the new one is drawn, and a client can still read it), or joins the correction to a close-out that is still to be drawn; the PDF lists the correction ("Corrected report VR-… v2 replaced v1"), and the client is notified (PRD RPT-6; as built, W18-12).
 - **Report-only correction after a rejection** → reopening a report gives In progress; finalizing it gives Client Review.
 - **Cancel.** Cancelling a request cancels its planned visits in the same transaction. A started visit is left as it is: its work is still accepted and synced (no data loss), but the request stays Cancelled.
 
 Every status change appends `status_history` and emits `request.status_changed` (plus the specific event, for example `request.client_review_started`) through the outbox.
 
-#### 3.2.3 Applying and correcting sensor actions
+#### 3.2.3 The visit board (decisions W11-16 to W11-35)
 
-When a visit ends, and on every later work save until the visit is locked, the domain reconciles the inventory with the visit's `sensor_actions` in the same transaction:
+Each station on a visit has a **board**: a list of elements in `visit_elements` (§5.2), each saved on its own. The rules live in `domain/visits/elements.py` (no I/O); the same functions give `/sync` its codes (§7.4).
 
-1. Each applied action has a `sensor_applications` record (`_id` = action ID) listing its effects: installations opened or closed, unit status before and after, calibration created, unit created for an unknown serial.
-2. A **new** action is applied and recorded. An **unchanged** action is skipped (idempotent). A **changed** action is reversed (its effects undone exactly) and re-applied. A **removed** action is reversed.
-3. Reversal is refused with `409 sensor_changed_later` when a later visit or a manual inventory change has touched the same unit or the same station parameter since. The correction is then made on the later visit or by an admin in the inventory.
-4. Unknown serials are created once (keyed by action ID) and flagged `needs_review` (SEN-5).
-5. Configuration versions captured in a visit are created at `end` with their device IDs. A created version never changes (CFG-2); a correction adds a new version.
+| Kind | Colour token | Holds | Media sections | Shared by default |
+|---|---|---|---|---|
+| `note` | `sticky-note` (yellow) | title, description | `main` | no |
+| `task` | `sticky-task` (green) | title, description, `items[]` | `before`, `after` | yes |
+| `recommendation` | `sticky-recommendation` (red) | title, description, `priority`, `request_ref` | `main` | yes |
+| `config` | `sticky-config` (purple) | title, description, `config_version_ids[]` | `before`, `after` | no |
+
+1. **Bounds** (rule 12): title 1 to 80 characters, description up to 4000, up to 50 task items of up to 200 characters with device-made IDs, up to 200 elements per station on a visit. No cap on media; the per-file limits of §10.2 apply. Config sections take any file the `config` kind accepts (any extension except executables, scripts, HTML and SVG); the other sections take images and video.
+2. **Who:** any attending staff member or an admin creates. The author, the station's owner or an admin edits, deletes, ticks items, changes media and sharing. Other staff and viewers read. A client reads shared elements of an ended visit only, through the repository's scope (`org_id`, `shared`, the visit `ended`); anything else is 404.
+3. **When:** from `started` until `locked`. Planned → 409 `not_started`, cancelled → `visit_cancelled`, locked → `locked`.
+4. **Saves:** `POST` creates with the device-made `id` (the same content again → 200; other content → 409 `duplicate_id`). `PUT` replaces the editable fields with `base_version` (stale → 409 `element_changed` with the current element; a retry whose content equals the current element is success). `DELETE` takes `base_version` and leaves a tombstone (`deleted_at`); a later save of that element → 409 `element_deleted`. Media is linked through its own routes, idempotent by `media_id`, and does not change the element's `version`.
+5. **Tasks:** complete when there is at least one item and every item is done; the server sets and clears `completed_at`. The End dialog warns about incomplete tasks; the server never refuses `end` for them.
+6. **Sharing:** at `end`, media of shared elements is shared (`media.visibility_requested`, `org`) in the same transaction; a change of `shared` after `end`, or deleting a shared element, emits the matching change. A single item can still be hidden (W11-13).
+7. **Config → configuration versions:** at `end`, each Config element whose After files (not photos or video) are not yet a version becomes a station version (`config_versions`, W6, `from_board: true`, `element_id`), with the title as its note, in the end's transaction; a file that is not `ready` → 409 `config_files_not_ready` naming it, and nothing is written. After `end`, `POST .../elements/{id}/config-version` saves changed After files as the next version (W11-37; CFG-2: versions never change). Board versions may repeat an unchanged file: the one-file-one-version index covers hand-made versions only. Deleting the element keeps its versions.
+8. **Recommendation → request:** `POST .../elements/{id}/request` `{id, category, title?, description?}` (whoever can edit the recommendation, W11-38) writes the request, with `source: {visit_id, element_id}`, and `request_ref` on the element in one transaction: Submitted for a technician, Approved for an admin. The same `id` again changes nothing; another → 409 `already_requested`. Online only (OFF-10).
+9. **Media owner reference:** `visit:{visit_id}:station:{station_id}:element:{element_id}:{section}`; `GET /internal/attachable` answers with the station's organization.
+10. Visits no longer change the sensor inventory (W11-17): swaps and calibrations are recorded on the Sensors page and the station's Calibration tab.
 
 **Consumes:**
 
@@ -356,10 +384,12 @@ When a visit ends, and on every later work save until the visit is locked, the d
 |---|---|
 | `report.finalized` (visit) | Set `visit.report_status = final` (guarded by report version), recompute the request status |
 | `report.reopened` (visit) | Set `visit.report_status = draft`, recompute the request status |
-| `report.generated` (client_form) | Attach the rendered PDF to the client report |
+| `report.generated` (client_form) | Record on the client report whether its PDF is `ready` (with `report_id`) or `failed`; only the answer to the latest `attempt` counts, once (as built, W18-10) |
 | `org.created`, `org.updated` | Refresh operations' copy of the organization (`organizations`: name, country, status, guarded by `aggregate_version`) and the owner name copied onto its stations. The copy is also filled from auth's `/internal/snapshot/organizations` at every start (§8.6); new stations need an active organization (as built 2.6) |
 
 **Cron (Redis-locked):** client-review reminders on days 7, 21 and 28 (`request.review_reminder`); auto-close on day 30 (`request.closed` with `auto_closed: true`), both daily and configurable (`OPS_REVIEW_REMINDER_DAYS`, `OPS_AUTO_CLOSE_DAYS`); weekly calibration-due digest (`calibration.due_digest`, CAL-5).
+
+**As built (W18 slice 1: Client Review).** `POST /requests/{id}/accept` and `/reject` (clients, own organization; another's is 404) replace the single `verify` route. Both carry `reviewing`, the request's `review_started_at` as the page read it (the field, not the milestone, which keeps the first review's time): if a corrected report has started a new review since, the answer is 409 `review_changed` and the page shows the new reports, so a client never signs a review they did not see. The same person sending the same answer for the same review again gets the stored result (200). Accept checks the drawing with `mms_common.signature` (PNG magic bytes and end marker, at most 100 KB and 1200 x 600 px; also used by the report service) and stores `client_verification = {outcome, by, by_name, at, reviewing, comment, reports: [{visit_id, ref, report_id, report_version}], signature: {typed_name, image, attestation, ip, user_agent}}`; the drawing lives only there. The wording shown is `OPS_CLIENT_ATTESTATION`. Reject goes Client Review → Reopened → Assigned in one transaction (two history entries, the second by the system), sets `rework_since`, adds to `reopen_count` and clears `review_started_at` and `reminders_sent`. Entering Client Review now emits `request.client_review_started` (from `settle_request`). The review clock is `jobs/review_clock.py`, run every 15 minutes by `mms_common.cron.run_periodic` under a Redis lock (`OPS_REVIEW_CLOCK_EVERY_S`): each request in Client Review is one transaction guarded by its status and its review; days are 24-hour periods since `review_started_at`; after an outage only the latest overdue reminder is sent and all are marked; at `OPS_AUTO_CLOSE_DAYS` it closes as the system with outcome `auto_closed`. Settings are days as numbers (fractions allowed so a staging check needs no calendar); production refuses less than a day. Index `(status, review_started_at)` (migration 0014). The request detail gains `review_started_at`, `auto_close_at`, `verification` (outcome, who, when, comment, typed name; never the image) and the actions `accept` and `reject` for the client.
 
 ### 3.3 media (media + media-worker)
 
@@ -398,24 +428,38 @@ When a visit ends, and on every later work save until the visit is locked, the d
 | GET | `/api/v1/reports/{id}/download` | scoped | Presigned URL to the PDF |
 | POST | `/api/v1/reports/verify` | **public**, rate-limited | `{sha256}` or uploaded PDF → `{number, version, status, finalized_at}` of the matching version, or "no match". Returns no content (RPT-11) |
 | POST | `/api/v1/reports/labels` | admin | Label sheet PDF for selected stations (QR-6) → job ID |
-| POST | `/api/v1/reports/summary` | staff, viewer (client: limited types, own org) | `{type, format: pdf\|csv, from, to, org_id?, country?, station_ids?}` → job ID |
+| GET | `/api/v1/reports/summary/types` | any | The types this role may run (a client: Station history and Client activity) (as built 2.21) |
+| POST | `/api/v1/reports/summary` | staff, viewer (client: limited types, own org) | `{type, format: pdf\|csv, from, to, org_id?, country?, station_ids?, due_in_days?}` → 202 job; a repeat within a minute returns the same job (as built 2.21) |
+| GET | `/api/v1/reports/summary/jobs`, `/jobs/{id}` | requester | The person's own summaries of the last 30 days; one with its ten-minute download link once done (another person's: 404) |
 | GET | `/api/v1/reports/jobs/{id}` | requester | Job status and result |
-| GET | `/api/v1/dashboard?view=admin\|technician\|client` | role-appropriate | Dashboard figures from the read model |
+| GET | `/api/v1/dashboard?view=admin\|technician\|client` | role-appropriate | Dashboard figures from the read model and the reports; the caller's own view by default, another role's is 403 `wrong_view`; cached 60 s (as built 2.20) |
 
 **Consumes:**
 
 | Event | Effect |
 |---|---|
 | `visit.ended` | Create a draft visit report (waits up to 5 min for `media.processed` on that visit, then renders with what is ready) |
-| `visit.work_updated` | Refresh the draft's facts snapshot (draft only; clears signatures, §11.2) |
+| `visit.element_added` / `visit.element_updated` / `visit.element_deleted` | Refresh the draft's facts snapshot (draft only; clears signatures, §11.2) |
 | `media.processed` | Refresh the thumbnails in the draft |
-| `request.closed` | Render the close-out report |
+| `request.closed` | Make the close-out report (version 1): a record and its number `CO-YYYY-NNNN` at once, the PDF in the worker from `/internal/requests/{id}/closeout-facts` (as built, W18-11) |
 | `client_report.submitted` (form) | Render the client report PDF → `report.generated` |
 | `request.*`, `visit.*`, `sensor.*`, `calibration.*`, `station.*`, `config.*` | Update the read model (§5.4), upserting only when `aggregate_version` is newer |
 
 **Cron:** finalization reminders after 2 and 5 working days (`report.finalize_reminder`); resume finalize sagas stuck in `finalizing` for more than 15 minutes.
 
 **As built (2.9, W7).** Only the label sheet exists; the rest arrives in Phases 6 and 7. `POST /api/v1/reports/labels` (admin) takes `{station_ids (1 to 200), contact_phone?}` and answers 202 with a job; the phone defaults to `REPORT_LABEL_CONTACT_PHONE` and is printed only when set. The job is a `report_jobs` record `{type, params, status: queued|running|done|failed, attempts, result, error, requested_by}` plus an entry in the Redis queue `report` (`mms_common.jobs`, two at a time). The worker claims the job with a conditional update (a job a dead worker left `running` is taken again, a finished one is not touched), asks operations for the labels, draws the PDF, puts it at `labels/{job_id}.pdf` in `mms-reports` (the same key on a repeat) and records `pdf_sha256`, `pages`, `template_version` and the stations it could not find. Operations unreachable or the store failing retries after 30 s, three attempts, then `failed` with `unavailable`; any other error fails at once with `render_failed`; no known station fails with `no_stations`. `GET /api/v1/reports/jobs/{id}` shows the job to the person who asked (anyone else: 404) with a download link valid 10 minutes, `Content-Disposition: inline` so the browser's viewer can print it. The image carries Pango, Inter and JetBrains Mono for WeasyPrint; the headless Chromium for summary charts (§11.1) arrives with Phase 7. The service emits no events yet; its Kafka user and topics exist for Phase 6.
+
+**As built (W17 slice 1: the visit lock and the report events).** `POST /internal/visits/{id}/lock` and `/unlock` (service `report`; `{report_id, report_version}`) are built in operations: a lock belongs to one report version, the same pair again is a no-op, another pair on a locked visit is 409 `locked_by_another_report`, a visit that has not ended is 409 `not_ended`, and an unlock for a version that does not hold the lock changes nothing. Operations reads `mms.report.events`: `report.finalized` and `report.reopened` set the visit's `report_status` (`final` or `draft`), `report_id`, `report_version` and `report_finalized_at`, guarded by the report version, and settle the request in the same transaction. Entering Client Review sets `review_started_at` and empties `reminders_sent`; leaving it clears both. The six W17 event schemas are in `mms_common.events.report`.
+
+**As built (W16 slice 4: the Report section).** An ended visit shows staff a Report section (number, version, status, whether the draft PDF is being made, ready, out of date or failed) and Preview, which opens the PDF in the app's own viewer from a ten-minute link asked for each time. It reads online only (OFF-10) and the service worker caches nothing of it. The Sync page tells a technician whose `visit.end` is still queued that the report is made once the visit has synced.
+
+**As built (W17 slice 2: editing and signing a draft).** Only shared board elements print (the narrative prefill, the photo choice, the files a draft waits for and the page); a client reads a final report with the staff-only elements removed and no signature image, hash or attendee id. `content_hash` is the SHA-256 of the canonical JSON of what prints (shared elements, narrative, photo choice; no counters or lock), so a staff-only edit or a lock changes nothing. `PATCH /api/v1/reports/{id}/content` (`content_version`, narrative fields, per-photo `in_body` and caption; attending staff and admins) answers 409 `content_changed` with the current record for a stale version unless the edit is already in. `POST /api/v1/reports/{id}/sign` (`content_version`, `typed_name`, `image` PNG at most 100 KB and 1200 x 600 px) stores a `signatures` record bound to the content hash; attending staff only, one valid signature each (409 `already_signed`). Any change that alters the hash (an edit, or a facts refresh that changed what prints) moves `content_version` and flags the valid signatures `valid: false` with `cleared_at` and `cleared_by` in the same transaction, with `report.signatures_cleared`; the same facts read again keep them. The facts refresh is conditional on the `content_version` and hash it read, so it never overwrites an edit. Settings: `REPORT_ATTESTATION`, `REPORT_SIGNATURE_MAX_BYTES`, `REPORT_SIGNATURE_MAX_WIDTH`, `REPORT_SIGNATURE_MAX_HEIGHT`. Migration `0004_signatures`.
+
+**As built (W17 slice 4: report notifications and reminders).** Platform plans the four W17 report events (Appendix B): `report.finalized` (attending staff in the app; the client in the app and by email, linked to the visit), `report.finalize_failed` (the lead and the signers, in the app, with the reason), `report.reopened` (staff in the app; the client too only when `request_status` is `client_review` or `closed`) and `report.finalize_reminder` (the people who have not signed in the app and by email; the admins in the app at 5 working days). Staff links are `/visit-reports/<id>`. The reminder is the report service's hourly cron (`REPORT_REMINDER_TICK_S`): a draft whose 2nd or 5th working day (Monday to Friday in the first station's zone, counted from the visit's end or, for a corrected version, the reopen) has come adds the event in the transaction that records `reminders_sent`. New email choices: `report.finalized`, `report.reopened`, `report.finalize_reminder`.
+
+**As built (W17 slice 3: finalize, reopen, verify).** `POST /api/v1/reports/{id}/finalize` (the lead or an admin, once the lead has a valid signature for the current `content_hash`) makes the report `finalizing` and queues `finalize:<id>`; the worker locks the visit for the report version (`POST /internal/visits/{id}/lock`), reads the facts again and compares the hash, draws the final PDF to `visits/<report id>/final-v<n>.pdf` (signature blocks; footer `v1 · Final · hash <first 16 characters>`) and in one transaction sets `final`, `pdf_sha256`, `finalized_at/by` and adds `report.finalized`. Three tries (`REPORT_FINALIZE_RETRIES`), 30 s then 60 s apart (`REPORT_FINALIZE_BACKOFF_S`); a refused lock, a changed fact or a third failed render returns the report to `draft` with `report.finalize_failed` and the unlock owed in `unlock_pending`. The cron `resume` (every `REPORT_RESUME_TICK_S`) queues a report left `finalizing` for `REPORT_FINALIZING_TIMEOUT_S` (900) and does unlocks still owed. `POST /api/v1/reports/{id}/reopen` (admin, reason 5 to 500) makes the final `superseded` and the next version a draft (narrative and photo choice copied, facts stale, no signatures) with `report.reopened`; clients read `final` only, so they see neither the superseded version nor the new draft. `POST /api/v1/reports/verify` (public, Nginx `auth` zone) takes `{sha256}` or an `application/pdf` body (`REPORT_VERIFY_MAX_BYTES`, 10 MB to match Nginx, hashed as it arrives) and answers `{match, number, version, status, finalized_at}`. `GET /api/v1/reports/{id}/download` links to the final PDF for a final or superseded version.
+
+**As built (W16 slice 2: visit report drafts).** `visit.ended` makes a `reports` record (`type: visit`, `version: 1`, `status: draft`, number = the visit's ref) in the consumer's transaction, with no content; `visit.element_*` for a draft marks its facts stale. A cron (`drafts`, every 30 s under a Redis lock, in the API process) reads stale drafts' facts from operations (`GET /internal/visits/{id}/report-facts`: the visit, request, stations and every live board element with its text and file entries) and each file's state from media (`GET /internal/media/{id}`), pre-fills the narrative the first time only, and queues the first PDF when every file is processed or five minutes after the visit ended (`REPORT_DRAFT_WAIT_S`). The worker draws it (`jobs/render_draft.py`, job id `draft:<report id>`; display copies come from media's `GET /internal/media/{id}/rendition` and are shrunk to 1024 px JPEG), stores `visits/<report id>/draft-<content_version>-<facts_version>.pdf`, records `draft_pdf`, deletes the older draft PDF, and for the first one adds `report.drafted` (ids only) in the same transaction. Render state lives on the report (`render.state`: idle, queued, running, failed), so a preview asked twice queues once. Routes (matrix rows): `GET /api/v1/reports?subject_ref=&type=`, `GET /api/v1/reports/{id}`, `POST /api/v1/reports/{id}/preview` (attending staff and admins; 202 `rendering` or `ready`), `GET /api/v1/reports/{id}/download` (a ten-minute link); clients get final reports of their organization only, and there are none until W17. *Differences from the plan:* media events do not nudge the render (the cron looks at the files every 30 s, which meets the ten-minute exit by a wide margin and needs no Kafka rights on `mms.media.events`), only the latest draft PDF of a report is kept (no seven-day purge job), and render jobs are not `report_jobs` records.
 
 ### 3.5 platform (notification + audit)
 
@@ -427,12 +471,15 @@ When a visit ends, and on every later work save until the visit is locked, the d
 | GET | `/api/v1/notifications?after=` | any | List (catch-up after reconnecting) |
 | POST | `/api/v1/notifications/{id}/read`, `/read-all` | any | Mark as read |
 | GET / PUT | `/api/v1/notifications/preferences` | any | Email preferences per type (NOT-4) |
-| GET | `/api/v1/audit/events` | admin | Search by actor, action, resource, org, date; cursor-paginated |
-| GET | `/api/v1/audit/events/export.csv` | admin | CSV export of a search |
-| GET | `/api/v1/audit/resources/{type}/{id}` | staff (incl. viewer) | History tab for one resource (AUD-6) |
-| POST | `/api/v1/audit/verify` | admin | Run a hash-chain integrity check (job) → result |
+| GET | `/api/v1/audit/events` | admin | Search by actor (id or name), action, resource, org, dates; cursor is the last `seq`, newest first; whole records (as built 2.19) |
+| GET | `/api/v1/audit/events/export.csv` | admin | CSV of the same search, at most 50,000 rows (422 `too_many_records` beyond), recorded in the chain |
+| GET | `/api/v1/audit/resources/{kind}/{id}` | staff (incl. viewer) | History tab for a `station`, `request` or `visit` (AUD-6): who, what, when, changed field names only |
+| POST | `/api/v1/audit/verify` | admin | Queue an integrity check (202) → `audit_checks` record |
+| GET | `/api/v1/audit/checks/latest`, `/checks/{id}` | admin | The last finished check, or one by id (status, progress, first broken `seq`) |
 
 **Notification module.** Consumes the user-facing events in PRD Appendix B. For each event: resolve recipients from the local `user_directory` read model (built from `user.*` events, backfilled from auth on first start) and from the event data (org, assigned staff, attending staff) → store the notification → publish to Redis channel `ws:user:{id}` → every platform instance pushes to its connected sockets → send email if enabled. Entity changes (`request.status_changed`, `comment.added`) are also pushed as `entity.updated` messages for live pages (NOT-5). Account emails (NOT-3) are sent in Phase 1, before WebSocket delivery exists.
+
+**As built (W18 slice 4: review notifications).** `domain/notifications._plan_review` (events in `REVIEW_EVENTS`, kept apart from the request events because who hears depends on the client's answer): `request.client_review_started` and `request.review_reminder` tell every active client user of the organization, in-app and by email, with the link `/requests/{id}/review` and the button "Review the work" (preference `request.client_review`; a reminder says "waiting 7 days, closes by itself after 30", days written without a trailing `.0`); `request.reopened` (the client's rejection) tells the assigned staff and every admin, in-app and by email, with the client's reason (preference `request.reopened`); `request.closed` tells the colleagues of the client, the assigned staff and the admins in the app (accepted: not the person who signed; auto-closed: every client); `client_report.submitted` tells the assigned staff and the admins in the app (a second try at drawing the same form, `attempt` > 1, tells nobody); `report.closeout_generated` tells the organization's clients in the app, and a corrected one (`corrected`) also by email with the button "Read the report" (preference `report.closeout`). The notification group now also consumes `mms.report.events` (`notification_topics`; the Kafka ACL already allowed it). No report or form text travels in any of these events; a rejection's reason and a client report's title are the client's own words, shown to staff only.
 
 **Audit module.** Consumes every `mms.*.events` topic (§12).
 
@@ -455,7 +502,7 @@ sequenceDiagram
     Note over OP: Admin approves, assigns / technician claims
     T->>OP: POST /visits (dates, staff, station owners)
     Note over OP: visit planned + request Scheduled (one transaction)
-    T->>OP: start / work / media (online or via /sync)
+    T->>OP: start / board elements / media (online or via /sync)
     Note over OP: visit started + request In progress
     T->>OP: end (no further visit)
     Note over OP: sensor inventory + configs + request status (one transaction)
@@ -535,7 +582,7 @@ sensor_units {
   current_parameter,
   calibration_interval_days /*override, nullable*/,
   last_calibrated_at, calibration_due_at, last_calibration_result,
-  needs_review: bool, flags: ["calibration_failed", ...], notes
+  flags: ["calibration_failed", ...], notes
 }
 installations {
   _id, sensor_unit_id, station_id, org_id /*copied from the station*/, parameter,
@@ -548,11 +595,6 @@ calibrations {
   reference_instrument: { model, serial, certificate_due },
   readings: [{ reference, before, after, unit }],
   result: "pass"|"adjusted"|"fail", certificate_media_id, performed_by, notes
-}
-sensor_applications {
-  _id /*= sensor action id*/, visit_id, station_id, action_hash,
-  effects: { installations_opened: [], installations_closed: [], unit_status: [{unit_id, before, after}],
-             calibration_id, unit_created }
 }
 documents {
   _id, scope: "model"|"station", scope_id,
@@ -586,11 +628,13 @@ requests {
 }
 comments { _id, request_id, org_id, author_id, author_name, author_role, body, attachments: [], internal, edited_at }
 client_reports {
-  _id, request_id, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
-  media_id /*pdf upload or rendered pdf*/, report_id /*rendered form*/,
-  form: { title, report_date, station_ids, summary,
-          observations: [{ station_id, text }], data_quality_notes, attachments: [] },
-  submitted_by, submitted_at
+  _id, request_id, request_ref, org_id, kind: "pdf"|"form", status: "draft"|"submitted",
+  title, report_date /*ISO date*/, station_ids /*of the request*/,
+  file: { media_id, name, size_bytes } /*a pdf report's upload*/,
+  form: { summary, observations: [{ station_id, text }], data_quality_notes,
+          images: [{ media_id, name, size_bytes }] /*up to 10*/ },
+  render: "none"|"rendering"|"ready"|"failed" /*a form's PDF*/, report_id /*the report service's record*/,
+  attempt, submitted_by, submitted_by_name, submitted_at
 }
 
 // visits module
@@ -604,33 +648,24 @@ site_visits {
   stations: [{
     station_id, station_code, station_name, time_zone,
     owner_staff_id,
-    arrived_at, departed_at,
-    media: [{ media_id, phase: "before"|"during"|"after", caption, captured_at, added_by }],
-    media_override_reason,
-    work: WorkRecord
+    arrived_at, departed_at
   }]
 }
-WorkRecord {
-  checklist_template: { id, version, items: [...] } /*copied*/,
-  condition_on_arrival: { status, notes },
-  checklist: [{ item_id, label, result: "ok"|"fixed"|"issue"|"na", note, ad_hoc: bool }],
-  sensor_actions: [{ id, action: "replace"|"calibrate"|"clean"|"repair"|"remove"|"install",
-                     parameter, sensor_model_id, old_serial, new_serial, removal_reason,
-                     calibration: { method, reference_instrument, readings: [], result } | null,
-                     note }],
-  config_versions: [{ id, files: [media_id], notes }],
-  parts_used: [{ id, description, quantity }],
-  issues_found: [{ id, description, severity }],
-  data_downloaded: { done, from, to },
-  condition_on_departure: { status, notes }, notes,
-  version, updated_by, updated_at, device_id
+visit_elements {
+  _id /*UUIDv7 from the device*/, visit_id, request_id, station_id, org_id /*station's owner_org_id*/,
+  kind: "note"|"task"|"recommendation"|"config", title, description,
+  items: [{ id, text, done, done_by, done_at }] /*task*/,
+  priority: "low"|"medium"|"high" /*recommendation*/, request_ref: { id, ref } /*recommendation*/,
+  config_version_ids: [] /*config*/,
+  media: { main|before|after: [{ media_id, kind, filename, caption, captured_at, added_by, hidden }] },
+  shared: bool, completed_at /*task, set by the server*/,
+  created_by, created_at, version, updated_by, updated_at, device_id, deleted_at /*tombstone*/
 }
-checklist_templates { _id, name, station_type, sensor_model_id, version, items: [{ id, label, help }], active }
 sync_operations { _id /*client op id*/, user_id, device_id, type, result, applied_at /*TTL 90d*/ }
 counters { _id /*"MR-2026" or "VR-2026-0042"*/, seq }
 ```
 
-Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `request_id`; `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `checklist_templates` on `(station_type, active)`.
+Indexes: `stations.code` unique, `stations.qr_token` unique, `stations.owner_org_id`, `stations.country`, 2dsphere on `location`; `sensor_units` unique on `(model_id, serial)`, plus `calibration_due_at` and `current_org_id`; `installations` on `(station_id, removed_at)`, `org_id` and unique `source_action_id`; `calibrations` on `(sensor_unit_id, at)` and `org_id`; `documents` on `(scope, scope_id, is_current)`; `config_versions` unique on `(station_id, version)`; `requests.ref` unique; `requests` on `(org_id, status)`, `(status, assigned_staff_ids)`, `(status, review_started_at)`; `comments` on `(request_id, created_at)`; `client_reports` on `(request_id, _id)`, `(org_id, status)`, `station_ids` and the media ids (migration 0015); `site_visits` on `request_id`, `(staff_ids, planned_start)`, `status`; `visit_elements` on `(visit_id, station_id, created_at)` and `org_id`.
 
 ### 5.3 media
 
@@ -661,7 +696,7 @@ reports {
     facts: { ... },          // snapshot from operations and media, refreshed while draft
     narrative: { summary, stations: [{ station_id, work_performed }],
                  recommendations, follow_up },
-    media_selection: [{ station_id, media_id, phase, caption, in_body: bool }]
+    media_selection: [{ station_id, element_id, section, media_id, caption, in_body: bool }]
   },
   content_version, content_hash /*sha256 of canonical JSON, final only*/,
   template_version, pdf_key, pdf_sha256, finalize_attempts, finalize_error,
@@ -677,11 +712,14 @@ request_facts { _id /*request_id*/, org_id, country, station_ids, category, prio
                 submitted_at, approved_at, assigned_at, first_visit_at, review_started_at,
                 closed_at, auto_closed, reopen_count, visit_count, aggregate_version }
 visit_facts { _id /*visit_id*/, request_id, org_id, staff_ids, station_ids, started_at, ended_at,
-              sensor_action_count, report_finalized_at, aggregate_version }
+              element_counts: { note, task, recommendation, config }, report_finalized_at, aggregate_version }
 sensor_events { _id, sensor_model_id, serial, station_id, org_id, action, at }
 calibration_facts { _id, sensor_unit_id, station_id, org_id, at, result, due_at }
+unit_facts { _id /*unit_id*/, serial, model_id, status, station_id, due_at, aggregate_version }   // as built 2.20
 station_facts { _id /*station_id*/, org_id, country, type, status, code, name, aggregate_version }
 ```
+
+*As built (W16 slice 1):* the read model has four collections, `station_facts`, `request_facts`, `visit_facts` and `calibration_facts` (`sensor_events` waits for Phase 7). `request_facts` has no `country` and no `visit_count` (the first station's country is joined from `station_facts`, and visits are counted in `visit_facts`); it carries the request's milestone times, which `request.*` events and the request snapshot now include (`milestones`, `reopen_count`, optional fields of the event). `visit_facts` is built from the visit's status events and snapshot only: board-element events carry the element's revision, not the visit's `aggregate_version` (W11-35), so `element_counts` is filled by the draft report. `calibration_facts` carries `org_id` (optional field added to the calibration event).
 
 Indexes: `reports` on `(subject_ref, version)` unique, `pdf_sha256`, `(type, status)`, `request_id`; `signatures` on `report_id`; `request_facts` on `(org_id, status)`; `calibration_facts` on `(org_id, due_at)`.
 
@@ -818,10 +856,57 @@ sequenceDiagram
     end
 ```
 
+#### 6.1.2 Second factor (W22, PRD AUTH-14)
+
+TOTP for admins, optional for other staff, never for clients. It is asked **at sign-in only**: a refresh, the service worker and the offline PIN never meet it, so nobody is interrupted in the field (decision W22-1; ADR-20 is untouched).
+
+- **Two steps, no half-session.** A correct password for a person with TOTP creates no session. `POST /api/v1/auth/login` answers `200 {"mfa_required": true, "enrol": false, "challenge": "<opaque>", "expires_in": 300}`. The challenge is a random token whose hash is a Redis key (`auth:mfa:<hash>`, 5 minutes, at most 5 tries, single use, with a purpose: `verify` or `enrol`). It is not a JWT and carries no rights. `POST /login/totp` with `{challenge, code}` or `{challenge, recovery_code}` then returns the normal `TokenResponse` and sets the refresh cookie. The login request needs `supports_mfa: true`; an older app without it gets 401 `update_required` instead of a challenge it cannot read.
+- **The same lock.** A wrong code counts on the per-account throttle that wrong passwords use (5 failures, 15 minutes), and the password alone never clears a count while a code is still owed. The answer says only "The code is incorrect". Nginx's per-IP limit (10 a minute) covers `/login/totp`.
+- **The algorithm.** RFC 6238: HMAC-SHA1, 6 digits, 30 s step, one step either side for clock drift. The last accepted step is stored in `users.totp.last_step` and a code at or before it is refused (replay). The server clock is the injectable `ctx.clock`.
+- **The secret.** 20 random bytes, shown once as base32 and as an `otpauth://` URI (issuer `MARS-MMS`). It is stored sealed with AES-GCM under `AUTH_TOTP_KEY` (32 bytes, base64) and bound to its user, so a copy of the database alone never gives it. Losing the key makes every enrolled secret unreadable: every TOTP is then reset. A pending secret lives in Redis (sealed, 10 minutes) until a code confirms it.
+- **Recovery.** Ten one-time codes (two groups of five base32 characters), stored as SHA-256 hashes and shown once; regenerating replaces all. A recovery code signs in once and the answer says how many are left. Another admin resets a lost phone (`POST /users/{id}/totp/reset`: admin only, never on oneself, ends the person's sessions, restarts their window); with no other admin, `python -m app.cli reset-totp --email …` on the server does the same and writes the same audit event.
+- **Enforcement.** `AUTH_TOTP_REQUIRED_ROLES` (default `admin`) and `AUTH_TOTP_GRACE_DAYS` (default 7). `users.mfa_grace_until` is set at the first sign-in or refresh after the release, and when a person is given the role. Inside the window an admin signs in as before and every `TokenResponse` (login and refresh) carries `mfa_setup: {required_by}` for the banner. After it, `/login` answers a challenge with `enrol: true` that allows only `/login/totp/enrol/begin` and `/confirm`, then signs in. Staff who opted in may turn it off; a role that requires it may not.
+- **Events.** `auth.totp_enrolled`, `auth.totp_disabled`, `auth.totp_reset` (with `via: admin | cli`), `auth.mfa_failed` (`reason`), `auth.recovery_code_used` (`remaining`), `auth.recovery_codes_regenerated`, and `mfa` (`totp | recovery`) on `auth.login_succeeded`. Never a secret, a code or a hash. Enabling does not end other sessions; turning it off or a reset does (the revocation list, AUTH-11). A password reset signs nobody in, so it cannot skip the code.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Admin
+    participant P as PWA (/login)
+    participant A as auth
+    participant R as Redis
+    participant M as auth DB (Mongo)
+
+    U->>P: Email and password
+    P->>A: POST /login (supports_mfa)
+    A->>A: Password, throttle, account status as in 6.1.1
+    alt Has TOTP
+        A->>R: auth:mfa:hash (user, purpose verify, 5 min, 5 tries)
+        A-->>P: 200 mfa_required, challenge
+        U->>P: 6-digit code, or a recovery code
+        P->>A: POST /login/totp
+        A->>R: Take the challenge (single use)
+        A->>A: Verify the code, one step either side, not a replay
+        alt Wrong
+            A->>R: Count on the account lock
+            A-->>P: 401 invalid_code
+        else Right
+            A->>M: Session + outbox auth.login_succeeded (mfa)
+            A-->>P: Access JWT + refresh cookie
+        end
+    else Admin without TOTP, still inside the window
+        A-->>P: Access JWT + refresh cookie, mfa_setup.required_by
+    else Admin without TOTP, window over
+        A-->>P: 200 mfa_required, enrol true, challenge
+        P->>A: /login/totp/enrol/begin, then /confirm with a code
+        A-->>P: Access JWT + refresh cookie + ten recovery codes
+    end
+```
+
 ### 6.2 Passwords
 
 - Argon2id (`argon2-cffi`, parameters at least time=3, memory=64 MiB).
-- At least 10 characters, checked against a breached-password list (HIBP range API if outbound access is allowed, otherwise a local k-anonymity file; see T1).
+- At least 12 characters (W21-3, decision D-1), checked against a breached-password list (HIBP range API if outbound access is allowed, otherwise a local k-anonymity file; see T1).
 - Reset and invitation tokens: 256-bit, stored hashed, single use; 1-hour expiry for resets, 7 days for invitations. A successful reset revokes all refresh tokens and access tokens. **Minted on send:** the request creates a row with no token and emits `auth.password_reset_requested` (or `user.invited`); platform's notification module calls `POST /internal/account-links` when it sends the email, and auth mints the token then. No token ever passes through Kafka, the DLQ, the outbox or the audit trail. Minting again replaces the earlier token. An invited user whose link expired finishes through a reset, which activates them.
 - Breached-password check order: a built-in list of common passwords, then HIBP (`Add-Padding`), then the local file when HIBP is unreachable. With neither reachable the password is accepted and `auth_breached_check_unavailable_total` counts it, so an outage never blocks registration.
 - Registering an email that already has an account answers exactly like a new registration (202) and changes nothing. Reset requests are limited to 3 per email per hour, silently.
@@ -838,7 +923,7 @@ async def approve(id: str, user: User = Depends(require_roles("admin"))): ...
 
 - **Role groups:** `STAFF = {technician, admin, viewer}`; `STAFF_WRITE = {technician, admin}`. Viewers pass `require_staff()` for reads only. Every mutating route uses `require_roles(...)` without `viewer`. A test asserts that no mutating route accepts `viewer`.
 - **Organization scoping** is applied in the repository layer. For a `client`, every query is merged with `{"org_id": user.org_id}`, or `owner_org_id` for stations and `current_org_id` for sensor units. Endpoint code cannot bypass it. Installations and calibrations carry their own `org_id`, so no join is needed.
-- **Visit edit rights:** media by users in `site_visits.staff_ids`; a station's work record, arrival, departure and override by its `owner_staff_id`; admins may edit any of them.
+- **Visit edit rights:** board elements are created by users in `site_visits.staff_ids` and edited by their author or the station's `owner_staff_id`; arrival and departure by the `owner_staff_id`; admins may edit any of them (§3.2.3).
 - **Internal comments, draft reports, staff-only documents and config versions** are filtered out for clients in the repository layer.
 - **Staff names for clients** (DBD D4): request and visit responses include assigned and attending staff, and station owners, as `{id, name}` for clients too. Staff email and phone are never sent to client users.
 - A resource outside the user's scope returns **404**.
@@ -857,7 +942,7 @@ Services obtain a service token from `auth /internal/service-token` using a per-
 |---|---|
 | `bundles` | Prepared visits and station bundles (JSON), per user |
 | `files` | Manuals, documents and the latest configuration files downloaded during prepare, as blobs (presigned URLs expire, so offline files are never stored as URLs) |
-| `visits` | Local working copy of visits and the work records this user owns |
+| `visits` | Local working copy of visits and their boards' elements |
 | `outbox` | Ordered operations `{op_id, user_id, visit_id, type, payload, created_at, attempts, status}` |
 | `blobs` | Captured media and config files `{media_id, owner_ref, file, size, sha256, upload_id, parts_done[], state}` |
 | `meta` | Device ID, offline profile, PIN verifier, `offline_until`, failed PIN count, last sync time, storage estimate |
@@ -870,12 +955,15 @@ The app calls `navigator.storage.persist()` on first field use, shows the remain
 |---|---|---|
 | `visit.start` | attending staff | `{visit_id, started_at, device_id}` |
 | `station.arrive` | station owner | `{visit_id, station_id, arrived_at}` |
-| `work.save` | station owner | `{visit_id, station_id, work_record, base_version}` |
-| `media.attach` | attending staff | `{visit_id, station_id, phase, media_id, caption, captured_at}` (queued after the upload completes) |
-| `station.depart` | station owner | `{visit_id, station_id, departed_at, media_override_reason?}` |
+| `element.create` | attending staff | `{visit_id, station_id, element}` (the device-made `element.id`) |
+| `element.update` | author, station owner | `{visit_id, station_id, element, base_version}` |
+| `element.delete` | author, station owner | `{visit_id, station_id, element_id, base_version}` |
+| `element.media_add` | author, station owner | `{visit_id, station_id, element_id, section, media_id, caption, captured_at}` (queued after the upload completes) |
+| `element.media_remove` | author, station owner | `{visit_id, station_id, element_id, media_id}` |
+| `station.depart` | station owner | `{visit_id, station_id, departed_at}` |
 | `visit.end` | attending staff | `{visit_id, ended_at, additional_visit_required, follow_up_notes}` |
 
-Sensor swaps, calibrations and configuration versions travel inside `work.save` (`sensor_actions[]`, `config_versions[]`). Their IDs are generated on the device, so applying them is idempotent.
+Every payload carries `payload_version` so ops queued by an older app still apply after an update. Element and item IDs are generated on the device, so applying an op twice changes nothing. Configuration versions are made by the server from Config elements at `end` (§3.2.3).
 
 ### 7.3 Sync protocol
 
@@ -903,17 +991,22 @@ sequenceDiagram
 - Media uploads first, so that `media.attach` references media that exists. `visit.end` is applied even if some media is still processing.
 - `/sync` applies operations in order, in one transaction per op. An `op_id` already in `sync_operations` returns the stored result (idempotent).
 - Each op returns `applied`, `duplicate`, `conflict` (with a reason code and the server copy) or `error` (with a message). A failed op stops the later ops for the same visit, but not for other visits.
-- Triggers: the `online` event, Background Sync (where supported; not on iOS), app start, every 5 minutes while online, and "Sync now".
+- Triggers: the `online` event, app start, the app coming to the front, every 5 minutes while online and open, a local change (300 ms later) and "Sync now". **Background Sync is not used** (W14-11): it helps only on Chrome for Android, iOS has none, and the runner is written free of Vue so a `sync` event can be added to `sw.js` later.
+- **As built (W14):** the runner is `offline/sync.ts` under the Web Lock `mms-sync` (`ifAvailable`: a second run answers `busy`). It sends one visit at a time, in `seq` order; a visit with a conflict or a permanent error sends nothing more until the person deals with it; a retryable error waits 2 s doubling to 5 minutes, reset by success or Sync now. Files are made whole on the server before the op that needs them; a request that fails is "offline" whatever `navigator.onLine` says.
 - Batch size: at most 100 ops per request.
 
 ### 7.4 Conflicts
+
+**As built (W14-13):** the phone keeps its copy of any work the server refused, and Needs attention on `/sync` names the reason in the AFD §6 words. **Export** writes one JSON file (the visit, station, reason, the phone's copy, the server's copy where the answer carried it, the operations, and the files' names, sizes and SHA-256) and the photos and videos as they were taken, through the share sheet where the browser can share files and as downloads where it cannot. **Done with this** asks once more, removes that work, its files and the element's copy, and lets the prepared copy go when nothing else is left for an ended visit. **Try again** is offered where something else can make the same ops succeed (`visit_cancelled`, `already_ended`).
 
 There is no merge (ADR-18). Each conflict has a reason code, and in every case **the device keeps its copy** until the user exports it or an admin resolves the conflict.
 
 | Situation | Server response | What happens next |
 |---|---|---|
-| `work.save`, `station.arrive` or `station.depart` from someone who isn't the station's owner (owner changed while they were offline) | `conflict: not_owner` | Device keeps the work for export. Lead and admins notified. The new owner re-enters it |
-| `work.save` with an older `base_version` (the owner edited on another device) | `conflict: stale_version` | Server copy shown; device keeps its copy for export |
+| `station.arrive` or `station.depart` from someone who isn't the station's owner (owner changed while they were offline) | `conflict: not_owner` | Device keeps the times for export. Lead and admins notified |
+| `element.update`, `element.delete` or element media from someone who is neither the author nor the station's owner (owner changed while they were offline) | `conflict: not_editor` | Device keeps its copy for export. Lead and admins notified |
+| `element.update` or `element.delete` with an older `base_version` (edited on another device or by an admin) | `conflict: element_changed` | Server copy shown; device keeps its copy for export |
+| `element.update` on an element deleted elsewhere | `conflict: element_deleted` | Device keeps its copy for export; nothing is recreated |
 | Any op on a **locked** visit | `conflict: locked` | Device keeps its copy for export |
 | `visit.start` or later ops on a visit that was **cancelled** while the device was offline | `conflict: visit_cancelled` | Admins notified ("Work recorded on a cancelled visit"). An admin may **restore** the visit (`POST /visits/{id}/restore`), and the next sync applies the queued ops |
 | Work for a station that was **removed** from the visit while offline | `applied` | The station is added back (it must be one of the request's stations), and the change is logged |
@@ -932,6 +1025,7 @@ Changing a station's owner or cancelling a visit while it is prepared on a devic
 ### 7.6 Caching, logout and shared devices
 
 - The service worker precaches the app shell and caches nothing else (the map page keeps its own tile ranges). **API responses are never cached by the service worker.** Offline data comes only from Dexie, keyed by user.
+- A phone that is unlocked with the PIN and has no signal reads only what Prepare left in Dexie (`offline/prepared.ts`); pages outside the offline set show "This needs a connection" (route meta `offline`).
 - On logout or a change of user, the app deletes that user's `bundles`, `files` and `visits` and clears runtime caches. Queued `outbox` items and `blobs` stay, tagged with `user_id`, and sync only for that user.
 
 ---
@@ -1007,7 +1101,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `station.created` / `station.updated` | operations | report, platform (audit) | station_id, code, name, org_id, country, status |
 | `qr.regenerated` | operations | platform (audit) | station_id |
 | `sensor_model.created` / `sensor_model.updated` | operations | platform (audit) | model_id, kind, manufacturer, model, parameters, default_calibration_interval_days (as built 2.6) |
-| `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, needs_review, current_station_id, calibration_due_at |
+| `sensor_unit.created` / `sensor_unit.updated` | operations | report, platform | unit_id, serial, model_id, status, current_station_id, calibration_due_at |
 | `sensor.installed` / `sensor.removed` / `sensor.application_reversed` | operations | report, platform (audit) | unit_id, serial, model_id, station_id, parameter, visit_id, action_id |
 | `calibration.recorded` / `calibration.voided` | operations | report, platform (audit) | calibration_id, unit_id, station_id, result, due_at |
 | `calibration.due_digest` | operations | platform (notification) | units: [{unit_id, serial, station_id, due_at}] |
@@ -1020,17 +1114,19 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `request.assigned` | operations | platform, report | request_id, staff_ids, claimed |
 | `request.status_changed` | operations | platform, report | request_id, ref, org_id, station_ids, category, priority, status, from_status (null on creation), to_status, reason? |
 | `request.client_review_started` | operations | platform, report | request_id |
-| `request.review_reminder` | operations | platform (notification) | request_id, day |
-| `request.reopened` | operations | platform, report | request_id, comment |
-| `request.closed` | operations | platform, report | request_id, outcome, auto_closed, signature? |
+| `request.review_reminder` | operations | platform (notification) | request_id, day, auto_close_day |
+| `request.reopened` | operations | platform, report | request_id, comment, by_id (the client's rejection) |
+| `request.closed` | operations | platform, report | request_id, outcome (`accepted` or `auto_closed`), auto_closed, by_id. **No signature**: images never travel in events (W18-3); the report service reads it from `/internal/requests/{id}/closeout-facts` |
 | `request.cancelled` | operations | platform, report | request_id, reason? |
 | `comment.added` / `comment.edited` | operations | platform | request_id, comment_id, internal |
-| `client_report.submitted` | operations | report, platform | client_report_id, request_id, kind, form? |
+| `client_report.submitted` | operations | report, platform | the request's facts, client_report_id, kind, report_title, submitted_by_id, submitted_by_name, attempt. **No text**: the report service reads a form from `/internal/client-reports/{id}` (W18-10) |
 | `visit.scheduled` / `visit.rescheduled` | operations | platform, report | visit_id, request_id, planned_start, planned_end, staff_ids, lead_staff_id, station_owners |
 | `visit.cancelled` / `visit.restored` | operations | platform, report | visit_id, request_id |
 | `visit.started` | operations | report, platform (audit) | visit_id, request_id, started_at |
-| `visit.ended` | operations | report, platform | visit_id, request_id, station_ids, sensor_actions[], config_versions[], additional_visit_required, overrides[] |
-| `visit.work_updated` | operations | report, platform (audit) | visit_id, station_id, sensor_actions[], config_versions[] |
+| `visit.ended` | operations | report, platform | visit_id, request_id, station_ids, config_version_ids[], additional_visit_required |
+| `visit.element_added` / `visit.element_updated` / `visit.element_deleted` | operations | report, platform (audit) | visit_id, request_id, station_id, element_id, kind, shared, completed?, priority? (never the title, description or item text) |
+| `visit.media_changed` | operations | report, platform (audit) | visit_id, station_id, element_id, section, media_id, change |
+| `visit.work_updated` | operations | — | *Retired 2026-10-22 (W11-16)*: no longer emitted; the schema stays registered so earlier audit records parse |
 | `visit.station_owner_changed` | operations | platform | visit_id, station_id, from, to |
 | `visit.sync_conflict` | operations | platform (notification) | visit_id, user_id, reason |
 | `visit.locked` / `visit.unlocked` | operations | platform (audit) | visit_id, report_id |
@@ -1040,7 +1136,8 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 | `report.finalized` | report | operations, platform, report (read model) | report_id, type, subject_ref, request_id, version |
 | `report.finalize_failed` | report | platform | report_id, version, error |
 | `report.reopened` | report | operations, platform | report_id, new_version, reason |
-| `report.generated` | report | operations, platform | report_id, type, subject_ref |
+| `report.closeout_generated` | report | platform | report_id, number (`CO-YYYY-NNNN`), version, request_id, request_ref, org_id, title?, corrected, pdf_sha256 (as built, W18-11; ids only) |
+| `report.generated` | report | operations, platform | client_report_id, request_id, org_id, report_id, number, outcome (`ready` or `failed`), pdf_sha256?, attempt (as built, W18-10; the close-out's event is `report.closeout_generated`, slice 3) |
 | `report.finalize_reminder` | report | platform (notification) | report_id, working_days |
 
 ¹ User fields: `user_id`, `email`, `name`, `roles`, `status`, `org_id`, so `user_directory` can upsert from any `user.*` event (§5.5).
@@ -1057,7 +1154,7 @@ Schemas live in `mms_common.events` as Pydantic models keyed by `(type, version)
 Read models (report's facts, platform's `user_directory`, operations' copied organization names) are rebuilt from **current state**, not from event history. Kafka keeps only 14 days and the outbox only 7.
 
 - Each producer exposes `GET /internal/snapshot/{entity}?after=<id>&limit=500`, returning current documents with their `aggregate_version`.
-- `infra/scripts/backfill.py --consumer <service>` pages through the snapshots and upserts the read model with the same `aggregate_version` guard. The consumer then continues from its committed Kafka offset, so events during the backfill are applied or skipped correctly.
+- Each consuming service pages through the snapshots and upserts its read model with the same `aggregate_version` guard: `python -m app.cli backfill` in its container (as built in the report service, W16; operations' `backfill-orgs` is the same idea). The service also runs it once at every start, because its consumer group begins at the oldest event Kafka holds. (The planned `infra/scripts/backfill.py --consumer <service>` is not built: the command lives with the service that owns the read model.) The consumer then continues from its committed Kafka offset, so events during the backfill are applied or skipped correctly.
 - `upsert_if_newer` reads the stored `aggregate_version` before writing and never provokes a duplicate-key error: inside a consumer's transaction that error aborts the transaction even when caught (as built 2.6).
 - It runs on the first deploy of a consumer (for example, `report` in Phase 6 over data entered since Phase 2), after Kafka data loss, and when a new read model is added.
 
@@ -1118,18 +1215,19 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 - Video entries include a QR code (segno) linking to `/visits/{id}/media/{media_id}` in the app.
 - Times are formatted in the station's `time_zone`, with the zone abbreviation. Signature blocks show both UTC and local time.
 - Each report stores its `template_version`, so old reports can be reproduced.
+- **Visual baseline (as built, W16 slice 3).** `services/report/visual/` draws a made-up visit in an image with the report image's fonts and compares each page with a committed picture (CI job `report visual`); a deliberate template change updates `visual/baselines` in the same commit. A video's poster frame comes from media's `GET /internal/media/{id}/rendition?variant=thumbnail`.
 - Label sheets (QR-6) are rendered by the report-worker from station data read through `operations /internal/snapshot/stations`.
 - Summary reports read only the report service's read model; they make no cross-service calls. CSV uses the same query as the PDF table.
 - **Charts in summary reports** use ApexCharts, the same library as the dashboards (DBD D3). WeasyPrint cannot run JavaScript, so the report-worker keeps one headless Chromium (Playwright for Python). It loads a standalone chart page (the ApexCharts bundle plus `charts/presets.ts`, built from the frontend and copied into the report image), renders each chart in the light palette, exports SVG and embeds it in the template. A chart that fails or takes over 30 s is left out with a note, and its table still prints.
 
 ### 11.2 Visit report lifecycle
 
-1. **Draft created** on `visit.ended`. `content.facts` is snapshotted through internal reads (operations, media). `content.narrative` is pre-filled from the work-record notes and follow-up notes. `media_selection` defaults to the first Before and After images per station.
-2. **Editing:** `PATCH /content` with `content_version`. A `visit.work_updated` event refreshes `facts` only and never overwrites `narrative`.
-3. **Signing:** `POST /sign` stores a signature against the current `content_version` and `content_hash`. **Any later content change**, including a facts refresh from a corrected work record, clears the signatures, which must be given again.
+1. **Draft created** on `visit.ended`. `content.facts` is snapshotted through internal reads (operations, media). `content.narrative` is pre-filled from the board's Notes and Recommendations and the follow-up notes. `media_selection` defaults to the first Before and After images of each Task.
+2. **Editing:** `PATCH /content` with `content_version`. A `visit.element_*` event refreshes `facts` only and never overwrites `narrative`.
+3. **Signing:** `POST /sign` stores a signature against the current `content_version` and `content_hash`. **Any later content change**, including a facts refresh from a corrected board, clears the signatures, which must be given again.
 4. **Finalizing** is a saga that the report service drives and can resume:
    1. Check the lead's signature; set `status = finalizing`, which blocks content edits.
-   2. `POST /internal/visits/{id}/lock` (idempotent per report version) → visit locked; returns the final work version.
+   2. `POST /internal/visits/{id}/lock` (idempotent per report version) → visit locked; returns the final board version.
    3. Re-snapshot `facts`. If they changed, the signatures no longer match: unlock, return to `draft` and ask for signatures again. Otherwise compute `content_hash` = SHA-256 of the canonical JSON (sorted keys, UTF-8) of `content` plus the signature metadata.
    4. Render the PDF (the footer shows the first 16 hex characters of `content_hash`). Store it, compute `pdf_sha256`, then set `status = final` and insert `report.finalized` in the outbox, in one transaction.
    5. If rendering fails, retry 3 times with backoff. After the last failure: `status = draft`, unlock the visit, keep the signatures (the content didn't change), store `finalize_error`, and emit `report.finalize_failed` so the signer can try again. A cron resumes any report left in `finalizing` for more than 15 minutes.
@@ -1139,7 +1237,7 @@ All buckets are private. Access is only through presigned URLs on the `files.` h
 
 - The PWA uses `signature_pad` to capture a drawn signature (PNG, trimmed, ≤ 100 KB), plus a typed full name and an attestation checkbox showing the configured wording.
 - The server records signer ID, role, `signed_at` (server time), IP, user agent and the `content_hash` / `content_version` signed.
-- **Client acceptance signature** is captured on `POST /requests/{id}/verify` and stored in `requests.client_verification.signature`. It is carried in `request.closed` and rendered on the close-out report.
+- **Client acceptance signature** is captured on `POST /requests/{id}/accept` and stored in `requests.client_verification.signature`. It is **not** carried in any event: the report service reads it from `GET /internal/requests/{id}/closeout-facts` when it draws the close-out, keeps only the drawing's SHA-256 in its record, and prints the drawing on the PDF (W18-3).
 - Signing needs a connection (OFF-10).
 - A certificate-based PDF signature (PAdES, for example with pyHanko and an organization certificate) is not in v1 but can be added at step 4.4 without data-model changes (PRD Q3).
 
@@ -1177,7 +1275,7 @@ frontend/src/
 
 - **Vuetify 4** through `vite-plugin-vuetify`, which auto-imports and tree-shakes components and compiles Vuetify's Sass with `app/theme/settings.scss`. `app/theme/vuetify.ts` calls `createVuetify` once with:
   - the `light` and `dark` themes, built in `app/theme/brand.ts` from a Material 3 theme (`app/theme/material.ts` maps its roles and palettes onto the token names; W4-12) plus the fixed status colours. At start it uses the organization's theme last fetched (`localStorage` `mms-branding`), else the built-in `material-theme.json`; `stores/branding.ts` fetches `GET /api/v1/auth/branding` at start and when the app returns to the front (at most every 5 min) and updates Vuetify's theme colours in place
-  - global `defaults` that give the DBD look, so pages don't repeat props: flat buttons 40 px tall with a 6 px radius, outlined `compact` inputs, flat cards with a 1 px border and 10 px radius, and `ripple: false`. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px.
+  - global `defaults` that give the DBD look, so pages don't repeat props: flat buttons 40 px tall with a 6 px radius, filled (`solo-inverted`, flat) `compact` inputs, flat cards with a 1 px border and 10 px radius, and `ripple: false`. The field shell wraps its pages in a `VDefaultsProvider` that raises buttons and inputs to 48 px.
   - the `mdi-svg` icon set, with icons imported from `@mdi/js` and listed in `app/theme/icons.ts` (SVG paths, no icon font)
   - display thresholds equal to Tailwind's breakpoints (`sm` 640, `md` 768, `lg` 1024, `xl` 1280, `xxl` 1536), so `useDisplay()` and Tailwind's `md:` agree
   - `theme.utilities: false`
@@ -1190,7 +1288,7 @@ frontend/src/
 - **Charts:** ApexCharts through `vue3-apexcharts`, with shared options in `charts/presets.ts` (Roboto Flex, tabular figures, toolbar off, palette per theme). Charts switch `theme.mode` with the app theme and turn animation off under `prefers-reduced-motion`.
 - API types are generated with `openapi-typescript` from each service's OpenAPI schema in CI. A failed generation fails the build.
 - **Route guards** check roles from the access token when online, or from the unlocked offline profile when offline (§6.1). The server still enforces every rule. Viewers see read-only views; action buttons are hidden, not just disabled.
-- **Field mode layout** (phones): stepper per station (Before → Work → After → Review), bottom navigation, large touch targets, a persistent sync badge. A station owned by someone else opens read-only with media capture available.
+- **Field mode layout** (phones): the station's board in one column with a floating Add button (Note, Task, Recommendation, Config); an element opens as a full-screen sheet; arrive, depart and end in the bottom navigation; large touch targets, a persistent sync badge. Elements someone else wrote open read only (W11-32).
 - Camera capture: `<input type="file" accept="image/*,video/*" capture="environment">`.
 - QR route `/s/:token` resolves online via `/api/v1/qr/{token}`, or offline from cached bundles after PIN unlock.
 - Time display: user time zone by default. Visit and station screens show station local time with the zone label.
@@ -1248,8 +1346,9 @@ The first install must be quick on a phone's link, because until it ends the pho
 - Only Nginx (ports 80/443) is published. The services, MongoDB, Kafka, Redis and SeaweedFS are on an internal Docker network. Admin UIs (SeaweedFS, Kafka UI, Grafana) are reachable only via VPN or an SSH tunnel. Nginx returns 404 for `/internal/` and `/.well-known/`.
 - MongoDB, Redis, Kafka (SASL/SCRAM) and SeaweedFS S3 all require authentication. **Kafka** (decision W4-16): clients use SCRAM-SHA-512 on `kafka:9092`; each service is its own user (`<PREFIX>_KAFKA_USERNAME`, `_KAFKA_PASSWORD`, required in staging and production) with ACLs from `infra/kafka/users.yml`: Write on its own events topic and its consumer groups' dead letters, Read on the topics it consumes, Read on its groups; nothing else (`allow.everyone.if.no.acl.found=false`). The KRaft controller and a plaintext listener bind to 127.0.0.1 inside the broker's container; `kafka-init` shares that network namespace to create topics, users and ACLs, and the unauthenticated loopback principal is the only super user. Each service has its own Mongo user limited to its own database (platform has two), and its own S3 access key limited to the buckets it needs.
 - **Same-origin API; no CORS.** The S3 files host allows only the app origin and exposes `ETag` (§2.1).
-- **CSP (Nginx):** `default-src 'self'; img-src 'self' https://files.<host> data: blob:; media-src 'self' https://files.<host> blob:; connect-src 'self' https://files.<host> wss://<host>; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'`. The tile host is in `connect-src` because the service worker fetches tiles. Vuetify injects its theme stylesheet at runtime; `theme.cspNonce` is used if possible.
+- **CSP (Nginx):** `default-src 'self'; img-src 'self' https://files.<host> data: blob:; media-src 'self' https://files.<host> blob:; connect-src 'self' https://files.<host> wss://<host>; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'` (the last four do not fall back to `default-src`, so they are named; ZAP 10055, W20 slice 5). `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` on the app host; no COEP (the files host's media would need its own CORP). The tile host is in `connect-src` because the service worker fetches tiles. Vuetify injects its theme stylesheet at runtime; `theme.cspNonce` is used if possible.
 - Security headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self), microphone=(self), geolocation=()`, `X-Frame-Options: DENY`.
+- **Security review (W20 slice 5, decision W20-10):** [security/asvs-l2.md](security/asvs-l2.md) answers ASVS 4.0.3 level 2 line by line; its five deviations (D-1 to D-5) wait for the product owner. Every `/api/` response in all five services is `Cache-Control: no-store`; our containers run with `cap_drop: [ALL]` and `no-new-privileges`. CI runs `pip-audit` (runtime dependencies) and `npm audit --omit=dev` on every pull request and nightly, Dependabot weekly, and a nightly **passive** ZAP baseline of staging that prints counts only (this repository is public).
 - Input validation with Pydantic on every endpoint. Mongo queries are built from typed values only (no raw operators from user input).
 - Uploads: magic-byte validation, ClamAV scan, served with `Content-Disposition` and the correct `Content-Type`. Files are staff-only until the owning service makes them visible (ADR-19).
 - Offline PIN: PBKDF2 verifier only, five-attempt lockout, no tokens on the device (§6.1).
@@ -1272,13 +1371,13 @@ The first install must be quick on a phone's link, because until it ends the pho
 | media-worker | same image as media | `python -m app.worker` (Redis queue); `cpus: 2` |
 | report | python:3.13-slim + WeasyPrint dependencies + Chromium (Playwright) | API |
 | report-worker | same image as report | Redis queue |
-| mongo | mongo:8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
+| mongo | mongo:9.0.8 | Single-node replica set `rs0`. Its entrypoint deletes and rewrites the key file on every start: a restarted container keeps `/tmp`, where `fs.protected_regular` stops even root from reopening the old file (W4-18) |
 | kafka | apache/kafka:4.x | KRaft combined mode; data on SSD |
 | kafka-ui | kafbat/kafka-ui | Internal only |
 | redis | redis:7.4 | `appendonly yes` |
 | seaweedfs | chrislusf/seaweedfs (pinned) | `weed server -s3` (master, volume, filer, S3 gateway); data on a dedicated disk |
 | clamav | clamav/clamav | Daily signature updates |
-| prometheus, grafana, loki, alloy, kafka-exporter, mongodb-exporter, redis-exporter, nginx-prometheus-exporter | official | Monitoring |
+| prometheus, alertmanager, grafana, loki, alloy, node-exporter, kafka-exporter, mongodb-exporter, redis-exporter, nginx-prometheus-exporter, docker-socket-proxy | official, tags pinned | Monitoring (`compose.monitoring.yml`, W20-2 to W20-4). Alerts are Prometheus rules with promtool tests, sent by Alertmanager; Grafana only displays; Alloy reads logs through the proxy on a private network |
 
 ### 16.2 Host sizing (production)
 
@@ -1286,12 +1385,14 @@ The first install must be quick on a phone's link, because until it ends the pho
 
 Approximate memory budget: MongoDB 4 GB, Kafka 2 GB, ClamAV 3 GB, Python services ~2.5 GB, media-worker 2 GB, report-worker 1.5 GB (includes headless Chromium), SeaweedFS 1 GB, Redis 0.5 GB, monitoring 2 GB. That totals about 18.5 GB, leaving headroom.
 
+**As built (W20 slice 4):** `compose.production.yml` sets a `mem_limit` on every container from this budget (the limits total 18.9 GB, monitoring and backup included) and `infra/tests/test_production_config.py` fails above 21 GB.
+
 **Storage estimate:** a 1-minute 720p clip ≈ 10–20 MB; a WebP photo ≈ 0.3–0.6 MB. A heavy visit is ≈ 400 MB processed. At about 10 visits a month, that is up to ≈ 50 GB a year, plus originals for 30 days (≈ 10 GB rolling).
 
 ### 16.3 Environments and configuration
 
 - `local`: `compose.yml` + `compose.dev.yml` (hot reload, seeded data, Mailpit for email, self-signed TLS).
-- `staging` and `production`: `compose.yml` + `compose.prod.yml`; images tagged with the commit SHA.
+- `staging` and `production`: `compose.yml` + `compose.prod.yml`; images tagged with the commit SHA. Production adds `compose.production.yml` (limits, ClamAV on, `MEDIA_SCAN_MODE=clamd`), `compose.monitoring.yml` and `compose.backup.yml`; staging adds `compose.staging.yml`.
 - **Interim staging host (2026-10-17, decision W4-8):** a shared server (`rnd.yanacreations.com`, files host `files.yanacreations.com`, about 2 GB of free memory) instead of the dedicated second host in §16.2. `compose.staging.yml` is added after `compose.prod.yml`: the server's own edge Nginx terminates TLS and passes both names to the MMS Nginx, which keeps every rule of §2.1 and §15 and trusts the edge's `X-Real-IP`; the data stores are capped. Timings measured there (IP W11) are lower bounds, not production figures.
 - Configuration via environment variables (`pydantic-settings`), prefixed per service: `AUTH_`, `OPS_`, `MEDIA_`, `REPORT_`, `PLATFORM_` (for example `OPS_MONGO_URI`, `OPS_AUTO_CLOSE_DAYS`).
 
@@ -1306,10 +1407,12 @@ Approximate memory budget: MongoDB 4 GB, Kafka 2 GB, ClamAV 3 GB, Python service
 
 Restore is tested quarterly into staging, including an audit chain verification, and the results are recorded. Targets: RPO ≤ 24 h, RTO ≤ 8 h.
 
+**As built (W20 slice 3, decisions W20-6 to W20-9).** One `backup` container (Mongo tools, `rclone`, `age`) dumps with `--oplog`, encrypts to a public key that is the only key on the host, writes a manifest (SHA-256, the audit chain's head) and copies the file to the backup host, comparing it byte for byte; `filer-sync` replicates the buckets and a nightly `rclone check --one-way` proves it. `infra/scripts/restore.sh` restores in a fixed order (dry run, stop services, restore, empty Redis, reset every consumer group to the start, start services, **end every session**, rebuild the read model, check the audit chain) and a drill runs it on every pull request and weekly in CI (`restore-drill.yml`), ending in the chain check. **A restore cannot bring back work done after the dump** (finding F18): a phone deletes its copy once the server confirms (OFF-8), so the runbook has the operator list the visits synced after the dump time for the technicians. Alerts: `BackupMissing` (26 h) and `RestoreDrillOld` (8 days).
+
 ### 16.5 Observability
 
 - **Logs:** JSON via `structlog`, with `service`, `request_id`, `correlation_id`, `user_id`, `event_id`. Nginx sets `X-Request-ID`; it is propagated in httpx calls and becomes the event `correlation_id`. Alloy ships container logs to Loki.
-- **Metrics:** `prometheus-fastapi-instrumentator` per service, nginx-prometheus-exporter, MongoDB, Redis and Kafka exporters, and custom metrics for outbox lag, leader-lease changes, consumer lag, DLQ size, media job duration, sync results by conflict reason, and report render time.
+- **Metrics (as built, W20-1):** `mms_common.metrics` in every service instead of `prometheus-fastapi-instrumentator` (request counts and durations by route template, never by path; the names are in the docs site, decision W20-1). The API images run two uvicorn workers and merge their files through `PROMETHEUS_MULTIPROC_DIR`; the queue workers serve port 9100. "Consumer lag" is the seconds a group has had messages waiting without committing one. `/metrics` is a 404 at the gateway. Also nginx-prometheus-exporter, MongoDB, Redis and Kafka exporters, and custom metrics for outbox lag, leader-lease changes, consumer lag, DLQ size, media job duration, sync results by conflict reason, and report render time.
 - **Dashboards:** API latency and error rate per service, consumer lag per group, media queue, sync results, disk usage.
 - **Alerts (email):** service down > 2 min; 5xx rate > 2% for 5 min; any DLQ topic non-empty; oldest unpublished outbox row > 5 min; consumer lag > 5 min; a report in `finalizing` > 30 min; disk > 80%; backup job failed or missing; audit integrity check failed; ClamAV signatures older than 3 days.
 
@@ -1321,7 +1424,7 @@ The full plan, with fixtures, seed users, CI stages, tests by phase and traceabi
 
 | Level | Tooling | Scope |
 |---|---|---|
-| Unit | pytest, Hypothesis | Domain logic: request status derivation (every combination of visit and report states), visit end rules, owner rules, sensor reconciliation and reversal, report lifecycle, finalize saga and signature invalidation, audit hash chain, permissions (including "viewer can never mutate") |
+| Unit | pytest, Hypothesis | Domain logic: request status derivation (every combination of visit and report states), visit end rules, owner and element edit rules, task completion, element tombstones, report lifecycle, finalize saga and signature invalidation, audit hash chain, permissions (including "viewer can never mutate") |
 | API | pytest + httpx `AsyncClient` + testcontainers (Mongo, Redis, Kafka) | Each endpoint, including org scoping, 404-for-out-of-scope and role checks; the authorization matrix generated from OpenAPI |
 | Contract | pytest | Each consumer validates fixtures against producer schemas in `mms_common.events`; every AUD-1 action maps to an event |
 | Integration | pytest against the Compose stack | Event flows: request → visit → report → client review → close; outbox leader failover and consumer faults; backfill; time-based jobs with a clock override |
@@ -1330,6 +1433,8 @@ The full plan, with fixtures, seed users, CI stages, tests by phase and traceabi
 | Visual regression | Playwright screenshots; PDF pages rendered to PNG | The three shells in light and dark; visit, close-out, label and summary PDFs |
 | Field test | Real Android and iOS devices | Full visit in a no-signal area, restart and PIN unlock, sync on return, sign the report next day |
 | Load (light) | Locust | 50 concurrent users; 20 simultaneous video uploads; a 1-hour soak |
+
+**Load test as built (W20 slice 6, decision W20-11):** `infra/loadtest/` holds the mix (clients, staff, technicians syncing 20 operations), the uploads, a seeder for five times the demo data and `check_thresholds.py` (reads under 1 s at the 95th percentile, failures under 1%, a summary report within 2 minutes, the outbox under 30 s, nothing in the dead-letter topics). CI runs a five-user smoke on every pull request; the full test is `loadtest.yml`, by hand, on a host with no real data. First local run (a laptop, lower bounds): 6,375 requests, 0 failures, reads under 53 ms at the 95th percentile; five 96 MiB videos took a median of 371 s to process, one at a time (R7, R8).
 
 Each rule in `CLAUDE.md` has a test that fails the build when it is broken (TP "Rule-enforcement tests"). Time-dependent code reads an injectable clock from `mms_common.time`.
 
@@ -1343,7 +1448,7 @@ Coverage targets: 90% for `domain/` packages; 70% overall.
 2. Build Docker images for changed components, tagged `sha-<commit>`; scan them with Trivy.
 3. On `main`: push images to the registry and deploy to staging (`docker compose pull && up -d` over SSH). Run Playwright smoke tests.
 4. Nightly on staging: the full Playwright suite in Chromium, Firefox and WebKit, visual regression and an OWASP ZAP baseline scan. Weekly: a restore drill with the audit chain check, and mutation tests on the state machines. A nightly failure blocks the next production deploy.
-5. Production deploy: manual approval, the same images, then smoke tests. Rollback is redeploying the previous tag.
+5. Production deploy: manual approval, the same images, then smoke tests. Rollback is redeploying the previous tag. **As built (W20-12):** `production.yml` is run by hand with a release SHA; `infra/scripts/rollback-guard.sh` refuses a rollback over a migration or an event schema change unless the operator allows it after reading what changed (migrations run forward only; a consumer must not be older than the events it reads). A rollback reaches phones as an ordinary service-worker update (F19).
 6. Database changes: forward-only migration scripts per service (`migrations/NNNN_*.py`), run on startup with a lock in `_migrations`.
 7. Kafka topics and the Nginx gateway config are declared in the repo (`infra/kafka/topics.yml`, `infra/nginx/`) and applied on deploy.
 

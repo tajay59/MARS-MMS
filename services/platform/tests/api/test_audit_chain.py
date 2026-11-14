@@ -137,17 +137,12 @@ async def test_deleting_the_newest_record_is_detected(audit, mongo_uri):
 
 async def test_notification_only_events_are_not_audited(audit):
     proc, db, _, _ = audit
-    from mms_common.events import SCHEMAS, register
-    from pydantic import BaseModel
-
-    if ("request.review_reminder", 1) not in SCHEMAS:
-
-        @register("request.review_reminder")
-        class Reminder(BaseModel):
-            request_id: str
-            day: int
-
-    raw = event("request.review_reminder", data={"request_id": "r", "day": 7})
+    data = {
+        "request_id": "r", "ref": "MR-2026-0001", "org_id": "o", "station_ids": ["s"],
+        "category": "fault", "priority": "normal", "status": "client_review", "day": 7.0,
+        "auto_close_day": 30.0,
+    }
+    raw = event("request.review_reminder", data=data)
     assert await proc.process(raw) is Outcome.APPLIED
     assert await db["audit_events"].count_documents({}) == 0
 

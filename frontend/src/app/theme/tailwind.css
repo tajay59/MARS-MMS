@@ -84,6 +84,15 @@
   --color-on-error-container: rgb(var(--v-theme-on-error-container));
 
   /* Station status markers (DBD): the same colours in both themes, never decoration */
+  /* Visit board kinds (DBD 1.8): tint and accent, only on board elements, never status */
+  --color-sticky-note: rgb(var(--v-theme-sticky-note));
+  --color-on-sticky-note: rgb(var(--v-theme-on-sticky-note));
+  --color-sticky-task: rgb(var(--v-theme-sticky-task));
+  --color-on-sticky-task: rgb(var(--v-theme-on-sticky-task));
+  --color-sticky-recommendation: rgb(var(--v-theme-sticky-recommendation));
+  --color-on-sticky-recommendation: rgb(var(--v-theme-on-sticky-recommendation));
+  --color-sticky-config: rgb(var(--v-theme-sticky-config));
+  --color-on-sticky-config: rgb(var(--v-theme-on-sticky-config));
   /* Request status (PRD §5.1): background and its text colour, reserved for status */
   --color-status-submitted: rgb(var(--v-theme-status-submitted));
   --color-on-status-submitted: rgb(var(--v-theme-on-status-submitted));

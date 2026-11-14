@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.asynchronous.database import AsyncDatabase
 
+from app.domain.visits.elements import facts as element_facts
+
 SOURCE = "operations"
 
 STATION_FIELDS = (
@@ -33,10 +35,21 @@ REQUEST_FIELDS = (
     "assigned_staff_ids", "denial_reason", "cancel_reason",
 )
 COMMENT_FIELDS = ("request_id", "author_id", "author_role", "body", "internal", "attachments")
+CLIENT_REPORT_FIELDS = (
+    "request_id", "kind", "status", "title", "report_date", "station_ids", "render", "report_id",
+    "attempt",
+)
+VISIT_FIELDS = (
+    "ref", "request_id", "status", "planned_start", "planned_end", "staff_ids", "lead_staff_id",
+    "started_at", "ended_at", "additional_visit_required", "cancel_reason",
+)
 UNIT_FIELDS = (
     "model_id", "serial", "status", "current_station_id", "current_parameter",
-    "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "needs_review",
-    "flags", "notes",
+    "calibration_interval_days", "last_calibrated_at", "calibration_due_at", "flags", "notes",
+)
+ELEMENT_FIELDS = (
+    "visit_id", "station_id", "kind", "title", "description", "items", "priority", "shared",
+    "completed_at", "request_ref", "config_version_ids", "deleted_at",
 )
 
 
@@ -63,8 +76,7 @@ def model_data(doc: dict[str, Any]) -> dict[str, Any]:
 def unit_data(doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "unit_id": doc["_id"], "serial": doc["serial"], "model_id": doc["model_id"],
-        "status": doc["status"], "needs_review": bool(doc.get("needs_review")),
-        "current_station_id": doc.get("current_station_id"),
+        "status": doc["status"], "current_station_id": doc.get("current_station_id"),
         "calibration_due_at": doc.get("calibration_due_at"),
     }
 
@@ -73,7 +85,7 @@ def calibration_data(doc: dict[str, Any], due_at: Any) -> dict[str, Any]:
     return {
         "calibration_id": doc["_id"], "unit_id": doc["sensor_unit_id"],
         "station_id": doc.get("station_id"), "method": doc["method"], "at": doc["at"],
-        "result": doc["result"], "due_at": due_at,
+        "result": doc["result"], "due_at": due_at, "org_id": doc.get("org_id"),
     }
 
 
@@ -92,6 +104,41 @@ def request_data(doc: dict[str, Any]) -> dict[str, Any]:
         "priority": doc["priority"], "status": doc["status"], "title": doc["title"],
         "created_by": doc.get("created_by"),
         "assigned_staff_ids": list(doc.get("assigned_staff_ids", [])),
+        "milestones": dict(doc.get("milestones") or {}),
+        "reopen_count": doc.get("reopen_count"),
+        "assigned_staff_names": {i: n for i, n in doc.get("assigned_staff", [])},
+    }
+
+
+def visit_data(visit: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "visit_id": visit["_id"], "ref": visit["ref"], "request_id": request["_id"],
+        "request_ref": request["ref"], "org_id": request["org_id"], "title": request.get("title"),
+        "created_by": request.get("created_by"), "status": visit["status"],
+        "planned_start": visit["planned_start"], "planned_end": visit["planned_end"],
+        "staff_ids": list(visit["staff_ids"]), "lead_staff_id": visit["lead_staff_id"],
+        "station_ids": [s["station_id"] for s in visit["stations"]],
+        "station_owners": [
+            {"station_id": s["station_id"], "owner_staff_id": s["owner_staff_id"]}
+            for s in visit["stations"]
+        ],
+        "time_zone": next((s["time_zone"] for s in visit["stations"] if s.get("time_zone")), None),
+        "staff_names": {p["id"]: p["name"] for p in visit.get("staff", [])},
+    }
+
+
+def visit_snapshot(visit: dict[str, Any]) -> dict[str, Any]:
+    """A visit as the backfill sends it (TRD §8.6): the facts a read model keeps, with no notes."""
+    return {
+        "visit_id": visit["_id"], "ref": visit["ref"], "request_id": visit["request_id"],
+        "org_id": visit["org_id"], "status": visit["status"],
+        "planned_start": visit["planned_start"], "planned_end": visit["planned_end"],
+        "staff_ids": list(visit["staff_ids"]), "lead_staff_id": visit["lead_staff_id"],
+        "station_ids": [s["station_id"] for s in visit["stations"]],
+        "started_at": visit.get("started_at"), "ended_at": visit.get("ended_at"),
+        "additional_visit_required": visit.get("additional_visit_required"),
+        "report_status": visit.get("report_status"),
+        "staff_names": {p["id"]: p["name"] for p in visit.get("staff", [])},
     }
 
 
@@ -233,6 +280,20 @@ class Emitter:
                                            "certificate_media_id", "performed_by", "notes")},
         )
 
+    async def calibration_voided(
+        self, doc: dict[str, Any], unit: dict[str, Any] | None, session: AsyncClientSession, *,
+        reason: str,
+    ) -> Envelope:
+        """A field calibration undone with its sensor action (TRD §3.2.3)."""
+        return await self.emit(
+            ev.CalibrationVoided(
+                **calibration_data(doc, (unit or {}).get("calibration_due_at")), reason=reason
+            ),
+            type_="calibration.voided", key=str(doc.get("station_id") or doc["sensor_unit_id"]),
+            resource=("calibration", doc["_id"]), aggregate_version=doc["version"],
+            org_id=doc.get("org_id"), session=session,
+        )
+
     async def document(
         self, model: type[BaseModel], doc: dict[str, Any], session: AsyncClientSession, *,
         before: dict[str, Any] | None = None, **extra: Any,
@@ -304,6 +365,24 @@ class Emitter:
             before=view(before, COMMENT_FIELDS), after=view(comment, COMMENT_FIELDS),
         )
 
+    async def client_report(
+        self, doc: dict[str, Any], request: dict[str, Any], session: AsyncClientSession, *,
+        before: dict[str, Any] | None = None,
+    ) -> Envelope:
+        """`client_report.submitted`, keyed by the request (TRD 8.1) and versioned by the report.
+        The data names the report and says what kind it is, never what it says (W18-9)."""
+        return await self.emit(
+            ev.ClientReportSubmitted(
+                **request_data(request), client_report_id=doc["_id"], kind=doc["kind"],
+                report_title=doc["title"], submitted_by_id=doc["submitted_by"],
+                submitted_by_name=doc["submitted_by_name"], attempt=doc["attempt"],
+            ),
+            type_="client_report.submitted", key=request["_id"],
+            resource=("client_report", doc["_id"]), aggregate_version=doc["version"],
+            org_id=request["org_id"], session=session,
+            before=view(before, CLIENT_REPORT_FIELDS), after=view(doc, CLIENT_REPORT_FIELDS),
+        )
+
     async def attachments_visibility(
         self, owner_type: str, owner: dict[str, Any], request: dict[str, Any],
         media_ids: list[str], visibility: str, session: AsyncClientSession,
@@ -317,6 +396,77 @@ class Emitter:
             ),
             type_="media.visibility_requested", key=request["_id"],
             resource=(owner_type, owner["_id"]), aggregate_version=owner["version"],
+            org_id=request["org_id"], session=session,
+        )
+
+    async def visit(
+        self, model: type[BaseModel], type_: str, visit: dict[str, Any], request: dict[str, Any],
+        session: AsyncClientSession, *, before: dict[str, Any] | None = None, **extra: Any,
+    ) -> Envelope:
+        """A visit event, keyed by its request (TRD §8.1) and versioned by the visit. The data
+        holds the dates, people and stations a notification needs, never the visit's notes."""
+        return await self.emit(
+            model(**visit_data(visit, request), **extra), type_=type_, key=request["_id"],
+            resource=("visit", visit["_id"]), aggregate_version=visit["version"],
+            org_id=request["org_id"], session=session,
+            before=view(before, VISIT_FIELDS), after=view(visit, VISIT_FIELDS),
+        )
+
+    async def element(
+        self, model: type[BaseModel], type_: str, element: dict[str, Any], visit: dict[str, Any],
+        request: dict[str, Any], session: AsyncClientSession, *,
+        before: dict[str, Any] | None = None, **extra: Any,
+    ) -> Envelope:
+        """An element of a station's board (W11-35), keyed by the request and versioned by the
+        element's `revision`. The event holds ids and flags; the audit block keeps the text."""
+        return await self.emit(
+            model(**visit_data(visit, request), **element_facts(element), **extra),
+            type_=type_, key=request["_id"], resource=("visit_element", element["_id"]),
+            aggregate_version=element["revision"], org_id=request["org_id"], session=session,
+            before=view(before, ELEMENT_FIELDS), after=view(element, ELEMENT_FIELDS),
+        )
+
+    async def element_media(
+        self, element: dict[str, Any], visit: dict[str, Any], request: dict[str, Any],
+        session: AsyncClientSession, *, media_id: str, section: str, kind: str, change: str,
+    ) -> Envelope:
+        """A file on an element was added, captioned, hidden, shown or removed (W11-27)."""
+        return await self.emit(
+            ev.VisitMediaChanged(
+                **visit_data(visit, request), station_id=element["station_id"],
+                media_id=media_id, kind=kind, change=change, element_id=element["_id"],
+                section=section,
+            ),
+            type_="visit.media_changed", key=request["_id"],
+            resource=("visit_element", element["_id"]), aggregate_version=element["revision"],
+            org_id=request["org_id"], session=session,
+        )
+
+    async def visit_visibility(
+        self, media_ids: list[str], visibility: str, visit: dict[str, Any],
+        session: AsyncClientSession, *, version: int,
+    ) -> Envelope:
+        """Ask media to show a visit's files to the client (when the visit ends, and for what is
+        shared after), or keep them staff-only (unshared or hidden again). `version` comes from
+        the visit's `visibility_seq`, so media applies only the newest request for each file
+        (W11-13, W11-28)."""
+        return await self.emit(
+            ev.MediaVisibilityRequested(
+                media_ids=media_ids, visibility=visibility, visibility_version=version,
+            ),
+            type_="media.visibility_requested", key=visit["request_id"],
+            resource=("visit", visit["_id"]), aggregate_version=visit["version"],
+            org_id=visit["org_id"], session=session,
+        )
+
+    async def media_deletion(
+        self, media_ids: list[str], reason: str, visit: dict[str, Any], request: dict[str, Any],
+        session: AsyncClientSession,
+    ) -> Envelope:
+        return await self.emit(
+            ev.MediaDeletionRequested(media_ids=media_ids, reason=reason),
+            type_="media.deletion_requested", key=request["_id"],
+            resource=("visit", visit["_id"]), aggregate_version=visit["version"],
             org_id=request["org_id"], session=session,
         )
 

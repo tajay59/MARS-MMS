@@ -8,14 +8,23 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 import segno
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from mms_common import metrics
+from mms_common.logging import get_logger
+from PIL import Image
 
+from app.domain.charts import ChartSpec
 from app.domain.labels import TEMPLATE_VERSION, Label, paginate
+from app.repo.charts import ChartDrawer
+
+log = get_logger(__name__)
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 
@@ -36,6 +45,14 @@ class Rendered:
 class Renderer(Protocol):
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered: ...
 
+    async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
+    async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
+    async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
+    async def summary(self, view: dict[str, Any], template_version: str) -> Rendered: ...
+
 
 def qr_data_uri(url: str) -> str:
     """The QR code as an SVG data URI, black on white with the standard quiet zone. Level M
@@ -55,6 +72,47 @@ def render_html(labels: list[Label], phone: str | None) -> str:
     return template.render(pages=pages, phone=phone, template_version=TEMPLATE_VERSION)
 
 
+PAGE_PICTURE_PX = 1024  # TRD 11.1: pictures are embedded at a page-friendly size
+PAGE_PICTURE_QUALITY = 82
+
+
+def jpeg_data_uri(raw: bytes) -> str:
+    """A photo's display copy (WebP, up to 2048 px) as a JPEG data URI at most
+    `PAGE_PICTURE_PX` on the long side: smaller than the original, and something WeasyPrint
+    always reads (TRD 11.1)."""
+    with Image.open(io.BytesIO(raw)) as image:
+        picture = image.convert("RGB")
+    picture.thumbnail((PAGE_PICTURE_PX, PAGE_PICTURE_PX))
+    out = io.BytesIO()
+    picture.save(out, "JPEG", quality=PAGE_PICTURE_QUALITY, optimize=True)
+    return "data:image/jpeg;base64," + base64.b64encode(out.getvalue()).decode("ascii")
+
+
+def render_visit_html(view: dict[str, Any], template_version: str) -> str:
+    """The visit report as HTML (TRD 11.1). `view` is `domain/visit_view.build`."""
+    # The QR code beside each video links to it in the app (TRD 11.1)
+    videos = [{**v, "qr": qr_data_uri(v["link"])} for v in view["videos"]]
+    return _env.get_template("visit.html.j2").render(
+        v={**view, "videos": videos}, template_version=template_version)
+
+
+def render_client_form_html(view: dict[str, Any], template_version: str) -> str:
+    """A client's online-form report as HTML (CRP-3). `view` is `domain/client_form_view.build`."""
+    return _env.get_template("client_form.html.j2").render(
+        v=view, template_version=template_version)
+
+
+def render_closeout_html(view: dict[str, Any], template_version: str) -> str:
+    """A request's close-out report as HTML (RPT-8). `view` is `domain/closeout_view.build`."""
+    return _env.get_template("closeout.html.j2").render(
+        v=view, template_version=template_version)
+
+
+def render_summary_html(view: dict[str, Any], template_version: str) -> str:
+    """A summary report as HTML (W19). `view` is `domain/summary.pdf_view`."""
+    return _env.get_template("summary.html.j2").render(v=view, template_version=template_version)
+
+
 def to_pdf(html: str) -> Rendered:
     from weasyprint import HTML  # noqa: PLC0415 - imports Pango; keep it out of API start-up
 
@@ -63,6 +121,42 @@ def to_pdf(html: str) -> Rendered:
 
 
 class WeasyRenderer:
+    def __init__(self, charts: ChartDrawer | None = None) -> None:
+        self.charts = charts
+
+    async def with_chart(self, view: dict[str, Any]) -> dict[str, Any]:
+        """Draws the summary's chart, if it has one, and puts the picture in the view. A chart
+        that cannot be drawn (no browser, too slow, an error) is left out and the page says so;
+        the table below it has the same figures."""
+        spec = view.get("chart")
+        if not spec:
+            return view
+        picture = None
+        if self.charts is not None:
+            try:
+                picture = await self.charts.draw(ChartSpec.from_view(spec))
+            except Exception:
+                log.exception("chart_error", title=spec.get("title"))
+        src = ("data:image/png;base64," + base64.b64encode(picture).decode()) if picture else None
+        return {**view, "chart": {**spec, "src": src}}
+
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
-        html = render_html(labels, phone)
-        return await asyncio.to_thread(to_pdf, html)
+        with metrics.timed(metrics.REPORT_RENDER, "labels"):
+            return await asyncio.to_thread(to_pdf, render_html(labels, phone))
+
+    async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
+        with metrics.timed(metrics.REPORT_RENDER, "visit_report"):
+            return await asyncio.to_thread(to_pdf, render_visit_html(view, template_version))
+
+    async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered:
+        with metrics.timed(metrics.REPORT_RENDER, "client_form"):
+            return await asyncio.to_thread(to_pdf, render_client_form_html(view, template_version))
+
+    async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered:
+        with metrics.timed(metrics.REPORT_RENDER, "closeout"):
+            return await asyncio.to_thread(to_pdf, render_closeout_html(view, template_version))
+
+    async def summary(self, view: dict[str, Any], template_version: str) -> Rendered:
+        with metrics.timed(metrics.REPORT_RENDER, "summary"):
+            html = render_summary_html(await self.with_chart(view), template_version)
+            return await asyncio.to_thread(to_pdf, html)

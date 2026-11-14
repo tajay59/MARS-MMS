@@ -23,7 +23,7 @@ from pymongo import AsyncMongoClient
 from app.config import Settings
 from app.domain.labels import Label
 from app.main import create_app
-from app.repo.operations import OperationsUnavailable, StationLabel
+from app.repo.operations import LockRefused, OperationsUnavailable, StationLabel
 from app.repo.render import Rendered
 from app.repo.storage import Storage, make_client
 
@@ -56,10 +56,118 @@ class FakeStations:
         return [self.known[i] for i in station_ids if i in self.known]
 
 
+class FakeFacts:
+    """What operations answers on `/internal/visits/{id}/report-facts`."""
+
+    def __init__(self) -> None:
+        self.by_visit: dict[str, dict[str, Any]] = {}
+        self.by_client_report: dict[str, dict[str, Any]] = {}
+        self.by_request: dict[str, dict[str, Any]] = {}
+        self.down = False
+        self.calls: list[str] = []
+
+    async def visit_facts(self, visit_id: str) -> dict[str, Any] | None:
+        self.calls.append(visit_id)
+        if self.down:
+            raise OperationsUnavailable()
+        return self.by_visit.get(visit_id)
+
+    async def client_report_facts(self, client_report_id: str) -> dict[str, Any] | None:
+        self.calls.append(client_report_id)
+        if self.down:
+            raise OperationsUnavailable()
+        return self.by_client_report.get(client_report_id)
+
+    async def closeout_facts(self, request_id: str) -> dict[str, Any] | None:
+        self.calls.append(request_id)
+        if self.down:
+            raise OperationsUnavailable()
+        return self.by_request.get(request_id)
+
+
+class FakeLocks:
+    """Operations' lock on a visit, as `lock.py` there keeps it: one report version at a time, the
+    same pair again changes nothing, only the holder unlocks."""
+
+    def __init__(self) -> None:
+        self.held: dict[str, tuple[str, int]] = {}
+        self.calls: list[tuple[str, str, str, int]] = []
+        self.refuse: str | None = None  # the code operations answers a lock with
+        self.down = False
+
+    async def lock(self, visit_id: str, report_id: str, version: int) -> None:
+        self.calls.append(("lock", visit_id, report_id, version))
+        if self.down:
+            raise OperationsUnavailable()
+        if self.refuse:
+            raise LockRefused(self.refuse)
+        holder = self.held.get(visit_id)
+        if holder not in (None, (report_id, version)):
+            raise LockRefused("locked_by_another_report")
+        self.held[visit_id] = (report_id, version)
+
+    async def unlock(self, visit_id: str, report_id: str, version: int) -> None:
+        self.calls.append(("unlock", visit_id, report_id, version))
+        if self.down:
+            raise OperationsUnavailable()
+        if self.held.get(visit_id) == (report_id, version):
+            del self.held[visit_id]
+
+
+class FakeMedia:
+    """Where each file stands, and the display copy of the photos that are ready."""
+
+    def __init__(self) -> None:
+        self.states: dict[str, str] = {}
+        self.photos: dict[str, bytes] = {}
+        self.posters: dict[str, bytes] = {}  # a video's poster frame
+        self.down = False
+
+    async def status(self, media_id: str) -> str | None:
+        if self.down:
+            raise OperationsUnavailable()
+        return self.states.get(media_id)
+
+    async def rendition(self, media_id: str, *, thumbnail: bool = False) -> bytes | None:
+        if self.down:
+            raise OperationsUnavailable()
+        return (self.posters if thumbnail else self.photos).get(media_id)
+
+
 class FakeRenderer:
     def __init__(self) -> None:
         self.calls: list[tuple[list[Label], str | None]] = []
+        self.visits: list[dict[str, Any]] = []
+        self.forms: list[dict[str, Any]] = []
+        self.closeouts: list[dict[str, Any]] = []
+        self.summaries: list[dict[str, Any]] = []
         self.fail = False
+
+    async def visit_report(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.visits.append(view)
+        # A final report differs from every other (its version and hash are in its footer)
+        extra = f"% v{view['version']} {view.get('hash')}".encode() if view.get("hash") else b""
+        return Rendered(pdf=PDF + extra, pages=1)
+
+    async def client_form(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.forms.append(view)
+        return Rendered(pdf=PDF + f"% {view['number']} {view.get('hash')}".encode(), pages=1)
+
+    async def closeout(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.closeouts.append(view)
+        return Rendered(pdf=PDF + f"% {view['number']} v{view['version']} {view.get('hash')}".encode(), pages=1)
+
+    async def summary(self, view: dict[str, Any], template_version: str) -> Rendered:
+        if self.fail:
+            raise RuntimeError("boom")
+        self.summaries.append(view)
+        return Rendered(pdf=PDF + f"% {view['title']}".encode(), pages=1)
 
     async def labels(self, labels: list[Label], phone: str | None) -> Rendered:
         if self.fail:
@@ -87,6 +195,9 @@ class Report:
     jobs: FakeJobs
     stations: FakeStations
     renderer: FakeRenderer
+    facts: FakeFacts
+    media: FakeMedia
+    locks: FakeLocks
     s3: Any
     settings: Settings
 
@@ -137,6 +248,7 @@ async def report(mongo_uri, redis_url, s3_endpoint):
         mongo_uri=mongo_uri, mongo_db=db_name, redis_url=redis_url, run_background=False,
         s3_url=s3_endpoint.url, files_url=s3_endpoint.url, s3_access_key=s3_endpoint.access_key,
         s3_secret_key=s3_endpoint.secret_key, app_url="https://mms.example",
+        dashboard_cache_s=0,
     )
     secret = s3_endpoint.secret_key
     storage = Storage(
@@ -144,9 +256,11 @@ async def report(mongo_uri, redis_url, s3_endpoint):
         make_client(s3_endpoint.url, s3_endpoint.access_key, secret),
     )
     jobs, stations, renderer = FakeJobs(), FakeStations(), FakeRenderer()
+    facts, media, locks = FakeFacts(), FakeMedia(), FakeLocks()
     mongo: AsyncMongoClient = AsyncMongoClient(mongo_uri)
     app = create_app(settings, ready_checks={}, clock=clock, keys=issuer.keys, storage=storage,
-                     stations=stations, renderer=renderer, jobs=jobs)  # type: ignore[arg-type]
+                     stations=stations, renderer=renderer, jobs=jobs,  # type: ignore[arg-type]
+                     facts=facts, media=media, locks=locks)  # type: ignore[arg-type]
     async with app.router.lifespan_context(app):
         from mms_common.auth.revocation import revoke_user
 
@@ -158,7 +272,7 @@ async def report(mongo_uri, redis_url, s3_endpoint):
         ):
             yield Report(
                 app, http, store, mongo[db_name], clock, issuer, jobs, stations, renderer,
-                storage._s3, settings,
+                facts, media, locks, storage._s3, settings,
             )
     await mongo.drop_database(db_name)
     await mongo.close()

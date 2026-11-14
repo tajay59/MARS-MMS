@@ -1,7 +1,7 @@
 <template>
-  <!-- A dialog from 768 px; a sheet rising from the bottom on phones (W6 screens) -->
+  <!-- A dialog from 768 px; a sheet rising from the bottom on phones (W6 screens). `sheet` keeps the sheet on wide screens too, centred and as wide as `maxWidth` -->
   <v-dialog
-    v-if="mdAndUp"
+    v-if="mdAndUp && !sheet"
     v-model="open"
     :aria-labelledby="labelledby"
     :max-width="maxWidth"
@@ -17,6 +17,8 @@
     v-else
     v-model="open"
     :aria-labelledby="labelledby"
+    :inset="mdAndUp"
+    :max-width="mdAndUp ? maxWidth : undefined"
     :persistent="persistent"
   >
     <div class="flex max-h-[85dvh] flex-col overflow-y-auto overscroll-contain rounded-t-card bg-surface px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom))]">
@@ -36,6 +38,7 @@
     labelledby: string
     maxWidth?: number | string
     persistent?: boolean
+    sheet?: boolean
   }>()
 
   const open = defineModel<boolean>({ required: true })

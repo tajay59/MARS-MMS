@@ -52,14 +52,23 @@ AUD1: dict[str, tuple[str, ...]] = {
     "visit scheduling, start, end and overrides": (
         "visit.scheduled", "visit.rescheduled", "visit.cancelled", "visit.restored",
         "visit.started", "visit.ended", "visit.work_updated", "visit.station_owner_changed",
+        "visit.station_arrived", "visit.station_departed", "visit.media_changed",
+        "visit.element_added", "visit.element_updated", "visit.element_deleted", "visit.prepared",
     ),
     "media uploads and deletions": ("media.uploaded", "media.deleted"),
     "report finalization, signatures and reopening": (
         "report.signed", "report.finalized", "report.reopened",
     ),
     "client acceptance, rejection and auto-closure": ("request.closed", "request.reopened"),
+    "client reports and close-outs": (
+        "client_report.submitted", "report.generated", "report.closeout_generated",
+    ),
     "QR regeneration": ("qr.regenerated",),
-    "security": ("auth.token_reuse_detected",),
+    "security": ("auth.token_reuse_detected", "auth.sessions_revoked"),
+    "second factor: setup, use, failure, reset": (
+        "auth.totp_enrolled", "auth.totp_disabled", "auth.totp_reset", "auth.mfa_failed",
+        "auth.recovery_code_used", "auth.recovery_codes_regenerated",
+    ),
     "brand colour changes": ("branding.updated",),
 }
 

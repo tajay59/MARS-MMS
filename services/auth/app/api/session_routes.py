@@ -18,6 +18,7 @@ from mms_common.ids import new_id
 from pymongo.asynchronous.client_session import AsyncClientSession
 from pymongo.errors import DuplicateKeyError
 
+from app.api import signin
 from app.api.context import Ctx, CtxDep
 from app.api.schemas import (
     Accepted,
@@ -25,16 +26,19 @@ from app.api.schemas import (
     LoginIn,
     Me,
     MePatch,
+    MfaChallenge,
     RegisterIn,
     ResetConfirmIn,
     ResetRequestIn,
     TokenResponse,
 )
+from app.domain import mfa
 from app.domain import users as rules
 from app.domain.passwords import check_new_password
 from app.domain.tokens import Refresh, decide, new_token, open_successor
 from app.events.publish import ev
-from app.repo import links, organizations, sessions, throttle
+from app.repo import links, mfa_challenges, organizations, sessions, throttle
+from app.repo import totp as totp_repo
 from app.repo import users as users_repo
 from app.repo.links import Kind
 
@@ -120,7 +124,7 @@ async def register(body: RegisterIn, ctx: CtxDep) -> Accepted:
 
 
 @router.post("/login")
-async def login(body: LoginIn, ctx: CtxDep, response: Response) -> TokenResponse:
+async def login(body: LoginIn, ctx: CtxDep, response: Response) -> TokenResponse | MfaChallenge:
     s = ctx.settings
     email = rules.normalize_email(body.email)
     email_hash = rules.email_hash(email)
@@ -146,33 +150,32 @@ async def login(body: LoginIn, ctx: CtxDep, response: Response) -> TokenResponse
             raise AccountPending()
         raise AccountBlocked()
 
-    await throttle.clear(ctx.redis, email_hash)
-    now = ctx.clock.now()
-    raw = new_token()
-    expires_at = now + timedelta(days=s.refresh_ttl_days)
-    changes: dict[str, Any] = {"last_login_at": now}
+    changes: dict[str, Any] = signin.window_changes(ctx, user)
     if ctx.hasher.needs_rehash(user["password_hash"]):
         changes["password_hash"] = await asyncio.to_thread(ctx.hasher.hash, body.password)
-    emitter = ctx.emitter(user_id=user["_id"], name=user["name"], roles=list(user["roles"]))
+    state = mfa.gate(
+        roles=user["roles"], enrolled=totp_repo.enabled(user),
+        grace_until=changes.get("mfa_grace_until", user.get("mfa_grace_until")),
+        now=ctx.clock.now(), required_roles=s.totp_required_roles,
+    )
+    if state in (mfa.Gate.ENROLLED, mfa.Gate.BLOCKED):
+        # A correct password is not a session yet, and it does not clear the failure count: only
+        # a finished sign-in does, so the password alone can't be used to reset the code's limit.
+        if not body.supports_mfa:
+            raise Unauthenticated("Reload the app, then sign in", reason="update_required")
+        if changes:
+            await users_repo.col(ctx.db).update_one({"_id": user["_id"]}, {"$set": changes})
+        enrolled = state is mfa.Gate.ENROLLED
+        token = await mfa_challenges.create(
+            ctx.redis, user["_id"], mfa_challenges.VERIFY if enrolled else mfa_challenges.ENROL,
+            s.mfa_challenge_ttl_s,
+        )
+        return MfaChallenge(
+            enrol=not enrolled, challenge=token, expires_in=s.mfa_challenge_ttl_s
+        )
 
-    async def save(session: AsyncClientSession) -> dict[str, Any]:
-        await sessions.create(
-            ctx.db, user_id=user["_id"], raw=raw, family_id=new_id(), now=now,
-            expires_at=expires_at, device_label=ctx.device_label(), session=session,
-        )
-        # last_login_at is bookkeeping, not a profile change: no version bump, no user.updated.
-        await users_repo.col(ctx.db).update_one(
-            {"_id": user["_id"]}, {"$set": changes}, session=session
-        )
-        await emitter.security(
-            ev.LoginSucceeded(user_id=user["_id"], email_hash=email_hash),
-            type_="auth.login_succeeded", user=user, email_hash=email_hash, session=session,
-        )
-        return {**user, **changes}
-
-    fresh = await ctx.tx(save)
-    ctx.set_refresh_cookie(response, raw)
-    return ctx.token_response(fresh, expires_at)
+    await throttle.clear(ctx.redis, email_hash)
+    return await signin.sign_in(ctx, user, response, changes=changes)
 
 
 async def _login_failed(
@@ -289,6 +292,12 @@ async def _active_user_or_end(ctx: Ctx, row: dict[str, Any]) -> dict[str, Any]:
     if outcome is not rules.LoginOutcome.OK:
         await sessions.revoke_family(ctx.db, row["family_id"], ctx.clock.now())
         raise SessionEnded("account_blocked")
+    # An admin signed in before the second factor existed gets the setup window (and its banner)
+    # at their next refresh, not only at their next sign-in.
+    started = signin.window_changes(ctx, user)
+    if started:
+        await users_repo.col(ctx.db).update_one({"_id": user["_id"]}, {"$set": started})
+        user = {**user, **started}
     return user
 
 
@@ -418,7 +427,8 @@ async def accept_invitation(
             raise LinkExpired()
         updated = await users_repo.update(
             ctx.db, user["_id"],
-            {"password_hash": password_hash, "status": new_status.value, "last_login_at": now},
+            {"password_hash": password_hash, "status": new_status.value, "last_login_at": now,
+             **signin.window_changes(ctx, user)},
             now=now, by=user["_id"], session=s,
         )
         await sessions.create(

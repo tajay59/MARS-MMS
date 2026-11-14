@@ -1,4 +1,4 @@
-import type { EntityUpdate, LiveEvent } from '@/app/realtime/bus'
+import type { EntityUpdate, LiveEvent, VisitUpdate } from '@/app/realtime/bus'
 import { onBeforeUnmount } from 'vue'
 import { onLive } from '@/app/realtime/bus'
 
@@ -16,6 +16,10 @@ export function useLive (handler: (event: LiveEvent) => void): void {
 
 export function isRequestUpdate (event: LiveEvent): event is EntityUpdate {
   return event.entity === 'request'
+}
+
+export function isVisitUpdate (event: LiveEvent): event is VisitUpdate {
+  return event.entity === 'visit'
 }
 
 /** `run` at most once per `ms`, after the last call: a burst of changes is one refresh. */

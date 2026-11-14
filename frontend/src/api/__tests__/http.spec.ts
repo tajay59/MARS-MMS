@@ -17,6 +17,8 @@ const user = {
   time_zone: null,
   theme: 'system',
   status: 'active',
+  totp_enabled: false,
+  recovery_codes_left: 0,
 }
 
 function auth (header: unknown): string | undefined {
@@ -66,11 +68,11 @@ describe('api', () => {
       status: 422,
       code: 'validation_failed',
       detail: 'Validation failed',
-      errors: [{ loc: ['body', 'password'], msg: 'Use at least 10 characters', code: 'password_too_short' }],
+      errors: [{ loc: ['body', 'password'], msg: 'Use at least 12 characters', code: 'password_too_short' }],
     })))
     const error = await api.post('/auth/register', {}, { auth: false }).catch((error_: unknown) => error_)
     expect(error).toBeInstanceOf(ApiError)
-    expect((error as ApiError).fieldErrors()).toEqual({ password: 'Use at least 10 characters' })
+    expect((error as ApiError).fieldErrors()).toEqual({ password: 'Use at least 12 characters' })
     expect((error as ApiError).fieldCode('password')).toBe('password_too_short')
   })
 

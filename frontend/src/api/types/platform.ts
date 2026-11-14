@@ -4,6 +4,114 @@
  */
 
 export interface paths {
+    "/api/v1/audit/checks/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Latest Check
+         * @description The last check that finished, by an admin or the nightly run.
+         */
+        get: operations["latest_check_api_v1_audit_checks_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/checks/{check_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Check */
+        get: operations["get_check_api_v1_audit_checks__check_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Events */
+        get: operations["search_events_api_v1_audit_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/events/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Events */
+        get: operations["export_events_api_v1_audit_events_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/resources/{kind}/{thing_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["history_api_v1_audit_resources__kind___thing_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Check
+         * @description Queue an integrity check of the chain (AUD-5). A worker takes it within seconds.
+         */
+        post: operations["start_check_api_v1_audit_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications": {
         parameters: {
             query?: never;
@@ -91,6 +199,101 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuditPage */
+        AuditPage: {
+            /** Items */
+            items: components["schemas"]["AuditRecord"][];
+            /** Next Cursor */
+            next_cursor: number | null;
+            /** Over Export Limit */
+            over_export_limit: boolean;
+            /** Total */
+            total: number;
+        };
+        /**
+         * AuditRecord
+         * @description The whole record (admins).
+         */
+        AuditRecord: {
+            /** Action */
+            action: string;
+            actor: components["schemas"]["Who"];
+            /** After */
+            after: unknown;
+            /** At */
+            at: string | null;
+            /** Before */
+            before: unknown;
+            /** Changes */
+            changes: components["schemas"]["Change"][];
+            /** Correlation Id */
+            correlation_id: string | null;
+            /** Event Id */
+            event_id: string;
+            /** Hash */
+            hash: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Org Id */
+            org_id: string | null;
+            /** Prev Hash */
+            prev_hash: string;
+            /** Received At */
+            received_at: string | null;
+            /** Resource */
+            resource: {
+                [key: string]: string;
+            } | null;
+            /** Seq */
+            seq: number;
+            /** Source Service */
+            source_service: string | null;
+            /** Summary */
+            summary: string;
+        };
+        /** Change */
+        Change: {
+            /** After */
+            after: unknown;
+            /** Before */
+            before: unknown;
+            /** Field */
+            field: string;
+        };
+        /** CheckOut */
+        CheckOut: {
+            /** Checked */
+            checked: number;
+            /** Finished At */
+            finished_at: string | null;
+            /** First Break Seq */
+            first_break_seq: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "manual" | "nightly";
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Requested By Name */
+            requested_by_name: string | null;
+            /** Started At */
+            started_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "passed" | "broken" | "failed";
+            /** Total */
+            total: number | null;
+        };
         /** Entity */
         Entity: {
             /** Id */
@@ -102,6 +305,33 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HistoryEntry
+         * @description What a History tab shows (staff, Viewer): no address, device, values or data.
+         */
+        HistoryEntry: {
+            /** Action */
+            action: string;
+            /** Actor Name */
+            actor_name: string | null;
+            /** Actor Role */
+            actor_role: string | null;
+            /** At */
+            at: string | null;
+            /** Changed Fields */
+            changed_fields: string[];
+            /** Seq */
+            seq: number;
+            /** Summary */
+            summary: string;
+        };
+        /** HistoryPage */
+        HistoryPage: {
+            /** Items */
+            items: components["schemas"]["HistoryEntry"][];
+            /** Next Cursor */
+            next_cursor: number | null;
         };
         /** NotificationOut */
         NotificationOut: {
@@ -187,6 +417,21 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** Who */
+        Who: {
+            /** Device Id */
+            device_id: string | null;
+            /** Ip */
+            ip: string | null;
+            /** Name */
+            name: string | null;
+            /** Roles */
+            roles: string[];
+            /** User Agent */
+            user_agent: string | null;
+            /** User Id */
+            user_id: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -196,6 +441,188 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    latest_check_api_v1_audit_checks_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckOut"];
+                };
+            };
+        };
+    };
+    get_check_api_v1_audit_checks__check_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_events_api_v1_audit_events_get: {
+        parameters: {
+            query?: {
+                cursor?: number | null;
+                limit?: number;
+                actor?: string | null;
+                action?: string | null;
+                resource_type?: string | null;
+                resource_id?: string | null;
+                org_id?: string | null;
+                since?: string | null;
+                until?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_events_api_v1_audit_events_export_csv_get: {
+        parameters: {
+            query?: {
+                actor?: string | null;
+                action?: string | null;
+                resource_type?: string | null;
+                resource_id?: string | null;
+                org_id?: string | null;
+                since?: string | null;
+                until?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_api_v1_audit_resources__kind___thing_id__get: {
+        parameters: {
+            query?: {
+                cursor?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                kind: "station" | "request" | "visit";
+                thing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_check_api_v1_audit_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckOut"];
+                };
+            };
+        };
+    };
     list_notifications_api_v1_notifications_get: {
         parameters: {
             query?: {

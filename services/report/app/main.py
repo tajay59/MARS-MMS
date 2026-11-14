@@ -13,13 +13,15 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, Response
 from mms_common import logging as mms_logging
-from mms_common import migrations, mongo
+from mms_common import metrics, migrations, mongo
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.tokens import KeySource
+from mms_common.consumer import EventProcessor, SendToDlq
+from mms_common.cron import run_periodic
 from mms_common.ids import new_id
 from mms_common.jobs import JobQueue
-from mms_common.kafka import producer_factory
+from mms_common.kafka import consume_forever, producer_factory
 from mms_common.outbox import LeaderLease
 from mms_common.relay import run_relay
 from mms_common.time import Clock, SystemClock
@@ -27,9 +29,28 @@ from mms_common.web import ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
-from app.api import reports
+from app.api import (
+    dashboard_routes,
+    edit_routes,
+    finalize_routes,
+    report_routes,
+    reports,
+    summary_routes,
+    verify_routes,
+)
 from app.config import Settings
-from app.repo.operations import LabelSource
+from app.events import consumer
+from app.jobs import (
+    backfill,
+    drafts,
+    reminders,
+    render_client_form,
+    render_closeout,
+    resume,
+    summary,
+)
+from app.repo.media import MediaSource
+from app.repo.operations import FactsSource, LabelSource, VisitLocks
 from app.repo.render import Renderer
 from app.repo.storage import Storage
 from app.services import (
@@ -37,6 +58,7 @@ from app.services import (
     Jobs,
     QueueJobs,
     Services,
+    make_media,
     make_renderer,
     make_stations,
     make_storage,
@@ -53,6 +75,9 @@ def create_app(
     stations: LabelSource | None = None,
     renderer: Renderer | None = None,
     jobs: Jobs | None = None,
+    facts: FactsSource | None = None,
+    media: MediaSource | None = None,
+    locks: VisitLocks | None = None,
 ) -> FastAPI:
     """App factory. Tests pass their own settings, readiness checks, clock, token keys and
     stand-ins for the store, operations, the PDF renderer and the job queue."""
@@ -82,18 +107,21 @@ def create_app(
         await migrations.run(db, app_migrations, clock)
 
         http = httpx.AsyncClient()
+        operations = make_stations(settings, clock, http)
         app.state.services = Services(
             settings=settings, clock=clock, client=client, db=db,
             storage=storage or make_storage(settings),
-            stations=stations or make_stations(settings, clock, http),
-            renderer=renderer or make_renderer(),
+            stations=stations or operations,
+            renderer=renderer or make_renderer(settings),
             jobs=jobs or QueueJobs(JobQueue(redis, QUEUE)),
+            facts=facts or operations, media=media or make_media(settings, clock, http),
+            locks=locks or operations,
         )
 
         stop = asyncio.Event()
         tasks: list[asyncio.Task[None]] = []
-        # Start Kafka consumers (mms_common.kafka.consume_forever) and cron jobs
-        # (mms_common.cron.run_periodic) here too, each with `stop`, when run_background is on.
+        # Cron jobs (mms_common.cron.run_periodic) start here too, each with `stop`, when
+        # run_background is on.
         if settings.run_background:
             # The outbox relay runs in every worker; only the lease holder publishes (§8.2).
             lease = LeaderLease(redis, settings.service_name, new_id())
@@ -105,7 +133,57 @@ def create_app(
                 clock,
                 stop,
             )
-            tasks.append(asyncio.create_task(relay))
+
+            def make_consumer(send_to_dlq: SendToDlq) -> EventProcessor:
+                return consumer.processor(client, db, send_to_dlq, clock)
+
+            tasks += [
+                asyncio.create_task(relay),
+                asyncio.create_task(
+                    consume_forever(
+                        settings.kafka_bootstrap, consumer.GROUP, consumer.TOPICS,
+                        make_consumer, stop, settings.kafka,
+                    )
+                ),
+                # The read model covers everything entered since Phase 2, and the consumer group
+                # starts at the oldest event Kafka still holds (TRD §8.6)
+                asyncio.create_task(backfill.run(db, operations, stop)),
+                # Reads draft reports' facts, watches their files and queues first PDFs
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "drafts", settings.draft_tick_s,
+                    lambda: drafts.tick(app.state.services), stop, first_delay_s=10.0,
+                )),
+                # Reminds (RPT-7) when a draft is not finalized after 2 and 5 working days
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "reminders", settings.reminder_tick_s,
+                    lambda: reminders.tick(app.state.services), stop, first_delay_s=90.0,
+                )),
+                # Queues the PDFs of clients' online-form reports
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "client_forms", settings.draft_tick_s,
+                    lambda: render_client_form.tick(app.state.services), stop,
+                    first_delay_s=15.0,
+                )),
+                # Queues the close-out reports of Closed requests
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "closeouts", settings.draft_tick_s,
+                    lambda: render_closeout.tick(app.state.services), stop,
+                    first_delay_s=17.0,
+                )),
+                # Removes summary reports past their keep time (W19-8)
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "summary_purge", 3600,
+                    lambda: summary.purge_old(app.state.services), stop, first_delay_s=120.0,
+                )),
+                # Takes up a finalize a worker left half done, and unlocks owed to operations
+                asyncio.create_task(metrics.refresh_every(
+                    30.0, lambda: resume.gauge_finalizing(app.state.services), stop,
+                )),
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "resume", settings.resume_tick_s,
+                    lambda: resume.tick(app.state.services), stop, first_delay_s=20.0,
+                )),
+            ]
         try:
             yield
         finally:
@@ -139,6 +217,12 @@ def create_app(
 
     # Literal paths before /{id} (TRD §3.0). Every route goes in the authorization matrix.
     app.include_router(reports.router)
+    app.include_router(dashboard_routes.router)
+    app.include_router(summary_routes.router)
+    app.include_router(verify_routes.router)
+    app.include_router(report_routes.router)
+    app.include_router(edit_routes.router)
+    app.include_router(finalize_routes.router)
     return app
 
 

@@ -4,7 +4,6 @@ import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { mediaApi, uploadsApi } from '@/api/media'
 import { ApiError, NetworkError } from '@/api/problem'
 import { uploadFailure } from '@/features/stations/documents'
-import { TooLargeToHash } from '@/offline/hash'
 import { UploadError, uploadFile, waitUntilChecked } from '@/offline/upload'
 
 /*
@@ -41,9 +40,6 @@ function wording (error: unknown): string {
       return 'The connection kept failing. Try again when you have signal.'
     }
     return uploadFailure(error.reason, error.message)
-  }
-  if (error instanceof TooLargeToHash) {
-    return 'This file is too large to check on this device.'
   }
   if (error instanceof NetworkError) {
     return 'This needs a connection. Try again when you have signal.'

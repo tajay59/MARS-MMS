@@ -22,10 +22,15 @@ ADMIN, TECH, CLIENT, VIEWER = (
 @pytest.mark.req("NOT-4")
 def test_each_person_can_choose_only_what_they_can_be_emailed_about():
     keys = lambda roles: {t.key for t in preferences.types_for(roles)}  # noqa: E731
+    visits = {"visit.scheduled", "visit.cancelled"}
+    reopened = {"request.reopened"}  # a client sends work back (W18)
+    review = {"request.client_review", "report.closeout"}
     assert keys(ADMIN) == {"request.submitted", "request.assigned", "request.cancelled",
-                           "calibration.digest"}
-    assert keys(TECH) == {"request.assigned", "request.cancelled"}
-    assert keys(CLIENT) == {"request.decided", "request.cancelled"}
+                           "calibration.digest", "report.finalize_reminder"} | visits | reopened
+    assert keys(TECH) == {"request.assigned", "request.cancelled",
+                          "report.finalize_reminder"} | visits | reopened
+    assert keys(CLIENT) == {"request.decided", "request.cancelled", "report.finalized",
+                            "report.reopened"} | visits | review
     assert keys(VIEWER) == set()
     assert keys(ADMIN | TECH) == keys(ADMIN)
 
@@ -37,11 +42,30 @@ def test_the_defaults_follow_appendix_b_and_the_choice_wins():
     assert on({}, "request.assigned", TECH) is True
     assert on({}, "request.decided", CLIENT) is True
     assert on({}, "calibration.digest", ADMIN) is True
+    # Review (W18): a client is emailed to review and of a corrected close-out; staff of a rejection
+    assert on({}, "request.client_review", CLIENT) is True
+    assert on({}, "report.closeout", CLIENT) is True
+    assert on({}, "request.reopened", TECH) is True and on({}, "request.reopened", ADMIN) is True
+    assert on({}, "request.client_review", TECH) is False  # not theirs to be emailed about
     # A cancellation is emailed to the client, and offered to staff but starts off
     assert on({}, "request.cancelled", CLIENT) is True
     assert on({}, "request.cancelled", TECH) is False
     assert on({"request.cancelled": True}, "request.cancelled", TECH) is True
     assert on({"request.assigned": False}, "request.assigned", TECH) is False
+    # Reports: the client hears a final report by email, staff are reminded by email
+    assert on({}, "report.finalized", CLIENT) is True
+    assert on({}, "report.reopened", CLIENT) is True
+    assert on({}, "report.finalize_reminder", TECH) is True
+    assert on({}, "report.finalize_reminder", CLIENT) is False
+    assert on({"report.finalize_reminder": False}, "report.finalize_reminder", TECH) is False
+    # A visit that is planned or cancelled is emailed to everyone it concerns, until they say no
+    for roles in (ADMIN, TECH, CLIENT):
+        assert on({}, "visit.scheduled", roles) is True
+        assert on({}, "visit.cancelled", roles) is True
+    assert on({"visit.scheduled": False}, "visit.scheduled", CLIENT) is False
+    # Ended and owner changes are in-app only: not something to choose
+    assert on({}, "visit.ended", TECH) is False
+    assert on({}, "visit.owner_changed", TECH) is False
 
 
 @pytest.mark.req("NOT-4")

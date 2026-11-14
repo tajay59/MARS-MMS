@@ -312,16 +312,13 @@ async def test_the_weekly_digest_reads_the_due_list_for_every_organization(ops):
     assert [u["serial"] for u in narrow.json()["items"]] == ["OVER"]
 
 
-async def test_a_unit_found_in_the_field_is_corrected_in_review(ops):
+async def test_a_mistyped_serial_is_corrected(ops):
     model = await ops.model()
     unit = await ops.unit(model["id"], "SN-0O1")
-    await ops.db["sensor_units"].update_one({"_id": unit["id"]}, {"$set": {"needs_review": True}})
-    flagged = (await ops.http.get("/api/v1/sensor-units?needs_review=true",
-                                  headers=ops.bearer("tech1"))).json()
-    assert [u["serial"] for u in flagged["items"]] == ["SN-0O1"]
     fixed = await ops.http.patch(f"/api/v1/sensor-units/{unit['id']}",
-                                 json={"version": 1, "serial": "SN-001", "needs_review": False},
+                                 json={"version": 1, "serial": "SN-001"},
                                  headers=ops.bearer("admin"))
-    assert fixed.status_code == 200 and fixed.json()["needs_review"] is False
+    assert fixed.status_code == 200 and fixed.json()["serial"] == "SN-001"
+    assert "needs_review" not in fixed.json()  # retired with the visit board (W11-17)
     [event] = await ops.outbox("sensor_unit.updated")
-    assert event.data["changed_fields"] == ["needs_review", "serial"]
+    assert event.data["changed_fields"] == ["serial"]

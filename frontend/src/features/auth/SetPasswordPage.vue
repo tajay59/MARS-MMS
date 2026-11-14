@@ -95,6 +95,9 @@
     } catch (error) {
       if (error instanceof ApiError && (error.status === 410 || error.code === 'link_expired')) {
         expired.value = true
+      } else if (error instanceof ApiError && error.status === 429) {
+        // The gateway limits these requests (10 a minute): say so, and it is safe to send again
+        failure.value = 'Too many attempts. Wait a minute, then try again.'
       } else if (error instanceof ApiError && error.status === 422) {
         passwordServerError.value = error.fieldErrors().password ?? error.detail
         await focusFirstError()

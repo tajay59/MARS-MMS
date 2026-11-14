@@ -1,4 +1,4 @@
-import type { Me, MePatch, Role } from '@/api/models'
+import type { Me, MePatch, Role, TokenResponse } from '@/api/models'
 import type { EndReason } from '@/app/auth/session'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -12,7 +12,13 @@ import {
   updateUser,
 } from '@/app/auth/session'
 import { clearRuntimeCaches } from '@/app/pwa/runtimeCaches'
+import { forgetLogout, rememberLogin } from '@/offline/account'
+import { type OfflineProfile, offlineState } from '@/offline/session'
 import { useThemeStore } from './theme'
+
+export type LoginResult
+  = | { kind: 'signed_in', user: Me }
+    | { kind: 'challenge', challenge: string, enrol: boolean }
 
 const STAFF_ROLES: ReadonlySet<Role> = new Set(['technician', 'admin', 'viewer'])
 
@@ -26,13 +32,34 @@ export const useSessionStore = defineStore('session', () => {
   /** Why the last session ended, for the /login banner; cleared by the next login. */
   const endedReason = ref<EndReason | null>(null)
   const ready = ref(false)
+  /** Recovery codes left after one was used to log in, said until dismissed (W22). */
+  const recoveryNotice = ref<number | null>(null)
+  /** The setup window's end, for the banner: reactive, because the session changes under it. */
+  const mfaRequiredBy = ref<string | null>(currentSession()?.mfaRequiredBy ?? null)
+  /*
+    The app started with no signal and this phone has an offline session: the PIN comes first
+    (AUTH-12). `unlockState` says what /unlock shows: the keypad (`ready`), or that offline unlock
+    is turned off (`disabled`) or has ended (`expired`).
+  */
+  const locked = ref(false)
+  const unlockState = ref<'ready' | 'disabled' | 'expired' | null>(null)
+  const lockedProfile = ref<OfflineProfile | null>(null)
+  /** Unlocked with the PIN: the cached profile is signed in, but there is no access token. */
+  const offline = ref(false)
   let booting: Promise<void> | null = null
 
   onSessionChange((session, reason) => {
     const before = user.value?.id
     user.value = session?.user ?? null
+    mfaRequiredBy.value = session?.mfaRequiredBy ?? null
+    if (!session) {
+      recoveryNotice.value = null
+    }
+    offline.value = false
     if (session) {
+      locked.value = false
       endedReason.value = null
+      void rememberLogin(session)
       if (session.user.id !== before) {
         // The account's appearance setting wins over this device's (DBD D2).
         useThemeStore().adopt(session.user.theme)
@@ -40,6 +67,10 @@ export const useSessionStore = defineStore('session', () => {
     } else {
       endedReason.value = reason ?? null
       void clearRuntimeCaches()
+      if (reason === 'logged_out' && before) {
+        // Only a logout clears the phone: an expired or revoked session keeps the prepared data
+        void forgetLogout(before)
+      }
     }
   })
 
@@ -57,16 +88,98 @@ export const useSessionStore = defineStore('session', () => {
   function bootstrap (): Promise<void> {
     booting ??= (async () => {
       if (!currentSession()) {
-        // No cookie, a dead one, or no network: the guards treat all three as signed out.
-        await refreshSession()
+        // No cookie, a dead one, or no network: the guards treat all three as signed out, except
+        // that no network with an offline session on this phone asks for the PIN
+        const result = await refreshSession()
+        if (result.kind === 'offline') {
+          await lockIfOfflineSession()
+        }
       }
       ready.value = true
     })()
     return booting
   }
 
-  async function login (email: string, password: string): Promise<Me> {
-    return startSession(await authApi.login(email, password)).user
+  async function lockIfOfflineSession (): Promise<void> {
+    try {
+      const state = await offlineState()
+      if (state.kind === 'none') {
+        return
+      }
+      locked.value = true
+      unlockState.value = state.kind
+      lockedProfile.value = state.kind === 'ready' ? state.profile : null
+    } catch {
+      // No device store (a private window): signed out, as before
+    }
+  }
+
+  /** The PIN was right: the cached profile is signed in, and the app watches for signal. */
+  function unlockOffline (profile: OfflineProfile): void {
+    user.value = {
+      id: profile.user_id,
+      name: profile.name,
+      roles: profile.roles,
+      org_id: profile.org_id,
+      theme: profile.theme ?? 'system',
+      email: '',
+    } as Me
+    locked.value = false
+    offline.value = true
+    useThemeStore().adopt(profile.theme ?? 'system')
+    void reconnect()
+  }
+
+  /** The fifth wrong PIN: offline unlock is turned off until the next login with signal. */
+  function disableUnlock (): void {
+    unlockState.value = 'disabled'
+    lockedProfile.value = null
+  }
+
+  /**
+   * Signal came back (or the app came to the front) while waiting for the PIN or working
+   * unlocked: sign in with the refresh cookie, so the token arrives without a screen change. A
+   * refresh the server refuses ends the session as usual; a failure to reach it changes nothing.
+   */
+  async function reconnect (): Promise<void> {
+    if ((!offline.value && !locked.value) || !navigator.onLine) {
+      return
+    }
+    await refreshSession()
+  }
+
+  if (typeof globalThis.addEventListener === 'function') {
+    globalThis.addEventListener('online', () => void reconnect())
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void reconnect()
+      }
+    })
+  }
+
+  /**
+   * The password step. A person with two-step sign-in (or who must set it up now) gets a
+   * `challenge` instead of a session: the code step finishes it (W22).
+   */
+  async function login (email: string, password: string): Promise<LoginResult> {
+    const answer = await authApi.login(email, password)
+    if ('mfa_required' in answer) {
+      return { kind: 'challenge', challenge: answer.challenge, enrol: answer.enrol }
+    }
+    return { kind: 'signed_in', user: startSession(answer).user }
+  }
+
+  function noteRecoveryUsed (left: number): void {
+    recoveryNotice.value = left
+  }
+
+  function dismissRecoveryNotice (): void {
+    recoveryNotice.value = null
+  }
+
+  /** The code step, or enrolment at sign-in, gave a session. */
+  function finishLogin (answer: TokenResponse): Me {
+    return startSession(answer).user
   }
 
   async function acceptInvitation (token: string, password: string): Promise<Me> {
@@ -82,6 +195,13 @@ export const useSessionStore = defineStore('session', () => {
     endSession('logged_out')
   }
 
+  /** Read the profile again, after two-step sign-in was turned on or off. */
+  async function reloadMe (): Promise<Me> {
+    const me = await authApi.me()
+    updateUser(me)
+    return me
+  }
+
   async function updateProfile (patch: MePatch): Promise<Me> {
     const me = await authApi.updateMe(patch)
     updateUser(me)
@@ -92,6 +212,10 @@ export const useSessionStore = defineStore('session', () => {
     user,
     endedReason,
     ready,
+    locked,
+    unlockState,
+    lockedProfile,
+    offline,
     roles,
     isClient,
     isAdmin,
@@ -99,9 +223,18 @@ export const useSessionStore = defineStore('session', () => {
     canAct,
     hasAnyRole,
     bootstrap,
+    unlockOffline,
+    disableUnlock,
+    reconnect,
     login,
+    finishLogin,
+    mfaRequiredBy,
+    recoveryNotice,
+    noteRecoveryUsed,
+    dismissRecoveryNotice,
     acceptInvitation,
     logout,
     updateProfile,
+    reloadMe,
   }
 })

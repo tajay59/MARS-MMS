@@ -22,7 +22,7 @@ from mms_common.web import PROBLEM, ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
-from app.api import admin_routes, branding_routes, internal_routes, session_routes
+from app.api import admin_routes, branding_routes, internal_routes, session_routes, totp_routes
 from app.api.context import COOKIE_PATH
 from app.config import Settings
 from app.domain.passwords import BreachedCheck, Hasher
@@ -54,6 +54,9 @@ def create_app(
 ) -> FastAPI:
     """App factory. Tests pass their own settings, clock, signing key and breached list."""
     settings = settings or Settings()
+    if settings.totp_key_bytes is None and settings.environment != "local":
+        # Without the key no enrolled secret can be read: refuse to start, never fall back.
+        raise ValueError("AUTH_TOTP_KEY is required outside local (32 random bytes, base64)")
     clock = clock or SystemClock()
     mms_logging.configure(settings.service_name, settings.log_level)
 
@@ -155,6 +158,7 @@ def create_app(
 
     # Literal paths before /{id} (TRD §3.0): each router declares its own in that order.
     app.include_router(session_routes.router)
+    app.include_router(totp_routes.router)
     app.include_router(branding_routes.router)
     app.include_router(admin_routes.users)
     app.include_router(admin_routes.orgs)

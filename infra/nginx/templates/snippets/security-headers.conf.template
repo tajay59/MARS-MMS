@@ -5,5 +5,10 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
 add_header X-Frame-Options "DENY" always;
+# Isolate the app from windows other sites open, and keep other sites from embedding its files
+# (ZAP 90004). Cross-Origin-Embedder-Policy is left out: it would make the files host's photos and
+# videos need their own CORP header, for a protection (SharedArrayBuffer) the app does not use.
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Cross-Origin-Resource-Policy "same-origin" always;
 add_header X-Request-ID $mms_request_id always;
-add_header Content-Security-Policy "default-src 'self'; img-src 'self' https://${FILES_HOST} data: blob:; media-src 'self' https://${FILES_HOST} blob:; connect-src 'self' https://${FILES_HOST} wss://${MMS_HOST}; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'" always;
+add_header Content-Security-Policy "default-src 'self'; img-src 'self' https://${FILES_HOST} data: blob:; media-src 'self' https://${FILES_HOST} blob:; connect-src 'self' https://${FILES_HOST} wss://${MMS_HOST}; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" always;

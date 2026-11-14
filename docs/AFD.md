@@ -3,13 +3,17 @@
 
 | | |
 |---|---|
-| **Version** | 1.5 |
-| **Date** | 2026-10-18 |
+| **Version** | 1.9 |
+| **Date** | 2026-11-12 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows PRD 1.1 and TRD 2.0: a new **Unlock** page (offline PIN), station owners on visits (J5, J6), J6 checks preparation before the visit starts, reopened reports return the request to In progress (J7, J8), and new routing and edge states for offline sessions and sync conflicts. 37 pages |
 | **Changes in 1.2** | J1 step 2: the client types their organization's name (no public list of organizations); PRD 1.2 AUTH-1 |
 | **Changes in 1.3** | §5.1: staff and clients use the app shell (rail sections, pane tabs, view; DBD 1.4, decision W4-9). `/admin/registrations/:id` opens one registration (J1 step 4) |
 | **Changes in 1.4** | New admin page **Settings** (`/admin/settings/:part?`, decision W4-11): Appearance (the admin's own theme and, on this device, animations) and Brand colours (the Material 3 theme everyone sees, W4-12). Admin section tab after Audit log |
+| **Changes in 1.9** | J2 as built with a second factor (W22, 2026-11-12, PRD AUTH-14): **Log in** asks for a 6-digit code (or a recovery code) when the person has two-step sign-in; an admin inside the 7-day window sees a banner on every page with **Set up now**, and after it must set it up before getting in; **My profile** gains a **Two-step sign-in** card (set up, new recovery codes, turn off for staff who opted in); admins get **Reset** on Users |
+| **Changes in 1.8** | J7 as built (W17, 2026-10-28): **Preview PDF** opens the PDF in the app's own sheet, not a new tab (an iPhone tab shows a blob or a download sheet); the signature dialog has a typed-name option for people who cannot draw; Finalize can stop three ways (the board changed, the visit could not be locked, the PDF failed) and the page says which; a client reads the final report on the visit page and never sees a superseded version or the correction in progress; an admin who did not attend does not sign. The public verify page is dropped: verifying is an API only |
+| **Changes in 1.7** | W14 as built: `/sync` shows what waits by visit (counted from the phone, so right with no signal), progress while sending, "Keep MARS-MMS open" with a wake lock, and **Needs attention** with Export, Try again and Done with this; the start question for an unprepared visit says **Prepare now** or **Start anyway**; Reschedule, Cancel and Change owner warn when a phone holds the visit. |
+| **Changes in 1.6** | J6: the field stepper (Before → Work → After → Review) is replaced by the station's **board** of Notes, Tasks, Recommendations and Config, with the photo gate at departure removed (PRD 1.5 VIS-5 to VIS-8, VIS-6 dropped; decisions W11-16 to W11-35, 2026-10-22). The Checklist templates admin page is removed. J7 fixes facts on the board |
 | **Changes in 1.5** | §5.1: below 1024 px (phones and tablets) the rail is a bottom bar with four sections and **Me** (DBD 1.6, decision W4-14) |
 | **Companion documents** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/51ce0c78-20c6-4218-b22b-4f69ee6024d1) (1.0; superseded by this file) |
@@ -40,6 +44,7 @@ Four roles share one app. After login each lands on their own dashboard, and the
 | Viewer | Paul, operations manager | Admin dashboard, read-only | Staff, action buttons hidden | J10 |
 
 - A staff user can hold several roles (for example Technician and Admin). They see the union of menus and land on the Admin dashboard.
+- **As built (W19 slice 4):** `/dashboard` has no pane: the view holds the page, as on the approved boards. The admin's (and the Viewer's, without Registrations pending and without links that act) has six tiles, the open requests as bars in the status colours, stations by country and status, the next planned visits and the drafts waiting to be finalized. The technician's has My assigned, Queue, My upcoming visits, **Waiting to sync** (from the phone's own IndexedDB, so true with no signal), Reports to finalize, then the next visits (with **Ready offline** on the ones prepared on this phone) and the reports to sign. The client's has a banner when requests wait for their review, their stations by status, their open requests, the next visits and the latest reports. Figures come from `GET /api/v1/dashboard`, are looked at again every minute while the page is shown, and are never kept on the device: with no signal the server's tiles say "Needs a connection" and no old number is shown. Tiles with a count above zero that need someone get a 4 px amber (registrations, overdue calibrations) or red (failed calibrations) edge; a zero stays plain.
 - A client never sees another organization's data. Any link to it opens the **Not found** page, never "access denied".
 
 ---
@@ -98,7 +103,6 @@ flowchart TD
         A1[Registrations]
         A2[Users]
         A3[Organizations]
-        A4[Checklists]
         A5[QR labels, import]
         A6[Audit log]
     end
@@ -141,7 +145,6 @@ flowchart TD
 | Admin | Registrations | `/admin/registrations`, `/admin/registrations/:id` | Admin | Admin section, dashboard widget |
 | Admin | Users | `/admin/users` | Admin | Admin menu |
 | Admin | Organizations | `/admin/organizations` | Admin | Admin menu |
-| Admin | Checklist templates | `/admin/checklists` | Admin | Admin menu |
 | Admin | QR labels and station import | `/admin/stations-tools` | Admin | Admin menu |
 | Admin | Audit log | `/admin/audit` | Admin | Admin menu |
 | Admin | Settings (Appearance, Brand colours) | `/admin/settings/:part?` | Admin | Admin menu |
@@ -229,11 +232,16 @@ Login sends each user to their dashboard, or back to the page they were trying t
 
 | # | On page | User does | What happens / next page |
 |---|---|---|---|
-| 1 | `/login` | Enters email and password, clicks **Log in** | → the `next` page if one was saved (deep link, QR scan), else `/dashboard` |
+| 1 | `/login` | Enters email and password, clicks **Log in** | With two-step sign-in on, the page asks for the code first (rows 1b to 1d). Then → the `next` page if one was saved (deep link, QR scan), else `/dashboard` |
+| 1b | `/login` (code step) | Enters the 6-digit code from the authenticator app, clicks **Log in** | The same as row 1. A wrong code says "The code is incorrect" and counts toward the same lock as a wrong password; waiting more than 5 minutes asks for the password again. **Use a different account** goes back to the password |
+| 1c | `/login` (code step) | Clicks **Use a recovery code** and enters one saved when two-step sign-in was set up | Signs in; each code works once. A notice says how many are left and links to My profile |
+| 1d | `/login` (set-up step) | An admin whose 7-day window has ended enters the password, then scans the QR code (or types the key), enters a code and saves the ten recovery codes | Signed in. Nothing else opens until this is done |
 | 2 | `/login` | Clicks **Forgot password?** | → `/forgot-password` |
 | 3 | `/forgot-password` | Enters email, clicks **Send link** | Same page shows "If that email is registered, a link is on its way" whether or not it is |
 | 4 | Reset email | Clicks the link (valid 1 hour, single use) | → `/reset-password/:token` |
 | 5 | `/reset-password/:token` | Enters the new password twice, clicks **Save** | All other sessions are logged out → `/login` with a "Password changed" banner |
+
+**Two-step sign-in, as built (W22).** Required for admins, optional for other staff, never for clients. It is asked at sign-in only: a refresh, the offline PIN (`/unlock`) and a queued sync never ask for a code. An admin who has not set it up sees a banner (**Set up now**, with the date it becomes required) on every page, in the app and the field shell. **My profile → Two-step sign-in** sets it up (password, QR code and key, a code, then the ten recovery codes shown once), makes new recovery codes and, for staff who opted in, turns it off; admins cannot turn it off. A lost phone: another admin opens **Admin → Users** and chooses **Reset** on the person's row (never on their own); that person is logged out and has 7 days to set it up again. With no other admin, the operator runs `python -m app.cli reset-totp --email …` on the server. Sequence: [TRD §6.1.2](TRD.md#612-second-factor-w22-prd-auth-14).
 
 ### J3 · Report a fault
 
@@ -272,13 +280,13 @@ A visit must be prepared while online so it can be carried out with no signal.
 | 1 | Technician dashboard | Clicks the **Queue** widget | → `/queue` |
 | 2 | `/queue` | Clicks **Claim** on a request | Assigned to them; admins notified → `/requests/:id` |
 | 3 | `/requests/:id` | Clicks **Schedule visit**; sets planned start and end, attending staff (marks one **lead**), stations covered, the **owner** of each station (defaults to the lead) and notes; clicks **Save** | Visit created; request Scheduled; client notified of the dates → `/visits/:id`. Another visit can be scheduled for the same request at the same time, for example a second team |
-| 4 | `/visits/:id` | Clicks **Prepare for field** | If this phone has no PIN yet, asks the technician to set a 4–6 digit PIN first. Then downloads the request, stations, sensors, calibration status, latest configuration, checklists and (optionally) manuals. Shows progress, then a **Ready offline** badge. Stays on page |
+| 4 | `/visits/:id` | Clicks **Prepare for field** | If this phone has no PIN yet, asks the technician to set a 4–6 digit PIN first. Then shows the documents with their sizes (up to 10 MB ticked; configuration files always come) and downloads the request, stations, sensors, calibration status, latest configuration, the stations' boards and the ticked documents. Shows progress ("Keep the app open"), then a **Ready offline** badge with when it was prepared, "Changed since you prepared" when the visit moved on, and **Update offline copy**. On an iPhone in a Safari tab it shows the install steps instead (finding F2). Stays on page |
 | 5 | `/visits/:id` | Clicks **Reschedule** or **Cancel visit** (before it starts) | Dialog → visit updated or cancelled; client notified. If the visit is prepared on someone's phone, the dialog warns that unsynced work may come back as a conflict. If no other visit is planned, the request returns to Assigned |
 | 5b | `/visits/:id` *[Lead, Admin]* | Clicks **Change owner** on a station | Picks another attending technician. Both are notified. Needs a connection |
 
 ### J6 · Carry out a visit with no signal
 
-The field visit is a stepper per station (Before → Work → After → Review). Every step saves to the phone and syncs later.
+Each station on the visit has a **board**: sticky notes of four kinds, Note (yellow), Task (green), Recommendation (red) and Config (purple). Every change saves to the phone and syncs later.
 
 ```mermaid
 flowchart TD
@@ -290,18 +298,18 @@ flowchart TD
     P -->|yes| S["Start visit<br/>actual start time recorded"]
     W --> S
     S --> A["Arrive at a station I own<br/>pick it from the visit's list"]
-    A --> R["Record the station<br/>Before → Work → After → Review"]
-    R --> I{"Before and After<br/>images taken?"}
-    I -->|no| X["Add photos<br/>or override with a reason"]
-    I -->|yes| D["Depart station<br/>departure time recorded"]
-    X --> D
+    A --> R["Fill in the station's board<br/>Notes, Tasks, Recommendations, Config"]
+    R --> D["Depart station<br/>departure time recorded"]
     D --> M{"More<br/>stations?"}
     M -->|yes| A
-    M -->|no| E["End visit<br/>answer: another visit needed?"]
+    M -->|no| T{"Tasks<br/>incomplete?"}
+    T -->|yes| C["Warning lists them<br/>confirm or go back"]
+    T -->|no| E["End visit<br/>answer: another visit needed?"]
+    C --> E
     E --> Y(["Sync when signal returns<br/>draft report ready within 10 min"])
 ```
 
-The technician loops through Arrive, Record and Depart once for each station they own; the photo check is the only gate, and an override with a reason gets past it. At stations owned by another attending technician they can still add photos and videos.
+The technician loops through Arrive, the board and Depart once for each station they own; nothing blocks departure. At stations owned by another attending technician they can still add elements of their own; others' elements open read only.
 
 | # | On page | User does | What happens / next page |
 |---|---|---|---|
@@ -309,30 +317,30 @@ The technician loops through Arrive, Record and Depart once for each station the
 | 1 | Field bottom bar | Taps **Scan** and scans the station's QR label | `/scan` → `/s/:token` resolves from the prepared bundle → `/stations/:id` (field view) |
 | 1b | Technician dashboard | Taps the visit under **My upcoming visits** | → `/visits/:id` |
 | 2 | Station page or `/visits/:id` | Taps **Start visit** | If the visit was not prepared, a warning first offers **Prepare now** (needs signal) or **Continue anyway**. Then the actual start is recorded → `/visits/:id/field` |
-| 3 | `/visits/:id/field` | Picks a station they own and taps **Arrive** | Arrival time recorded → the station's **Before** step. A station owned by someone else opens read-only, with "Owned by Devon Brown. You can add photos and videos." |
-| 4 | Before step | Takes photos and videos, taps **Next** | → **Work** step |
-| 5 | Work step | Completes the checklist (OK, Fixed, Issue, N/A), records sensor actions with old and new serials and calibration readings, captures a new configuration version, notes parts, issues and data download, taps **Next** | → **After** step. An unknown serial is created and flagged for an admin |
-| 6 | After step | Takes photos and videos, taps **Next** | → **Review** step |
-| 7 | Review step | Taps **Depart station** | Needs at least one Before and one After image. If missing: **Add photos** (back to that step) or **Override** with a reason. Departure recorded → station list |
-| 8 | `/visits/:id/field` | Repeats steps 3–7 for each station they own, then taps **End visit** | Asks **Another visit needed?** Yes needs notes on the remaining work |
+| 3 | `/visits/:id/field` | Picks a station they own and taps **Arrive** | Arrival time recorded → the station's **board**. A station owned by someone else shows "Owned by Devon Brown. You can add your own notes, tasks and files." |
+| 4 | Board | Taps **Add** and picks **Task** | A full-screen sheet: title, description, items with checkboxes, **Before** and **After** photo and video sections. Saved on the phone at each change; the sticky note shows "0 of 3" |
+| 5 | Task sheet | Takes Before photos, does the work, ticks the items, takes After photos, closes the sheet | The task is complete when every item is ticked; its sticky note shows a check |
+| 6 | Board | Adds a **Note** (photos and a description), a **Recommendation** (priority, photos) and a **Config** (old logger program as Before, the new one as After) | Each appears as a sticky note in its colour; tapping one opens it, with photos, video, PDFs and text files shown in place |
+| 7 | Board | Taps **Depart station** | Departure recorded → station list |
+| 8 | `/visits/:id/field` | Repeats steps 3–7 for each station they own, then taps **End visit** | Lists any incomplete tasks and asks to confirm. Asks **Another visit needed?** Yes needs notes on the remaining work |
 | 9 | End visit dialog | Answers and taps **End visit** | Visit ended → `/sync` showing, for example, "5 changes and 18 files waiting to sync" |
-| 10 | `/sync` (back in signal) | Waits, or taps **Sync now** | Uploads resume where they stopped; sensor inventory updates. Within 10 minutes a **Draft report ready** notification links to J7. Anything the server couldn't apply is listed with the reason (§6) |
+| 10 | `/sync` (back in signal) | Waits, or taps **Sync now** | Uploads resume where they stopped; each Config element's After files become the station's new configuration version. Within 10 minutes a **Draft report ready** notification links to J7. Anything the server couldn't apply is listed with the reason (§6) |
 
 If the answer at step 8 was **Yes**, the request returns to Assigned (unless another visit is still planned or under way) and J5 starts again for the next visit. If **No**, it waits for the visit reports in J7.
 
 ### J7 · Edit, sign and finalize a visit report
 
-Staff edit only the narrative; facts are fixed in the work record and flow back into the draft. The lead's signature finalizes it.
+Staff edit only the narrative; facts are fixed on the board and flow back into the draft. The lead's signature finalizes it.
 
 | # | On page | User does | What happens / next page |
 |---|---|---|---|
 | 1 | Notification | Clicks **Draft report ready** | → `/visit-reports/:id` in draft mode (DRAFT watermark) |
 | 2 | `/visit-reports/:id` | Edits summary, work performed, recommendations and follow-up; picks photos and captions | Saves as they type. Stays on page |
-| 3 | `/visit-reports/:id` | Clicks **Fix in work record** next to a wrong fact | → `/visits/:id` work record; on save the draft's facts refresh → back to `/visit-reports/:id` |
-| 4 | `/visit-reports/:id` | Clicks **Preview PDF** | Opens the PDF in a new tab |
-| 5 | `/visit-reports/:id` | Clicks **Sign**; types full name, draws signature, ticks the attestation; clicks **Sign** | Signature added (needs signal). Any later edit clears the signatures |
-| 6 | `/visit-reports/:id` *[Lead]* | Clicks **Finalize** (enabled once the lead has signed), confirms | Shows "Finalizing…" while the PDF renders; then report Final; work records locked. If no further visit is needed and every visit report of the request is final, request → Client Review and the client is notified. Stays on page with **Download PDF**. If rendering fails, the report returns to Draft with its signatures kept and a **Try again** banner |
-| 7 | `/visit-reports/:id` *[Admin]* | On a final report, clicks **Reopen for correction** and types a reason | Old version marked Superseded; a new draft (version +1) opens on the same page; back to step 2. If the request was in Client Review, it returns to In progress and the client is told a corrected report is coming. If it was Closed, it stays Closed and the client gets the corrected report and a new close-out report |
+| 3 | `/visit-reports/:id` | Clicks **Fix on the board** next to a wrong fact | → `/visits/:id` with that element open; on save the draft's facts refresh → back to `/visit-reports/:id` |
+| 4 | `/visit-reports/:id` | Clicks **Preview PDF** | Saves what was typed, draws the PDF and opens it in the app's own sheet, with **Download** (not a new tab) |
+| 5 | `/visit-reports/:id` | Clicks **Sign**; types full name, draws signature (or chooses **Use my typed name as my signature**), ticks the attestation; clicks **Sign** | Signature added (needs signal). Only people who attended sign. Any later edit, or a fact changing on the board, clears the signatures; they stay in the list marked Cleared, with the reason |
+| 6 | `/visit-reports/:id` *[Lead]* | Clicks **Finalize** (enabled once the lead has signed), confirms | Shows "Finalizing…" while the PDF renders; then report Final; boards locked. If no further visit is needed and every visit report of the request is final, request → Client Review and the client is notified. Stays on page with **Download PDF**. If finalizing stops, the report returns to Draft and says why: the board changed (signatures cleared, sign again), the visit could not be locked, or the PDF failed after three tries (signatures kept; **Try again**) |
+| 7 | `/visit-reports/:id` *[Admin]* | On a final report, clicks **Reopen for correction** and types a reason | Old version marked Superseded; a new draft (version +1) opens on the same page; back to step 2. If the request was in Client Review, it returns to In progress and the client is told a corrected report is coming. If it was Closed, it stays Closed and the client gets the corrected report and a new close-out report. Until the corrected report is final the client sees no report on the visit (not the old version either) and the page says a corrected report is on its way |
 
 ### J8 · Review and sign off completed work
 
@@ -347,6 +355,8 @@ The client either accepts with a signature, which closes the request, or rejects
 | 4 | Reminder email (days 7, 21, 28) | Clicks **Review the work** | → `/requests/:id/review` |
 | 5 | — (no response by day 30) | Nothing | Request closed automatically; close-out report says it was auto-closed |
 
+**As built (W18 slice 5):** after **Sign and accept** the client stays on `/requests/:id/review`, which shows "Work accepted. The request is closed. Your close-out report is being made." with a **See the reports** button (the Reports tab, where the close-out leads once the worker has made it). After **Send** it shows "Sent back." with a button back to the request. A review that is no longer open shows its own banner instead of the buttons: accepted, closed automatically, sent back, or "A corrected report is on its way"; an answer the server refuses because a report changed meanwhile says "The reports changed while you were reviewing" and reads the page again. The Reports tab is on every request that has reached the work, for staff too.
+
 If an admin reopens a visit report while the request is in Client Review, the request returns to In progress, reminders stop, and `/requests/:id/review` shows "A corrected report is on its way. You'll be asked to review again." The 30 days start again when the corrected report is final.
 
 ### J9 · Add a client report
@@ -360,6 +370,10 @@ A client can add their own report to a request at any time, as a PDF or an onlin
 | 2b | `/requests/:id/client-reports/new` | Chooses **Fill in the online form**; enters title, date, stations, summary, per-station observations, data-quality notes and attachments | — |
 | 3 | Online form | Clicks **Save draft** | Draft saved; stays on page. Reopened later from **Continue draft** on the Reports tab |
 | 4 | Online form | Clicks **Submit** | Rendered to PDF and attached; can no longer be edited → `/requests/:id`, Reports tab |
+
+**As built (W18 slice 5):** a draft is made on the server as soon as the kind is chosen, saved 0.8 seconds after the last keystroke, and reopened from **Continue draft** on the Reports tab at `/requests/:id/client-reports/:reportId`. A draft is private to its author. **Submit** asks once more ("You cannot change it afterwards"). A form is drawn into a PDF a moment later: the row says "Making the PDF", then offers **Open**; if the PDF could not be made the row says so and the author gets **Try again**. A PDF is one file up to 25 MB; a form takes up to 10 JPEG or PNG pictures, printed at the end.
+
+**As built (W19 slice 5):** `/reports` has no tabs yet: the pane lists the summary types in groups (Stations, Calibration, Requests and people, Maintenance), the type is in the address (`?type=`), and the view holds the settings and **Your reports**. A report that needs no period (Network status, Calibration due) does not ask for one; Calibration due asks how many days to look ahead. **Generate** answers at once and the row goes Waiting, Making it, Ready with a **Download** link (ten minutes, never kept); a failed row says why and **Set up again** puts its type, period and format back in the form. A client sees two types, their organization as a locked line, and no country. `/admin/audit` is the filters (in the pane and the address), the table, the record in full beside it (a dialog or a sheet below 1,024 px), **Check integrity** and **Export CSV**; the last check shows as a banner and a running one is followed. A non-admin sees "We can’t find that page". The **History** tab is on the station page and, under the status table, on the request page (staff and the Viewer; a client has none); an admin gets **Open in audit log** on each entry. The visit page has no History yet (it has no tabs). The Visit reports tab of the Reports page is not built: a visit report is read from its visit or request.
 
 ### J10 · Run summary reports and check the audit log
 
@@ -389,7 +403,7 @@ Staff and clients use the **app shell** (DBD 1.4 "The shells", decision W4-9): a
 |---|---|---|
 | Client | Dashboard · Stations (Stations, Map) · Requests · Reports | Bell · user menu (Profile, Log out); **Report a problem** in the view header of Dashboard and Requests |
 | Staff (Technician) | Dashboard · Work (Queue, Requests) · Stations (Stations, Map, Sensors, Calibration) · Reports | Sync badge · bell · user menu |
-| Staff (Admin) | Technician sections + Admin (Registrations, Users, Organizations, Checklist templates, QR labels and import, Audit log, Settings) | Sync badge · bell · user menu |
+| Staff (Admin) | Technician sections + Admin (Registrations, Users, Organizations, QR labels and import, Audit log, Settings) | Sync badge · bell · user menu |
 | Staff (Viewer) | Dashboard · Work (Requests) · Stations (Stations, Map, Sensors, Calibration) · Reports | Bell · user menu; no action buttons anywhere |
 | Phones and tablets below 1024 px (app shell) | A bottom bar with the first four sections and **Me** (My profile, Notifications, Sync, Admin, Log out) | — |
 | Field (phones) | Bottom bar: Visit · Scan · Stations · Sync | Sync badge with waiting count |
@@ -436,19 +450,23 @@ Most errors keep the user on the same page with a message; only lost access or a
 | `/login` | 5 failed attempts | "Too many attempts, try again in 15 minutes" | Same page |
 | `/login` | Account still pending | Waiting-for-approval message | `/register/pending` |
 | `/login` | Account rejected, disabled, or organization deactivated | "This account cannot sign in. Contact the service desk." | Same page |
-| `/register` | Password under 10 characters or on a breached list | Inline field error | Same page |
+| `/register` | Password under 12 characters or on a breached list | Inline field error | Same page |
 | `/reset-password/:token`, `/invite/:token` | Link expired (1 hour / 7 days) or already used | "This link has expired" with **Send a new link** | `/forgot-password` |
 | `/requests/:id` | Client opens a request after it is Scheduled | **Edit** and **Cancel** are hidden; a note says to comment instead | Same page |
 | `/requests/:id`, Comments | Comment older than 15 minutes | **Edit** is hidden | Same page |
-| Station page | **Start visit** on a visit not prepared for offline | Warning with **Prepare now** or **Continue anyway** | Stays, or `/visits/:id/field` |
+| Visit page, field page | **Start visit** on a visit not prepared for offline, with signal | "This visit is not on your phone": **Prepare now** (to the Prepare for field panel) or **Start anyway** (works from the server; a standing note says so) | Stays, or the started visit |
 | `/visits/:id/field` | Phone storage below 1 GB free | Warning banner with storage used | Same page |
-| Review step | No Before or After image for a station | **Depart station** blocked; **Add photos** or **Override** with reason | That step, or station list |
+| End visit dialog | Some tasks are incomplete | The dialog lists them with **End anyway** and **Go back** | The board, or the visit ended |
+| Element sheet | **Create request** or a PDF opened with no signal | "This needs a connection" | Same sheet |
+| Element sheet | Saved on another device first (`element_changed`) | "This was changed on another device." Shows the saved copy; this phone keeps its copy for export | Same sheet |
 | `/sync` | Upload interrupted | Item shows "Paused, will resume"; picks up from the last part | Same page |
+| `/sync` | The server refused work (owner changed, changed on another device, deleted elsewhere, report final, visit cancelled, already ended) | **Needs attention**: a card with the reason, the phone's copy and the server's where there is one; **Export**, **Try again** (cancelled or already ended) and **Done with this** (asked once more) | Same page; the sync goes on with what waited |
+| Reschedule, Cancel visit, Change owner | A phone holds the visit (`prepared_on`) | "This visit is prepared on Devon Brown's phone. Work not yet synced from it may come back as a conflict." It warns and never blocks | Same dialog |
 | `/sync` | Login needed to sync | "Log in to finish syncing. Your work is saved on this phone." | `/login`, then `/sync` |
 | `/sync` | Station owner changed while offline | "Devon Brown now owns WXR-012. Your work on it is saved on this phone; export it and pass it on." with **Export** | Same page |
 | `/sync` | Visit cancelled while offline | "This visit was cancelled while you were offline. Your work is saved on this phone and an admin has been told." | Same page; syncs after an admin restores the visit |
 | `/sync` | Visit locked (report final) while offline | "This visit's report is final. Your changes are saved on this phone; ask an admin to reopen the report." with **Export** | Same page |
-| `/visits/:id/field` | Opening a station owned by another technician | Read-only work record; photo and video capture still available | Same page |
+| `/visits/:id/field` | Opening a station owned by another technician | Their elements read only; **Add** still available for the visitor's own elements | Same page |
 | `/visits/:id/field` *[Admin, Lead]* | Changing a station owner, or cancelling a visit prepared on a phone | Dialog warns that unsynced work on that phone will come back as a conflict | Same page |
 | `/visit-reports/:id` | Finalizing failed | Warning banner "The PDF couldn't be produced. Your signatures are kept." with **Try again** | Same page |
 | `/visit-reports/:id` | Report edited after someone signed | Banner: signatures cleared, sign again | Same page |

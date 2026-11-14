@@ -17,6 +17,8 @@ export interface RequestOptions {
   /** false for the public auth routes (login, register, reset): no token, no refresh. */
   auth?: boolean
   signal?: AbortSignal
+  /** The Accept header; JSON unless a route sends a file. */
+  accept?: string
 }
 
 export async function request<T> (method: string, path: string, options: RequestOptions = {}): Promise<T> {
@@ -38,8 +40,28 @@ export async function request<T> (method: string, path: string, options: Request
   return await response.json() as T
 }
 
+/**
+  A file the API sends (a CSV export): the access token goes in the header, so a plain link cannot
+  fetch it. Kept in memory for the moment it takes to save, never stored (TRD §7.6).
+*/
+export async function download (path: string, options: RequestOptions = {}): Promise<{ blob: Blob, filename: string | null }> {
+  const opts = { ...options, accept: options.accept ?? 'text/csv' }
+  let response = await send('GET', path, opts, accessToken())
+  if (response.status === 401) {
+    const result = await refreshSession()
+    if (result.kind === 'ok') {
+      response = await send('GET', path, opts, result.session.accessToken)
+    }
+  }
+  if (!response.ok) {
+    throw await toApiError(response)
+  }
+  const named = /filename="?([^";]+)"?/.exec(response.headers.get('content-disposition') ?? '')
+  return { blob: await response.blob(), filename: named?.[1] ?? null }
+}
+
 async function send (method: string, path: string, options: RequestOptions, token: string | null): Promise<Response> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { Accept: options.accept ?? 'application/json' }
   if (token) {
     headers.Authorization = `Bearer ${token}`
   }

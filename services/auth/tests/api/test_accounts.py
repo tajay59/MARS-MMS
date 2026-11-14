@@ -57,7 +57,7 @@ async def test_registering_an_existing_email_looks_the_same_and_changes_nothing(
 @pytest.mark.parametrize(
     ("password", "code"),
     [("short pw", "password_too_short"), ("pwned password 1", "password_breached"),
-     ("password123", "password_breached")],
+     ("Administrator", "password_breached"), ("eleven char", "password_too_short")],
 )
 async def test_weak_passwords_get_an_inline_field_error(auth, password, code):
     r = await auth.http.post("/api/v1/auth/register", json={**NEW, "password": password})

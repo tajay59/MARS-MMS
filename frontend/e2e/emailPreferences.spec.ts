@@ -12,6 +12,8 @@ test('Each role sees only the emails it can get, and a choice sticks @NOT-4', as
   const section = page.getByRole('region', { name: 'My profile' })
   await expect(section.getByRole('switch', { name: 'A client submits a request' })).toBeVisible()
   await expect(section.getByRole('switch', { name: 'Weekly digest of calibrations due' })).toBeChecked()
+  await expect(section.getByRole('switch', { name: 'A visit is planned or its dates change' })).toBeChecked()
+  await expect(section.getByRole('switch', { name: 'A visit is cancelled' })).toBeChecked()
   await expect(section.getByLabel('Account emails')).toBeDisabled()
   await checkA11y(page, '/profile (email preferences)')
 
@@ -29,6 +31,7 @@ test('A client sees their two and none of the staff ones @NOT-4', async ({ watch
   await page.goto('/profile')
   await expect(page.getByRole('switch', { name: 'Your request is approved or denied' })).toBeChecked()
   await expect(page.getByRole('switch', { name: 'A request is cancelled' })).toBeChecked()
+  await expect(page.getByRole('switch', { name: 'A visit is planned or its dates change' })).toBeChecked()
   await expect(page.getByRole('switch', { name: 'A client submits a request' })).toHaveCount(0)
   await expect(page.getByRole('switch', { name: 'Weekly digest of calibrations due' })).toHaveCount(0)
 })

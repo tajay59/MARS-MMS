@@ -51,6 +51,7 @@
                   type="button"
                   @click="picked = u.id"
                 >{{ u.serial }}</button>
+
               </td>
 
               <td class="whitespace-nowrap px-4"><UnitStatusChip :status="u.status" /></td>
@@ -144,7 +145,7 @@
   import type { SensorModelOut, SensorUnitOut } from '@/api/models'
   import type { DueState } from '@/features/stations/stations'
   import { mdiChevronRight, mdiPlus } from '@mdi/js'
-  import { computed, ref } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { useDisplay } from 'vuetify'
   import { formatDate } from '@/app/format'
   import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
@@ -160,6 +161,8 @@
     units: SensorUnitOut[] | null
     error: string | null
     canWrite: boolean
+    /** A unit to show first (`?unit=` in the address). */
+    focus?: string | null
   }>()
 
   defineEmits<{
@@ -169,6 +172,12 @@
 
   const { mdAndUp } = useDisplay()
   const picked = ref<string | null>(null)
+
+  watch(() => props.focus, id => {
+    if (id) {
+      picked.value = id
+    }
+  }, { immediate: true })
 
   const shown = computed(() => {
     const list = props.units ?? []

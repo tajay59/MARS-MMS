@@ -25,6 +25,8 @@ function tokenBody (n: number): TokenResponse {
       time_zone: null,
       theme: 'system',
       status: 'active',
+      totp_enabled: false,
+      recovery_codes_left: 0,
     },
   }
 }
@@ -163,5 +165,32 @@ describe('endSession', () => {
     expect(JSON.stringify({ ...localStorage })).not.toContain('access-1')
     expect(JSON.stringify({ ...sessionStorage })).not.toContain('access-1')
     expect(document.cookie).not.toContain('access-1')
+  })
+})
+
+describe('the setup window (W22)', () => {
+  it('keeps the end of the window from the token response, and clears it once two-step sign-in is on', async () => {
+    const session = await tab()
+    const body = { ...tokenBody(1), mfa_setup: { required_by: '2026-11-19T15:00:00Z' } }
+    session.startSession(body)
+    expect(session.currentSession()?.mfaRequiredBy).toBe('2026-11-19T15:00:00Z')
+
+    // The profile read after turning it on says so
+    session.updateUser({ ...body.user, totp_enabled: true, recovery_codes_left: 10 })
+    expect(session.currentSession()?.mfaRequiredBy).toBeNull()
+  })
+
+  it('has no window for a person whose role does not need it', async () => {
+    const session = await tab()
+    session.startSession(tokenBody(1))
+    expect(session.currentSession()?.mfaRequiredBy).toBeNull()
+  })
+
+  it('keeps the window across other profile changes', async () => {
+    const session = await tab()
+    const body = { ...tokenBody(1), mfa_setup: { required_by: '2026-11-19T15:00:00Z' } }
+    session.startSession(body)
+    session.updateUser({ ...body.user, name: 'New name' })
+    expect(session.currentSession()?.mfaRequiredBy).toBe('2026-11-19T15:00:00Z')
   })
 })

@@ -14,6 +14,7 @@ from pymongo.asynchronous.client_session import AsyncClientSession
 
 from app.api.context import Ctx, CtxDep
 from app.api.schemas import CaptionIn, MediaDetail, MediaOut, MediaPage
+from app.domain import derive
 from app.domain import media as rules
 from app.domain.media import Status
 from app.events.publish import Emitter
@@ -52,6 +53,26 @@ def _url(ctx: Ctx, doc: dict[str, object], *, inline: bool) -> str:
     )
 
 
+def _derived_urls(ctx: Ctx, doc: dict[str, object], user: User) -> dict[str, str]:
+    """A photo or video: the copy to look at and its thumbnail for everyone who may see it. The
+    original (which keeps its EXIF and GPS) is for staff only, and only until it is purged."""
+    s = ctx.svc
+    ttl = s.settings.get_url_ttl_s
+    bucket = s.settings.bucket_media
+    kind = str(doc["kind"])
+    urls = {
+        "view": s.storage.get_url(
+            bucket, str(doc["processed_key"]), ttl, content_type=derive.view_type(kind),
+            disposition="inline"),
+        "thumbnail": s.storage.get_url(
+            bucket, str(doc["thumbnail_key"]), ttl, content_type="image/webp",
+            disposition="inline"),
+    }
+    if not user.is_client and not doc.get("original_purged_at"):
+        urls["original"] = _url(ctx, doc, inline=False)
+    return urls
+
+
 @router.get("/{media_id}")
 async def get_media(media_id: MediaId, user: Reader, ctx: CtxDep) -> MediaDetail:
     """The file's record and, once it is `ready`, links to open and to download it (10 minutes;
@@ -61,7 +82,8 @@ async def get_media(media_id: MediaId, user: Reader, ctx: CtxDep) -> MediaDetail
         raise NotFound()
     urls: dict[str, str] = {}
     if doc["status"] == Status.READY.value:
-        urls = {"view": _url(ctx, doc, inline=True), "download": _url(ctx, doc, inline=False)}
+        urls = _derived_urls(ctx, doc, user) if doc.get("thumbnail_key") else {
+            "view": _url(ctx, doc, inline=True), "download": _url(ctx, doc, inline=False)}
     return MediaDetail(**MediaOut.of(doc).model_dump(), urls=urls)
 
 

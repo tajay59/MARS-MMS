@@ -37,6 +37,8 @@ class UserData(_Data):
 class LoginSucceeded(_Data):
     user_id: str
     email_hash: str
+    # Since W22: how the second step was done, `totp` or `recovery`; absent without one.
+    mfa: str | None = None
 
 
 @register("auth.login_failed")
@@ -45,6 +47,48 @@ class LoginFailed(_Data):
     email_hash: str
     # wrong_password | unknown_email | pending | rejected | disabled | invited | org_inactive
     reason: str
+
+
+# --- Second factor (W22). Never a secret, a code or a hash in any of these. ---------------------
+
+
+@register("auth.totp_enrolled")
+class TotpEnrolled(_Data):
+    user_id: str
+
+
+@register("auth.totp_disabled")
+class TotpDisabled(_Data):
+    """A person turned their own two-step sign-in off (only for roles that do not require it)."""
+
+    user_id: str
+
+
+@register("auth.totp_reset")
+class TotpReset(_Data):
+    """Another admin, or the operator's CLI, removed someone's second factor (lost phone). The
+    actor in the envelope says who; `via` is `admin` or `cli`."""
+
+    user_id: str
+    via: str
+
+
+@register("auth.mfa_failed")
+class MfaFailed(_Data):
+    user_id: str
+    email_hash: str
+    reason: str  # wrong_code | wrong_recovery_code | replayed_code
+
+
+@register("auth.recovery_code_used")
+class RecoveryCodeUsed(_Data):
+    user_id: str
+    remaining: int
+
+
+@register("auth.recovery_codes_regenerated")
+class RecoveryCodesRegenerated(_Data):
+    user_id: str
 
 
 @register("auth.logout")
@@ -64,6 +108,15 @@ class PasswordResetRequested(_Data):
 class PasswordReset(_Data):
     user_id: str
     email_hash: str
+
+
+@register("auth.sessions_revoked")
+class SessionsRevoked(_Data):
+    """Every refresh session and access token ended at once, by an operator after a restore from
+    backup (W20-9). `count` is the refresh sessions that were still open."""
+
+    reason: str
+    count: int
 
 
 @register("auth.token_reuse_detected")

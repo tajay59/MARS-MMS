@@ -4,6 +4,69 @@
  */
 
 export interface paths {
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard
+         * @description The caller's own view by default. Asking for one the role does not have is refused.
+         */
+        get: operations["dashboard_api_v1_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reports
+         * @description Reports and their versions, newest version first. Clients: final ones of their own
+         *     organization.
+         */
+        get: operations["list_reports_api_v1_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Correction
+         * @description Is this visit's final report being corrected? Scoped like every read: a client asks about
+         *     their own organization's visit only, and anything else is "no" (rule 4). It tells a client
+         *     that "a corrected report is on its way" without showing them the draft.
+         */
+        get: operations["correction_api_v1_reports_correction_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -45,10 +108,386 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start */
+        post: operations["start_api_v1_reports_summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/summary/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mine
+         * @description The person's own summaries of the last `REPORT_SUMMARY_KEEP_DAYS` days, newest first.
+         */
+        get: operations["mine_api_v1_reports_summary_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/summary/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job */
+        get: operations["get_job_api_v1_reports_summary_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/summary/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Types
+         * @description What this person may ask for: a client three, staff all that are built.
+         */
+        get: operations["types_api_v1_reports_summary_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify */
+        post: operations["verify_api_v1_reports_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Report */
+        get: operations["get_report_api_v1_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Content
+         * @description RPT-2: change the narrative or the photo choice of a draft. `content_version` is the one
+         *     the editor read: another editor's save in between is 409 `content_changed`, unless this save
+         *     is already in (a repeat after a lost answer), which changes nothing. A change that alters what
+         *     prints clears the signatures (W17-3).
+         */
+        patch: operations["edit_content_api_v1_reports__report_id__content_patch"];
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download
+         * @description A ten-minute link to the report's PDF (never cached: it acts as a password): the final
+         *     one for a final or superseded version, else the latest draft. If a draft changed since its
+         *     PDF was drawn, `current` is false and the link is to the older one.
+         */
+        get: operations["download_api_v1_reports__report_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finalize Report
+         * @description RPT-5: make the signed draft final. The lead or an admin, once the lead has signed this
+         *     version. 409 `lead_not_signed` until then. Answers at once; the report is `finalizing` while
+         *     the visit is locked and the PDF is drawn.
+         */
+        post: operations["finalize_report_api_v1_reports__report_id__finalize_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview
+         * @description RPT-3: draw the draft as it is now. Answers `ready` when that PDF already exists, else
+         *     queues one render (asking again while it runs queues nothing more) and answers `rendering`.
+         */
+        post: operations["preview_api_v1_reports__report_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen Report
+         * @description RPT-6: an admin reopens a final report for correction. The final becomes `superseded` and
+         *     stays readable; the next version is a draft with the same narrative and photo choice, the
+         *     facts read again and no signatures. Answers with the new draft. 409 `already_reopened` when
+         *     the version was already superseded, `not_final` when it is not final yet.
+         */
+        post: operations["reopen_report_api_v1_reports__report_id__reopen_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign
+         * @description RPT-4: a person who attended the visit signs the draft as it stands (`content_version`).
+         *     The record keeps the drawing, the typed name, the attestation as shown, the time, address and
+         *     browser, and the hash of the content (TRD 11.3). One valid signature each: signing again is
+         *     409 `already_signed`. A change to the report clears every signature.
+         */
+        post: operations["sign_api_v1_reports__report_id__sign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminDashboard */
+        AdminDashboard: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            figures: components["schemas"]["AdminFigures"];
+            /** Reports Awaiting */
+            reports_awaiting: components["schemas"]["AwaitingReport"][];
+            /** Requests By Status */
+            requests_by_status: components["schemas"]["StatusCount"][];
+            /** Stations By Country */
+            stations_by_country: components["schemas"]["CountryRow"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "admin";
+        };
+        /** AdminFigures */
+        AdminFigures: {
+            /** Calibrations Due Soon */
+            calibrations_due_soon: number;
+            /** Calibrations Overdue */
+            calibrations_overdue: number;
+            /** Failed Calibrations */
+            failed_calibrations: number;
+            /** In Client Review */
+            in_client_review: number;
+            /** Reports Awaiting Finalization */
+            reports_awaiting_finalization: number;
+            /** Requests Awaiting Approval */
+            requests_awaiting_approval: number;
+            /** Unassigned Queue */
+            unassigned_queue: number;
+            /** Upcoming Visits */
+            upcoming_visits: number;
+        };
+        /** AwaitingReport */
+        AwaitingReport: {
+            /** Age Days */
+            age_days: number;
+            /** Lead Name */
+            lead_name: string | null;
+            /** Number */
+            number: string;
+            /** Report Id */
+            report_id: string;
+            /** Request Id */
+            request_id: string;
+            /** Station Codes */
+            station_codes: string[];
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id: string;
+        };
+        /** ClientDashboard */
+        ClientDashboard: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            figures: components["schemas"]["ClientFigures"];
+            /** Recent Reports */
+            recent_reports: components["schemas"]["RecentReport"][];
+            stations: components["schemas"]["StationStatusCounts"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "client";
+        };
+        /** ClientFigures */
+        ClientFigures: {
+            /** Awaiting Our Review */
+            awaiting_our_review: number;
+            /** Open Requests */
+            open_requests: number;
+            /** Upcoming Visits */
+            upcoming_visits: number;
+        };
+        /**
+         * ContentPatch
+         * @description PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.
+         */
+        ContentPatch: {
+            /** Content Version */
+            content_version: number;
+            /** Media Selection */
+            media_selection?: components["schemas"]["SelectionEdit"][] | null;
+            narrative?: components["schemas"]["NarrativeEdit"] | null;
+        };
+        /**
+         * CorrectionOut
+         * @description Whether a visit's final report is being corrected: a version after the first is a draft
+         *     or being finalized. All a client learns of a reopen (W17-10): the superseded version and
+         *     the new draft stay hidden from them.
+         */
+        CorrectionOut: {
+            /** Correcting */
+            correcting: boolean;
+        };
+        /** CountryRow */
+        CountryRow: {
+            /** Country */
+            country: string;
+            /** Decommissioned */
+            decommissioned: number;
+            /** Degraded */
+            degraded: number;
+            /** Offline */
+            offline: number;
+            /** Operational */
+            operational: number;
+            /** Total */
+            total: number;
+        };
+        /** DownloadOut */
+        DownloadOut: {
+            /** Current */
+            current: boolean;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Filename */
+            filename: string;
+            /** Url */
+            url: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -97,7 +536,12 @@ export interface components {
          * JobType
          * @enum {string}
          */
-        JobType: "labels";
+        JobType: "labels" | "summary";
+        /**
+         * Kind
+         * @enum {string}
+         */
+        Kind: "station_history" | "client_activity" | "request_turnaround" | "calibration_due" | "network_status" | "monthly_summary" | "annual_summary" | "station_asset" | "sensor_reliability" | "configuration_history" | "technician_workload";
         /** LabelsIn */
         LabelsIn: {
             /**
@@ -107,6 +551,358 @@ export interface components {
             contact_phone?: string | null;
             /** Station Ids */
             station_ids: string[];
+        };
+        /**
+         * NarrativeEdit
+         * @description Fields that are given replace the old text; the others stay.
+         */
+        NarrativeEdit: {
+            /** Follow Up */
+            follow_up?: string | null;
+            /** Recommendations */
+            recommendations?: string | null;
+            /** Stations */
+            stations?: components["schemas"]["NarrativeStation"][] | null;
+            /** Summary */
+            summary?: string | null;
+        };
+        /** NarrativeStation */
+        NarrativeStation: {
+            /** Station Id */
+            station_id: string;
+            /** Work Performed */
+            work_performed: string;
+        };
+        /**
+         * PdfState
+         * @description Where the draft PDF stands. `current` is false when the report has changed since it was
+         *     drawn: a preview draws it again.
+         */
+        PdfState: {
+            /** Current */
+            current: boolean;
+            /** Error */
+            error?: string | null;
+            /** Pages */
+            pages?: number | null;
+            /** Rendered At */
+            rendered_at?: string | null;
+            /** State */
+            state: string;
+        };
+        /**
+         * PreviewOut
+         * @description `ready`: the PDF for the report as it is now exists. `rendering`: poll the report.
+         */
+        PreviewOut: {
+            pdf: components["schemas"]["PdfState"];
+            /** State */
+            state: string;
+        };
+        /** RecentReport */
+        RecentReport: {
+            /** Finalized At */
+            finalized_at: string | null;
+            /** Number */
+            number: string;
+            /** Report Id */
+            report_id: string;
+            /** Request Id */
+            request_id: string | null;
+            /** Type */
+            type: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * ReopenIn
+         * @description POST /reports/{id}/reopen (W17-10): why the final report is being corrected.
+         */
+        ReopenIn: {
+            /** Reason */
+            reason: string;
+        };
+        /** ReportOut */
+        ReportOut: {
+            /** Attestation */
+            attestation?: string | null;
+            /** Awaiting Media */
+            awaiting_media: number;
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+            /** Content Hash */
+            content_hash?: string | null;
+            /** Content Version */
+            content_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Drafted At */
+            drafted_at?: string | null;
+            /** Facts Version */
+            facts_version: number;
+            /** Finalize Error */
+            finalize_error?: string | null;
+            /** Finalized At */
+            finalized_at?: string | null;
+            /** Finalized By */
+            finalized_by?: string | null;
+            /** Id */
+            id: string;
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
+            /** Number */
+            number: string;
+            pdf: components["schemas"]["PdfState"];
+            /** Pdf Sha256 */
+            pdf_sha256?: string | null;
+            /** Request Id */
+            request_id: string;
+            /**
+             * Signatures
+             * @default []
+             */
+            signatures: components["schemas"]["SignatureOut"][];
+            /**
+             * Staff Ids
+             * @default []
+             */
+            staff_ids: string[];
+            /** Status */
+            status: string;
+            /** Subject Ref */
+            subject_ref: string;
+            /** Supersedes Id */
+            supersedes_id?: string | null;
+            /** Type */
+            type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id?: string | null;
+        };
+        /** ReportSummary */
+        ReportSummary: {
+            /** Awaiting Media */
+            awaiting_media: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Drafted At */
+            drafted_at?: string | null;
+            /** Finalized At */
+            finalized_at?: string | null;
+            /** Id */
+            id: string;
+            /** Number */
+            number: string;
+            pdf: components["schemas"]["PdfState"];
+            /** Pdf Sha256 */
+            pdf_sha256?: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Status */
+            status: string;
+            /** Subject Ref */
+            subject_ref: string;
+            /** Type */
+            type: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Visit Id */
+            visit_id?: string | null;
+        };
+        /**
+         * SelectionEdit
+         * @description A photo's place in the report: `in_body` (else the appendix) and its caption here.
+         */
+        SelectionEdit: {
+            /** Caption */
+            caption?: string | null;
+            /** In Body */
+            in_body?: boolean | null;
+            /** Media Id */
+            media_id: string;
+        };
+        /**
+         * SignIn
+         * @description POST /reports/{id}/sign (W17-6): the version the person read, the name they typed and
+         *     the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted).
+         */
+        SignIn: {
+            /** Content Version */
+            content_version: number;
+            /** Image */
+            image: string;
+            /** Typed Name */
+            typed_name: string;
+        };
+        /**
+         * SignatureOut
+         * @description One signature of this version. Staff only: `image` is the drawn PNG as a data URI, and is
+         *     absent once the signature was cleared (the record stays, W17-4).
+         */
+        SignatureOut: {
+            /** Attestation */
+            attestation: string;
+            /** Cleared At */
+            cleared_at?: string | null;
+            /** Cleared By */
+            cleared_by?: string | null;
+            /** Content Version */
+            content_version: number;
+            /** Id */
+            id: string;
+            /** Image */
+            image?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Signed At
+             * Format: date-time
+             */
+            signed_at: string;
+            /** Signer Id */
+            signer_id: string;
+            /** Signer Name */
+            signer_name: string;
+            /** Typed Name */
+            typed_name: string;
+            /** Valid */
+            valid: boolean;
+        };
+        /** StationStatusCounts */
+        StationStatusCounts: {
+            /** Decommissioned */
+            decommissioned: number;
+            /** Degraded */
+            degraded: number;
+            /** Offline */
+            offline: number;
+            /** Operational */
+            operational: number;
+        };
+        /** StatusCount */
+        StatusCount: {
+            /** Count */
+            count: number;
+            /** Status */
+            status: string;
+        };
+        /** SummaryIn */
+        SummaryIn: {
+            /** Country */
+            country?: string | null;
+            /**
+             * Due In Days
+             * @default 30
+             */
+            due_in_days: number;
+            /**
+             * Format
+             * @default pdf
+             * @enum {string}
+             */
+            format: "pdf" | "csv";
+            /** From */
+            from?: string | null;
+            /** Org Id */
+            org_id?: string | null;
+            /** Station Ids */
+            station_ids?: string[] | null;
+            /** To */
+            to?: string | null;
+            type: components["schemas"]["Kind"];
+        };
+        /** SummaryJob */
+        SummaryJob: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Download Url */
+            download_url: string | null;
+            /** Error */
+            error: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** File Name */
+            file_name: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "pdf" | "csv";
+            /** Id */
+            id: string;
+            /** Pages */
+            pages: number | null;
+            /** Period From */
+            period_from: string | null;
+            /** Period To */
+            period_to: string | null;
+            /** Rows */
+            rows: number | null;
+            status: components["schemas"]["JobStatus"];
+            type: components["schemas"]["Kind"];
+        };
+        /** SummaryType */
+        SummaryType: {
+            /** Description */
+            description: string;
+            /** Formats */
+            formats: string[];
+            /** Title */
+            title: string;
+            type: components["schemas"]["Kind"];
+            /** Uses Period */
+            uses_period: boolean;
+        };
+        /** TechnicianDashboard */
+        TechnicianDashboard: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            figures: components["schemas"]["TechnicianFigures"];
+            /** Reports To Finalize */
+            reports_to_finalize: components["schemas"]["AwaitingReport"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            view: "technician";
+        };
+        /** TechnicianFigures */
+        TechnicianFigures: {
+            /** My Assigned */
+            my_assigned: number;
+            /** My Reports To Finalize */
+            my_reports_to_finalize: number;
+            /** My Upcoming Visits */
+            my_upcoming_visits: number;
+            /** Queue */
+            queue: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -121,6 +917,22 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * VerifyOut
+         * @description Whether a PDF is one this system issued. Names the report and its version; no content.
+         */
+        VerifyOut: {
+            /** Finalized At */
+            finalized_at?: string | null;
+            /** Match */
+            match: boolean;
+            /** Number */
+            number?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Version */
+            version?: number | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -130,6 +942,100 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    dashboard_api_v1_dashboard_get: {
+        parameters: {
+            query?: {
+                view?: ("admin" | "technician" | "client") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDashboard"] | components["schemas"]["TechnicianDashboard"] | components["schemas"]["ClientDashboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reports_api_v1_reports_get: {
+        parameters: {
+            query?: {
+                subject_ref?: string | null;
+                type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correction_api_v1_reports_correction_get: {
+        parameters: {
+            query: {
+                visit_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_job_api_v1_reports_jobs__job_id__get: {
         parameters: {
             query?: never;
@@ -181,6 +1087,370 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_api_v1_reports_summary_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SummaryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mine_api_v1_reports_summary_jobs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryJob"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_api_v1_reports_summary_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    types_api_v1_reports_summary_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryType"][];
+                };
+            };
+        };
+    };
+    verify_api_v1_reports_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyOut"];
+                };
+            };
+        };
+    };
+    get_report_api_v1_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_content_api_v1_reports__report_id__content_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_api_v1_reports__report_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    finalize_report_api_v1_reports__report_id__finalize_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_reports__report_id__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reopen_report_api_v1_reports__report_id__reopen_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReopenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_api_v1_reports__report_id__sign_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
                 };
             };
             /** @description Validation Error */

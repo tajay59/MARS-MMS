@@ -109,6 +109,29 @@ async def test_snapshots_for_backfill(ops):
     assert empty.json() == {"items": [], "next_after": None}
 
 
+async def test_snapshots_of_models_installations_and_configuration_versions(ops):
+    """The report service rebuilds its summaries' inputs from these (W19-6)."""
+    station = await ops.station()
+    model = await ops.model()
+    unit = await ops.unit(model["id"])
+    await ops.install(unit, station, "AT")
+    snapshots = {}
+    for entity in ("sensor_models", "installations", "config_versions"):
+        response = await ops.http.get(f"/internal/snapshot/{entity}", headers=ops.service("report"))
+        assert response.status_code == 200, response.text
+        snapshots[entity] = response.json()["items"]
+    [made] = snapshots["sensor_models"]
+    assert made["model_id"] == model["id"] and made["aggregate_version"] >= 1
+    [put] = snapshots["installations"]
+    assert put["unit_id"] == unit["id"] and put["station_id"] == station["id"]
+    assert put["serial"] == unit["serial"] and put["model_id"] == model["id"]
+    assert put["installed_at"] and put["removed_at"] is None and put["parameter"] == "AT"
+    assert snapshots["config_versions"] == []  # none made yet
+    # only the report and platform services may read them
+    denied = await ops.http.get("/internal/snapshot/installations", headers=ops.bearer("admin"))
+    assert denied.status_code in (401, 403)
+
+
 async def test_the_copy_keeps_the_short_name_and_external_id(ops):
     """Decision W5-8: the station import matches a site's entity to the external ID."""
     processor = org_consumer.processor(ops.app.state.mongo, ops.app.state.db, _no_dlq, ops.clock)

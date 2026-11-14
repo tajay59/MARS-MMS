@@ -35,15 +35,19 @@ from app.api.requests.schemas import (
     RequestSummary,
     Workload,
 )
+from app.api.visits import glue as visit_glue
+from app.api.visits.schemas import VisitBrief
 from app.domain.requests import comments as comment_rules
-from app.domain.requests import rules, staffing
+from app.domain.requests import review, rules, staffing
 from app.domain.requests.state import MILESTONES, Action, Status, Who, allowed, transition
+from app.domain.visits import schedule as visit_schedule
 from app.events.publish import ev
 from app.repo.requests import comments as comment_repo
 from app.repo.requests import requests as repo
 from app.repo.stations import orgs
 from app.repo.stations import stations as station_repo
 from app.repo.stations.common import Db, stamp
+from app.repo.visits import visits as visit_repo
 
 router = APIRouter(prefix="/api/v1/requests", tags=["requests"])
 
@@ -53,9 +57,10 @@ Admin = Annotated[User, Depends(require_roles("admin"))]
 Worker = Annotated[User, Depends(require_roles("technician", "admin"))]
 IdPath = Annotated[str, Path(pattern=UUID7_PATTERN)]
 # The table actions with a button of their own. Assign, claim and release are worked out by
-# `staffing.actions_for` (who is on the request matters); the client's accept and reject wait
-# for Phase 6.
-OFFERED = frozenset({Action.APPROVE, Action.DENY, Action.CANCEL})
+# `staffing.actions_for` (who is on the request matters).
+OFFERED = frozenset({Action.APPROVE, Action.DENY, Action.CANCEL, Action.ACCEPT, Action.REJECT})
+# Visits can be planned while the request is assigned and being worked on (W10)
+SCHEDULABLE = frozenset({Status.ASSIGNED, Status.SCHEDULED, Status.IN_PROGRESS})
 
 
 def who_of(user: User) -> Who | None:
@@ -104,9 +109,22 @@ async def _detail(ctx: Ctx, doc: dict[str, Any], user: User) -> RequestDetail:
             actions.append("edit")
         except (ValidationFailed, Forbidden):
             pass
+        if Status(doc["status"]) in SCHEDULABLE and visit_schedule.can_schedule(
+            user.id, user.is_admin, doc.get("assigned_staff_ids", [])
+        ):
+            actions.append("schedule_visit")
     seen = await comment_repo.counts(ctx.db, [doc["_id"]], user)
+    visits = [VisitBrief.of(v) for v in await visit_repo.for_request(ctx.db, doc["_id"], user)]
+    started = doc.get("review_started_at")
+    closes = (
+        review.auto_close_at(started, ctx.settings.auto_close_days)
+        if started is not None and doc["status"] == Status.CLIENT_REVIEW.value else None
+    )
     return RequestDetail.build(doc, stations, org_names, cast(list[ActionName], actions),
-                               comment_count=seen.get(doc["_id"], 0))
+                               comment_count=seen.get(doc["_id"], 0), visits=visits,
+                               auto_close_at=closes,
+                               attestation=(ctx.settings.client_attestation
+                                            if user.is_client and closes is not None else None))
 
 
 def _entry(
@@ -163,6 +181,44 @@ async def list_requests(
     )
 
 
+async def insert_request(
+    ctx: Ctx, user: User, s: AsyncClientSession, *, request_id: str, org_id: str,
+    station_ids: list[str], title: str, description: str, category: str, priority: str,
+    attachments: list[dict[str, Any]] | None = None, media_ids: list[str] | None = None,
+    source: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Write a new request with its events, in the caller's transaction (rule 2). An admin's
+    starts Approved; anyone else's Submitted. `source` names the board recommendation it came
+    from (W11-38)."""
+    now = ctx.clock.now()
+    to = Status.APPROVED if user.is_admin else Status.SUBMITTED
+    event_id = new_id()
+    emitter = ctx.emitter(user)
+    ref = await repo.next_ref(ctx.db, now, s)
+    milestones = {MILESTONES[Status.SUBMITTED]: now}
+    if to is Status.APPROVED:
+        milestones[MILESTONES[Status.APPROVED]] = now
+    doc = stamp({
+        "_id": request_id, "ref": ref, "org_id": org_id, "station_ids": station_ids,
+        "title": title, "description": description, "category": category,
+        "priority": priority, "status": to.value,
+        "status_history": [_entry(from_status=None, to=to, user=user, now=now,
+                                  event_id=event_id)],
+        "assigned_staff_ids": [], "assigned_staff": [], "denial_reason": None,
+        "cancel_reason": None, "rework_since": None, "review_started_at": None,
+        "reminders_sent": [], "client_verification": None, "reopen_count": 0,
+        "attachments": attachments or [], "milestones": milestones, "requester_name": user.name,
+        "source": source,
+    }, now, user.id)
+    await repo.insert(ctx.db, doc, s)
+    await emitter.request(ev.RequestSubmitted, "request.submitted", doc, s,
+                          by_admin=user.is_admin)
+    await emitter.request_status(doc, s, from_status=None, event_id=event_id)
+    if attachments and media_ids:
+        await emitter.attachments_visibility("request", doc, doc, media_ids, "org", s)
+    return doc
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_request(
     body: RequestIn, user: Creator, ctx: CtxDep, response: Response
@@ -207,35 +263,14 @@ async def create_request(
     request_id = body.id or new_id()
     attachments = await verified(ctx, user, comment_rules.request_owner_ref(request_id),
                                  media_ids)
-    now = ctx.clock.now()
-    to = Status.APPROVED if user.is_admin else Status.SUBMITTED
-    event_id = new_id()
-    emitter = ctx.emitter(user)
     holder: dict[str, Any] = {}
 
     async def save(s: AsyncClientSession) -> None:
-        ref = await repo.next_ref(ctx.db, now, s)
-        milestones = {MILESTONES[Status.SUBMITTED]: now}
-        if to is Status.APPROVED:
-            milestones[MILESTONES[Status.APPROVED]] = now
-        doc = stamp({
-            "_id": request_id, "ref": ref, "org_id": org_id, "station_ids": station_ids,
-            "title": title, "description": description, "category": body.category,
-            "priority": body.priority, "status": to.value,
-            "status_history": [_entry(from_status=None, to=to, user=user, now=now,
-                                      event_id=event_id)],
-            "assigned_staff_ids": [], "assigned_staff": [], "denial_reason": None,
-            "cancel_reason": None, "rework_since": None, "review_started_at": None,
-            "reminders_sent": [], "client_verification": None, "reopen_count": 0,
-            "attachments": attachments, "milestones": milestones, "requester_name": user.name,
-        }, now, user.id)
-        await repo.insert(ctx.db, doc, s)
-        await emitter.request(ev.RequestSubmitted, "request.submitted", doc, s,
-                              by_admin=user.is_admin)
-        await emitter.request_status(doc, s, from_status=None, event_id=event_id)
-        if attachments:
-            await emitter.attachments_visibility("request", doc, doc, media_ids, "org", s)
-        holder["doc"] = doc
+        holder["doc"] = await insert_request(
+            ctx, user, s, request_id=request_id, org_id=org_id, station_ids=station_ids,
+            title=title, description=description, category=body.category,
+            priority=body.priority, attachments=attachments, media_ids=media_ids,
+        )
 
     try:
         await ctx.tx(save)
@@ -333,6 +368,8 @@ async def _move(
         await emitter.request(model, type_, updated, s, before=current, **extra)
         await emitter.request_status(updated, s, from_status=before.value, event_id=event_id,
                                      reason=reason)
+        if action is Action.CANCEL:  # its planned visits go with it (TRD §3.2.2)
+            await visit_glue.cancel_planned_visits(ctx, user, updated, s, reason)
         return updated
 
     return await _detail(ctx, await ctx.tx(save), user)
@@ -481,6 +518,8 @@ async def release_request(id: IdPath, user: Worker, ctx: CtxDep) -> RequestDetai
     """A technician lets go of their claim, or an admin unassigns everyone. With nobody left
     the request returns to the queue (Assigned to Approved)."""
     current = await repo.require(ctx.db, id)
+    if await visit_repo.has_live(ctx.db, id):  # a booked visit would be left with no request
+        raise Conflict("Cancel the planned visits first", code="has_visits")
     me = staffing.Person(user.id, user.name)
     change = staffing.release(Status(current["status"]), require_who(user), me, _people(current))
     return await _apply_staff(ctx, user, current, change)

@@ -50,6 +50,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Client Reports
+         * @description CRP-5: newest first. A client gets their organization's submitted reports and their own
+         *     drafts; staff get submitted reports.
+         */
+        get: operations["list_client_reports_api_v1_client_reports_get"];
+        put?: never;
+        /**
+         * Create Client Report
+         * @description CRP-1, CRP-2: start a draft on a request of the client's organization. Idempotent by
+         *     `id`: sending it again returns the draft already made (200).
+         */
+        post: operations["create_client_report_api_v1_client_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Client Report */
+        get: operations["get_client_report_api_v1_client_reports__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Client Report
+         * @description CRP-2: change a draft. A submitted report can't be changed (CRP-4): 409 `not_a_draft`.
+         *     A draft is private, so it is not an event.
+         */
+        patch: operations["update_client_report_api_v1_client_reports__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}/attachments/{media_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Client Report File
+         * @description A picture attached to a form report (or the report's PDF), for the page to show.
+         */
+        get: operations["download_client_report_file_api_v1_client_reports__id__attachments__media_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Client Report
+         * @description A ten-minute link to a PDF report's file. A form report's PDF is the report service's:
+         *     ask `/api/v1/reports/{report_id}/download`.
+         */
+        get: operations["download_client_report_api_v1_client_reports__id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/client-reports/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Client Report
+         * @description CRP-3, CRP-4: send the report. From now on nobody can change it. Safe to send twice: a
+         *     report already sent is returned as it is. A form report whose PDF could not be drawn is
+         *     sent for drawing once more (Try again), and nothing else about it changes.
+         */
+        post: operations["submit_client_report_api_v1_client_reports__id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -230,6 +341,28 @@ export interface paths {
          *     an admin until it is done. Only what is sent changes.
          */
         patch: operations["patch_request_api_v1_requests__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/requests/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Request
+         * @description REQ-13: the client signs the work off. The request closes, the decision keeps the drawing,
+         *     the typed name, the wording shown, the time, address and browser, and the visit reports in
+         *     force. The drawing is stored here only; `request.closed` does not carry it.
+         */
+        post: operations["accept_request_api_v1_requests__id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/requests/{id}/approve": {
@@ -420,6 +553,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requests/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Request
+         * @description REQ-13: the client sends the work back. In one transaction the request goes Client Review
+         *     to Reopened and straight on to Assigned with the same staff; the review clock stops and the
+         *     rework period starts (`rework_since`). The staff and admins are told the reason.
+         */
+        post: operations["reject_request_api_v1_requests__id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/requests/{id}/release": {
         parameters: {
             query?: never;
@@ -518,7 +673,7 @@ export interface paths {
         head?: never;
         /**
          * Patch Unit
-         * @description Serial and model corrections (SEN-5 review), status in or out of stock, the interval
+         * @description Serial and model corrections, status in or out of stock, the interval
          *     override (CAL-3), notes. Installing and removing have their own actions.
          */
         patch: operations["patch_unit_api_v1_sensor_units__id__patch"];
@@ -795,6 +950,409 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync
+         * @description OFF-5: apply a batch of offline operations in order. Always 200 for a well-formed batch:
+         *     each operation has its own answer (`applied`, `duplicate`, `conflict`, `error`, `skipped`).
+         */
+        post: operations["sync_api_v1_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Visits
+         * @description Soonest first. A client sees their organization's visits (VIS-11).
+         */
+        get: operations["list_visits_api_v1_visits_get"];
+        put?: never;
+        /**
+         * Schedule Visit
+         * @description VIS-1: the request's assigned staff or an admin plan a visit: dates, who attends (one the
+         *     lead), which of the request's stations, and who owns each. The request becomes Scheduled.
+         *     Sending the same `id` again returns the visit that was made (200).
+         */
+        post: operations["schedule_visit_api_v1_visits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Visits
+         * @description The visits I attend that are planned or under way, soonest first (AFD "My upcoming
+         *     visits").
+         */
+        get: operations["my_visits_api_v1_visits_mine_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Attending Staff
+         * @description The active technicians and admins to pick from when scheduling (VIS-1). Operations keeps
+         *     no copy of users (rule 1): auth answers, and only names and roles come back. Admins can list
+         *     users in auth; a technician who is assigned to the request cannot, so the list is here.
+         */
+        get: operations["attending_staff_api_v1_visits_staff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Visit
+         * @description A client reads their organization's visits only; another's is not found (rule 4).
+         */
+        get: operations["get_visit_api_v1_visits__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Visit
+         * @description VIS-2, AFD J5 steps 5 and 5b. A planned visit: dates, people, lead, stations, owners and
+         *     notes. A started visit: only who owns which station, by the lead or an admin.
+         */
+        patch: operations["change_visit_api_v1_visits__id__patch"];
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Visit
+         * @description VIS-2: a planned visit is cancelled; the request returns to Assigned when no other visit
+         *     is planned.
+         */
+        post: operations["cancel_visit_api_v1_visits__id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End Visit
+         * @description VIS-9: end the visit and say whether another is needed. If so the request goes back to
+         *     Assigned to be scheduled again; if not it waits for the visit report (Phase 6). Incomplete
+         *     tasks are only a warning in the End dialog: an end synced from a phone can't answer a
+         *     question, so the server never refuses it for them (W11-33).
+         */
+        post: operations["end_visit_api_v1_visits__id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/field-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Field Bundle
+         * @description OFF-1: the request, the visit's stations with their sensors, calibration status, latest
+         *     configuration version, documents and boards. Everyone attending (and an admin) may prepare a
+         *     planned or started visit; asking again from the same phone refreshes the record of it.
+         */
+        get: operations["field_bundle_api_v1_visits__id__field_bundle_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Visit
+         * @description An admin brings a cancelled visit back: work was recorded on it offline (TRD §7.4).
+         */
+        post: operations["restore_visit_api_v1_visits__id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Visit
+         * @description VIS-4: attending staff start the visit; the request is In progress.
+         */
+        post: operations["start_visit_api_v1_visits__id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/arrive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arrive
+         * @description VIS-4: the station's owner records arriving there.
+         */
+        post: operations["arrive_api_v1_visits__id__stations__station_id__arrive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/depart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Depart
+         * @description VIS-4: the station's owner records leaving it (after arriving).
+         */
+        post: operations["depart_api_v1_visits__id__stations__station_id__depart_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Elements
+         * @description A station's board, newest first. A client sees the shared elements once the visit has
+         *     ended, and nothing before (W11-28).
+         */
+        get: operations["list_elements_api_v1_visits__id__stations__station_id__elements_get"];
+        put?: never;
+        /**
+         * Add Element
+         * @description VIS-5, VIS-7: a Note, Task, Recommendation or Config on the station's board. Sending the
+         *     same `id` and content again returns the element that was made (200).
+         */
+        post: operations["add_element_api_v1_visits__id__stations__station_id__elements_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Element */
+        get: operations["get_element_api_v1_visits__id__stations__station_id__elements__element_id__get"];
+        /**
+         * Save Element
+         * @description The whole content, against `base_version` (W11-26). A save that says what is already
+         *     saved succeeds whatever its version: it is a retry after a lost answer.
+         */
+        put: operations["save_element_api_v1_visits__id__stations__station_id__elements__element_id__put"];
+        post?: never;
+        /**
+         * Delete Element
+         * @description Take an element off the board and delete its files. A tombstone stays, so a late save
+         *     from another device cannot bring it back (W11-26). Deleting it again changes nothing.
+         */
+        delete: operations["delete_element_api_v1_visits__id__stations__station_id__elements__element_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/config-version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Config Version
+         * @description After the end, the Config element's changed After files become the station's next
+         *     configuration version (CFG-2: a version never changes). Nothing changed: nothing is made,
+         *     so pressing it twice makes one version.
+         */
+        post: operations["save_config_version_api_v1_visits__id__stations__station_id__elements__element_id__config_version_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Element Media
+         * @description A photo, a video or (on Config) any file, for a section of the element.
+         */
+        post: operations["add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Element Media
+         * @description Take a file off the element and delete it.
+         */
+        delete: operations["remove_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Change Element Media
+         * @description A caption, or hide a file from the client (W11-13) and show it again.
+         */
+        patch: operations["change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request From Recommendation
+         * @description A new maintenance request for this station, from the recommendation: a technician's
+         *     starts Submitted for an admin to approve, an admin's Approved, as any request. The request
+         *     and the link on the element are one transaction; the same request `id` again changes
+         *     nothing. Online only (OFF-10).
+         */
+        post: operations["request_from_recommendation_api_v1_visits__id__stations__station_id__elements__element_id__request_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/attachable": {
         parameters: {
             query?: never;
@@ -838,6 +1396,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/client-reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Report Facts Route
+         * @description What a client's online-form report prints (CRP-3): its text, stations and pictures. The
+         *     event that announces a submission carries none of it (W18-10).
+         */
+        get: operations["client_report_facts_route_internal_client_reports__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/labels": {
         parameters: {
             query?: never;
@@ -860,6 +1439,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/requests/{request_id}/closeout-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Request Closeout Facts
+         * @description What the close-out report prints (RPT-8): the request, its timeline, visits and the
+         *     reports in force, the comments clients may read, and the client's decision with the drawn
+         *     signature, which no event carries (W18-3).
+         */
+        get: operations["request_closeout_facts_internal_requests__request_id__closeout_facts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/snapshot/{entity}": {
         parameters: {
             query?: never;
@@ -870,11 +1471,74 @@ export interface paths {
         /**
          * Snapshot
          * @description Current state for read-model backfill (TRD §8.6), shaped like the events' data.
-         *     Visits join in Phase 4.
+         *     Visits are in `site_visits`.
          */
         get: operations["snapshot_internal_snapshot__entity__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/visits/{visit_id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Lock Visit
+         * @description Lock an ended visit's boards for one version of its report (VIS-12; TRD 11.2 step 4.2).
+         *     The same pair again changes nothing; another report version on a locked visit is 409.
+         */
+        post: operations["lock_visit_internal_visits__visit_id__lock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/visits/{visit_id}/report-facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Visit Report Facts
+         * @description The visit, its request, its stations and their boards, for the report service's draft
+         *     (TRD 11.2, W16-2). Staff-side facts: the report service decides who may read a report.
+         */
+        get: operations["visit_report_facts_internal_visits__visit_id__report_facts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/visits/{visit_id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock Visit
+         * @description Unlock the visit if this report version holds the lock (a failed finalize, or a reopen).
+         *     Anything else changes nothing and the answer says whether the visit is still locked.
+         */
+        post: operations["unlock_visit_internal_visits__visit_id__unlock_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -886,6 +1550,58 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AcceptIn
+         * @description REQ-13, W18-2/3. The client signs the work off. `reviewing` is the request's
+         *     `review_started_at` as the page read it (not the milestone, which keeps the first). `image`
+         *     is the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted), also for "use my
+         *     typed name".
+         */
+        AcceptIn: {
+            /**
+             * Attestation Accepted
+             * @constant
+             */
+            attestation_accepted: true;
+            /** Comment */
+            comment?: string | null;
+            /** Image */
+            image: string;
+            /**
+             * Reviewing
+             * Format: date-time
+             */
+            reviewing: string;
+            /** Typed Name */
+            typed_name: string;
+        };
+        /** AnswerOut */
+        AnswerOut: {
+            /** Code */
+            code?: string | null;
+            /** Current */
+            current?: {
+                [key: string]: unknown;
+            } | null;
+            /** Message */
+            message?: string | null;
+            /** Op Id */
+            op_id: string;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "applied" | "duplicate" | "conflict" | "error" | "skipped";
+        };
+        /**
          * AssignIn
          * @description REQ-7. The people the request is put with; `version` guards a change of staff on a request
          *     that is already Assigned against a second admin doing the same.
@@ -895,6 +1611,14 @@ export interface components {
             staff_ids: string[];
             /** Version */
             version?: number | null;
+        };
+        /**
+         * AtIn
+         * @description The time something happened, as the device saw it. The server's now when absent.
+         */
+        AtIn: {
+            /** At */
+            at?: string | null;
         };
         /** AttachableOut */
         AttachableOut: {
@@ -910,6 +1634,33 @@ export interface components {
             /** Size Bytes */
             size_bytes: number;
         };
+        /** BoardCover */
+        BoardCover: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "image" | "video";
+            /** Media Id */
+            media_id: string;
+        };
+        /**
+         * BoardSummaryOut
+         * @description A station's board at a glance (the visit page, the End dialog's warning).
+         */
+        BoardSummaryOut: {
+            /** Config */
+            config: number;
+            cover: components["schemas"]["BoardCover"] | null;
+            /** Incomplete Tasks */
+            incomplete_tasks: number;
+            /** Note */
+            note: number;
+            /** Recommendation */
+            recommendation: number;
+            /** Task */
+            task: number;
+        };
         /** Body_import_stations_api_v1_stations_import_post */
         Body_import_stations_api_v1_stations_import_post: {
             /**
@@ -922,6 +1673,50 @@ export interface components {
              * @description XLSX workbook, stations CSV, or the existing system's site export (JSON)
              */
             stations: string;
+        };
+        /**
+         * BundleFile
+         * @description A file the phone can store as a blob. The phone asks for a ten-minute link when it
+         *     downloads (`media_id` for a configuration file, `document_id` for a document) and never keeps
+         *     the link (TRD §7.1). `required` files (the latest configuration version's) must be stored
+         *     before the visit counts as ready.
+         */
+        BundleFile: {
+            /** Document Id */
+            document_id: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "config" | "document";
+            /** Media Id */
+            media_id: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Sha256 */
+            sha256: string | null;
+            /** Size */
+            size: number;
+            /** Station Id */
+            station_id: string;
+        };
+        /**
+         * BundleStation
+         * @description One station of the visit: its record with the sensors installed, the calibration history,
+         *     the latest configuration version, its documents and the visit's board for it.
+         */
+        BundleStation: {
+            /** Board */
+            board: components["schemas"]["ElementOut"][];
+            /** Calibrations */
+            calibrations: components["schemas"]["CalibrationOut"][];
+            /** Can Add */
+            can_add: boolean;
+            config_version: components["schemas"]["ConfigVersionOut"] | null;
+            documents: components["schemas"]["StationDocuments"];
+            station: components["schemas"]["StationDetail"];
         };
         /**
          * CalibrationIn
@@ -1009,6 +1804,113 @@ export interface components {
         CancelIn: {
             /** Reason */
             reason?: string | null;
+        };
+        /**
+         * ClientReportIn
+         * @description CRP-1. `id` is made on the device: sending it again returns the draft already made. The
+         *     stations default to all of the request's.
+         */
+        ClientReportIn: {
+            /** Id */
+            id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "form";
+            /** Report Date */
+            report_date?: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Station Ids */
+            station_ids?: string[];
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
+        /** ClientReportOut */
+        ClientReportOut: {
+            /** Can Edit */
+            can_edit: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            file: components["schemas"]["AttachmentOut"] | null;
+            form: components["schemas"]["FormOut"];
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "form";
+            /** Render */
+            render: string;
+            /**
+             * Report Date
+             * Format: date
+             */
+            report_date: string;
+            /** Report Id */
+            report_id: string | null;
+            /** Request Id */
+            request_id: string;
+            /** Request Ref */
+            request_ref: string;
+            /** Station Ids */
+            station_ids: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "submitted";
+            /** Submitted At */
+            submitted_at: string | null;
+            submitted_by: components["schemas"]["PersonRef"] | null;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** ClientReportPage */
+        ClientReportPage: {
+            /** Items */
+            items: components["schemas"]["ClientReportOut"][];
+        };
+        /**
+         * ClientReportPatch
+         * @description CRP-2. Only what is sent changes; `version` is the one the page was looking at. A PDF
+         *     report takes `media_id`; a form report takes the text fields and `image_ids` (pictures
+         *     uploaded for `client_report:<id>`). Sending `media_id: null` takes the PDF off the draft.
+         */
+        ClientReportPatch: {
+            /** Data Quality Notes */
+            data_quality_notes?: string | null;
+            /** Image Ids */
+            image_ids?: string[] | null;
+            /** Media Id */
+            media_id?: string | null;
+            /** Observations */
+            observations?: components["schemas"]["Observation"][] | null;
+            /** Report Date */
+            report_date?: string | null;
+            /** Station Ids */
+            station_ids?: string[] | null;
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Version */
+            version: number;
         };
         /**
          * CommentIn
@@ -1147,6 +2049,13 @@ export interface components {
             version: number;
             /** Visit Id */
             visit_id: string | null;
+        };
+        /** ConfigVersionRef */
+        ConfigVersionRef: {
+            /** Id */
+            id: string;
+            /** Version */
+            version: number;
         };
         /** DenyIn */
         DenyIn: {
@@ -1317,6 +2226,227 @@ export interface components {
             /** Unit Id */
             unit_id: string;
         };
+        /**
+         * ElementIn
+         * @description A new element. `id` is made on the device (rule 9): the same `id` and content again
+         *     returns the element that was made.
+         */
+        ElementIn: {
+            /** Description */
+            description?: string | null;
+            /** Device Id */
+            device_id?: string | null;
+            /** Id */
+            id: string;
+            /** Items */
+            items?: components["schemas"]["ItemBody"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "task" | "recommendation" | "config";
+            /** Priority */
+            priority?: ("low" | "medium" | "high") | null;
+            /** Shared */
+            shared?: boolean | null;
+            /** Title */
+            title: string;
+        };
+        /** ElementList */
+        ElementList: {
+            /** Can Add */
+            can_add: boolean;
+            /** Items */
+            items: components["schemas"]["ElementOut"][];
+        };
+        /**
+         * ElementMediaIn
+         * @description Put an uploaded file on a section of the element. `media_id` is the upload's own id, so a
+         *     retry attaches nothing twice.
+         */
+        ElementMediaIn: {
+            /** Caption */
+            caption?: string | null;
+            /** Captured At */
+            captured_at?: string | null;
+            /** Media Id */
+            media_id: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "main" | "before" | "after";
+        };
+        /**
+         * ElementMediaOut
+         * @description A file on the element. Its thumbnail, link and processing state come from the media
+         *     service by `media_id`, so nothing here expires.
+         */
+        ElementMediaOut: {
+            /**
+             * Added At
+             * Format: date-time
+             */
+            added_at: string;
+            added_by: components["schemas"]["PersonOut"];
+            /** Caption */
+            caption: string | null;
+            /** Captured At */
+            captured_at: string | null;
+            /** Filename */
+            filename: string;
+            /** Hidden */
+            hidden: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "image" | "video" | "config";
+            /** Media Id */
+            media_id: string;
+            /** Size Bytes */
+            size_bytes: number | null;
+        };
+        /**
+         * ElementMediaPatch
+         * @description Any of these. `caption: null` clears it; `hidden: true` keeps the file from the client.
+         */
+        ElementMediaPatch: {
+            /** Caption */
+            caption?: string | null;
+            /** Hidden */
+            hidden?: boolean | null;
+        };
+        /** ElementOut */
+        ElementOut: {
+            /** Can Edit */
+            can_edit: boolean;
+            /** Complete */
+            complete: boolean | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Config Version Ids */
+            config_version_ids: string[];
+            /** Config Versions */
+            config_versions: components["schemas"]["ConfigVersionRef"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            created_by: components["schemas"]["PersonOut"];
+            /** Description */
+            description: string | null;
+            /** Id */
+            id: string;
+            /** Items */
+            items: components["schemas"]["ItemOut"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "task" | "recommendation" | "config";
+            /** Media */
+            media: {
+                [key: string]: components["schemas"]["ElementMediaOut"][];
+            };
+            /** Priority */
+            priority: ("low" | "medium" | "high") | null;
+            request_ref: components["schemas"]["RequestRefOut"] | null;
+            /** Shared */
+            shared: boolean;
+            /** Station Id */
+            station_id: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Version Due */
+            version_due: boolean;
+            /** Visit Id */
+            visit_id: string;
+        };
+        /**
+         * ElementPut
+         * @description The whole editable content, with the version the editor was looking at (W11-26).
+         */
+        ElementPut: {
+            /** Base Version */
+            base_version: number;
+            /** Description */
+            description?: string | null;
+            /** Device Id */
+            device_id?: string | null;
+            /** Items */
+            items?: components["schemas"]["ItemBody"][];
+            /** Priority */
+            priority?: ("low" | "medium" | "high") | null;
+            /** Shared */
+            shared: boolean;
+            /** Title */
+            title: string;
+        };
+        /**
+         * ElementRequestIn
+         * @description Make a request from a recommendation (W11-23, W11-38). `id` is the request's, made on the
+         *     device: sending it again returns the element with the request already made.
+         */
+        ElementRequestIn: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "fault" | "communications" | "power" | "calibration" | "relocation" | "inspection" | "other";
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** EndIn */
+        EndIn: {
+            /** Additional Visit Required */
+            additional_visit_required: boolean;
+            /** At */
+            at?: string | null;
+            /** Follow Up Notes */
+            follow_up_notes?: string | null;
+        };
+        /** FieldBundle */
+        FieldBundle: {
+            /** Bundle Version */
+            bundle_version: number;
+            /** Files */
+            files: components["schemas"]["BundleFile"][];
+            /**
+             * Prepared At
+             * Format: date-time
+             */
+            prepared_at: string;
+            request: components["schemas"]["RequestDetail"];
+            /** Stations */
+            stations: components["schemas"]["BundleStation"][];
+            visit: components["schemas"]["VisitOut"];
+        };
+        /** FormOut */
+        FormOut: {
+            /** Data Quality Notes */
+            data_quality_notes: string;
+            /** Images */
+            images: components["schemas"]["AttachmentOut"][];
+            /** Observations */
+            observations: {
+                [key: string]: string;
+            }[];
+            /** Summary */
+            summary: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1427,14 +2557,37 @@ export interface components {
             /** Last Calibration Result */
             last_calibration_result: string | null;
             model: components["schemas"]["ModelSummary"];
-            /** Needs Review */
-            needs_review: boolean;
             /** Parameter */
             parameter: string | null;
             /** Serial */
             serial: string;
             /** Unit Id */
             unit_id: string;
+        };
+        /** ItemBody */
+        ItemBody: {
+            /**
+             * Done
+             * @default false
+             */
+            done: boolean;
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+        };
+        /** ItemOut */
+        ItemOut: {
+            /** Done */
+            done: boolean;
+            /** Done At */
+            done_at: string | null;
+            /** Done By */
+            done_by: string | null;
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
         };
         /** LabelOut */
         LabelOut: {
@@ -1455,6 +2608,22 @@ export interface components {
         LabelsIn: {
             /** Station Ids */
             station_ids: string[];
+        };
+        /** LockIn */
+        LockIn: {
+            /** Report Id */
+            report_id: string;
+            /** Report Version */
+            report_version: number;
+        };
+        /** LockOut */
+        LockOut: {
+            /** Locked */
+            locked: boolean;
+            /** Visit Id */
+            visit_id: string;
+            /** Visit Version */
+            visit_version: number;
         };
         /** Logger */
         Logger: {
@@ -1502,8 +2671,37 @@ export interface components {
             /** Model */
             model: string;
         };
+        /** Observation */
+        Observation: {
+            /** Station Id */
+            station_id: string;
+            /** Text */
+            text: string;
+        };
+        /** OpIn */
+        OpIn: {
+            /** Op Id */
+            op_id: string;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+            /** Type */
+            type: string;
+            /** V */
+            v: number;
+            /** Visit Id */
+            visit_id: string;
+        };
         /** OrgOption */
         OrgOption: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** PersonOut */
+        PersonOut: {
             /** Id */
             id: string;
             /** Name */
@@ -1534,6 +2732,18 @@ export interface components {
             controller?: string | null;
             /** Panel W */
             panel_w?: number | null;
+        };
+        /**
+         * PreparedOn
+         * @description A phone this visit is prepared on (W13-9): who, and when. Staff only.
+         */
+        PreparedOn: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            user: components["schemas"]["VisitPersonOut"];
         };
         /**
          * QrResolved
@@ -1618,6 +2828,19 @@ export interface components {
             /** Serial */
             serial?: string | null;
         };
+        /**
+         * RejectIn
+         * @description REQ-13. The client sends the work back, with a reason the staff are told.
+         */
+        RejectIn: {
+            /** Reason */
+            reason: string;
+            /**
+             * Reviewing
+             * Format: date-time
+             */
+            reviewing: string;
+        };
         /** RemoveIn */
         RemoveIn: {
             /** At */
@@ -1636,11 +2859,15 @@ export interface components {
         /** RequestDetail */
         RequestDetail: {
             /** Actions */
-            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit")[];
+            actions: ("approve" | "deny" | "assign" | "claim" | "release" | "cancel" | "edit" | "schedule_visit" | "accept" | "reject")[];
             /** Assigned Staff */
             assigned_staff: components["schemas"]["PersonRef"][];
             /** Attachments */
             attachments: components["schemas"]["AttachmentOut"][];
+            /** Attestation */
+            attestation?: string | null;
+            /** Auto Close At */
+            auto_close_at: string | null;
             /** Cancel Reason */
             cancel_reason: string | null;
             /** Category */
@@ -1668,6 +2895,8 @@ export interface components {
             /** Ref */
             ref: string;
             requested_by: components["schemas"]["PersonRef"] | null;
+            /** Review Started At */
+            review_started_at: string | null;
             /** Stations */
             stations: components["schemas"]["RequestStation"][];
             /** Status */
@@ -1681,8 +2910,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            verification: components["schemas"]["VerificationOut"] | null;
             /** Version */
             version: number;
+            /** Visits */
+            visits: components["schemas"]["VisitBrief"][];
         };
         /**
          * RequestIn
@@ -1741,6 +2973,13 @@ export interface components {
             title?: string | null;
             /** Version */
             version: number;
+        };
+        /** RequestRefOut */
+        RequestRefOut: {
+            /** Id */
+            id: string;
+            /** Ref */
+            ref: string;
         };
         /** RequestStation */
         RequestStation: {
@@ -1904,8 +3143,6 @@ export interface components {
             /** Last Calibration Result */
             last_calibration_result: string | null;
             model: components["schemas"]["ModelSummary"];
-            /** Needs Review */
-            needs_review: boolean;
             /** Notes */
             notes: string | null;
             /** Parameter */
@@ -1966,8 +3203,6 @@ export interface components {
             /** Last Calibration Result */
             last_calibration_result: string | null;
             model: components["schemas"]["ModelSummary"];
-            /** Needs Review */
-            needs_review: boolean;
             /** Notes */
             notes: string | null;
             /** Parameter */
@@ -1998,8 +3233,6 @@ export interface components {
             calibration_interval_days?: number | null;
             /** Model Id */
             model_id?: string | null;
-            /** Needs Review */
-            needs_review?: boolean | null;
             /** Notes */
             notes?: string | null;
             /** Serial */
@@ -2030,6 +3263,23 @@ export interface components {
             label: string;
             /** Value */
             value: string;
+        };
+        /** StaffList */
+        StaffList: {
+            /** Items */
+            items: components["schemas"]["StaffOut"][];
+        };
+        /**
+         * StaffOut
+         * @description Someone who may attend a visit: a name and roles, never an email or phone.
+         */
+        StaffOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Roles */
+            roles: string[];
         };
         /** StationDetail */
         StationDetail: {
@@ -2263,6 +3513,18 @@ export interface components {
             /** Type */
             type: string | null;
         };
+        /** SyncIn */
+        SyncIn: {
+            /** Device Id */
+            device_id: string;
+            /** Ops */
+            ops: components["schemas"]["OpIn"][];
+        };
+        /** SyncOut */
+        SyncOut: {
+            /** Answers */
+            answers: components["schemas"]["AnswerOut"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -2275,6 +3537,201 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VerificationOut
+         * @description The client's answer to Client Review (REQ-13). The drawn signature is not in it.
+         */
+        VerificationOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            by: components["schemas"]["PersonRef"] | null;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "accepted" | "rejected" | "auto_closed";
+            /** Typed Name */
+            typed_name: string | null;
+        };
+        /**
+         * VisitBrief
+         * @description A visit as the request page lists it.
+         */
+        VisitBrief: {
+            /** Id */
+            id: string;
+            lead: components["schemas"]["VisitPersonOut"];
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /** Ref */
+            ref: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "started" | "ended" | "cancelled";
+        };
+        /** VisitCancelIn */
+        VisitCancelIn: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * VisitIn
+         * @description Scheduling (VIS-1). `id` is made on the device and makes a retry safe (rule 9): the same
+         *     `id` again returns the visit that was made.
+         */
+        VisitIn: {
+            /** Id */
+            id?: string | null;
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /** Request Id */
+            request_id: string;
+            /** Staff Ids */
+            staff_ids: string[];
+            /** Stations */
+            stations: components["schemas"]["VisitStationIn"][];
+        };
+        /** VisitOut */
+        VisitOut: {
+            /** Actions */
+            actions: ("reschedule" | "cancel" | "start" | "end" | "change_owner" | "restore")[];
+            /** Additional Visit Required */
+            additional_visit_required: boolean | null;
+            /** Ended At */
+            ended_at: string | null;
+            /** Follow Up Notes */
+            follow_up_notes: string | null;
+            /** Id */
+            id: string;
+            lead: components["schemas"]["VisitPersonOut"];
+            /** Notes */
+            notes: string | null;
+            /** Org Id */
+            org_id: string;
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /** Prepared On */
+            prepared_on: components["schemas"]["PreparedOn"][];
+            /** Ref */
+            ref: string;
+            /** Request Id */
+            request_id: string;
+            /** Request Ref */
+            request_ref: string | null;
+            /** Request Title */
+            request_title: string | null;
+            /** Staff */
+            staff: components["schemas"]["VisitPersonOut"][];
+            /** Started At */
+            started_at: string | null;
+            /** Stations */
+            stations: components["schemas"]["VisitStationOut"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "planned" | "started" | "ended" | "cancelled";
+            /** Version */
+            version: number;
+        };
+        /** VisitPage */
+        VisitPage: {
+            /** Items */
+            items: components["schemas"]["VisitOut"][];
+            /** Next After */
+            next_after: string | null;
+            /** Total */
+            total: number;
+        };
+        /**
+         * VisitPatch
+         * @description A planned visit: any of these. A started visit: only `stations[].owner_staff_id`. What is
+         *     left out stays as it is; `notes: null` clears the notes.
+         */
+        VisitPatch: {
+            /** Lead Staff Id */
+            lead_staff_id?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Planned End */
+            planned_end?: string | null;
+            /** Planned Start */
+            planned_start?: string | null;
+            /** Staff Ids */
+            staff_ids?: string[] | null;
+            /** Stations */
+            stations?: components["schemas"]["VisitStationIn"][] | null;
+            /** Version */
+            version?: number | null;
+        };
+        /** VisitPersonOut */
+        VisitPersonOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** VisitStationIn */
+        VisitStationIn: {
+            /** Owner Staff Id */
+            owner_staff_id?: string | null;
+            /** Station Id */
+            station_id: string;
+        };
+        /** VisitStationOut */
+        VisitStationOut: {
+            /** Actions */
+            actions: ("arrive" | "depart")[];
+            /** Arrived At */
+            arrived_at: string | null;
+            board: components["schemas"]["BoardSummaryOut"];
+            /** Departed At */
+            departed_at: string | null;
+            owner: components["schemas"]["VisitPersonOut"];
+            /** Station Code */
+            station_code: string | null;
+            /** Station Id */
+            station_id: string;
+            /** Station Name */
+            station_name: string | null;
+            /** Time Zone */
+            time_zone: string | null;
         };
         /**
          * Workload
@@ -2384,6 +3841,232 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DueList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_client_reports_api_v1_client_reports_get: {
+        parameters: {
+            query?: {
+                request_id?: string | null;
+                station_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_client_report_api_v1_client_reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_client_report_api_v1_client_reports__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_client_report_api_v1_client_reports__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientReportPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_client_report_file_api_v1_client_reports__id__attachments__media_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_client_report_api_v1_client_reports__id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_client_report_api_v1_client_reports__id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientReportOut"];
                 };
             };
             /** @description Validation Error */
@@ -2794,6 +4477,41 @@ export interface operations {
             };
         };
     };
+    accept_request_api_v1_requests__id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     approve_request_api_v1_requests__id__approve_post: {
         parameters: {
             query?: never;
@@ -3128,6 +4846,41 @@ export interface operations {
             };
         };
     };
+    reject_request_api_v1_requests__id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     release_request_api_v1_requests__id__release_post: {
         parameters: {
             query?: never;
@@ -3297,7 +5050,6 @@ export interface operations {
                 status?: ("in_stock" | "installed" | "in_repair" | "retired") | null;
                 model_id?: string | null;
                 station_id?: string | null;
-                needs_review?: boolean | null;
                 q?: string | null;
                 after?: string | null;
                 limit?: number;
@@ -3934,6 +5686,806 @@ export interface operations {
             };
         };
     };
+    sync_api_v1_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_visits_api_v1_visits_get: {
+        parameters: {
+            query?: {
+                request_id?: string | null;
+                staff_id?: string | null;
+                status?: string[] | null;
+                from?: string | null;
+                to?: string | null;
+                after?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    schedule_visit_api_v1_visits_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_visits_api_v1_visits_mine_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitPage"];
+                };
+            };
+        };
+    };
+    attending_staff_api_v1_visits_staff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffList"];
+                };
+            };
+        };
+    };
+    get_visit_api_v1_visits__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_visit_api_v1_visits__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisitPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_visit_api_v1_visits__id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VisitCancelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_visit_api_v1_visits__id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    field_bundle_api_v1_visits__id__field_bundle_get: {
+        parameters: {
+            query: {
+                device_id: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldBundle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_visit_api_v1_visits__id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_visit_api_v1_visits__id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    arrive_api_v1_visits__id__stations__station_id__arrive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    depart_api_v1_visits__id__stations__station_id__depart_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AtIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_elements_api_v1_visits__id__stations__station_id__elements_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_element_api_v1_visits__id__stations__station_id__elements_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_element_api_v1_visits__id__stations__station_id__elements__element_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_element_api_v1_visits__id__stations__station_id__elements__element_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_element_api_v1_visits__id__stations__station_id__elements__element_id__delete: {
+        parameters: {
+            query: {
+                base_version: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_config_version_api_v1_visits__id__stations__station_id__elements__element_id__config_version_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementMediaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementMediaPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_from_recommendation_api_v1_visits__id__stations__station_id__elements__element_id__request_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                station_id: string;
+                element_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElementRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     attachable_internal_attachable_get: {
         parameters: {
             query: {
@@ -4000,6 +6552,39 @@ export interface operations {
             };
         };
     };
+    client_report_facts_route_internal_client_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     labels_internal_labels_post: {
         parameters: {
             query?: never;
@@ -4020,6 +6605,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LabelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_closeout_facts_internal_requests__request_id__closeout_facts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -4054,6 +6672,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SnapshotPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lock_visit_internal_visits__visit_id__lock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                visit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LockIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    visit_report_facts_internal_visits__visit_id__report_facts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                visit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlock_visit_internal_visits__visit_id__unlock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                visit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LockIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LockOut"];
                 };
             };
             /** @description Validation Error */

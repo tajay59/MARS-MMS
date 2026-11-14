@@ -7,11 +7,11 @@ account emails (W4, NOT-3); WebSocket and in-app notifications follow in Phase 3
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from mms_common import logging as mms_logging
 from mms_common import migrations, mongo
 from mms_common.auth import Authenticator, install_auth
@@ -26,11 +26,12 @@ from mms_common.web import ReadyCheck, install
 from redis.asyncio import Redis
 
 from app import migrations as app_migrations
+from app.api import audit as audit_routes
 from app.api import notifications as notification_routes
 from app.api import ws
 from app.config import Settings
 from app.events import audit_consumer, notification_consumer
-from app.jobs import account_emails, calibration_digest, user_backfill
+from app.jobs import account_emails, audit_check, calibration_digest, user_backfill
 from app.migrations import audit as audit_migrations
 
 
@@ -131,6 +132,17 @@ def create_app(
                         stop,
                     )
                 ),
+                # Takes queued integrity checks of the audit chain (AUD-5) and queues tonight's
+                asyncio.create_task(
+                    run_periodic(
+                        redis, settings.service_name, "audit_check", 10,
+                        audit_check.make_tick(
+                            db=db, audit_client=audit_client, audit_db=audit_db, clock=clock,
+                            tz=settings.digest_tz, hour=settings.audit_check_hour,
+                        ),
+                        stop, first_delay_s=15.0,
+                    )
+                ),
             ]
         try:
             yield
@@ -152,10 +164,22 @@ def create_app(
     app.state.settings = settings
     app.state.clock = clock
     install(app, ready_checks)
+
+    @app.middleware("http")
+    async def no_store(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        """API responses never sit in a browser, proxy or service-worker cache (§13.3; ASVS 8.2.1).
+        Notifications, preferences and the audit log are personal."""
+        response = await call_next(request)
+        if request.url.path.startswith(("/api/", "/internal/")):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     app.include_router(notification_routes.router)
     app.include_router(ws.router)
-    # Routers come with their phases: audit search, export and verify (AUD-4 to AUD-6) and
-    # the email preferences. Every route goes in tests/api/test_authorization_matrix.py.
+    app.include_router(audit_routes.router)
+    # Every route goes in tests/api/test_authorization_matrix.py.
     return app
 
 

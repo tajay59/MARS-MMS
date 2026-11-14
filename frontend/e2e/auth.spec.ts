@@ -31,7 +31,7 @@ test('J1: a client registers, an admin approves, the client logs in @J1 @AUTH-1 
   await page.getByLabel('Your organization').fill('Organization A')
   await page.getByLabel('Password', { exact: true }).fill('too short')
   await page.getByRole('button', { name: 'Register' }).click()
-  await expect(page.getByText('Use at least 10 characters')).toBeVisible()
+  await expect(page.getByText('Use at least 12 characters')).toBeVisible()
 
   await page.getByLabel('Password', { exact: true }).fill(client.password)
   await submitPaced(page, 'Register')
@@ -55,7 +55,7 @@ test('J1: a client registers, an admin approves, the client logs in @J1 @AUTH-1 
   await admin.getByLabel('Password', { exact: true }).fill(seedPassword())
   await submitPaced(admin, 'Log in')
   await expect(admin).toHaveURL(/\/dashboard$/)
-  await admin.getByRole('link', { name: /Registrations pending/ }).click()
+  await admin.getByRole('link', { name: /^Review them/ }).click()
   await expect(admin).toHaveURL(/\/admin\/registrations$/)
   await checkA11y(admin, '/admin/registrations')
   await admin.getByRole('button', { name: client.name, exact: true }).click()

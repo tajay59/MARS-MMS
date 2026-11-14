@@ -1,0 +1,73 @@
+# The weekly restore drill (W20-8, W20-9, NFR-9): the same job as `backup and restore` in
+# backend.yml, run on main every Monday, so a change that breaks a restore is found within a week
+# even when nobody touched the backup code. Run it by hand from the Actions tab at any time.
+name: restore drill
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    name: restore drill
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: pip install httpx pymongo redis boto3 pytest pyyaml
+
+      - name: Start the stack with the backup host
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: |
+          cp .env.example .env
+          mkdir -p ../frontend/dist
+          docker compose up -d --build
+          # In the `backup` profile, so `up` does not build it
+          docker compose build backup
+          for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
+            cid="$(docker compose ps -aq "$svc")"
+            for _ in $(seq 1 120); do
+              [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
+              sleep 2
+            done
+            code="$(docker inspect -f '{{.State.ExitCode}}' "$cid")"
+            echo "$svc exited with $code"
+            [ "$code" = 0 ]
+          done
+          for svc in auth operations media report platform; do
+            for _ in $(seq 1 60); do
+              cid="$(docker compose ps -q "$svc")"
+              [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ]
+          done
+
+      - name: Backup, retention and restore tests
+        working-directory: infra
+        run: pytest tests/test_retention.py tests/test_backup.py tests/test_restore.py -q -rs -s -W ignore::urllib3.exceptions.InsecureRequestWarning
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: docker compose logs --no-color --tail 100
+
+      - name: Stop the stack
+        if: always()
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: docker compose down -v

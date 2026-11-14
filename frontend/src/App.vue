@@ -29,6 +29,7 @@
   import FieldShell from '@/app/shells/FieldShell.vue'
   import PublicShell from '@/app/shells/PublicShell.vue'
   import UpdatePrompt from '@/components/UpdatePrompt.vue'
+  import { startSyncTriggers } from '@/features/visits/local/syncApp'
   import { useBrandingStore } from '@/stores/branding'
   import { useSessionStore } from '@/stores/session'
   import { useThemeStore } from '@/stores/theme'
@@ -37,6 +38,7 @@
   useThemeStore().init(vuetifyTheme)
   useBrandingStore().init(vuetifyTheme)
   usePwa()
+  startSyncTriggers()
 
   const session = useSessionStore()
   const route = useRoute()

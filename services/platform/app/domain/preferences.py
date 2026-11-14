@@ -48,6 +48,46 @@ CATALOGUE: tuple[PrefType, ...] = (
         frozenset({"client", "technician", "admin"}), frozenset({"client"}),
     ),
     PrefType(
+        "visit.scheduled", "Visits", "A visit is planned or its dates change",
+        "For a request you made or a visit you attend.",
+        frozenset({"client", "technician", "admin"}), frozenset({"client", "technician", "admin"}),
+    ),
+    PrefType(
+        "visit.cancelled", "Visits", "A visit is cancelled",
+        "For a request you made or a visit you attend.",
+        frozenset({"client", "technician", "admin"}), frozenset({"client", "technician", "admin"}),
+    ),
+    PrefType(
+        "report.finalized", "Reports", "A visit report is final",
+        "For a request you made: the report is ready to read.",
+        frozenset({"client"}), frozenset({"client"}),
+    ),
+    PrefType(
+        "report.reopened", "Reports", "A final report is reopened for correction",
+        "For a request you made, once you have been asked to review it.",
+        frozenset({"client"}), frozenset({"client"}),
+    ),
+    PrefType(
+        "report.finalize_reminder", "Reports", "A report is not finalized yet",
+        "After 2 and 5 working days, for a visit you attend.",
+        STAFF, STAFF,
+    ),
+    PrefType(
+        "request.client_review", "Review", "Work is ready for your review",
+        "For a request you made, and reminders while nobody at your organization has answered.",
+        frozenset({"client"}), frozenset({"client"}),
+    ),
+    PrefType(
+        "request.reopened", "Review", "A client sends work back",
+        "For a request you are on, with the client's reason.",
+        STAFF, STAFF,
+    ),
+    PrefType(
+        "report.closeout", "Review", "A corrected close-out report is ready",
+        "When a report is corrected after a request closed. The first one is in the app only.",
+        frozenset({"client"}), frozenset({"client"}),
+    ),
+    PrefType(
         "calibration.digest", "Calibration", "Weekly digest of calibrations due",
         "Mondays at 07:00. Overdue and due within 30 days.",
         frozenset({"admin"}), frozenset({"admin"}),

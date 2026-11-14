@@ -1,5 +1,21 @@
 <template>
-  <AuthCard title="Log in">
+  <LoginCodeStep
+    v-if="step === 'code'"
+    :challenge="challenge"
+    :email="email"
+    @done="signedIn"
+    @restart="restart"
+  />
+
+  <LoginEnrolStep
+    v-else-if="step === 'enrol'"
+    :challenge="challenge"
+    :email="email"
+    @done="signedIn"
+    @restart="restart"
+  />
+
+  <AuthCard v-else title="Log in">
     <FeedbackBanner v-if="banner" :type="banner.type">{{ banner.text }}</FeedbackBanner>
 
     <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
@@ -58,6 +74,8 @@
   import PasswordField from '@/components/PasswordField.vue'
   import { useSessionStore } from '@/stores/session'
   import AuthCard from './AuthCard.vue'
+  import LoginCodeStep from './twoStep/LoginCodeStep.vue'
+  import LoginEnrolStep from './twoStep/LoginEnrolStep.vue'
 
   type Banner = { type: 'success' | 'info' | 'warning' | 'error', text: string }
 
@@ -70,6 +88,10 @@
   const password = ref('')
   const busy = ref(false)
   const failure = ref<Banner | null>(null)
+  // The steps of logging in: the password, then (W22) a code or the setup of one. The challenge
+  // from the password step is held in memory only.
+  const step = ref<'password' | 'code' | 'enrol'>('password')
+  const challenge = ref('')
 
   // Why the user is here: a notice from the previous page or why the session ended.
   const arrival = computed<Banner | null>(() => {
@@ -102,8 +124,14 @@
     busy.value = true
     failure.value = null
     try {
-      await session.login(email.value.trim(), password.value)
-      await router.replace(safeNext(route.query.next) ?? { name: 'dashboard' })
+      const result = await session.login(email.value.trim(), password.value)
+      if (result.kind === 'challenge') {
+        challenge.value = result.challenge
+        step.value = result.enrol ? 'enrol' : 'code'
+        password.value = ''
+        return
+      }
+      await signedIn()
     } catch (error) {
       password.value = ''
       failure.value = explain(error)
@@ -113,6 +141,18 @@
     } finally {
       busy.value = false
     }
+  }
+
+  async function signedIn (): Promise<void> {
+    await router.replace(safeNext(route.query.next) ?? { name: 'dashboard' })
+  }
+
+  /** The code step could not finish (it timed out): back to the password. */
+  function restart (notice?: Banner): void {
+    step.value = 'password'
+    challenge.value = ''
+    password.value = ''
+    failure.value = notice ?? null
   }
 
   function explain (error: unknown): Banner {
@@ -125,6 +165,9 @@
       }
       if (error.code === 'account_blocked') {
         return { type: 'error', text: 'This account cannot sign in. Contact the service desk.' }
+      }
+      if (error.reason === 'update_required') {
+        return { type: 'warning', text: 'This version of the app can’t ask for your code. Reload it, then log in.' }
       }
       if (error.status === 401) {
         return { type: 'error', text: 'Email or password is incorrect.' }

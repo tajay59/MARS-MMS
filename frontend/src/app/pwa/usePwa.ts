@@ -1,6 +1,7 @@
 import { useRegisterSW } from 'virtual:pwa-register/vue'
 import { watch } from 'vue'
 import { useUpdateStore } from '@/stores/update'
+import { captureInstallPrompt } from './install'
 
 const HOUR = 60 * 60 * 1000
 const SW_URL = `${import.meta.env.BASE_URL}sw.js`
@@ -29,10 +30,13 @@ export async function ensureWorker (): Promise<void> {
   shows the update prompt, and nothing reloads until the user says so.
 */
 export function usePwa (): void {
-  if (!('serviceWorker' in navigator)) {
+  // The kill-switch build (`npm run build:kill`, W15-3) ships a worker that unregisters itself: an
+  // app that registered it again on every start would be reloaded by it for ever
+  if (import.meta.env.MODE === 'kill' || !('serviceWorker' in navigator)) {
     return
   }
   const updates = useUpdateStore()
+  captureInstallPrompt()
 
   window.addEventListener('online', () => void ensureWorker())
   document.addEventListener('visibilitychange', () => {
@@ -71,7 +75,14 @@ export function usePwa (): void {
 
   watch(needRefresh, waiting => {
     if (waiting) {
-      updates.waiting(() => updateServiceWorker(true))
+      updates.waiting(async () => {
+        // vite-plugin-pwa reloads only for updates workbox-window found itself (`isUpdate`). A release
+        // our own check finds while the app is open (registration.update() above) counts as
+        // "external" there, so the new worker would take control and the page would stay on the old
+        // code (finding F19). Reload when the worker changes, whichever way it was found.
+        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true })
+        await updateServiceWorker(true)
+      })
     }
   }, { immediate: true })
 }

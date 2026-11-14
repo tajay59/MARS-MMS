@@ -60,3 +60,37 @@ async def fail(db: Db, job_id: str, code: str, now: datetime) -> None:
         {"$set": {"status": JobStatus.FAILED.value, "error": code, "finished_at": now,
                   "updated_at": now}},
     )
+
+
+async def recent_for(
+    db: Db, user_id: str, job_type: str, since: datetime, limit: int = 50
+) -> list[dict[str, Any]]:
+    """A person's own jobs of one type, newest first (the Reports page's list)."""
+    found = col(db).find(
+        {"requested_by": user_id, "type": job_type, "created_at": {"$gte": since}}
+    ).sort("created_at", -1).limit(limit)
+    return [d async for d in found]
+
+
+async def same_request(
+    db: Db, user_id: str, job_type: str, params_key: str, since: datetime
+) -> dict[str, Any] | None:
+    """The job this person asked for a moment ago with the same parameters, if it did not fail:
+    asking twice (a double click, a retry after a lost answer) makes one."""
+    doc: dict[str, Any] | None = await col(db).find_one(
+        {"requested_by": user_id, "type": job_type, "params_key": params_key,
+         "created_at": {"$gte": since}, "status": {"$ne": JobStatus.FAILED.value}},
+        sort=[("created_at", -1)],
+    )
+    return doc
+
+
+async def older_than(
+    db: Db, job_type: str, before: datetime, limit: int = 200
+) -> list[dict[str, Any]]:
+    found = col(db).find({"type": job_type, "created_at": {"$lt": before}}).limit(limit)
+    return [d async for d in found]
+
+
+async def delete(db: Db, job_id: str) -> None:
+    await col(db).delete_one({"_id": job_id})

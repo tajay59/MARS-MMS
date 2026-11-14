@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, Response
 from mms_common import logging as mms_logging
-from mms_common import migrations, mongo
+from mms_common import metrics, migrations, mongo
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.tokens import KeySource
@@ -34,7 +34,7 @@ from app.config import Settings
 from app.events import visibility_consumer
 from app.jobs import cron
 from app.repo.owners import OwnerClient
-from app.repo.scanner import Scanner
+from app.repo.scanner import ClamdScanner, Scanner
 from app.repo.storage import Storage
 from app.services import (
     QUEUE,
@@ -47,6 +47,7 @@ from app.services import (
 )
 
 ABORT_STALE_EVERY_S = 24 * 3600
+PURGE_EVERY_S = 24 * 3600
 RECONCILE_EVERY_S = 5 * 60
 
 
@@ -122,6 +123,10 @@ def create_app(
             async def reconcile() -> None:
                 await cron.reconcile(svc)
 
+            async def purge() -> None:
+                await cron.purge_originals(svc)
+                await cron.purge_deleted(svc)
+
             tasks += [
                 asyncio.create_task(relay),
                 asyncio.create_task(
@@ -137,7 +142,22 @@ def create_app(
                 asyncio.create_task(run_periodic(
                     redis, settings.service_name, "reconcile", RECONCILE_EVERY_S, reconcile, stop,
                 )),
+                asyncio.create_task(run_periodic(
+                    redis, settings.service_name, "purge_originals", PURGE_EVERY_S, purge, stop,
+                )),
             ]
+            if isinstance(svc.scanner, ClamdScanner):
+                clamd = svc.scanner
+
+                async def signature_age() -> None:
+                    built = await clamd.signatures_built()
+                    if built is not None:
+                        age = metrics.age_seconds(built, clock.now())
+                        metrics.CLAMAV_SIGNATURE_AGE.set(age)
+
+                tasks.append(asyncio.create_task(
+                    metrics.refresh_every(300.0, signature_age, stop)
+                ))
         try:
             yield
         finally:

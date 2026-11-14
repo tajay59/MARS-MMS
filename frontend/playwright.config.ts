@@ -29,7 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      grepInvert: /@phone/,
+      grepInvert: /@phone|@webkit/,
       use: {
         ...devices['Desktop Chrome'],
         // Chromium won't register a service worker on an untrusted certificate, even with
@@ -38,5 +38,7 @@ export default defineConfig({
       },
     },
     { name: 'phone', use: { ...devices['Pixel 7'] }, grep: /@phone/ },
+    // Safari's engine (F6): only the journeys that need no service worker, for IndexedDB, Web Locks and the runner
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, grep: /@webkit/ },
   ],
 })

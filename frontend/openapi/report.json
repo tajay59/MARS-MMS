@@ -1,6 +1,341 @@
 {
   "components": {
     "schemas": {
+      "AdminDashboard": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/AdminFigures"
+          },
+          "reports_awaiting": {
+            "items": {
+              "$ref": "#/components/schemas/AwaitingReport"
+            },
+            "title": "Reports Awaiting",
+            "type": "array"
+          },
+          "requests_by_status": {
+            "items": {
+              "$ref": "#/components/schemas/StatusCount"
+            },
+            "title": "Requests By Status",
+            "type": "array"
+          },
+          "stations_by_country": {
+            "items": {
+              "$ref": "#/components/schemas/CountryRow"
+            },
+            "title": "Stations By Country",
+            "type": "array"
+          },
+          "view": {
+            "const": "admin",
+            "default": "admin",
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "figures",
+          "requests_by_status",
+          "stations_by_country",
+          "reports_awaiting"
+        ],
+        "title": "AdminDashboard",
+        "type": "object"
+      },
+      "AdminFigures": {
+        "properties": {
+          "calibrations_due_soon": {
+            "title": "Calibrations Due Soon",
+            "type": "integer"
+          },
+          "calibrations_overdue": {
+            "title": "Calibrations Overdue",
+            "type": "integer"
+          },
+          "failed_calibrations": {
+            "title": "Failed Calibrations",
+            "type": "integer"
+          },
+          "in_client_review": {
+            "title": "In Client Review",
+            "type": "integer"
+          },
+          "reports_awaiting_finalization": {
+            "title": "Reports Awaiting Finalization",
+            "type": "integer"
+          },
+          "requests_awaiting_approval": {
+            "title": "Requests Awaiting Approval",
+            "type": "integer"
+          },
+          "unassigned_queue": {
+            "title": "Unassigned Queue",
+            "type": "integer"
+          },
+          "upcoming_visits": {
+            "title": "Upcoming Visits",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requests_awaiting_approval",
+          "unassigned_queue",
+          "in_client_review",
+          "calibrations_overdue",
+          "calibrations_due_soon",
+          "failed_calibrations",
+          "reports_awaiting_finalization",
+          "upcoming_visits"
+        ],
+        "title": "AdminFigures",
+        "type": "object"
+      },
+      "AwaitingReport": {
+        "properties": {
+          "age_days": {
+            "title": "Age Days",
+            "type": "integer"
+          },
+          "lead_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Name"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "station_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Station Codes",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "number",
+          "version",
+          "visit_id",
+          "request_id",
+          "station_codes",
+          "lead_name",
+          "age_days"
+        ],
+        "title": "AwaitingReport",
+        "type": "object"
+      },
+      "ClientDashboard": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/ClientFigures"
+          },
+          "recent_reports": {
+            "items": {
+              "$ref": "#/components/schemas/RecentReport"
+            },
+            "title": "Recent Reports",
+            "type": "array"
+          },
+          "stations": {
+            "$ref": "#/components/schemas/StationStatusCounts"
+          },
+          "view": {
+            "const": "client",
+            "default": "client",
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "figures",
+          "stations",
+          "recent_reports"
+        ],
+        "title": "ClientDashboard",
+        "type": "object"
+      },
+      "ClientFigures": {
+        "properties": {
+          "awaiting_our_review": {
+            "title": "Awaiting Our Review",
+            "type": "integer"
+          },
+          "open_requests": {
+            "title": "Open Requests",
+            "type": "integer"
+          },
+          "upcoming_visits": {
+            "title": "Upcoming Visits",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open_requests",
+          "awaiting_our_review",
+          "upcoming_visits"
+        ],
+        "title": "ClientFigures",
+        "type": "object"
+      },
+      "ContentPatch": {
+        "additionalProperties": false,
+        "description": "PATCH /reports/{id}/content (W17-2). `content_version` is the one the editor read.",
+        "properties": {
+          "content_version": {
+            "minimum": 1.0,
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "media_selection": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SelectionEdit"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Selection"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NarrativeEdit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "content_version"
+        ],
+        "title": "ContentPatch",
+        "type": "object"
+      },
+      "CorrectionOut": {
+        "description": "Whether a visit's final report is being corrected: a version after the first is a draft\nor being finalized. All a client learns of a reopen (W17-10): the superseded version and\nthe new draft stay hidden from them.",
+        "properties": {
+          "correcting": {
+            "title": "Correcting",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "correcting"
+        ],
+        "title": "CorrectionOut",
+        "type": "object"
+      },
+      "CountryRow": {
+        "properties": {
+          "country": {
+            "title": "Country",
+            "type": "string"
+          },
+          "decommissioned": {
+            "title": "Decommissioned",
+            "type": "integer"
+          },
+          "degraded": {
+            "title": "Degraded",
+            "type": "integer"
+          },
+          "offline": {
+            "title": "Offline",
+            "type": "integer"
+          },
+          "operational": {
+            "title": "Operational",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "country",
+          "operational",
+          "degraded",
+          "offline",
+          "decommissioned",
+          "total"
+        ],
+        "title": "CountryRow",
+        "type": "object"
+      },
+      "DownloadOut": {
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_at",
+          "filename",
+          "current"
+        ],
+        "title": "DownloadOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -145,9 +480,27 @@
       },
       "JobType": {
         "enum": [
-          "labels"
+          "labels",
+          "summary"
         ],
         "title": "JobType",
+        "type": "string"
+      },
+      "Kind": {
+        "enum": [
+          "station_history",
+          "client_activity",
+          "request_turnaround",
+          "calibration_due",
+          "network_status",
+          "monthly_summary",
+          "annual_summary",
+          "station_asset",
+          "sensor_reliability",
+          "configuration_history",
+          "technician_workload"
+        ],
+        "title": "Kind",
         "type": "string"
       },
       "LabelsIn": {
@@ -181,6 +534,1083 @@
           "station_ids"
         ],
         "title": "LabelsIn",
+        "type": "object"
+      },
+      "NarrativeEdit": {
+        "additionalProperties": false,
+        "description": "Fields that are given replace the old text; the others stay.",
+        "properties": {
+          "follow_up": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up"
+          },
+          "recommendations": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendations"
+          },
+          "stations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/NarrativeStation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stations"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "title": "NarrativeEdit",
+        "type": "object"
+      },
+      "NarrativeStation": {
+        "additionalProperties": false,
+        "properties": {
+          "station_id": {
+            "maxLength": 64,
+            "title": "Station Id",
+            "type": "string"
+          },
+          "work_performed": {
+            "maxLength": 20000,
+            "title": "Work Performed",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "work_performed"
+        ],
+        "title": "NarrativeStation",
+        "type": "object"
+      },
+      "PdfState": {
+        "description": "Where the draft PDF stands. `current` is false when the report has changed since it was\ndrawn: a preview draws it again.",
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "rendered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendered At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "current"
+        ],
+        "title": "PdfState",
+        "type": "object"
+      },
+      "PreviewOut": {
+        "description": "`ready`: the PDF for the report as it is now exists. `rendering`: poll the report.",
+        "properties": {
+          "pdf": {
+            "$ref": "#/components/schemas/PdfState"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "pdf"
+        ],
+        "title": "PreviewOut",
+        "type": "object"
+      },
+      "RecentReport": {
+        "properties": {
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "report_id",
+          "number",
+          "type",
+          "version",
+          "request_id",
+          "finalized_at"
+        ],
+        "title": "RecentReport",
+        "type": "object"
+      },
+      "ReopenIn": {
+        "additionalProperties": false,
+        "description": "POST /reports/{id}/reopen (W17-10): why the final report is being corrected.",
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReopenIn",
+        "type": "object"
+      },
+      "ReportOut": {
+        "properties": {
+          "attestation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation"
+          },
+          "awaiting_media": {
+            "title": "Awaiting Media",
+            "type": "integer"
+          },
+          "content": {
+            "additionalProperties": true,
+            "title": "Content",
+            "type": "object"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "content_version": {
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "drafted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted At"
+          },
+          "facts_version": {
+            "title": "Facts Version",
+            "type": "integer"
+          },
+          "finalize_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalize Error"
+          },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "finalized_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lead_staff_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Staff Id"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "pdf": {
+            "$ref": "#/components/schemas/PdfState"
+          },
+          "pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Sha256"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "signatures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/SignatureOut"
+            },
+            "title": "Signatures",
+            "type": "array"
+          },
+          "staff_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Staff Ids",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject_ref": {
+            "title": "Subject Ref",
+            "type": "string"
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Id"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Id"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "subject_ref",
+          "request_id",
+          "number",
+          "version",
+          "status",
+          "pdf",
+          "awaiting_media",
+          "created_at",
+          "updated_at",
+          "content_version",
+          "facts_version",
+          "content"
+        ],
+        "title": "ReportOut",
+        "type": "object"
+      },
+      "ReportSummary": {
+        "properties": {
+          "awaiting_media": {
+            "title": "Awaiting Media",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "drafted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drafted At"
+          },
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "pdf": {
+            "$ref": "#/components/schemas/PdfState"
+          },
+          "pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Sha256"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "subject_ref": {
+            "title": "Subject Ref",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "visit_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visit Id"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "subject_ref",
+          "request_id",
+          "number",
+          "version",
+          "status",
+          "pdf",
+          "awaiting_media",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ReportSummary",
+        "type": "object"
+      },
+      "SelectionEdit": {
+        "additionalProperties": false,
+        "description": "A photo's place in the report: `in_body` (else the appendix) and its caption here.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "in_body": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "In Body"
+          },
+          "media_id": {
+            "maxLength": 64,
+            "title": "Media Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_id"
+        ],
+        "title": "SelectionEdit",
+        "type": "object"
+      },
+      "SignIn": {
+        "additionalProperties": false,
+        "description": "POST /reports/{id}/sign (W17-6): the version the person read, the name they typed and\nthe drawing as base64 PNG (a `data:image/png;base64,` URI is accepted).",
+        "properties": {
+          "content_version": {
+            "minimum": 1.0,
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "image": {
+            "maxLength": 300000,
+            "title": "Image",
+            "type": "string"
+          },
+          "typed_name": {
+            "maxLength": 400,
+            "title": "Typed Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content_version",
+          "typed_name",
+          "image"
+        ],
+        "title": "SignIn",
+        "type": "object"
+      },
+      "SignatureOut": {
+        "description": "One signature of this version. Staff only: `image` is the drawn PNG as a data URI, and is\nabsent once the signature was cleared (the record stays, W17-4).",
+        "properties": {
+          "attestation": {
+            "title": "Attestation",
+            "type": "string"
+          },
+          "cleared_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleared At"
+          },
+          "cleared_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleared By"
+          },
+          "content_version": {
+            "title": "Content Version",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "signed_at": {
+            "format": "date-time",
+            "title": "Signed At",
+            "type": "string"
+          },
+          "signer_id": {
+            "title": "Signer Id",
+            "type": "string"
+          },
+          "signer_name": {
+            "title": "Signer Name",
+            "type": "string"
+          },
+          "typed_name": {
+            "title": "Typed Name",
+            "type": "string"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "signer_id",
+          "role",
+          "signer_name",
+          "typed_name",
+          "attestation",
+          "signed_at",
+          "content_version",
+          "valid"
+        ],
+        "title": "SignatureOut",
+        "type": "object"
+      },
+      "StationStatusCounts": {
+        "properties": {
+          "decommissioned": {
+            "title": "Decommissioned",
+            "type": "integer"
+          },
+          "degraded": {
+            "title": "Degraded",
+            "type": "integer"
+          },
+          "offline": {
+            "title": "Offline",
+            "type": "integer"
+          },
+          "operational": {
+            "title": "Operational",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operational",
+          "degraded",
+          "offline",
+          "decommissioned"
+        ],
+        "title": "StationStatusCounts",
+        "type": "object"
+      },
+      "StatusCount": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "count"
+        ],
+        "title": "StatusCount",
+        "type": "object"
+      },
+      "SummaryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "due_in_days": {
+            "default": 30,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Due In Days",
+            "type": "integer"
+          },
+          "format": {
+            "default": "pdf",
+            "enum": [
+              "pdf",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "org_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Id"
+          },
+          "station_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Ids"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "type": {
+            "$ref": "#/components/schemas/Kind"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "SummaryIn",
+        "type": "object"
+      },
+      "SummaryJob": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "format": {
+            "enum": [
+              "pdf",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "period_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period From"
+          },
+          "period_to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period To"
+          },
+          "rows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "type": {
+            "$ref": "#/components/schemas/Kind"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "format",
+          "status",
+          "error",
+          "period_from",
+          "period_to",
+          "created_at",
+          "finished_at",
+          "file_name",
+          "rows",
+          "pages",
+          "download_url",
+          "expires_at"
+        ],
+        "title": "SummaryJob",
+        "type": "object"
+      },
+      "SummaryType": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "formats": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "uses_period": {
+            "title": "Uses Period",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "description",
+          "uses_period",
+          "formats"
+        ],
+        "title": "SummaryType",
+        "type": "object"
+      },
+      "TechnicianDashboard": {
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/TechnicianFigures"
+          },
+          "reports_to_finalize": {
+            "items": {
+              "$ref": "#/components/schemas/AwaitingReport"
+            },
+            "title": "Reports To Finalize",
+            "type": "array"
+          },
+          "view": {
+            "const": "technician",
+            "default": "technician",
+            "title": "View",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "figures",
+          "reports_to_finalize"
+        ],
+        "title": "TechnicianDashboard",
+        "type": "object"
+      },
+      "TechnicianFigures": {
+        "properties": {
+          "my_assigned": {
+            "title": "My Assigned",
+            "type": "integer"
+          },
+          "my_reports_to_finalize": {
+            "title": "My Reports To Finalize",
+            "type": "integer"
+          },
+          "my_upcoming_visits": {
+            "title": "My Upcoming Visits",
+            "type": "integer"
+          },
+          "queue": {
+            "title": "Queue",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "my_assigned",
+          "queue",
+          "my_upcoming_visits",
+          "my_reports_to_finalize"
+        ],
+        "title": "TechnicianFigures",
         "type": "object"
       },
       "ValidationError": {
@@ -222,6 +1652,65 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VerifyOut": {
+        "description": "Whether a PDF is one this system issued. Names the report and its version; no content.",
+        "properties": {
+          "finalized_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finalized At"
+          },
+          "match": {
+            "title": "Match",
+            "type": "boolean"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "match"
+        ],
+        "title": "VerifyOut",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -238,6 +1727,211 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/dashboard": {
+      "get": {
+        "description": "The caller's own view by default. Asking for one the role does not have is refused.",
+        "operationId": "dashboard_api_v1_dashboard_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "admin",
+                    "technician",
+                    "client"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "View"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "admin": "#/components/schemas/AdminDashboard",
+                      "client": "#/components/schemas/ClientDashboard",
+                      "technician": "#/components/schemas/TechnicianDashboard"
+                    },
+                    "propertyName": "view"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/AdminDashboard"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TechnicianDashboard"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ClientDashboard"
+                    }
+                  ],
+                  "title": "Response Dashboard Api V1 Dashboard Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dashboard",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "description": "Reports and their versions, newest version first. Clients: final ones of their own\norganization.",
+        "operationId": "list_reports_api_v1_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "subject_ref",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Ref"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(visit|closeout|client_form)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportSummary"
+                  },
+                  "title": "Response List Reports Api V1 Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Reports",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/correction": {
+      "get": {
+        "description": "Is this visit's final report being corrected? Scoped like every read: a client asks about\ntheir own organization's visit only, and anything else is \"no\" (rule 4). It tells a client\nthat \"a corrected report is on its way\" without showing them the draft.",
+        "operationId": "correction_api_v1_reports_correction_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorrectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Correction",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/api/v1/reports/jobs/{job_id}": {
       "get": {
         "description": "The job's state and, once it is done, a ten-minute download link. Only the person who\nasked can see it; anyone else gets 404 (rule 4).",
@@ -329,6 +2023,579 @@
           }
         ],
         "summary": "Start Labels",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary": {
+      "post": {
+        "operationId": "start_api_v1_reports_summary_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummaryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary/jobs": {
+      "get": {
+        "description": "The person's own summaries of the last `REPORT_SUMMARY_KEEP_DAYS` days, newest first.",
+        "operationId": "mine_api_v1_reports_summary_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SummaryJob"
+                  },
+                  "title": "Response Mine Api V1 Reports Summary Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mine",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_job_api_v1_reports_summary_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/summary/types": {
+      "get": {
+        "description": "What this person may ask for: a client three, staff all that are built.",
+        "operationId": "types_api_v1_reports_summary_types_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SummaryType"
+                  },
+                  "title": "Response Types Api V1 Reports Summary Types Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Types",
+        "tags": [
+          "summary reports"
+        ]
+      }
+    },
+    "/api/v1/reports/verify": {
+      "post": {
+        "operationId": "verify_api_v1_reports_verify_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/content": {
+      "patch": {
+        "description": "RPT-2: change the narrative or the photo choice of a draft. `content_version` is the one\nthe editor read: another editor's save in between is 409 `content_changed`, unless this save\nis already in (a repeat after a lost answer), which changes nothing. A change that alters what\nprints clears the signatures (W17-3).",
+        "operationId": "edit_content_api_v1_reports__report_id__content_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit Content",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/download": {
+      "get": {
+        "description": "A ten-minute link to the report's PDF (never cached: it acts as a password): the final\none for a final or superseded version, else the latest draft. If a draft changed since its\nPDF was drawn, `current` is false and the link is to the older one.",
+        "operationId": "download_api_v1_reports__report_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/finalize": {
+      "post": {
+        "description": "RPT-5: make the signed draft final. The lead or an admin, once the lead has signed this\nversion. 409 `lead_not_signed` until then. Answers at once; the report is `finalizing` while\nthe visit is locked and the PDF is drawn.",
+        "operationId": "finalize_report_api_v1_reports__report_id__finalize_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Finalize Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/preview": {
+      "post": {
+        "description": "RPT-3: draw the draft as it is now. Answers `ready` when that PDF already exists, else\nqueues one render (asking again while it runs queues nothing more) and answers `rendering`.",
+        "operationId": "preview_api_v1_reports__report_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/reopen": {
+      "post": {
+        "description": "RPT-6: an admin reopens a final report for correction. The final becomes `superseded` and\nstays readable; the next version is a draft with the same narrative and photo choice, the\nfacts read again and no signatures. Answers with the new draft. 409 `already_reopened` when\nthe version was already superseded, `not_final` when it is not final yet.",
+        "operationId": "reopen_report_api_v1_reports__report_id__reopen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reopen Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/sign": {
+      "post": {
+        "description": "RPT-4: a person who attended the visit signs the draft as it stands (`content_version`).\nThe record keeps the drawing, the typed name, the attestation as shown, the time, address and\nbrowser, and the hash of the content (TRD 11.3). One valid signature each: signing again is\n409 `already_signed`. A change to the report clears every signature.",
+        "operationId": "sign_api_v1_reports__report_id__sign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sign",
         "tags": [
           "reports"
         ]

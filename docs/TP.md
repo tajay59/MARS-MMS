@@ -3,10 +3,13 @@
 
 | | |
 |---|---|
-| **Version** | 1.2 (draft) |
-| **Date** | 2026-10-17 |
+| **Version** | 1.5 (draft) |
+| **Date** | 2026-11-12 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Follows TRD 2.0 and IP 1.1: five services, Nginx gateway, SeaweedFS, weeks shifted to a W25 go-live. Offline merge tests replaced by station-owner and conflict-code tests. New tests for request status derivation, sensor-action reversal, the finalize saga, fail-closed file visibility, the offline PIN session, refresh-token races, the outbox leader lease, read-model backfill, service-worker cache clearing, the CSP tile host and multipart clean-up |
+| **Changes in 1.5** | The second factor's tests as built (W22, AUTH-14): RFC 6238 vectors, the drift window and replay; a challenge is single use, limited to 5 tries and bound to its purpose; no session before the code; wrong codes share the account lock and the password alone never clears it; recovery codes are single use; the setup window and the block after it; a reset ends sessions and cannot be done to oneself; no secret, code or hash in an event or the API; the old app is told to reload. Seed user `admin_mfa`; Playwright `e2e/totp.spec.ts` computes the code from the secret on screen |
+| **Changes in 1.4** | W17 as built: the finalize saga is tested at every interruption point against "a final report always has the lead's valid signature for exactly its content hash and the stored PDF's hash"; signatures are cleared only when the hash of what prints changes; only shared elements print; a reminder is sent once per level; Playwright J7 runs end to end (`reportSign.spec.ts`) |
+| **Changes in 1.3** | The visit board replaces the work record (TRD 2.16, decisions W11-16 to W11-35, 2026-10-22): the sensor-inventory corrections tests are replaced by board tests (edit rights, tombstones, task completion, sharing, Config versions, Recommendation to request); Phase 4's tests and exit checks follow |
 | **Changes in 1.2** | Where the Phase 1 harnesses live as built: `mms_common.testing` (seed users and token issuer, authorization matrix, client leak check, container fixtures as a pytest plugin); the template's `tests/api/test_authorization_matrix.py`; the J1/J2 end-to-end stack test into the audit chain |
 | **Builds on** | [PRD.md](PRD.md) 1.1, [TRD.md](TRD.md) 2.0 (§7, §15, §17, §18), [AFD.md](AFD.md) 1.1 (J1–J10), [DBD.md](DBD.md) 1.2, [BSD.md](BSD.md) 1.1, [IP.md](IP.md) 1.1 draft |
 | **Replaces** | TRD §17 Testing strategy, which is now a summary that points here |
@@ -38,7 +41,7 @@ Nine levels run, from per-PR unit tests to a hands-on field test, and the cheap 
 
 | Level | Tooling | Scope | Runs |
 |---|---|---|---|
-| Unit | pytest, Hypothesis | `domain/`: request status derivation, visit end and owner rules, sensor reconciliation, report lifecycle and finalize saga, signature invalidation, audit hash chain, permissions | Every PR |
+| Unit | pytest, Hypothesis | `domain/`: request status derivation, visit end and owner rules, board element rules, report lifecycle and finalize saga, signature invalidation, audit hash chain, permissions | Every PR |
 | API | pytest + httpx `AsyncClient` + testcontainers (Mongo, Redis, Kafka) | Each endpoint, org scoping, 404 for out-of-scope records, role checks, the authorization matrix | Every PR, changed services |
 | Contract | pytest | Consumer fixtures against `mms_common.events`; every AUD-1 action maps to an event; snapshot endpoint shapes | Every PR; all services when `mms_common` changes |
 | Integration | pytest against the Compose stack | Event flows end to end, outbox leader failover and consumer faults, backfill, migrations, clock-driven jobs | On `main` and nightly |
@@ -48,7 +51,7 @@ Nine levels run, from per-PR unit tests to a hands-on field test, and the cheap 
 | Field test | Real iPhone and Android phone | A full visit with no signal, a restart and PIN unlock mid-visit, sync on return, sign next day | W15, Phase 8 pilot, any release touching `frontend/src/offline/` or `sw/` |
 | Load and soak | Locust | 50 concurrent users, 20 simultaneous video uploads, 1-hour soak | W20, before go-live |
 
-Coverage targets stay at 90% for `domain/` and 70% overall. Mutation testing (`mutmut`) runs weekly on the request state machine, the status derivation, the sensor reconciliation and the report lifecycle, to check that their tests catch changed rules.
+Coverage targets stay at 90% for `domain/` and 70% overall. Mutation testing (`mutmut`) runs weekly on the request state machine, the status derivation, the board element rules and the report lifecycle, to check that their tests catch changed rules.
 
 ## Rule-enforcement tests
 
@@ -64,7 +67,7 @@ Each of the 12 non-negotiable rules in `CLAUDE.md` has a test that fails the bui
 | Repo-layer scoping | 3 | A unit test asserts that every public `repo/` read for a client merges `org_id` (or `owner_org_id` / `current_org_id`), using a fake collection that records the filter. | Unit |
 | Injection | 12 | Every filter and search endpoint gets bodies and query strings containing `{"$ne": null}`, `{"$where": "1"}`, `{"$gt": ""}` and dotted keys. Expected: a validation error, never a widened result. | API |
 | Audit insert-only and chain | 10 | The audit Mongo role has no `update` or `remove` on `audit_events`, yet migrations can create indexes. Editing one stored record directly makes the integrity check report that record. | Integration |
-| Finalized reports immutable | 11 | Any write to a finalized version is rejected (409, V1); reopening creates version n+1 and invalidates the earlier signatures. | Unit + API |
+| Finalized reports immutable | 11 | Every mutating route (edit, sign, preview, finalize, reopen) called on a final or superseded version is refused with 409 and changes nothing; a board change does not touch a final report; reopening creates version n+1 as a draft with no signatures. As built: `tests/api/test_finalize.py`, `test_edit_sign.py`. | Unit + API |
 | UTC storage | 8 | A Hypothesis test round-trips times through each service's models: stored values are UTC; display helpers use the station's IANA zone. | Unit |
 | Client-generated IDs and `op_id` | 9 | Replaying any create with the same UUIDv7 or `op_id` returns the first result and creates nothing new. | API |
 
@@ -88,13 +91,15 @@ Ten areas get dedicated tests beyond the TRD's levels, ordered by the cost of a 
 - **Examples:** two parallel visits where one ends needing another visit while the other is still planned (Scheduled, never stuck); a report reopened during Client Review (In progress, reminders cleared, auto-close stopped); a report reopened after Closed (stays Closed, close-out regenerated); a rejection followed by a report-only correction (Assigned → In progress → Client Review); admin cancel from Client Review cancels planned visits and keeps a started visit's work.
 - **Events out of order:** `report.finalized` delivered before, after or twice around a `visit.ended` always gives the same final status.
 
-### Sensor inventory corrections (SEN-3, SEN-4, TRD §3.2.3)
+### The visit board (VIS-5, VIS-7, CFG-4, TRD §3.2.3)
 
-- Applying the same sensor actions twice changes nothing.
-- Changing a serial after the visit ends reverses the old installation and calibration and applies the new one, all in one transaction, with `sensor.application_reversed` audited.
-- Removing an action reverses it; reopening a report and correcting the work record does the same.
-- Reversal is refused with `409 sensor_changed_later` when a later visit or manual change touched the same unit or station parameter.
-- Unknown serials are created once per action and flagged.
+- **Edit rights:** any attending staff member creates; only the author, the station's owner or an admin edits, ticks, shares or deletes (403 for other staff, viewers never mutate, 404 for clients and for other organizations).
+- **Idempotency:** creating the same element twice gives one element; the same `id` with other content is `409 duplicate_id`; a stale `base_version` is `409 element_changed`, and a retry equal to the saved element is success.
+- **Tombstones:** an element deleted on one device is never brought back by a late save from another (`409 element_deleted`).
+- **Tasks:** complete only with at least one item and every item checked; unchecking or adding an item clears `completed_at`.
+- **Clients:** see shared elements of an ended visit only; an unshared element and every element of a started visit are 404, and their media gives no link.
+- **Config:** `end` makes one configuration version per Config element with After files, once even when `end` is retried; a file not `ready` is `409 config_files_not_ready`; changing the After files later adds a version and never changes one.
+- **Recommendation → request:** the new request is linked once, in the same transaction, even when the form is saved twice.
 
 ### Event backbone (ADR-3, ADR-13, TRD §8)
 
@@ -109,7 +114,11 @@ Ten areas get dedicated tests beyond the TRD's levels, ordered by the cost of a 
 ### Reports and PDFs (RPT-1 to RPT-10)
 
 - **Finalize saga:** render fails three times → report back to Draft, visit unlocked, signatures kept, `report.finalize_failed` emitted; a worker killed mid-saga leaves `finalizing`, and the cron resumes it to Final; facts changed between lock and render → back to Draft with signatures cleared.
-- **Signatures:** a facts refresh from a corrected work record clears signatures, as an edited narrative does.
+- **Signatures (as built):** a facts refresh that changes what prints clears signatures, as an edited narrative does; the same facts read again, a locked visit or a staff-only edit keep them; cleared signatures stay in the list flagged; a signer who read an older version gets 409 `content_changed`; two taps make one signature (unique index); a viewer, a client and an admin who did not attend cannot sign.
+- **Invariant over every interruption point (as built):** for a lock refused, operations down, facts unavailable or gone, a fact changed, the render failing and the store failing, no run leaves a final report without the lead's valid signature for its content hash, and the PDF it names is the one stored.
+- **Only shared elements print (as built):** a staff-only element is absent from the narrative prefill, the photo choice, the hash and the final PDF's text; a client reads a final report with those elements removed and no signature image.
+- **Reminders (as built):** 2 and 5 working days across a weekend and a daylight-saving change, once per level, one reminder for a draft found late, a reopened version counting from the reopen.
+- **Corrections (as built):** `GET /reports/correction` is true for a client from the reopen until the corrected version is final, and a client still cannot read the draft or the superseded version.
 - **Visual regression:** each PDF template (visit report, close-out, client report form, label sheet, summary with ApexCharts) is rendered from fixed fixtures and compared page by page with approved PNG baselines.
 - A draft is generated within 10 minutes of sync and a summary within 2 minutes (NFR-2), measured in the integration stack.
 - Report times show in the station's time zone.
@@ -156,12 +165,13 @@ Display tests cover stations in several IANA zones across a DST change.
 - JWT tests at each service, because Nginx doesn't verify tokens: wrong key, `alg: none`, `alg` confusion, expired token, refresh token used as an access token, a token for a disabled user.
 - `/internal/*` and `/.well-known/*` return 404 through Nginx and require a service token (or the internal network) inside.
 - Login throttling: the same message and similar timing for registered and unregistered emails after 5 failures (AUTH-10).
+- Second factor (AUTH-14, W22): `services/auth/tests/unit/test_totp.py` (RFC 6238 vectors, window, replay, recovery codes, who needs a factor, the setup window) and `tests/api/test_totp.py` (the attacks of the login suite repeated with a second factor: no session before the code, an old, used or foreign challenge, a recovery code twice, a challenge bound to its purpose, the shared lock, refresh never asks for a code, enrolment and reset rules, the secret sealed at rest, no secret or code in any event or API answer). Every new route is in the authorization matrix. Playwright `e2e/totp.spec.ts`: an admin signs in with a code and with a recovery code, an admin in the window sees the banner, a blocked admin is taken through enrolment, another admin resets a lost phone.
 - Security headers, HSTS, CSP, rate limits (including the office allowlist) checked on staging after each deploy.
-- OWASP ZAP baseline scan of staging nightly; `pip-audit`, `npm audit` and Trivy on every PR; the ASVS L2 review in W20.
+- OWASP ZAP baseline scan of staging nightly; `pip-audit`, `npm audit` and Trivy on every PR; the ASVS L2 review in W20. **As built (W20 slice 6):** `infra/loadtest/` (Locust: the 50-user mix, 20 uploaders, the 5x seed through the API, `check_thresholds.py` tested in `infra/tests/test_loadtest_thresholds.py`); CI runs five users for a minute on every pull request (`load smoke`) and `loadtest.yml` runs the full test by hand on a host with no real data. **As built (W20 slice 5):** `security.yml` runs `pip-audit` (any advisory in a runtime dependency fails; accepted ones are listed with a reason) and `npm audit --omit=dev` at high on every PR and nightly, plus a **passive** ZAP baseline of staging nightly that fails on a high risk alert and prints counts only (the repository is public); `infra/tests/test_org_isolation.py` is the cross-organization run through Nginx; the review is `docs/security/asvs-l2.md`.
 
 ### Operations (NFR-3, NFR-9)
 
-- A weekly job restores the latest production backup into staging and runs the audit integrity check. The first run is the W20 restore test; after that it runs continuously.
+- A weekly job restores the latest production backup into staging and runs the audit integrity check. The first run is the W20 restore test; after that it runs continuously. **As built (W20 slice 3):** `restore-drill.yml` runs the drill on a CI stack every Monday and the job `backup and restore` runs it on every pull request (backup, restore, dead sessions, audit chain); the restore into staging from a real backup is still done by hand.
 - `rclone check` confirms the SeaweedFS replica matches the primary.
 - `import_stations.py` against a bad-rows fixture reports each error with its row number (STN-8).
 - Every alert in TRD §16.5 is fired once on staging and its email checked.
@@ -177,6 +187,7 @@ One seed set serves every level, so a failure on staging can be reproduced local
 | Client A1, Client A2 | Client, organization A | Own-organization access; two clients on one request |
 | Client B1 | Client, organization B | Out-of-scope checks: must get 404 on everything of A's |
 | Admin | Admin | Approvals, assignment, owner changes, restores, audit log |
+| Admin MFA | Admin with two-step sign-in on | A known TOTP secret (public, test only) for the code step; `admin` stays without a factor so other suites and journeys do not change |
 | Tech 1, Tech 2 | Technician | Claiming; two technicians on one visit owning different stations (OFF-11) |
 | Tech-Admin | Technician + Admin | A staff user with several roles |
 | Viewer | Viewer | Read-only: 403 on every mutating route, no audit log |
@@ -252,8 +263,8 @@ Each test is built in the first phase that needs it, and the harnesses come in P
 | 1 · Foundations | W2–W4 | Authorization matrix and client leak harness in `mms_common`; `import-linter` and no-direct-produce lint in the template; injectable clock and seeded UUIDv7; outbox leader-lease, consumer and duplicate tests; audit tamper and role tests; database isolation test; JWT, login-throttle and refresh-race tests; Nginx routing, 404 for `/internal/` and CSP checks; seed set; Playwright with axe, CSP and screenshot fixtures; J1, J2 | W2 checkpoint passes in CI; a new service from the template passes every harness unchanged |
 | 2 · Stations | W5–W7 | Station import bad-rows fixture; document media fixtures (EICAR, magic bytes, size); fail-closed visibility and model-document tests; multipart abort; label-sheet PDF baseline; QR scan on real phones | Real import report; W7 label scan |
 | 3 · Requests | W8–W9 | Request state machine and derivation property tests; internal-comment attachment visibility; Mailpit email assertions; WebSocket catch-up after reconnect; `user_directory` backfill; J3, J4 | Every allowed and blocked transition tested |
-| 4 · Visits online | W10–W12 | Parallel-visit and owner tests; sensor reconciliation and reversal; image and video fixtures, EXIF and playback checks; visit end rules; online J5 | W11 video timing on staging; a corrected serial fixes the history |
-| 5 · Offline | W13–W15 | `/sync` properties, conflict codes and fault injection; PIN session; Dexie tests; shared-device cache test; Playwright offline in Chromium and WebKit; J6; field test | W13 iOS restart-and-unlock check; W15 field test with zero loss |
+| 4 · Visits online | W10–W12 | Parallel-visit and owner tests; board element rules (above); image and video fixtures, EXIF and playback checks; file viewers (PDF, text, fallback); online J5 and a board with all four kinds | W11 video timing on staging; a Config element becomes the station's configuration version |
+| 5 · Offline | W13–W15 | **W14 built:** API tests for each op type, the same op twice, each conflict code, stop-per-visit, 101 ops, old and new payload versions; Vitest for the outbox, runner (order, backoff, network error mid-batch, resume), local board, attention and export; Playwright `offlineVisit.spec.ts` (J6), `syncConflict.spec.ts` (owner changed, Export, Done with this) and `webkitPrimitives.spec.ts` (Safari engine: blobs in IndexedDB, Web Locks, PBKDF2). `/sync` properties, conflict codes and fault injection; PIN session; Dexie tests; shared-device cache test; Playwright offline in Chromium and WebKit; J6; field test | W13 iOS restart-and-unlock check; W15 field test with zero loss |
 | 6 · Reports | W16–W18 | Report PDF baselines; finalize saga faults; immutability and signature invalidation; report reopen in Client Review and after Closed; report read-model backfill; reminders and auto-close under the clock; J7–J9 | Auto-close and close-out under clock override; backfill matches live build |
 | 7 · Hardening | W19–W20 | Summary PDF and CSV baselines; NFR-2 timings; ZAP nightly; Locust load and soak; weekly restore job; alert firing; J10 | No open high or critical findings; load test meets NFR-2; restore passes the chain check |
 | 8 · Pilot | W23–W25 | Pilot defects become regression tests; second field test on pilot technicians' phones | Launch criteria (PRD §8) |
@@ -286,7 +297,8 @@ Every NFR has at least one automated check, and every journey has a Playwright t
 | J3, J4 | `requests.spec.ts` | Phase 3 |
 | J5 | `visit-prepare.spec.ts` | Phase 4 (claim, schedule, owners); prepare step and PIN added in Phase 5 |
 | J6 | `visit-offline.spec.ts` | Phase 5 |
-| J7, J8, J9 | `reports.spec.ts` | Phase 6 |
+| J7 | `report.spec.ts` (draft) and `reportSign.spec.ts` (edit, sign, finalize, client reads, reopen) | Phase 6 (built W16 and W17) |
+| J8, J9 | `reports.spec.ts` | Phase 6 (W18) |
 | J10 | `summaries.spec.ts` | Phase 7 |
 
 ## Defects and release criteria

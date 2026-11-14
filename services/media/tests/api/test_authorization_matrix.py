@@ -31,7 +31,8 @@ TABLE: dict[Route, Expect] = {
     ("GET", "/api/v1/media/{media_id}"): Expect(ANY),
     ("PATCH", "/api/v1/media/{media_id}"): UPLOAD,
     ("DELETE", "/api/v1/media/{media_id}"): UPLOAD,
-    ("GET", "/internal/media/{media_id}"): service("operations"),
+    ("GET", "/internal/media/{media_id}"): service("operations", "report"),
+    ("GET", "/internal/media/{media_id}/rendition"): service("operations", "report"),
     ("POST", "/internal/media/{media_id}/url"): service("operations"),
 }
 

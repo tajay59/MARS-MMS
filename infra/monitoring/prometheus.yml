@@ -1,0 +1,49 @@
+# Prometheus for AWS-MMS (TRD §16.5, W20-2, W20-3). Everything is scraped on the Docker network;
+# nothing here is published beyond the host's loopback.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+
+scrape_configs:
+  # The five API services. Two uvicorn workers answer one /metrics (mms_common.metrics).
+  - job_name: services
+    metrics_path: /metrics
+    static_configs:
+      - {targets: ["auth:8000"], labels: {service: auth}}
+      - {targets: ["operations:8000"], labels: {service: operations}}
+      - {targets: ["media:8000"], labels: {service: media}}
+      - {targets: ["report:8000"], labels: {service: report}}
+      - {targets: ["platform:8000"], labels: {service: platform}}
+
+  # The two queue workers have no web server; they serve their own metrics on 9100.
+  - job_name: workers
+    static_configs:
+      - {targets: ["media-worker:9100"], labels: {service: media-worker}}
+      - {targets: ["report-worker:9100"], labels: {service: report-worker}}
+
+  - job_name: nginx
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+  - job_name: mongodb
+    static_configs:
+      - targets: ["mongodb-exporter:9216"]
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

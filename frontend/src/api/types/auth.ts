@@ -59,6 +59,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/login/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login Totp */
+        post: operations["login_totp_api_v1_auth_login_totp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login/totp/enrol/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enrol Begin
+         * @description The password was right and the role needs a second factor the person has not set up
+         *     (after the setup window): the challenge allows only these two routes.
+         */
+        post: operations["enrol_begin_api_v1_auth_login_totp_enrol_begin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login/totp/enrol/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enrol Confirm */
+        post: operations["enrol_confirm_api_v1_auth_login_totp_enrol_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/logout": {
         parameters: {
             query?: never;
@@ -98,6 +153,80 @@ export interface paths {
          * @description Name, phone, time zone, theme and password. Viewers may edit their own profile.
          */
         patch: operations["patch_me_api_v1_auth_me_patch"];
+        trace?: never;
+    };
+    "/api/v1/auth/me/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Me Disable
+         * @description Staff who opted in may turn it off. A role that requires it may not (W22-7).
+         */
+        delete: operations["me_disable_api_v1_auth_me_totp_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/totp/begin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Me Begin */
+        post: operations["me_begin_api_v1_auth_me_totp_begin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/totp/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Me Confirm */
+        post: operations["me_confirm_api_v1_auth_me_totp_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me/totp/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Me Recovery Codes
+         * @description New codes replace all the old ones, used or not.
+         */
+        post: operations["me_recovery_codes_api_v1_auth_me_totp_recovery_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/auth/password-reset/confirm": {
@@ -297,6 +426,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{id}/totp/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Totp
+         * @description Someone lost their phone and their recovery codes (W22-8). Removes their second factor,
+         *     ends every session of theirs at once and restarts their setup window if their role needs one.
+         *     Never on yourself: another admin does that.
+         */
+        post: operations["reset_totp_api_v1_users__id__totp_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/account-links": {
         parameters: {
             query?: never;
@@ -379,6 +530,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/users/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Staff
+         * @description The active technicians and admins, for operations to offer as a visit's attending staff
+         *     (W10 slice 3): a technician may schedule a visit but may not list users here (admins only).
+         */
+        get: operations["list_staff_internal_users_staff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -448,6 +620,18 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** EnrolBeginIn */
+        EnrolBeginIn: {
+            /** Challenge */
+            challenge: string;
+        };
+        /** EnrolConfirmIn */
+        EnrolConfirmIn: {
+            /** Challenge */
+            challenge: string;
+            /** Code */
+            code: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -472,6 +656,20 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+            /**
+             * Supports Mfa
+             * @default false
+             */
+            supports_mfa: boolean;
+        };
+        /** LoginTotpIn */
+        LoginTotpIn: {
+            /** Challenge */
+            challenge: string;
+            /** Code */
+            code?: string | null;
+            /** Recovery Code */
+            recovery_code?: string | null;
         };
         /**
          * MaterialTheme
@@ -508,6 +706,11 @@ export interface components {
             org_id: string | null;
             /** Phone */
             phone: string | null;
+            /**
+             * Recovery Codes Left
+             * @default 0
+             */
+            recovery_codes_left: number;
             /** Roles */
             roles: string[];
             /** Status */
@@ -516,6 +719,11 @@ export interface components {
             theme: string;
             /** Time Zone */
             time_zone: string | null;
+            /**
+             * Totp Enabled
+             * @default false
+             */
+            totp_enabled: boolean;
         };
         /** MePatch */
         MePatch: {
@@ -531,6 +739,39 @@ export interface components {
             theme?: ("system" | "light" | "dark") | null;
             /** Time Zone */
             time_zone?: string | null;
+        };
+        /**
+         * MfaChallenge
+         * @description A correct password is not a session yet. `enrol`: they must set up a second factor first.
+         */
+        MfaChallenge: {
+            /** Challenge */
+            challenge: string;
+            /**
+             * Enrol
+             * @default false
+             */
+            enrol: boolean;
+            /** Expires In */
+            expires_in: number;
+            /**
+             * Mfa Required
+             * @default true
+             * @constant
+             */
+            mfa_required: true;
+        };
+        /**
+         * MfaSetup
+         * @description The person's role needs a second factor and they have none yet: the app shows a banner
+         *     until `required_by`, after which sign-in goes through enrolment.
+         */
+        MfaSetup: {
+            /**
+             * Required By
+             * Format: date-time
+             */
+            required_by: string;
         };
         /** OrgIn */
         OrgIn: {
@@ -605,6 +846,11 @@ export interface components {
          * @enum {string}
          */
         OrgStatus: "active" | "inactive";
+        /** RecoveryCodesOut */
+        RecoveryCodesOut: {
+            /** Recovery Codes */
+            recovery_codes: string[];
+        };
         /** RegisterIn */
         RegisterIn: {
             /** Email */
@@ -668,6 +914,9 @@ export interface components {
             access_token: string;
             /** Expires In */
             expires_in: number;
+            mfa_setup?: components["schemas"]["MfaSetup"] | null;
+            /** Recovery Codes */
+            recovery_codes?: string[] | null;
             /**
              * Refresh Expires At
              * Format: date-time
@@ -680,6 +929,38 @@ export interface components {
              */
             token_type: "Bearer";
             user: components["schemas"]["Me"];
+        };
+        /** TotpBeginIn */
+        TotpBeginIn: {
+            /** Password */
+            password: string;
+        };
+        /** TotpConfirmIn */
+        TotpConfirmIn: {
+            /** Code */
+            code: string;
+        };
+        /**
+         * TotpProofIn
+         * @description Changing the second factor takes the password and a current code.
+         */
+        TotpProofIn: {
+            /** Code */
+            code?: string | null;
+            /** Password */
+            password: string;
+            /** Recovery Code */
+            recovery_code?: string | null;
+        };
+        /**
+         * TotpSetupOut
+         * @description Shown once, while the person adds the account to their authenticator app.
+         */
+        TotpSetupOut: {
+            /** Otpauth Uri */
+            otpauth_uri: string;
+            /** Secret */
+            secret: string;
         };
         /** UserLookupIn */
         UserLookupIn: {
@@ -712,6 +993,11 @@ export interface components {
             phone: string | null;
             /** Proposed Org Name */
             proposed_org_name: string | null;
+            /**
+             * Recovery Codes Left
+             * @default 0
+             */
+            recovery_codes_left: number;
             /** Rejection Reason */
             rejection_reason: string | null;
             /** Roles */
@@ -722,6 +1008,11 @@ export interface components {
             theme: string;
             /** Time Zone */
             time_zone: string | null;
+            /**
+             * Totp Enabled
+             * @default false
+             */
+            totp_enabled: boolean;
             /** Version */
             version: number;
         };
@@ -888,6 +1179,105 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["TokenResponse"] | components["schemas"]["MfaChallenge"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_totp_api_v1_auth_login_totp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginTotpIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrol_begin_api_v1_auth_login_totp_enrol_begin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrolBeginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TotpSetupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrol_confirm_api_v1_auth_login_totp_enrol_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrolConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": components["schemas"]["TokenResponse"];
                 };
             };
@@ -960,6 +1350,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_disable_api_v1_auth_me_totp_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpProofIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_begin_api_v1_auth_me_totp_begin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpBeginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TotpSetupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_confirm_api_v1_auth_me_totp_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_recovery_codes_api_v1_auth_me_totp_recovery_codes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotpProofIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesOut"];
                 };
             };
             /** @description Validation Error */
@@ -1427,6 +1947,37 @@ export interface operations {
             };
         };
     };
+    reset_totp_api_v1_users__id__totp_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     account_link_internal_account_links_post: {
         parameters: {
             query?: never;
@@ -1543,6 +2094,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_internal_users_staff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserLookupOut"];
                 };
             };
         };

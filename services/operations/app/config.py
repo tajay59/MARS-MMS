@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from mms_common.kafka import KafkaAuth, kafka_auth
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,6 +32,37 @@ class Settings(BaseSettings):
     outbox_topic: str = "mms.operations.events"
     # Outbox relay, consumers and cron jobs. Off in API tests.
     run_background: bool = True
+
+    # Client Review (REQ-13, REQ-14; W18-4, W18-8). Days may be fractions so a staging check
+    # needs no calendar; production refuses anything under a day.
+    client_attestation: str = (
+        "I confirm that the work described in the reports above has been completed, "
+        "and I accept it."
+    )
+    review_reminder_days: str = "7,21,28"
+    auto_close_days: float = 30.0
+    review_clock_every_s: float = 900.0
+    signature_max_bytes: int = 100 * 1024
+    signature_max_width: int = 1200
+    signature_max_height: int = 600
+
+    @model_validator(mode="after")
+    def _review_period_is_sane(self) -> Settings:
+        days = self.reminder_days
+        if self.auto_close_days <= 0 or any(d <= 0 for d in days):
+            raise ValueError("review days must be above zero")
+        if any(d >= self.auto_close_days for d in days):
+            raise ValueError("every reminder must come before the auto-close day")
+        if self.environment == "production" and (
+            self.auto_close_days < 1 or any(d < 1 for d in days)
+        ):
+            raise ValueError("production keeps the review periods at a day or more")
+        return self
+
+    @property
+    def reminder_days(self) -> tuple[float, ...]:
+        parts = [p.strip() for p in self.review_reminder_days.split(",") if p.strip()]
+        return tuple(sorted({float(p) for p in parts}))
 
     @property
     def kafka(self) -> KafkaAuth | None:

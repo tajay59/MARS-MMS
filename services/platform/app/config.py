@@ -35,7 +35,9 @@ class Settings(BaseSettings):
     ]
 
     # The notification consumer's topics: auth for accounts, operations for requests and comments.
-    notification_topics: list[str] = ["mms.auth.events", "mms.operations.events"]
+    notification_topics: list[str] = [
+        "mms.auth.events", "mms.operations.events", "mms.report.events",
+    ]
     # A socket's token is checked again this often (TRD 13.4 says 25 s).
     ws_heartbeat_s: float = 25.0
 
@@ -68,6 +70,8 @@ class Settings(BaseSettings):
     digest_hour: int = 7
     digest_tz: str = "America/Jamaica"
     digest_within_days: int = 30
+    # The nightly integrity check of the audit chain (AUD-5): queued from this hour, same zone.
+    audit_check_hour: int = 4
 
     @property
     def kafka(self) -> KafkaAuth | None:

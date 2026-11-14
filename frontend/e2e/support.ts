@@ -94,11 +94,14 @@ export async function submitPaced (page: Page, button: string): Promise<void> {
         }
       }
     }
+    // "Moved" means away from where the click happened: a page that is not /login (the reset
+    // page, say) already satisfies "not the login page", which hid the throttle from this helper
+    const from = page.url()
     await page.getByRole('button', { name: button, exact: true }).click()
     const throttled = page.getByText('Too many attempts')
     const outcome = await Promise.race([
       throttled.waitFor({ timeout: 4000 }).then(() => 'throttled' as const),
-      page.waitForURL(url => !url.pathname.endsWith('/login'), { timeout: 4000 }).then(() => 'moved' as const),
+      page.waitForURL(url => url.href !== from, { timeout: 4000 }).then(() => 'moved' as const),
     ]).catch(() => 'settled' as const)
     if (outcome !== 'throttled') {
       return

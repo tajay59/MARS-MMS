@@ -55,8 +55,8 @@
         </template>
       </ScanCard>
 
-      <ScanCard v-else-if="state === 'offline'" :icon="mdiCloudOffOutline" title="No signal, and this station isn’t prepared" tone="neutral">
-        Stations you prepare for a visit open without signal. This one isn’t on the phone yet.
+      <ScanCard v-else-if="state === 'offline'" :icon="mdiCloudOffOutline" title="This station is not on your phone" tone="neutral">
+        Open it with a connection, or prepare a visit that includes it before you go.
         <template #actions>
           <v-btn
             block
@@ -102,7 +102,9 @@
   import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { qrApi } from '@/api/operations'
+  import { NetworkError } from '@/api/problem'
   import PageBody from '@/components/PageBody.vue'
+  import { stationByToken } from '@/offline/prepared'
   import { useSessionStore } from '@/stores/session'
   import { landingStateFor, stationRoute } from './scan'
   import ScanCard from './ScanCard.vue'
@@ -112,7 +114,8 @@
   // straight back. A found station replaces this page, so Back doesn't land on it again.
   const props = defineProps<{ token: string }>()
   const router = useRouter()
-  const { isStaff } = storeToRefs(useSessionStore())
+  const session = useSessionStore()
+  const { isStaff } = storeToRefs(session)
 
   const state = ref<LandingState | 'looking'>('looking')
   let abort: AbortController | null = null
@@ -122,6 +125,10 @@
     const mine = new AbortController()
     abort = mine
     state.value = 'looking'
+    // With no connection the label is looked up among the stations prepared on this phone (QR-5)
+    if ((session.offline || !navigator.onLine) && await openFromPhone(mine)) {
+      return
+    }
     try {
       const resolved = await qrApi.resolve(props.token, mine.signal)
       await router.replace(stationRoute(resolved))
@@ -129,8 +136,23 @@
       if (mine.signal.aborted) {
         return
       }
+      // The connection dropped on the way: the phone may still know this station
+      if (error instanceof NetworkError && await openFromPhone(mine)) {
+        return
+      }
       state.value = landingStateFor(error)
     }
+  }
+
+  /** The prepared station this label belongs to, opened in place of this page; false when none. */
+  async function openFromPhone (mine: AbortController): Promise<boolean> {
+    const me = session.user
+    const hit = me ? await stationByToken(me.id, props.token).catch(() => null) : null
+    if (!hit || mine.signal.aborted) {
+      return false
+    }
+    await router.replace({ name: 'stations', params: { id: hit.station.station.id } })
+    return true
   }
 
   onMounted(lookUp)

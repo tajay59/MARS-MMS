@@ -187,10 +187,17 @@ async def test_each_role_sees_its_own_choices_with_the_defaults(env):
         r = await http.get("/api/v1/notifications/preferences", headers=bearer(issuer, key))
         assert r.status_code == 200
         seen[key] = flat(r.json())
+    visits = {"visit.scheduled": True, "visit.cancelled": True}
+    reminder = {"report.finalize_reminder": True}
     assert seen["admin"] == {"request.submitted": True, "request.assigned": True,
-                             "request.cancelled": False, "calibration.digest": True}
-    assert seen["tech1"] == {"request.assigned": True, "request.cancelled": False}
-    assert seen["client_a1"] == {"request.decided": True, "request.cancelled": True}
+                             "request.cancelled": False, "calibration.digest": True,
+                             **reminder, "request.reopened": True, **visits}
+    assert seen["tech1"] == {"request.assigned": True, "request.cancelled": False,
+                             **reminder, "request.reopened": True, **visits}
+    assert seen["client_a1"] == {"request.decided": True, "request.cancelled": True,
+                                 "report.finalized": True, "report.reopened": True,
+                                 "request.client_review": True, "report.closeout": True,
+                                 **visits}
     assert seen["viewer"] == {}
 
 

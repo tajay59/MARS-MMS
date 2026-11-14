@@ -87,7 +87,7 @@ class SensorUnitData(_Data):
     serial: str
     model_id: str
     status: str
-    needs_review: bool
+    needs_review: bool = False  # retired 2026-10-22 (W11-17); kept so earlier events parse
     current_station_id: str | None = None
     calibration_due_at: datetime | None = None
 
@@ -149,6 +149,8 @@ class CalibrationData(_Data):
     at: datetime
     result: str
     due_at: datetime | None = None  # the unit's calibration due date after this record
+    # Added in W16 for the report service's read model (optional, so version 1 stands)
+    org_id: str | None = None
 
 
 @register("calibration.recorded")
@@ -227,6 +229,14 @@ class RequestData(_Data):
     created_by: str | None = None
     # Who is on the request now, so the notification module knows whom a comment is for
     assigned_staff_ids: list[str] = Field(default_factory=list)
+    # Added in W16 for the report service's read model (optional, so version 1 stands): the
+    # request's own milestone times (`submitted_at`, `approved_at`, `assigned_at`,
+    # `review_started_at`, `closed_at`, ...) and how often it was reopened
+    milestones: dict[str, datetime] | None = None
+    reopen_count: int | None = None
+    # Added in W19 for the report service's workload summary (optional, so version 1 stands): the
+    # names of the people on the request, by id, so no read from operations is needed (rule 1)
+    assigned_staff_names: dict[str, str] = Field(default_factory=dict)
 
 
 @register("request.submitted")
@@ -297,6 +307,63 @@ class RequestReleased(RequestData):
     by_id: str
 
 
+# --- Client Review (W18) ----------------------------------------------------------------------
+
+
+@register("request.client_review_started")
+class RequestClientReviewStarted(RequestData):
+    """Every visit report is final and no further visit is needed: the client is asked to accept
+    or reject (REQ-12). It also starts again after a corrected report is final."""
+
+
+@register("request.review_reminder")
+class RequestReviewReminder(RequestData):
+    """The client has not answered after `day` days in Client Review (REQ-14). `auto_close_day`
+    says when the request closes by itself, so the email can say so."""
+
+    day: float
+    auto_close_day: float
+
+
+@register("request.reopened")
+class RequestReopened(RequestData):
+    """The client rejected the work (REQ-13). The request is Reopened and goes straight back to
+    Assigned with the same staff. `comment` is the client's reason; the staff are told it."""
+
+    comment: str
+    by_id: str
+
+
+@register("request.closed")
+class RequestClosed(RequestData):
+    """Closed by the client's acceptance or, after the review period, by the system (REQ-13,
+    REQ-14). The client's drawn signature is never in the event: the report service reads it
+    from operations when it makes the close-out report."""
+
+    outcome: str  # accepted | auto_closed
+    auto_closed: bool
+    by_id: str | None = None
+
+
+# --- client_report.* (W18 slice 2) --------------------------------------------------------------
+
+
+@register("client_report.submitted")
+class ClientReportSubmitted(RequestData):
+    """A client submitted a report about their own station (PRD CRP-1 to CRP-4). The request's
+    facts come with it, so platform needs no read. Never the report's text: for an online form
+    the report service reads it from operations with its service token (like the close-out).
+    `attempt` is 1 for the first submission and goes up when a form report whose PDF could not be
+    drawn is submitted again (W18-10)."""
+
+    client_report_id: str
+    kind: str  # pdf | form
+    report_title: str
+    submitted_by_id: str
+    submitted_by_name: str
+    attempt: int = 1
+
+
 # --- comment.* (W9 slice 2) -------------------------------------------------------------------
 
 
@@ -322,3 +389,185 @@ class CommentAdded(CommentFacts):
 class CommentUpdated(CommentFacts):
     body_changed: bool
     internal_changed: bool
+
+
+# --- visit.* (Phase 4 W10) --------------------------------------------------------------------
+
+
+class StationOwner(_Data):
+    station_id: str
+    owner_staff_id: str
+
+
+class VisitFacts(_Data):
+    """What every visit event says about the visit and its request, so a consumer needs no read
+    (rule 1): the notification text, who it is for and where it goes. Keyed by `request_id`
+    (TRD §8.1) and versioned by the visit. Never holds the visit's notes."""
+
+    visit_id: str
+    ref: str  # VR-YYYY-NNNN-NN
+    request_id: str
+    request_ref: str  # MR-YYYY-NNNN
+    org_id: str
+    title: str | None = None  # the request's title
+    created_by: str | None = None  # who made the request (the client who is told)
+    status: str  # planned | started | ended | cancelled
+    planned_start: datetime
+    planned_end: datetime
+    staff_ids: list[str]
+    lead_staff_id: str
+    station_ids: list[str]
+    station_owners: list[StationOwner]
+    # The zone of the first station: the one the visit's dates are written in (W10-1). Optional,
+    # so version 1 of every visit event still holds
+    time_zone: str | None = None
+    # Added in W19 (optional): the names of the people on the visit, by id
+    staff_names: dict[str, str] = Field(default_factory=dict)
+
+
+@register("visit.scheduled")
+class VisitScheduled(VisitFacts):
+    pass
+
+
+@register("visit.rescheduled")
+class VisitRescheduled(VisitFacts):
+    """Dates, people, stations or owners of a planned visit changed."""
+
+    changed_fields: list[str]
+
+
+@register("visit.cancelled")
+class VisitCancelled(VisitFacts):
+    reason: str | None = None
+    by_request: bool = False  # the request itself was cancelled
+
+
+@register("visit.restored")
+class VisitRestored(VisitFacts):
+    pass
+
+
+@register("visit.started")
+class VisitStarted(VisitFacts):
+    started_at: datetime
+
+
+@register("visit.ended")
+class VisitEnded(VisitFacts):
+    """`config_version_ids` are the station versions made from the board's Config elements
+    (W11-24). `overrides`, `sensor_actions` and `config_versions` belonged to the work record
+    (retired 2026-10-22, W11-16): they stay so earlier events still parse, and are now empty."""
+
+    ended_at: datetime
+    additional_visit_required: bool
+    follow_up_notes: str | None = None
+    config_version_ids: list[str] = Field(default_factory=list)
+    overrides: list[dict[str, str]] = Field(default_factory=list)
+    sensor_actions: list[dict[str, object]] = Field(default_factory=list)
+    config_versions: list[dict[str, object]] = Field(default_factory=list)
+
+
+@register("visit.station_owner_changed")
+class VisitStationOwnerChanged(VisitFacts):
+    station_id: str
+    from_staff_id: str  # `from` is a Python keyword
+    to_staff_id: str
+    # So the notification can say which station (optional: version 1 still holds)
+    station_code: str | None = None
+    station_name: str | None = None
+
+
+@register("visit.prepared")
+class VisitPrepared(VisitFacts):
+    """A staff member prepared the visit on a phone for work with no signal (OFF-1, W13-9). Ids
+    only: who and which phone, never what was downloaded."""
+
+    user_id: str
+    device_id: str
+
+
+@register("visit.sync_conflict")
+class VisitSyncConflict(VisitFacts):
+    """A phone's work for this visit came back from `/sync` as a conflict (W14-5, TRD §7.4): the
+    reason code (`not_owner`, `visit_cancelled`, ...) and the kinds of operation, never their
+    content. It only drives notifications and is not audited."""
+
+    user_id: str  # whose phone
+    reason: str
+    op_types: list[str]
+
+
+@register("visit.station_arrived")
+class VisitStationArrived(VisitFacts):
+    station_id: str
+    at: datetime
+
+
+@register("visit.station_departed")
+class VisitStationDeparted(VisitFacts):
+    station_id: str
+    at: datetime
+
+
+@register("visit.work_updated")
+class VisitWorkUpdated(VisitFacts):
+    """A station's work record was saved (W11). Retired 2026-10-22 (W11-16): no longer emitted;
+    registered so the events already in the audit chain still parse."""
+
+    station_id: str
+    version: int  # the work record's, not the visit's
+    sensor_actions: list[dict[str, str]] = Field(default_factory=list)  # {id, action}
+    config_versions: list[str] = Field(default_factory=list)  # ids
+
+
+@register("visit.media_changed")
+class VisitMediaChanged(VisitFacts):
+    """A file was added to an element of a station's board, captioned, hidden from or shown to
+    the client again, or removed (W11-10, W11-27). Ids and kinds only: no file name, no caption.
+    `phase` belonged to the media phases (retired W11-16); `element_id` and `section` replace it."""
+
+    station_id: str
+    media_id: str
+    kind: str  # image | video | config
+    change: str  # added | captioned | hidden | shown | removed
+    element_id: str | None = None
+    section: str | None = None  # main | before | after
+    phase: str | None = None
+
+
+class VisitElementFacts(VisitFacts):
+    """An element of a station's board (W11-35): ids and flags only. Its title, description and
+    items never travel; the audit record keeps them."""
+
+    station_id: str
+    element_id: str
+    kind: str  # note | task | recommendation | config
+    shared: bool
+    completed: bool | None = None  # a task's
+    priority: str | None = None  # a recommendation's
+    element_version: int
+
+
+@register("visit.element_added")
+class VisitElementAdded(VisitElementFacts):
+    pass
+
+
+@register("visit.element_updated")
+class VisitElementUpdated(VisitElementFacts):
+    changed_fields: list[str]
+
+
+@register("visit.element_deleted")
+class VisitElementDeleted(VisitElementFacts):
+    pass
+
+
+@register("media.deletion_requested")
+class MediaDeletionRequested(_Data):
+    """Operations asks media to delete files it no longer holds on any owner (a photo taken off
+    a visit). Media deletes them and says so with `media.deleted`."""
+
+    media_ids: list[str]
+    reason: str

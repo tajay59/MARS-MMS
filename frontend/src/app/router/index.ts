@@ -1,3 +1,4 @@
+import type { RouteLocationNormalized } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { onSessionChange } from '@/app/auth/session'
 import { APP_NAME } from '@/app/brand'
@@ -17,6 +18,15 @@ router.beforeEach(async to => {
   const session = useSessionStore()
   await session.bootstrap()
 
+  // The app started with no signal and a PIN is waiting: nothing opens before it (AUTH-12)
+  if (session.locked && to.meta.layout !== 'public') {
+    return { name: 'unlock', query: { next: to.fullPath === '/dashboard' ? undefined : to.fullPath } }
+  }
+  if (to.name === 'unlock' && !session.locked) {
+    // Nothing to unlock: already in, or no offline session on this phone
+    return session.user ? (safeNext(to.query.next) ?? { name: 'dashboard' }) : { name: 'login', query: { next: safeNext(to.query.next) ?? undefined } }
+  }
+
   if (to.meta.layout === 'public') {
     if (to.meta.guestOnly && session.user) {
       return safeNext(to.query.next) ?? { name: 'dashboard' }
@@ -33,8 +43,20 @@ router.beforeEach(async to => {
     // A page the role can't use looks the same as a missing one (AFD §5.2, ADR-16).
     return { name: 'not-found', params: { pathMatch: to.path.slice(1).split('/') }, query: to.query, hash: to.hash }
   }
+  // Unlocked with the PIN and no signal: only the field pages work (OFF-10)
+  if (session.offline && !opensOffline(to)) {
+    return { name: 'needs-connection', query: { from: to.fullPath } }
+  }
   return true
 })
+
+/** Whether a page works from what the phone holds (a `record` page only with its :id). */
+export function opensOffline (to: RouteLocationNormalized): boolean {
+  if (to.meta.offline === true) {
+    return true
+  }
+  return to.meta.offline === 'record' && typeof to.params.id === 'string' && to.params.id !== 'new' && !to.params.mode
+}
 
 router.afterEach(to => {
   document.title = to.meta.title ? `${to.meta.title} · ${APP_NAME}` : APP_NAME

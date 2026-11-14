@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Path, Query
 from mms_common.auth import ServicePrincipal, require_service
@@ -11,13 +11,27 @@ from mms_common.ids import UUID7_PATTERN
 from mms_common.snapshot import SnapshotPage, page
 from pydantic import BaseModel, Field
 
+from app.api.client_reports import facts as client_report_facts
 from app.api.context import CtxDep
+from app.api.requests import closeout_facts
 from app.api.stations.calibration_routes import due_list
 from app.api.stations.schemas import DueList
-from app.events.publish import calibration_data, request_data, station_data, unit_data
+from app.api.visits import report_facts, report_lock
+from app.domain.visits import elements as element_rules
+from app.events.publish import (
+    calibration_data,
+    model_data,
+    request_data,
+    station_data,
+    unit_data,
+    visit_snapshot,
+)
+from app.repo import client_reports as client_report_repo
 from app.repo.requests import requests as request_repo
 from app.repo.stations import models, units
 from app.repo.stations import stations as station_repo
+from app.repo.visits import elements as element_repo
+from app.repo.visits import visits as visit_repo
 
 router = APIRouter(tags=["internal"])
 
@@ -121,6 +135,44 @@ async def attachable(
         if not held & {"client", "technician", "admin"}:
             raise Forbidden()
         return AttachableOut(org_id=found["org_id"])
+    elif parts[0] == "visit" and (
+            target := element_rules.parse_owner_ref(owner_ref)) is not None:
+        # A file for an element of a station's board: staff attending the visit (W11-27). The
+        # element may not exist yet, because a phone uploads while its create op waits to sync;
+        # when it does, it must be on that station and the uploader must be able to edit it. A
+        # client has no way to add one, and a visit they cannot see does not exist for them.
+        visit_id, station_id, element_id, section = target
+        found_visit = await visit_repo.get(ctx.db, visit_id)
+        if found_visit is None or "client" in held:
+            raise NotFound()
+        station = next((s for s in found_visit["stations"] if s["station_id"] == station_id),
+                       None)
+        if station is None:
+            raise NotFound()
+        if not held & WRITE_ROLES:
+            raise Forbidden()
+        if "admin" not in held and user_id not in found_visit["staff_ids"]:
+            raise Forbidden()
+        element = await element_repo.get(ctx.db, element_id)
+        if element is not None:
+            if (element["visit_id"] != visit_id or element["station_id"] != station_id
+                    or element.get("deleted_at") is not None
+                    or section not in element_rules.SECTIONS[element["kind"]]):
+                raise NotFound()
+            if not element_rules.can_edit(element, station, user_id, "admin" in held):
+                raise Forbidden()
+        return AttachableOut(org_id=found_visit["org_id"])
+    elif parts[0] == "client_report" and len(parts) == 2:
+        # A client's own report: only its author, while it is a draft (W18-10). The report is
+        # made before its files are uploaded.
+        found_report = await client_report_repo.get(ctx.db, parts[1])
+        if (found_report is None or "client" not in held
+                or found_report["org_id"] != (org_id or None)
+                or found_report["created_by"] != user_id):
+            raise NotFound()
+        if found_report["status"] != "draft":
+            raise Forbidden()
+        return AttachableOut(org_id=found_report["org_id"])
     elif parts[0] == "comment" and len(parts) == 3:
         # A comment's files go with the comment, so the request must exist and be the caller's
         found = await request_repo.get(ctx.db, parts[1])
@@ -138,23 +190,131 @@ async def attachable(
     return AttachableOut(org_id=owner_org)
 
 
+@router.get("/internal/requests/{request_id}/closeout-facts")
+async def request_closeout_facts(
+    svc: ReportService, ctx: CtxDep,
+    request_id: Annotated[str, Path(pattern=UUID7_PATTERN)],
+) -> dict[str, Any]:
+    """What the close-out report prints (RPT-8): the request, its timeline, visits and the
+    reports in force, the comments clients may read, and the client's decision with the drawn
+    signature, which no event carries (W18-3)."""
+    facts = await closeout_facts.build(ctx, request_id)
+    if facts is None:
+        raise NotFound()
+    return facts
+
+
+@router.get("/internal/client-reports/{report_id}")
+async def client_report_facts_route(
+    svc: ReportService, ctx: CtxDep,
+    report_id: Annotated[str, Path(pattern=UUID7_PATTERN)],
+) -> dict[str, Any]:
+    """What a client's online-form report prints (CRP-3): its text, stations and pictures. The
+    event that announces a submission carries none of it (W18-10)."""
+    facts = await client_report_facts.build(ctx, report_id)
+    if facts is None:
+        raise NotFound()
+    return facts
+
+
+@router.get("/internal/visits/{visit_id}/report-facts")
+async def visit_report_facts(
+    visit_id: Annotated[str, Path(pattern=UUID7_PATTERN)], svc: ReportService, ctx: CtxDep
+) -> dict[str, Any]:
+    """The visit, its request, its stations and their boards, for the report service's draft
+    (TRD 11.2, W16-2). Staff-side facts: the report service decides who may read a report."""
+    facts = await report_facts.build(ctx, visit_id)
+    if facts is None:
+        raise NotFound()
+    return facts
+
+
+class LockIn(BaseModel):
+    report_id: Annotated[str, Field(pattern=UUID7_PATTERN)]
+    report_version: int = Field(ge=1)
+
+
+class LockOut(BaseModel):
+    visit_id: str
+    locked: bool
+    visit_version: int  # the visit's version after the call: the board as it was locked
+
+
+@router.post("/internal/visits/{visit_id}/lock")
+async def lock_visit(
+    visit_id: Annotated[str, Path(pattern=UUID7_PATTERN)], body: LockIn, svc: ReportService,
+    ctx: CtxDep,
+) -> LockOut:
+    """Lock an ended visit's boards for one version of its report (VIS-12; TRD 11.2 step 4.2).
+    The same pair again changes nothing; another report version on a locked visit is 409."""
+    visit, locked = await report_lock.lock(ctx, visit_id, body.report_id, body.report_version)
+    return LockOut(visit_id=visit_id, locked=locked, visit_version=visit["version"])
+
+
+@router.post("/internal/visits/{visit_id}/unlock")
+async def unlock_visit(
+    visit_id: Annotated[str, Path(pattern=UUID7_PATTERN)], body: LockIn, svc: ReportService,
+    ctx: CtxDep,
+) -> LockOut:
+    """Unlock the visit if this report version holds the lock (a failed finalize, or a reopen).
+    Anything else changes nothing and the answer says whether the visit is still locked."""
+    visit, locked = await report_lock.unlock(ctx, visit_id, body.report_id, body.report_version)
+    return LockOut(visit_id=visit_id, locked=locked, visit_version=visit["version"])
+
+
+def installation_snapshot(doc: dict[str, Any], unit: dict[str, Any]) -> dict[str, Any]:
+    """An installation as the report service keeps it: when a unit went in and came out, with the
+    unit's serial and model (W19-6). Shaped like `sensor.installed` and `sensor.removed`."""
+    return {
+        "installation_id": doc["_id"], "unit_id": doc["sensor_unit_id"],
+        "serial": unit.get("serial", ""), "model_id": unit.get("model_id", ""),
+        "station_id": doc["station_id"], "parameter": doc.get("parameter"),
+        "installed_at": doc["installed_at"], "removed_at": doc.get("removed_at"),
+        "aggregate_version": int(doc.get("version", 1)),
+    }
+
+
+def config_snapshot(doc: dict[str, Any]) -> dict[str, Any]:
+    """A configuration version: written once and never changed (CFG-2), so its read-model
+    version is always 1. `version` here is the number the station shows."""
+    return {
+        "config_id": doc["_id"], "station_id": doc["station_id"], "version": doc["version"],
+        "file_count": len(doc.get("files", [])), "visit_id": doc.get("visit_id"),
+        "created_at": doc["created_at"], "aggregate_version": 1,
+    }
+
+
 @router.get("/internal/snapshot/{entity}")
 async def snapshot(
     svc: SnapshotReader,
     ctx: CtxDep,
-    entity: Annotated[str, Path(pattern="^(stations|sensor_units|calibrations|requests)$")],
+    entity: Annotated[str, Path(pattern=(
+        "^(stations|sensor_units|calibrations|requests|visits|sensor_models|installations"
+        "|config_versions)$"))],
     after: Annotated[str | None, Query(pattern=UUID7_PATTERN)] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 500,
 ) -> SnapshotPage:
     """Current state for read-model backfill (TRD §8.6), shaped like the events' data.
-    Visits join in Phase 4."""
-    result = await page(ctx.db[entity], after=after, limit=limit)
+    Visits are in `site_visits`."""
+    result = await page(ctx.db["site_visits" if entity == "visits" else entity], after=after,
+                        limit=limit)
     if entity == "stations":
         items = [{**station_data(d), "aggregate_version": d["version"]} for d in result.items]
     elif entity == "sensor_units":
         items = [{**unit_data(d), "aggregate_version": d["version"]} for d in result.items]
     elif entity == "requests":
         items = [{**request_data(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "visits":
+        items = [{**visit_snapshot(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "sensor_models":
+        items = [{**model_data(d), "aggregate_version": d["version"]} for d in result.items]
+    elif entity == "installations":
+        units = {u["_id"]: u async for u in ctx.db["sensor_units"].find(
+            {"_id": {"$in": [d["sensor_unit_id"] for d in result.items]}})}
+        items = [installation_snapshot(d, units.get(d["sensor_unit_id"], {}))
+                 for d in result.items]
+    elif entity == "config_versions":
+        items = [config_snapshot(d) for d in result.items]
     else:
         items = [
             {**calibration_data(d, None), "aggregate_version": d["version"]}

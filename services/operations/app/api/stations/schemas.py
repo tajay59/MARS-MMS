@@ -195,7 +195,6 @@ class InstalledUnit(BaseModel):
     calibration_due_at: datetime | None
     due_state: str | None
     flags: list[str]
-    needs_review: bool
 
 
 class StationDetail(StationSummary):
@@ -339,7 +338,6 @@ class SensorUnitPatch(In):
     status: EditableUnitStatus | None = None
     # Send null to go back to the model's default interval.
     calibration_interval_days: Interval | None = None
-    needs_review: bool | None = None
     notes: LongText | None = None
 
 
@@ -376,7 +374,6 @@ class SensorUnitOut(BaseModel):
     last_calibration_result: str | None
     calibration_due_at: datetime | None
     due_state: str | None
-    needs_review: bool
     flags: list[str]
     notes: str | None
     version: int
@@ -401,7 +398,7 @@ class SensorUnitOut(BaseModel):
             last_calibrated_at=doc.get("last_calibrated_at"),
             last_calibration_result=doc.get("last_calibration_result"),
             calibration_due_at=due, due_state=state.value if state else None,
-            needs_review=bool(doc.get("needs_review")), flags=list(doc.get("flags", [])),
+            flags=list(doc.get("flags", [])),
             notes=doc.get("notes"), version=doc["version"], created_at=doc["created_at"],
             updated_at=doc["updated_at"],
         )

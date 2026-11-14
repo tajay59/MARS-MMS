@@ -5,6 +5,13 @@
       <FeedbackBanner :icon="banner.tone === 'error' ? mdiCancel : (banner.tone === 'neutral' ? mdiCloseCircleOutline : undefined)" :type="banner.tone === 'error' ? 'error' : 'info'">
         <p class="m-0 font-medium">{{ banner.title }}</p>
         <p v-if="banner.body" class="m-0 mt-0.5">{{ banner.body }}</p>
+
+        <v-btn
+          v-if="banner.review"
+          class="mt-2"
+          color="primary"
+          :to="{ name: 'request-review', params: { id: detail.id } }"
+        >Review and sign off</v-btn>
       </FeedbackBanner>
     </div>
 
@@ -18,7 +25,7 @@
         :show-arrows="mdAndUp"
       >
         <v-tab v-for="t in tabs" :key="t.key" class="px-4 md:first:ml-4" :value="t.key">
-          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span>
+          {{ t.label }}<span v-if="t.key === 'comments' && commentCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ commentCount }}</span><span v-else-if="t.key === 'visits' && visitCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ visitCount }}</span><span v-else-if="t.key === 'reports' && reportCount > 0" class="ml-1.5 tabular-nums text-surface-600">{{ reportCount }}</span>
         </v-tab>
       </v-tabs>
     </Teleport>
@@ -87,6 +94,14 @@
         <RequestComments :request-id="detail.id" @count="seen = $event" />
       </v-tabs-window-item>
 
+      <v-tabs-window-item value="visits">
+        <RequestVisits :can-schedule="detail.actions.includes('schedule_visit')" :refresh-key="refreshKey" :request-id="detail.id" @count="seenVisits = $event" />
+      </v-tabs-window-item>
+
+      <v-tabs-window-item v-if="showReports" value="reports">
+        <RequestReports :detail="detail" :is-client="isClient" :refresh-key="refreshKey" @count="reportCount = $event" />
+      </v-tabs-window-item>
+
       <v-tabs-window-item value="history">
         <div class="overflow-x-auto">
           <table class="w-full border-collapse text-sm">
@@ -113,6 +128,19 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Staff only (AUD-6, W19): every change to the request, its visits, comments and reports -->
+        <div v-if="!isClient" class="mt-8 flex flex-col gap-3">
+          <h2 class="m-0 text-h3 text-surface-900">Every change</h2>
+
+          <HistoryTab
+            v-if="tab === 'history'"
+            :id="detail.id"
+            :admin="isAdmin"
+            kind="request"
+            :level="3"
+          />
+        </div>
       </v-tabs-window-item>
     </v-tabs-window>
   </div>
@@ -121,6 +149,7 @@
 <script lang="ts" setup>
   import type { RequestDetail } from '@/api/models'
   import { mdiCancel, mdiCloseCircleOutline } from '@mdi/js'
+  import { storeToRefs } from 'pinia'
   import { computed, inject, ref } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { useDisplay } from 'vuetify'
@@ -129,30 +158,42 @@
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import { pageBarKey } from '@/components/pageBar'
   import RequestStatusChip from '@/components/RequestStatusChip.vue'
+  import HistoryTab from '@/features/history/HistoryTab.vue'
+  import RequestVisits from '@/features/visits/RequestVisits.vue'
+  import { useSessionStore } from '@/stores/session'
+  import { canAddClientReport } from './reports/reports'
+  import RequestReports from './reports/RequestReports.vue'
   import RequestComments from './RequestComments.vue'
   import { bannerFor, categoryLabel, lookOf, timelineOf } from './requests'
   import SavedFile from './SavedFile.vue'
 
-  // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments
-  // and the history of every change. Visits and Reports join the tabs when those features exist.
-  const props = defineProps<{ detail: RequestDetail, isClient: boolean }>()
+  // The body of /requests/:id (DBD "Request page"): the status timeline and the facts, the comments,
+  // the visits, the reports (W18) and the history of every change.
+  const props = defineProps<{ detail: RequestDetail, isClient: boolean, refreshKey?: number }>()
+  const { isAdmin } = storeToRefs(useSessionStore())
 
   const route = useRoute()
   const router = useRouter()
   const { mdAndUp } = useDisplay()
   const pageBar = inject(pageBarKey, ref<HTMLElement | null>(null))
 
-  const tabs = [
+  // Reports (W18): there is something to read or add once the request has reached the work
+  const showReports = computed(() => canAddClientReport(props.detail.status))
+  const reportCount = ref(0)
+
+  const tabs = computed(() => [
     { key: 'overview', label: 'Overview' },
     { key: 'comments', label: 'Comments' },
+    { key: 'visits', label: 'Visits' },
+    ...(showReports.value ? [{ key: 'reports', label: 'Reports' }] : []),
     { key: 'history', label: 'History' },
-  ]
+  ])
 
   // The tab is in the URL (?tab=history)
   const tab = computed<string>({
     get: () => {
       const value = route.query.tab
-      return typeof value === 'string' && tabs.some(t => t.key === value) ? value : 'overview'
+      return typeof value === 'string' && tabs.value.some(t => t.key === value) ? value : 'overview'
     },
     set: value => {
       void router.replace({ query: { ...route.query, tab: value === 'overview' ? undefined : value } })
@@ -162,6 +203,10 @@
   // The number on the tab: what the page was told, then what the thread says once it has loaded
   const seen = ref<number | null>(null)
   const commentCount = computed(() => seen.value ?? props.detail.comment_count)
+
+  // The same for the visits: what the page was told (those not cancelled), then what the tab says
+  const seenVisits = ref<number | null>(null)
+  const visitCount = computed(() => seenVisits.value ?? props.detail.visits.filter(v => v.status !== 'cancelled').length)
 
   function linkFor (mediaId: string): Promise<{ url: string }> {
     return requestsApi.requestFile(props.detail.id, mediaId)

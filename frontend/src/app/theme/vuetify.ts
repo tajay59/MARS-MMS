@@ -7,7 +7,7 @@ import 'vuetify/styles'
 
 /*
   The one createVuetify call (TRD §13.2). Global defaults give the DBD look, so pages don’t
-  repeat props: flat 40 px buttons with a 6 px radius, outlined compact inputs, flat cards with
+  repeat props: flat 40 px buttons with a 6 px radius, filled (solo-inverted, flat) compact inputs, flat cards with
   a 1 px border and 10 px radius, no ripple. The field shell raises sizes to 48 px with a
   VDefaultsProvider. rounded="md" / "card" resolve to Tailwind’s rounded-md / rounded-card.
 */
@@ -16,7 +16,7 @@ import 'vuetify/styles'
 // The organization's colours as last fetched, so the first paint is already in them (W4-12)
 const initial = buildThemes(readCachedBranding().material ?? builtInMaterial)
 
-const input = { variant: 'outlined', density: 'compact', rounded: 'md', hideDetails: 'auto' } as const
+const input = { variant: 'solo-inverted', flat: true, density: 'compact', rounded: 'md', hideDetails: 'auto' } as const
 
 export default createVuetify({
   theme: {

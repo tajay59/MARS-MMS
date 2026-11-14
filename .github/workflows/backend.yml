@@ -77,6 +77,21 @@ jobs:
         working-directory: .
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-inter
 
+      # The media pipeline's tests make a real video and play it back with ffmpeg (media only).
+      # (2026-10-27) This step took 17 of the job's 20 minutes on two runs and the job was cancelled at
+      # its limit while the tests need under two. A non-interactive install that restarts nothing,
+      # retries downloads and has its own limit stops one slow mirror from using the whole job.
+      - name: ffmpeg for the media pipeline
+        if: matrix.service == 'media'
+        working-directory: .
+        timeout-minutes: 8
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends ffmpeg
+
       - run: >-
           pip install -e ../../libs/mms_common -e ".[dev]"
           --config-settings editable_mode=compat
@@ -91,6 +106,10 @@ jobs:
       # tests. Coverage target: 70% overall (TP); domain/ is checked in review.
       - name: Tests
         run: pytest -q --cov --cov-report=term --cov-fail-under=70
+        # The report service draws one chart with a real browser in its tests (W19-11): the
+        # runner has Chrome; elsewhere the test is skipped.
+        env:
+          REPORT_CHROMIUM_PATH: ${{ matrix.service == 'report' && 'google-chrome' || '' }}
 
       # The frontend's API types come from frontend/openapi/<service>.json: it must match.
       - name: OpenAPI matches frontend/openapi
@@ -99,6 +118,30 @@ jobs:
         run: |
           python infra/scripts/export_openapi.py ${{ matrix.service }}
           git diff --exit-code -- frontend/openapi
+
+  # The visit report drawn in the report image's own fonts and compared with the committed pictures
+  # (W16 slice 3). A deliberate template change updates services/report/visual/baselines in the
+  # same commit (see the Dockerfile's header).
+  report-visual:
+    name: report visual
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the check image
+        run: docker build -f services/report/visual/Dockerfile -t mms-report-visual .
+
+      - name: Compare the report with its baseline
+        run: docker run --rm -v "$PWD/visual-out:/out" mms-report-visual
+
+      - name: The pages as drawn now
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: report-visual
+          path: visual-out
+          if-no-files-found: ignore
 
   service-template:
     name: service template
@@ -150,6 +193,165 @@ jobs:
             --add-host seaweedfs:127.0.0.1 \
             nginx:1.31.7-alpine /docker-entrypoint.sh nginx -t
 
+  # The alert rules are code: each has a promtool test that makes it fire and one that keeps it
+  # quiet (W20-2). The live stack (targets, dashboards, the alert mail) is tested in `stack`.
+  monitoring:
+    name: monitoring rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: promtool
+        run: |
+          docker run --rm --entrypoint promtool -v "$PWD/infra/monitoring:/m:ro" prom/prometheus:v3.5.0 check config /m/prometheus.yml
+          docker run --rm --entrypoint promtool -v "$PWD/infra/monitoring:/m:ro" prom/prometheus:v3.5.0 test rules /m/tests/mms.test.yml
+
+      - name: Dashboards are valid JSON
+        run: for f in infra/monitoring/grafana/dashboards/*.json; do python -m json.tool "$f" > /dev/null; done
+
+  # Backups and the restore drill (W20-6 to W20-9): a real dump is encrypted, copied, checked and
+  # restored into the running stack, and the audit chain must still verify. It stops and starts the
+  # application services, so it has its own stack. The weekly run is .github/workflows/restore-drill.yml.
+  backup:
+    name: backup and restore
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: pip install httpx pymongo redis boto3 pytest pyyaml
+
+      - name: Start the stack with the backup host
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: |
+          cp .env.example .env
+          mkdir -p ../frontend/dist
+          docker compose up -d --build
+          # In the `backup` profile, so `up` does not build it
+          docker compose build backup
+          for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
+            cid="$(docker compose ps -aq "$svc")"
+            for _ in $(seq 1 120); do
+              [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
+              sleep 2
+            done
+            code="$(docker inspect -f '{{.State.ExitCode}}' "$cid")"
+            echo "$svc exited with $code"
+            [ "$code" = 0 ]
+          done
+          for svc in auth operations media report platform; do
+            for _ in $(seq 1 60); do
+              cid="$(docker compose ps -q "$svc")"
+              [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ]
+          done
+
+      - name: Backup, retention and restore tests
+        working-directory: infra
+        run: pytest tests/test_retention.py tests/test_backup.py tests/test_restore.py -q -rs -s -W ignore::urllib3.exceptions.InsecureRequestWarning
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: docker compose logs --no-color --tail 100
+
+      - name: Stop the stack
+        if: always()
+        working-directory: infra
+        env:
+          COMPOSE_FILE: compose.yml:compose.dev.yml:compose.backup.yml:compose.backup-host.yml
+        run: docker compose down -v
+
+  # The load test script, small (W20 slice 6): five users for a minute through the gateway on a fresh
+  # stack, judged by the same thresholds as the full run. It is here so the script cannot rot; the
+  # full run (50 users, 20 uploads, an hour) is loadtest.yml, on a host that can take it.
+  load:
+    name: load smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: compose.yml:compose.dev.yml
+      LOAD_CONNECT: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - run: pip install locust httpx
+
+      - name: Start the stack
+        working-directory: infra
+        run: |
+          cp .env.example .env
+          mkdir -p ../frontend/dist
+          docker compose up -d --build
+          for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
+            cid="$(docker compose ps -aq "$svc")"
+            for _ in $(seq 1 120); do
+              [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.ExitCode}}' "$cid")" = 0 ]
+          done
+          for svc in auth operations media report platform; do
+            for _ in $(seq 1 60); do
+              cid="$(docker compose ps -q "$svc")"
+              [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
+              sleep 2
+            done
+            [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ]
+          done
+
+      - name: Seed the users, the demo stations and a small volume
+        working-directory: infra
+        run: |
+          docker compose exec -T -e AUTH_SEED_PASSWORD=dev-seed-password-1 auth python -m app.cli seed
+          for _ in $(seq 1 30); do
+            docker compose exec -T operations python -m app.cli seed | tee /tmp/seed.txt
+            grep -q Errors /tmp/seed.txt || break
+            sleep 2
+          done
+          cd loadtest
+          python seed_volume.py --stations 12 --requests 30 --visits 10
+
+      - name: Five users for a minute
+        working-directory: infra/loadtest
+        run: |
+          mkdir -p out
+          locust -f locustfile.py --headless -u 5 -r 1 -t 75s --csv out/smoke --only-summary --exit-code-on-error 0
+          python check_thresholds.py out/smoke
+
+      - name: Statistics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: load-smoke
+          path: infra/loadtest/out/*.csv
+          retention-days: 7
+
+      - name: Logs on failure
+        if: failure()
+        working-directory: infra
+        run: docker compose logs --no-color --tail 80
+
+      - name: Stop the stack
+        if: always()
+        working-directory: infra
+        run: docker compose down -v
+
   stack:
     name: compose stack
     runs-on: ubuntu-24.04
@@ -172,17 +374,17 @@ jobs:
         with:
           python-version: "3.13"
 
-      - run: pip install httpx pymongo redis boto3 pytest
+      - run: pip install httpx pymongo redis boto3 pytest pyyaml
 
       - name: Start the stack
         working-directory: infra
         run: |
           cp .env.example .env
-          docker compose -f compose.yml -f compose.dev.yml up -d --build
+          docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml up -d --build
           # Each one-shot init container must finish with 0. They wait for their store to be
           # healthy first, so once they are done Mongo, Kafka and SeaweedFS are ready.
           for svc in dev-certs dev-secrets mongo-init kafka-init seaweedfs-init; do
-            cid="$(docker compose -f compose.yml -f compose.dev.yml ps -aq "$svc")"
+            cid="$(docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml ps -aq "$svc")"
             for _ in $(seq 1 120); do
               [ "$(docker inspect -f '{{.State.Status}}' "$cid")" = exited ] && break
               sleep 2
@@ -194,7 +396,7 @@ jobs:
           # Then the application services must report healthy.
           for svc in auth operations media report platform; do
             for _ in $(seq 1 60); do
-              cid="$(docker compose -f compose.yml -f compose.dev.yml ps -q "$svc")"
+              cid="$(docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml ps -q "$svc")"
               [ "$(docker inspect -f '{{.State.Health.Status}}' "$cid")" = healthy ] && break
               sleep 2
             done
@@ -204,7 +406,8 @@ jobs:
 
       - name: Stack tests
         working-directory: infra
-        run: pytest tests -q -rs -W ignore::urllib3.exceptions.InsecureRequestWarning
+        # The backup and restore tests have their own job: the drill stops the services
+        run: pytest tests -q -rs -W ignore::urllib3.exceptions.InsecureRequestWarning --ignore=tests/test_backup.py --ignore=tests/test_restore.py
 
       # Journeys in a real browser through the stack (TP "End-to-end"): J1, J2, the offline shell.
       - name: Playwright journeys
@@ -215,7 +418,7 @@ jobs:
 
       - name: Playwright report
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
@@ -226,9 +429,9 @@ jobs:
       - name: Logs on failure
         if: failure()
         working-directory: infra
-        run: docker compose -f compose.yml -f compose.dev.yml logs --no-color --tail 100
+        run: docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml logs --no-color --tail 100
 
       - name: Stop the stack
         if: always()
         working-directory: infra
-        run: docker compose -f compose.yml -f compose.dev.yml down -v
+        run: docker compose -f compose.yml -f compose.dev.yml -f compose.monitoring.yml down -v

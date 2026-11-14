@@ -150,6 +150,8 @@
         await focusFirstError()
       } else if (error instanceof NetworkError) {
         failure.value = 'No connection. Check your signal and try again.'
+      } else if (error instanceof ApiError && error.status === 429) {
+        failure.value = 'Too many attempts. Wait a minute, then try again.'
       } else {
         failure.value = 'Something went wrong on our side. Try again in a minute.'
       }

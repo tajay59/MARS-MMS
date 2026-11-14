@@ -32,8 +32,9 @@
     <RailButton
       v-if="!isClient"
       :active="route.name === 'sync'"
-      hint="Nothing is waiting on this device"
-      :icon="mdiCloudCheckOutline"
+      :badge="syncLabel"
+      :hint="syncLabel ? 'Work is waiting on this device' : 'Nothing is waiting on this device'"
+      :icon="syncLabel ? mdiCloudUploadOutline : mdiCloudCheckOutline"
       label="Sync"
       :to="{ name: 'sync' }"
     />
@@ -55,7 +56,7 @@
 
 <script lang="ts" setup>
   import type { Section } from '@/app/navigation'
-  import { mdiCloudCheckOutline } from '@mdi/js'
+  import { mdiCloudCheckOutline, mdiCloudUploadOutline } from '@mdi/js'
   import { storeToRefs } from 'pinia'
   import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
@@ -64,6 +65,7 @@
   import { icons } from '@/app/theme/icons'
   import AppLogo from '@/components/AppLogo.vue'
   import UserMenu from '@/components/UserMenu.vue'
+  import { useSyncLabel } from '@/features/field/useSyncOverview'
   import { badgeText } from '@/features/notifications/notifications'
   import { useNotificationsStore } from '@/stores/notifications'
   import { useSessionStore } from '@/stores/session'
@@ -79,6 +81,7 @@
   const route = useRoute()
   const { isClient } = storeToRefs(useSessionStore())
   const notifications = useNotificationsStore()
+  const syncLabel = useSyncLabel()
 
   const nav = ref<HTMLElement | null>(null)
   const indicator = ref<HTMLElement | null>(null)

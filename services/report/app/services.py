@@ -17,7 +17,9 @@ from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
 from app.config import Settings
-from app.repo.operations import LabelSource, OperationsClient
+from app.repo.charts import ChromiumCharts
+from app.repo.media import MediaClient, MediaSource
+from app.repo.operations import FactsSource, LabelSource, OperationsClient, VisitLocks
 from app.repo.render import Renderer, WeasyRenderer
 from app.repo.storage import Storage, make_client
 
@@ -38,6 +40,9 @@ class Services:
     stations: LabelSource
     renderer: Renderer
     jobs: Jobs
+    facts: FactsSource
+    media: MediaSource
+    locks: VisitLocks
 
 
 def make_storage(settings: Settings) -> Storage:
@@ -48,15 +53,20 @@ def make_storage(settings: Settings) -> Storage:
     )
 
 
-def make_stations(settings: Settings, clock: Clock, http: httpx.AsyncClient) -> LabelSource:
+def make_stations(
+    settings: Settings, clock: Clock, http: httpx.AsyncClient
+) -> OperationsClient:
     tokens = ServiceTokens(
         settings.auth_url, "report", settings.service_secret.get_secret_value(), clock, http
     )
     return OperationsClient(settings.ops_url, tokens, http)
 
 
-def make_renderer() -> Renderer:
-    return WeasyRenderer()
+def make_renderer(settings: Settings | None = None) -> Renderer:
+    settings = settings or Settings()
+    charts = (ChromiumCharts(settings.chromium_path, settings.chart_timeout_s)
+              if settings.charts == "chromium" else None)
+    return WeasyRenderer(charts)
 
 
 class QueueJobs:
@@ -68,3 +78,10 @@ class QueueJobs:
 
     async def enqueue(self, job_id: str) -> None:
         await self._queue.enqueue(job_id)
+
+
+def make_media(settings: Settings, clock: Clock, http: httpx.AsyncClient) -> MediaClient:
+    tokens = ServiceTokens(
+        settings.auth_url, "report", settings.service_secret.get_secret_value(), clock, http
+    )
+    return MediaClient(settings.media_url, tokens, http)

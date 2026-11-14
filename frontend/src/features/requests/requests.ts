@@ -1,5 +1,6 @@
 import type { RequestAction, RequestDetail, RequestHistoryEntry, RequestStatus, RequestSummary } from '@/api/models'
 import type { LocationQuery } from 'vue-router'
+import { formatDate } from '@/app/format'
 import { requestStatusIcons } from '@/app/theme/icons'
 
 /*
@@ -272,6 +273,27 @@ export interface Banner {
   tone: 'info' | 'error' | 'neutral'
   title: string
   body?: string
+  /** A client in Client Review is offered the review page (W18, AFD J8). */
+  review?: boolean
+}
+
+/** In Client Review: the client is offered the review page, staff are told who is waited for (W18). */
+function reviewBanner (detail: RequestDetail, isClient: boolean): Banner {
+  const closes = detail.auto_close_at ? ` on ${formatDate(detail.auto_close_at)}` : ''
+  return isClient
+    ? { tone: 'info', title: 'The work is done and ready for your review.', body: `If nobody at your organization answers, the request closes by itself${closes}.`, review: true }
+    : { tone: 'info', title: 'Waiting for the client’s review', body: `The client was asked to review the work. If nobody answers, the request closes by itself${closes}.` }
+}
+
+/** Closed: how it was closed, when the client answered or the clock did (W18). */
+function closedBanner (detail: RequestDetail): Banner | null {
+  const answer = detail.verification
+  if (answer?.outcome === 'auto_closed') {
+    return { tone: 'info', title: `Closed automatically on ${formatDate(answer.at)}`, body: 'Nobody answered the review in time. The close-out report says so.' }
+  }
+  return answer?.outcome === 'accepted'
+    ? { tone: 'info', title: `Closed. Accepted by ${answer.typed_name ?? answer.by?.name ?? 'the client'} on ${formatDate(answer.at)}`, body: 'The close-out report is on the Reports tab.' }
+    : null
 }
 
 export function bannerFor (detail: RequestDetail, isClient: boolean): Banner | null {
@@ -292,6 +314,12 @@ export function bannerFor (detail: RequestDetail, isClient: boolean): Banner | n
       return staff.length > 0
         ? { tone: 'info', title: isClient ? 'A technician is on it' : 'Assigned', body: `${isClient ? 'Assigned to' : 'On it:'} ${joinNames(staff)}.` }
         : null
+    }
+    case 'client_review': {
+      return reviewBanner(detail, isClient)
+    }
+    case 'closed': {
+      return closedBanner(detail)
     }
     case 'denied': {
       return { tone: 'error', title: `Denied${by('denied')?.by ? ` by ${by('denied')?.by?.name}` : ''}`, body: detail.denial_reason ? `Reason: ${detail.denial_reason}` : undefined }

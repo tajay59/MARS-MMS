@@ -64,6 +64,23 @@
   line-height: 1.25rem;
 }
 
+/*
+  Filled fields (solo-inverted, the global input look): Vuetify draws their label and placeholder at
+  medium-emphasis opacity, which fails 4.5:1 on the light grey fill (WCAG 1.4.3). Both use the
+  secondary text colour at full strength, like the hints above.
+*/
+.v-field--variant-solo-inverted .v-field-label,
+.v-field--variant-solo-inverted .v-field-label--floating {
+  opacity: 1;
+  color: rgb(var(--v-theme-surface-700));
+}
+
+.v-field--variant-solo-inverted .v-field__input::placeholder,
+.v-field--variant-solo-inverted .v-field__input input::placeholder {
+  opacity: 1;
+  color: rgb(var(--v-theme-surface-600));
+}
+
 /* Hints line up with the label above the field, as in the DBD forms */
 .v-input__details {
   padding-inline: 0;

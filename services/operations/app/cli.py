@@ -16,6 +16,11 @@
     python -m app.cli remove-example-requests
         Deletes the example requests, and only those.
 
+    python -m app.cli field-test-report [--visit ID ...] [--prefix "[Field test]"]
+        What the server holds for the field test's visits (W15-5): states, board elements, files on
+        the boards and sync operations, with anything odd under "Check". Changes nothing; exits 1
+        when it finds something to check.
+
     python -m app.cli backfill-orgs
         Copy every organization from auth's snapshot (TRD §8.6). Also runs at startup.
 
@@ -40,7 +45,7 @@ from app import migrations as app_migrations
 from app.config import Settings
 from app.domain.stations import importing
 from app.events.publish import Emitter
-from app.jobs import org_backfill, seed_data, seed_requests, station_import
+from app.jobs import field_report, org_backfill, seed_data, seed_requests, station_import
 
 CLI = Actor(name="operations cli", roles=["service"])
 
@@ -99,6 +104,10 @@ def main(argv: list[str] | None = None) -> int:
     sr = commands.add_parser("seed-requests")
     sr.add_argument("--count", type=int, default=50)
     commands.add_parser("remove-example-requests")
+    ft = commands.add_parser("field-test-report")
+    ft.add_argument("--visit", action="append", default=[], help="a visit ID (repeat for more)")
+    ft.add_argument("--prefix", default=field_report.DEFAULT_PREFIX,
+                    help="the title prefix of the field test's requests")
     commands.add_parser("backfill-orgs")
     args = parser.parse_args(argv)
 
@@ -124,7 +133,25 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_seed_requests(args.count))
     if args.command == "remove-example-requests":
         return asyncio.run(_remove_example_requests())
+    if args.command == "field-test-report":
+        return asyncio.run(_field_test_report(args.visit, args.prefix))
     return asyncio.run(_backfill_only())
+
+
+async def _field_test_report(visit_ids: list[str], prefix: str) -> int:
+    settings = Settings()
+    client = mongo.connect(settings.mongo_uri)
+    try:
+        db = client[settings.mongo_db]
+        ids = visit_ids or await field_report.visit_ids_for(db, prefix)
+        if not ids:
+            print(f"No visits found for requests titled \"{prefix}...\"", file=sys.stderr)
+            return 1
+        text, problems = await field_report.run(db, ids)
+    finally:
+        await client.close()
+    print(text)
+    return 1 if problems else 0
 
 
 async def _seed_requests(count: int) -> int:

@@ -1,0 +1,44 @@
+// Alloy ships container logs to Loki (W20-4). It reads them through a socket proxy that allows
+// only the container list and log calls, never the Docker socket itself.
+discovery.docker "containers" {
+  host = "tcp://docker-proxy:2375"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "tcp://docker-proxy:2375"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.json.receiver]
+}
+
+// The services write one JSON object a line (mms_common.logging). Its level becomes a label so
+// "errors from operations" is cheap to ask; every other field stays in the line.
+loki.process "json" {
+  stage.json {
+    expressions = { level = "level" }
+  }
+  stage.labels {
+    values = { level = "" }
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+  external_labels = { environment = sys.env("MMS_ENVIRONMENT") }
+}

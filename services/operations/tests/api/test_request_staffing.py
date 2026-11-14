@@ -44,7 +44,7 @@ async def test_an_admin_assigns_two_people_and_the_request_becomes_assigned(ops)
     last = got["status_history"][-1]
     assert (last["from_status"], last["to_status"]) == ("approved", "assigned")
     assert last["note"] == f"Assigned to {SEED_USERS['tech1'].name}, {SEED_USERS['tech2'].name}"
-    assert set(got["actions"]) == {"assign", "release", "cancel", "edit"}
+    assert set(got["actions"]) == {"assign", "release", "cancel", "edit", "schedule_visit"}
 
 
 @pytest.mark.req("REQ-7")
@@ -172,7 +172,7 @@ async def test_a_technician_claims_a_request_from_the_queue(ops):
     assert got["status"] == "assigned"
     assert got["assigned_staff"] == [{"id": TECH1, "name": SEED_USERS["tech1"].name}]
     assert got["status_history"][-1]["note"] == f"Claimed by {SEED_USERS['tech1'].name}"
-    assert got["actions"] == ["release"]
+    assert set(got["actions"]) == {"release", "schedule_visit"}
     [event] = await ops.outbox("request.assigned")
     assert event.data["claimed"] is True and event.data["staff_ids"] == [TECH1]
     assert event.actor.user_id == TECH1

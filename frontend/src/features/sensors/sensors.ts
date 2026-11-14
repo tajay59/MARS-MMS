@@ -49,7 +49,7 @@ export function inKind (model: Pick<SensorModelOut, 'kind'>, kind: KindFilter): 
 }
 
 /** Search on make, model and the parameters it measures. */
-export function matchesModel (model: SensorModelOut, filters: SensorFilters): boolean {
+export function matchesModel (model: SensorModelOut, filters: Pick<SensorFilters, 'q' | 'kind'>): boolean {
   if (!inKind(model, filters.kind)) {
     return false
   }

@@ -80,11 +80,59 @@ TABLE: dict[Route, Expect] = {
     ("POST", "/api/v1/requests/{id}/approve"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/deny"): roles("admin"),
     ("POST", "/api/v1/requests/{id}/cancel"): roles("client", "admin"),
+    # Client Review: only the client answers (REQ-13); another organization's is a 404
+    ("POST", "/api/v1/requests/{id}/accept"): roles("client"),
+    ("POST", "/api/v1/requests/{id}/reject"): roles("client"),
+    # Client reports (CRP-1 to CRP-5, W18): clients write their own, staff read what was submitted
+    ("GET", "/api/v1/client-reports"): Expect(ANY),
+    ("POST", "/api/v1/client-reports"): roles("client"),
+    ("GET", "/api/v1/client-reports/{id}"): Expect(ANY),
+    ("PATCH", "/api/v1/client-reports/{id}"): roles("client"),
+    ("POST", "/api/v1/client-reports/{id}/submit"): roles("client"),
+    ("GET", "/api/v1/client-reports/{id}/download"): Expect(ANY),
+    ("GET", "/api/v1/client-reports/{id}/attachments/{media_id}/download"): Expect(ANY),
+    # Visits (VIS-1 to VIS-4, VIS-9, VIS-11, W10): everyone reads what their scope allows (a client
+    # their organization's); technicians and admins plan and run them (the domain narrows it to
+    # the people on the request or attending), only admins restore; viewers and clients never write.
+    ("POST", "/api/v1/visits"): WRITE,
+    ("GET", "/api/v1/visits/mine"): STAFF,
+    ("GET", "/api/v1/visits/staff"): WRITE,
+    ("GET", "/api/v1/visits"): Expect(ANY),
+    ("GET", "/api/v1/visits/{id}"): Expect(ANY),
+    ("PATCH", "/api/v1/visits/{id}"): WRITE,
+    ("POST", "/api/v1/visits/{id}/cancel"): WRITE,
+    ("POST", "/api/v1/visits/{id}/restore"): roles("admin"),
+    ("POST", "/api/v1/visits/{id}/start"): WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/arrive"): WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/depart"): WRITE,
+    ("POST", "/api/v1/visits/{id}/end"): WRITE,
+    ("GET", "/api/v1/visits/{id}/field-bundle"): WRITE,  # OFF-1: the people attending prepare
+    ("POST", "/api/v1/sync"): WRITE,  # OFF-5: a phone's queued operations; viewers never mutate
+    # A station's board (VIS-5, VIS-7, W11-22): everyone in scope reads (a client the shared
+    # elements of an ended visit); technicians and admins write.
+    ("GET", "/api/v1/visits/{id}/stations/{station_id}/elements"): Expect(ANY),
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/elements"): WRITE,
+    ("GET", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}"): Expect(ANY),
+    ("PUT", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}"): WRITE,
+    ("DELETE", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}"): WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media"): WRITE,
+    ("PATCH", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}"):
+        WRITE,
+    ("DELETE", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}"):
+        WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/config-version"):
+        WRITE,
+    ("POST", "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/request"): WRITE,
     # Internal: read-model backfill (TRD §8.6), and the owner check media makes on upload.
     ("GET", "/internal/snapshot/{entity}"): service("report", "platform"),
     ("GET", "/internal/attachable"): service("media"),
     ("GET", "/internal/calibrations/due"): service("platform"),  # the weekly digest (CAL-5)
     ("POST", "/internal/labels"): service("report"),  # the QR tokens a label sheet prints
+    ("GET", "/internal/visits/{visit_id}/report-facts"): service("report"),  # a draft report (W16)
+    ("GET", "/internal/requests/{request_id}/closeout-facts"): service("report"),  # RPT-8 (W18)
+    ("GET", "/internal/client-reports/{report_id}"): service("report"),  # a form report (CRP-3)
+    ("POST", "/internal/visits/{visit_id}/lock"): service("report"),  # finalize (W17, VIS-12)
+    ("POST", "/internal/visits/{visit_id}/unlock"): service("report"),  # failed finalize, reopen
 }
 
 

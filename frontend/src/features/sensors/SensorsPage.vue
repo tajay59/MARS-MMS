@@ -52,7 +52,7 @@
           @click="addModel"
         >Add a model</v-btn>
 
-        <div aria-label="Filter by kind of part" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
+        <div aria-label="Filter the catalogue" class="-mx-3 flex gap-1.5 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group">
           <button
             v-for="k in kindFilters"
             :key="k.value"
@@ -99,6 +99,7 @@
       <ModelUnits
         :can-write="canWrite"
         :error="unitsError"
+        :focus="unitId"
         :model="selected"
         :units="units"
         @add="addUnit"
@@ -197,6 +198,7 @@
   const photosVersion = ref(0)
 
   const modelId = computed(() => typeof route.params.id === 'string' && route.params.id ? route.params.id : null)
+  const unitId = computed(() => typeof route.query.unit === 'string' && route.query.unit ? route.query.unit : null)
   const open = computed(() => modelId.value !== null)
   usePaneSelection(() => open.value)
 
@@ -297,7 +299,9 @@
     await loadModels()
   }
 
-  onMounted(loadModels)
+  onMounted(() => {
+    void loadModels()
+  })
   // A ten-minute photo link must not outlive the page: the next person to sign in on this device
   // starts with none
   onBeforeUnmount(forgetPhotoLinks)

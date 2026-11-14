@@ -24,6 +24,8 @@ export const DURATION = {
   record: 0.45,
   tileOpen: 0.4,
   tileClose: 0.3,
+  chip: 0.28,
+  height: 0.35,
 } as const
 
 gsap.registerPlugin(CustomEase)

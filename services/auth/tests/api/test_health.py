@@ -3,6 +3,7 @@ import pytest
 
 from app.config import Settings
 from app.main import create_app
+from tests.conftest import TOTP_KEY
 
 
 def client(app):
@@ -31,6 +32,17 @@ async def test_not_ready_when_a_dependency_is_down():
 
 @pytest.mark.parametrize(("env", "expected"), [("local", 200), ("production", 404)])
 async def test_openapi_is_disabled_in_production(env, expected):
-    app = create_app(Settings(environment=env), ready_checks={})
+    app = create_app(Settings(environment=env, totp_key=TOTP_KEY), ready_checks={})
     async with client(app) as c:
         assert (await c.get("/docs")).status_code == expected
+
+
+@pytest.mark.parametrize("env", ["staging", "production"])
+def test_outside_local_the_totp_key_is_required(env):
+    with pytest.raises(ValueError, match="AUTH_TOTP_KEY"):
+        create_app(Settings(environment=env), ready_checks={})
+
+
+def test_a_totp_key_of_the_wrong_size_is_refused():
+    with pytest.raises(ValueError, match="32 bytes"):
+        Settings(totp_key="c2hvcnQ=").totp_key_bytes  # noqa: B018 - the property raises

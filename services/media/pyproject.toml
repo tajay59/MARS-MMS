@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,13 +9,15 @@ requires-python = ">=3.13"
 dependencies = [
   "mms-common",
   "fastapi",
-  "uvicorn[standard]>=0.40",
-  "pydantic>=2.11",
+  "uvicorn[standard]>=0.54.0",
+  "pydantic>=2.14.2",
   "pydantic-settings",
-  "pymongo>=4.13",
-  "redis>=6",
+  "pymongo>=4.18",
+  "redis>=8.1.0",
   "httpx",
   "boto3",
+  "pillow>=11",
+  "pillow-heif>=0.21",
 ]
 
 [project.optional-dependencies]

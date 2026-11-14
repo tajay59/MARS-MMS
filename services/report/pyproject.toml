@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,27 +9,28 @@ requires-python = ">=3.13"
 dependencies = [
   "mms-common",
   "fastapi",
-  "uvicorn[standard]>=0.40",
-  "pydantic>=2.11",
+  "uvicorn[standard]>=0.54.0",
+  "pydantic>=2.14.2",
   "pydantic-settings",
-  "pymongo>=4.13",
-  "redis>=6",
+  "pymongo>=4.18",
+  "redis>=8.1.0",
   "httpx",
   "boto3",
   "jinja2",
+  "pillow",
   "segno",
   "weasyprint>=68",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "pytest-cov", "hypothesis", "ruff", "mypy", "import-linter", "testcontainers[mongodb,redis]"]
+dev = ["pypdf", "pytest", "pytest-asyncio", "pytest-cov", "hypothesis", "ruff", "mypy", "import-linter", "testcontainers[mongodb,redis]"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
 
 # The Jinja templates and print stylesheet ship inside the package.
 [tool.setuptools.package-data]
-app = ["templates/*"]
+app = ["templates/*", "charts/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -47,7 +48,8 @@ target-version = "py313"
 select = ["E", "F", "I", "B", "UP", "ASYNC", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S603"]
+"tests/*" = ["S101", "S603", "E501"]  # long lines in test data tables are fine
+"visual/*" = ["S101", "E501"]
 
 [tool.mypy]
 python_version = "3.13"

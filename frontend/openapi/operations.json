@@ -1,6 +1,129 @@
 {
   "components": {
     "schemas": {
+      "AcceptIn": {
+        "additionalProperties": false,
+        "description": "REQ-13, W18-2/3. The client signs the work off. `reviewing` is the request's\n`review_started_at` as the page read it (not the milestone, which keeps the first). `image`\nis the drawing as base64 PNG (a `data:image/png;base64,` URI is accepted), also for \"use my\ntyped name\".",
+        "properties": {
+          "attestation_accepted": {
+            "const": true,
+            "title": "Attestation Accepted",
+            "type": "boolean"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "image": {
+            "maxLength": 300000,
+            "title": "Image",
+            "type": "string"
+          },
+          "reviewing": {
+            "format": "date-time",
+            "title": "Reviewing",
+            "type": "string"
+          },
+          "typed_name": {
+            "maxLength": 400,
+            "title": "Typed Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewing",
+          "typed_name",
+          "image",
+          "attestation_accepted"
+        ],
+        "title": "AcceptIn",
+        "type": "object"
+      },
+      "AnswerOut": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "op_id": {
+            "title": "Op Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "duplicate",
+              "conflict",
+              "error",
+              "skipped"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op_id",
+          "status"
+        ],
+        "title": "AnswerOut",
+        "type": "object"
+      },
       "AssignIn": {
         "additionalProperties": false,
         "description": "REQ-7. The people the request is put with; `version` guards a change of staff on a request\nthat is already Assigned against a second admin doing the same.",
@@ -32,6 +155,26 @@
           "staff_ids"
         ],
         "title": "AssignIn",
+        "type": "object"
+      },
+      "AtIn": {
+        "additionalProperties": false,
+        "description": "The time something happened, as the device saw it. The server's now when absent.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "title": "AtIn",
         "type": "object"
       },
       "AttachableOut": {
@@ -77,6 +220,73 @@
         "title": "AttachmentOut",
         "type": "object"
       },
+      "BoardCover": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "image",
+              "video"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_id",
+          "kind"
+        ],
+        "title": "BoardCover",
+        "type": "object"
+      },
+      "BoardSummaryOut": {
+        "description": "A station's board at a glance (the visit page, the End dialog's warning).",
+        "properties": {
+          "config": {
+            "title": "Config",
+            "type": "integer"
+          },
+          "cover": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoardCover"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "incomplete_tasks": {
+            "title": "Incomplete Tasks",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "integer"
+          },
+          "recommendation": {
+            "title": "Recommendation",
+            "type": "integer"
+          },
+          "task": {
+            "title": "Task",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "note",
+          "task",
+          "recommendation",
+          "config",
+          "incomplete_tasks",
+          "cover"
+        ],
+        "title": "BoardSummaryOut",
+        "type": "object"
+      },
       "Body_import_stations_api_v1_stations_import_post": {
         "properties": {
           "sensors": {
@@ -103,6 +313,122 @@
           "stations"
         ],
         "title": "Body_import_stations_api_v1_stations_import_post",
+        "type": "object"
+      },
+      "BundleFile": {
+        "description": "A file the phone can store as a blob. The phone asks for a ten-minute link when it\ndownloads (`media_id` for a configuration file, `document_id` for a document) and never keeps\nthe link (TRD \u00a77.1). `required` files (the latest configuration version's) must be stored\nbefore the visit counts as ready.",
+        "properties": {
+          "document_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "kind": {
+            "enum": [
+              "config",
+              "document"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "media_id",
+          "document_id",
+          "station_id",
+          "name",
+          "size",
+          "sha256",
+          "required"
+        ],
+        "title": "BundleFile",
+        "type": "object"
+      },
+      "BundleStation": {
+        "description": "One station of the visit: its record with the sensors installed, the calibration history,\nthe latest configuration version, its documents and the visit's board for it.",
+        "properties": {
+          "board": {
+            "items": {
+              "$ref": "#/components/schemas/ElementOut"
+            },
+            "title": "Board",
+            "type": "array"
+          },
+          "calibrations": {
+            "items": {
+              "$ref": "#/components/schemas/CalibrationOut"
+            },
+            "title": "Calibrations",
+            "type": "array"
+          },
+          "can_add": {
+            "title": "Can Add",
+            "type": "boolean"
+          },
+          "config_version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfigVersionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documents": {
+            "$ref": "#/components/schemas/StationDocuments"
+          },
+          "station": {
+            "$ref": "#/components/schemas/StationDetail"
+          }
+        },
+        "required": [
+          "station",
+          "calibrations",
+          "config_version",
+          "documents",
+          "board",
+          "can_add"
+        ],
+        "title": "BundleStation",
         "type": "object"
       },
       "CalibrationIn": {
@@ -370,6 +696,347 @@
           }
         },
         "title": "CancelIn",
+        "type": "object"
+      },
+      "ClientReportIn": {
+        "additionalProperties": false,
+        "description": "CRP-1. `id` is made on the device: sending it again returns the draft already made. The\nstations default to all of the request's.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "enum": [
+              "pdf",
+              "form"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "report_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Date"
+          },
+          "request_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "station_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Station Ids",
+            "type": "array"
+          },
+          "title": {
+            "default": "",
+            "maxLength": 400,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "kind"
+        ],
+        "title": "ClientReportIn",
+        "type": "object"
+      },
+      "ClientReportOut": {
+        "properties": {
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttachmentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "form": {
+            "$ref": "#/components/schemas/FormOut"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "pdf",
+              "form"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "render": {
+            "title": "Render",
+            "type": "string"
+          },
+          "report_date": {
+            "format": "date",
+            "title": "Report Date",
+            "type": "string"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "request_ref": {
+            "title": "Request Ref",
+            "type": "string"
+          },
+          "station_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Station Ids",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "submitted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitted At"
+          },
+          "submitted_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "request_id",
+          "request_ref",
+          "kind",
+          "status",
+          "title",
+          "report_date",
+          "station_ids",
+          "file",
+          "form",
+          "render",
+          "report_id",
+          "submitted_by",
+          "submitted_at",
+          "created_at",
+          "updated_at",
+          "version",
+          "can_edit"
+        ],
+        "title": "ClientReportOut",
+        "type": "object"
+      },
+      "ClientReportPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ClientReportOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ClientReportPage",
+        "type": "object"
+      },
+      "ClientReportPatch": {
+        "additionalProperties": false,
+        "description": "CRP-2. Only what is sent changes; `version` is the one the page was looking at. A PDF\nreport takes `media_id`; a form report takes the text fields and `image_ids` (pictures\nuploaded for `client_report:<id>`). Sending `media_id: null` takes the PDF off the draft.",
+        "properties": {
+          "data_quality_notes": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Quality Notes"
+          },
+          "image_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 20,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Ids"
+          },
+          "media_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Id"
+          },
+          "observations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Observation"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observations"
+          },
+          "report_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Date"
+          },
+          "station_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Ids"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 400,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "ClientReportPatch",
         "type": "object"
       },
       "CommentIn": {
@@ -817,6 +1484,24 @@
           "created_at"
         ],
         "title": "ConfigVersionOut",
+        "type": "object"
+      },
+      "ConfigVersionRef": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "title": "ConfigVersionRef",
         "type": "object"
       },
       "DenyIn": {
@@ -1371,6 +2056,701 @@
         "title": "DueUnit",
         "type": "object"
       },
+      "ElementIn": {
+        "additionalProperties": false,
+        "description": "A new element. `id` is made on the device (rule 9): the same `id` and content again\nreturns the element that was made.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemBody"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "task",
+              "recommendation",
+              "config"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared"
+          },
+          "title": {
+            "maxLength": 160,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title"
+        ],
+        "title": "ElementIn",
+        "type": "object"
+      },
+      "ElementList": {
+        "properties": {
+          "can_add": {
+            "title": "Can Add",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ElementOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "can_add"
+        ],
+        "title": "ElementList",
+        "type": "object"
+      },
+      "ElementMediaIn": {
+        "additionalProperties": false,
+        "description": "Put an uploaded file on a section of the element. `media_id` is the upload's own id, so a\nretry attaches nothing twice.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "media_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Media Id",
+            "type": "string"
+          },
+          "section": {
+            "enum": [
+              "main",
+              "before",
+              "after"
+            ],
+            "title": "Section",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_id",
+          "section"
+        ],
+        "title": "ElementMediaIn",
+        "type": "object"
+      },
+      "ElementMediaOut": {
+        "description": "A file on the element. Its thumbnail, link and processing state come from the media\nservice by `media_id`, so nothing here expires.",
+        "properties": {
+          "added_at": {
+            "format": "date-time",
+            "title": "Added At",
+            "type": "string"
+          },
+          "added_by": {
+            "$ref": "#/components/schemas/PersonOut"
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "video",
+              "config"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_id": {
+            "title": "Media Id",
+            "type": "string"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          }
+        },
+        "required": [
+          "media_id",
+          "kind",
+          "filename",
+          "size_bytes",
+          "caption",
+          "captured_at",
+          "added_by",
+          "added_at",
+          "hidden"
+        ],
+        "title": "ElementMediaOut",
+        "type": "object"
+      },
+      "ElementMediaPatch": {
+        "additionalProperties": false,
+        "description": "Any of these. `caption: null` clears it; `hidden: true` keeps the file from the client.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          }
+        },
+        "title": "ElementMediaPatch",
+        "type": "object"
+      },
+      "ElementOut": {
+        "properties": {
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "complete": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complete"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "config_version_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Config Version Ids",
+            "type": "array"
+          },
+          "config_versions": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigVersionRef"
+            },
+            "title": "Config Versions",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/PersonOut"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "task",
+              "recommendation",
+              "config"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "media": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/ElementMediaOut"
+              },
+              "type": "array"
+            },
+            "title": "Media",
+            "type": "object"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "request_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "version_due": {
+            "title": "Version Due",
+            "type": "boolean"
+          },
+          "visit_id": {
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "visit_id",
+          "station_id",
+          "kind",
+          "title",
+          "description",
+          "items",
+          "complete",
+          "completed_at",
+          "priority",
+          "request_ref",
+          "config_version_ids",
+          "config_versions",
+          "version_due",
+          "media",
+          "shared",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "version",
+          "can_edit"
+        ],
+        "title": "ElementOut",
+        "type": "object"
+      },
+      "ElementPut": {
+        "additionalProperties": false,
+        "description": "The whole editable content, with the version the editor was looking at (W11-26).",
+        "properties": {
+          "base_version": {
+            "minimum": 1.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemBody"
+            },
+            "maxItems": 100,
+            "title": "Items",
+            "type": "array"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "shared": {
+            "title": "Shared",
+            "type": "boolean"
+          },
+          "title": {
+            "maxLength": 160,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "shared",
+          "base_version"
+        ],
+        "title": "ElementPut",
+        "type": "object"
+      },
+      "ElementRequestIn": {
+        "additionalProperties": false,
+        "description": "Make a request from a recommendation (W11-23, W11-38). `id` is the request's, made on the\ndevice: sending it again returns the element with the request already made.",
+        "properties": {
+          "category": {
+            "enum": [
+              "fault",
+              "communications",
+              "power",
+              "calibration",
+              "relocation",
+              "inspection",
+              "other"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "category"
+        ],
+        "title": "ElementRequestIn",
+        "type": "object"
+      },
+      "EndIn": {
+        "additionalProperties": false,
+        "properties": {
+          "additional_visit_required": {
+            "title": "Additional Visit Required",
+            "type": "boolean"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "follow_up_notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Notes"
+          }
+        },
+        "required": [
+          "additional_visit_required"
+        ],
+        "title": "EndIn",
+        "type": "object"
+      },
+      "FieldBundle": {
+        "properties": {
+          "bundle_version": {
+            "title": "Bundle Version",
+            "type": "integer"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BundleFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "prepared_at": {
+            "format": "date-time",
+            "title": "Prepared At",
+            "type": "string"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestDetail"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/BundleStation"
+            },
+            "title": "Stations",
+            "type": "array"
+          },
+          "visit": {
+            "$ref": "#/components/schemas/VisitOut"
+          }
+        },
+        "required": [
+          "bundle_version",
+          "prepared_at",
+          "visit",
+          "request",
+          "stations",
+          "files"
+        ],
+        "title": "FieldBundle",
+        "type": "object"
+      },
+      "FormOut": {
+        "properties": {
+          "data_quality_notes": {
+            "title": "Data Quality Notes",
+            "type": "string"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentOut"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "observations": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Observations",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary",
+          "observations",
+          "data_quality_notes",
+          "images"
+        ],
+        "title": "FormOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1761,10 +3141,6 @@
           "model": {
             "$ref": "#/components/schemas/ModelSummary"
           },
-          "needs_review": {
-            "title": "Needs Review",
-            "type": "boolean"
-          },
           "parameter": {
             "anyOf": [
               {
@@ -1795,10 +3171,83 @@
           "last_calibration_result",
           "calibration_due_at",
           "due_state",
-          "flags",
-          "needs_review"
+          "flags"
         ],
         "title": "InstalledUnit",
+        "type": "object"
+      },
+      "ItemBody": {
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "default": false,
+            "title": "Done",
+            "type": "boolean"
+          },
+          "id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 400,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "ItemBody",
+        "type": "object"
+      },
+      "ItemOut": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "done_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done At"
+          },
+          "done_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "done",
+          "done_by",
+          "done_at"
+        ],
+        "title": "ItemOut",
         "type": "object"
       },
       "LabelOut": {
@@ -1856,6 +3305,49 @@
           "station_ids"
         ],
         "title": "LabelsIn",
+        "type": "object"
+      },
+      "LockIn": {
+        "properties": {
+          "report_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "report_version": {
+            "minimum": 1.0,
+            "title": "Report Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "report_id",
+          "report_version"
+        ],
+        "title": "LockIn",
+        "type": "object"
+      },
+      "LockOut": {
+        "properties": {
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "visit_id": {
+            "title": "Visit Id",
+            "type": "string"
+          },
+          "visit_version": {
+            "title": "Visit Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "visit_id",
+          "locked",
+          "visit_version"
+        ],
+        "title": "LockOut",
         "type": "object"
       },
       "Logger": {
@@ -2038,6 +3530,66 @@
         "title": "ModelSummary",
         "type": "object"
       },
+      "Observation": {
+        "additionalProperties": false,
+        "properties": {
+          "station_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 10000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "text"
+        ],
+        "title": "Observation",
+        "type": "object"
+      },
+      "OpIn": {
+        "additionalProperties": false,
+        "properties": {
+          "op_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Op Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "type": {
+            "maxLength": 40,
+            "title": "Type",
+            "type": "string"
+          },
+          "v": {
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "V",
+            "type": "integer"
+          },
+          "visit_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Visit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op_id",
+          "v",
+          "type",
+          "visit_id"
+        ],
+        "title": "OpIn",
+        "type": "object"
+      },
       "OrgOption": {
         "properties": {
           "id": {
@@ -2054,6 +3606,24 @@
           "name"
         ],
         "title": "OrgOption",
+        "type": "object"
+      },
+      "PersonOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PersonOut",
         "type": "object"
       },
       "PersonRef": {
@@ -2137,6 +3707,25 @@
           }
         },
         "title": "Power",
+        "type": "object"
+      },
+      "PreparedOn": {
+        "description": "A phone this visit is prepared on (W13-9): who, and when. Staff only.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/VisitPersonOut"
+          }
+        },
+        "required": [
+          "user",
+          "at"
+        ],
+        "title": "PreparedOn",
         "type": "object"
       },
       "QrResolved": {
@@ -2396,6 +3985,29 @@
         "title": "ReferenceInstrument",
         "type": "object"
       },
+      "RejectIn": {
+        "additionalProperties": false,
+        "description": "REQ-13. The client sends the work back, with a reason the staff are told.",
+        "properties": {
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "reviewing": {
+            "format": "date-time",
+            "title": "Reviewing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewing",
+          "reason"
+        ],
+        "title": "RejectIn",
+        "type": "object"
+      },
       "RemoveIn": {
         "additionalProperties": false,
         "properties": {
@@ -2450,7 +4062,10 @@
                 "claim",
                 "release",
                 "cancel",
-                "edit"
+                "edit",
+                "schedule_visit",
+                "accept",
+                "reject"
               ],
               "type": "string"
             },
@@ -2470,6 +4085,29 @@
             },
             "title": "Attachments",
             "type": "array"
+          },
+          "attestation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attestation"
+          },
+          "auto_close_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Close At"
           },
           "cancel_reason": {
             "anyOf": [
@@ -2550,6 +4188,18 @@
               }
             ]
           },
+          "review_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Started At"
+          },
           "stations": {
             "items": {
               "$ref": "#/components/schemas/RequestStation"
@@ -2577,9 +4227,26 @@
             "title": "Updated At",
             "type": "string"
           },
+          "verification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "title": "Version",
             "type": "integer"
+          },
+          "visits": {
+            "items": {
+              "$ref": "#/components/schemas/VisitBrief"
+            },
+            "title": "Visits",
+            "type": "array"
           }
         },
         "required": [
@@ -2604,7 +4271,11 @@
           "version",
           "actions",
           "attachments",
-          "comment_count"
+          "comment_count",
+          "visits",
+          "verification",
+          "review_started_at",
+          "auto_close_at"
         ],
         "title": "RequestDetail",
         "type": "object"
@@ -2829,6 +4500,24 @@
           "version"
         ],
         "title": "RequestPatch",
+        "type": "object"
+      },
+      "RequestRefOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ref"
+        ],
+        "title": "RequestRefOut",
         "type": "object"
       },
       "RequestStation": {
@@ -3345,10 +5034,6 @@
           "model": {
             "$ref": "#/components/schemas/ModelSummary"
           },
-          "needs_review": {
-            "title": "Needs Review",
-            "type": "boolean"
-          },
           "notes": {
             "anyOf": [
               {
@@ -3412,7 +5097,6 @@
           "last_calibration_result",
           "calibration_due_at",
           "due_state",
-          "needs_review",
           "flags",
           "notes",
           "version",
@@ -3581,10 +5265,6 @@
           "model": {
             "$ref": "#/components/schemas/ModelSummary"
           },
-          "needs_review": {
-            "title": "Needs Review",
-            "type": "boolean"
-          },
           "notes": {
             "anyOf": [
               {
@@ -3648,7 +5328,6 @@
           "last_calibration_result",
           "calibration_due_at",
           "due_state",
-          "needs_review",
           "flags",
           "notes",
           "version",
@@ -3713,17 +5392,6 @@
               }
             ],
             "title": "Model Id"
-          },
-          "needs_review": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Needs Review"
           },
           "notes": {
             "anyOf": [
@@ -3840,6 +5508,49 @@
           "value"
         ],
         "title": "Spec",
+        "type": "object"
+      },
+      "StaffList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StaffOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "StaffList",
+        "type": "object"
+      },
+      "StaffOut": {
+        "description": "Someone who may attend a visit: a name and roles, never an email or phone.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "roles"
+        ],
+        "title": "StaffOut",
         "type": "object"
       },
       "StationDetail": {
@@ -4798,6 +6509,47 @@
         "title": "StationSummary",
         "type": "object"
       },
+      "SyncIn": {
+        "additionalProperties": false,
+        "properties": {
+          "device_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "ops": {
+            "items": {
+              "$ref": "#/components/schemas/OpIn"
+            },
+            "maxItems": 100,
+            "title": "Ops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "device_id",
+          "ops"
+        ],
+        "title": "SyncIn",
+        "type": "object"
+      },
+      "SyncOut": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerOut"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "SyncOut",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -4836,6 +6588,675 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerificationOut": {
+        "description": "The client's answer to Client Review (REQ-13). The drawn signature is not in it.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PersonRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "auto_closed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "typed_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typed Name"
+          }
+        },
+        "required": [
+          "outcome",
+          "by",
+          "at",
+          "comment",
+          "typed_name"
+        ],
+        "title": "VerificationOut",
+        "type": "object"
+      },
+      "VisitBrief": {
+        "description": "A visit as the request page lists it.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lead": {
+            "$ref": "#/components/schemas/VisitPersonOut"
+          },
+          "planned_end": {
+            "format": "date-time",
+            "title": "Planned End",
+            "type": "string"
+          },
+          "planned_start": {
+            "format": "date-time",
+            "title": "Planned Start",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "started",
+              "ended",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ref",
+          "status",
+          "planned_start",
+          "planned_end",
+          "lead"
+        ],
+        "title": "VisitBrief",
+        "type": "object"
+      },
+      "VisitCancelIn": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "VisitCancelIn",
+        "type": "object"
+      },
+      "VisitIn": {
+        "additionalProperties": false,
+        "description": "Scheduling (VIS-1). `id` is made on the device and makes a retry safe (rule 9): the same\n`id` again returns the visit that was made.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "lead_staff_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Staff Id"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "planned_end": {
+            "format": "date-time",
+            "title": "Planned End",
+            "type": "string"
+          },
+          "planned_start": {
+            "format": "date-time",
+            "title": "Planned Start",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "staff_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Staff Ids",
+            "type": "array"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/VisitStationIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Stations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "request_id",
+          "planned_start",
+          "planned_end",
+          "staff_ids",
+          "stations"
+        ],
+        "title": "VisitIn",
+        "type": "object"
+      },
+      "VisitOut": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "reschedule",
+                "cancel",
+                "start",
+                "end",
+                "change_owner",
+                "restore"
+              ],
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "additional_visit_required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Visit Required"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "follow_up_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up Notes"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lead": {
+            "$ref": "#/components/schemas/VisitPersonOut"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "org_id": {
+            "title": "Org Id",
+            "type": "string"
+          },
+          "planned_end": {
+            "format": "date-time",
+            "title": "Planned End",
+            "type": "string"
+          },
+          "planned_start": {
+            "format": "date-time",
+            "title": "Planned Start",
+            "type": "string"
+          },
+          "prepared_on": {
+            "items": {
+              "$ref": "#/components/schemas/PreparedOn"
+            },
+            "title": "Prepared On",
+            "type": "array"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "request_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Ref"
+          },
+          "request_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Title"
+          },
+          "staff": {
+            "items": {
+              "$ref": "#/components/schemas/VisitPersonOut"
+            },
+            "title": "Staff",
+            "type": "array"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/VisitStationOut"
+            },
+            "title": "Stations",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "started",
+              "ended",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "ref",
+          "status",
+          "planned_start",
+          "planned_end",
+          "lead",
+          "request_id",
+          "request_ref",
+          "request_title",
+          "org_id",
+          "started_at",
+          "ended_at",
+          "additional_visit_required",
+          "follow_up_notes",
+          "notes",
+          "staff",
+          "stations",
+          "actions",
+          "prepared_on",
+          "version"
+        ],
+        "title": "VisitOut",
+        "type": "object"
+      },
+      "VisitPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VisitOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next After"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "next_after"
+        ],
+        "title": "VisitPage",
+        "type": "object"
+      },
+      "VisitPatch": {
+        "additionalProperties": false,
+        "description": "A planned visit: any of these. A started visit: only `stations[].owner_staff_id`. What is\nleft out stays as it is; `notes: null` clears the notes.",
+        "properties": {
+          "lead_staff_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Staff Id"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "planned_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned End"
+          },
+          "planned_start": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Planned Start"
+          },
+          "staff_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staff Ids"
+          },
+          "stations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VisitStationIn"
+                },
+                "maxItems": 20,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stations"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "VisitPatch",
+        "type": "object"
+      },
+      "VisitPersonOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VisitPersonOut",
+        "type": "object"
+      },
+      "VisitStationIn": {
+        "additionalProperties": false,
+        "properties": {
+          "owner_staff_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Staff Id"
+          },
+          "station_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "title": "Station Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id"
+        ],
+        "title": "VisitStationIn",
+        "type": "object"
+      },
+      "VisitStationOut": {
+        "properties": {
+          "actions": {
+            "items": {
+              "enum": [
+                "arrive",
+                "depart"
+              ],
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "arrived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arrived At"
+          },
+          "board": {
+            "$ref": "#/components/schemas/BoardSummaryOut"
+          },
+          "departed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departed At"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/VisitPersonOut"
+          },
+          "station_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Code"
+          },
+          "station_id": {
+            "title": "Station Id",
+            "type": "string"
+          },
+          "station_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station Name"
+          },
+          "time_zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Zone"
+          }
+        },
+        "required": [
+          "station_id",
+          "station_code",
+          "station_name",
+          "time_zone",
+          "owner",
+          "arrived_at",
+          "departed_at",
+          "actions",
+          "board"
+        ],
+        "title": "VisitStationOut",
         "type": "object"
       },
       "Workload": {
@@ -5128,6 +7549,398 @@
         "summary": "Calibration Due",
         "tags": [
           "calibrations"
+        ]
+      }
+    },
+    "/api/v1/client-reports": {
+      "get": {
+        "description": "CRP-5: newest first. A client gets their organization's submitted reports and their own\ndrafts; staff get submitted reports.",
+        "operationId": "list_client_reports_api_v1_client_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "request_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Request Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "station_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Station Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientReportPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Client Reports",
+        "tags": [
+          "client-reports"
+        ]
+      },
+      "post": {
+        "description": "CRP-1, CRP-2: start a draft on a request of the client's organization. Idempotent by\n`id`: sending it again returns the draft already made (200).",
+        "operationId": "create_client_report_api_v1_client_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientReportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Client Report",
+        "tags": [
+          "client-reports"
+        ]
+      }
+    },
+    "/api/v1/client-reports/{id}": {
+      "get": {
+        "operationId": "get_client_report_api_v1_client_reports__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Client Report",
+        "tags": [
+          "client-reports"
+        ]
+      },
+      "patch": {
+        "description": "CRP-2: change a draft. A submitted report can't be changed (CRP-4): 409 `not_a_draft`.\nA draft is private, so it is not an event.",
+        "operationId": "update_client_report_api_v1_client_reports__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientReportPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Client Report",
+        "tags": [
+          "client-reports"
+        ]
+      }
+    },
+    "/api/v1/client-reports/{id}/attachments/{media_id}/download": {
+      "get": {
+        "description": "A picture attached to a form report (or the report's PDF), for the page to show.",
+        "operationId": "download_client_report_file_api_v1_client_reports__id__attachments__media_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Client Report File",
+        "tags": [
+          "client-reports"
+        ]
+      }
+    },
+    "/api/v1/client-reports/{id}/download": {
+      "get": {
+        "description": "A ten-minute link to a PDF report's file. A form report's PDF is the report service's:\nask `/api/v1/reports/{report_id}/download`.",
+        "operationId": "download_client_report_api_v1_client_reports__id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Client Report",
+        "tags": [
+          "client-reports"
+        ]
+      }
+    },
+    "/api/v1/client-reports/{id}/submit": {
+      "post": {
+        "description": "CRP-3, CRP-4: send the report. From now on nobody can change it. Safe to send twice: a\nreport already sent is returned as it is. A form report whose PDF could not be drawn is\nsent for drawing once more (Try again), and nothing else about it changes.",
+        "operationId": "submit_client_report_api_v1_client_reports__id__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit Client Report",
+        "tags": [
+          "client-reports"
         ]
       }
     },
@@ -6059,6 +8872,65 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/accept": {
+      "post": {
+        "description": "REQ-13: the client signs the work off. The request closes, the decision keeps the drawing,\nthe typed name, the wording shown, the time, address and browser, and the visit reports in\nforce. The drawing is stored here only; `request.closed` does not carry it.",
+        "operationId": "accept_request_api_v1_requests__id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/approve": {
       "post": {
         "description": "REQ-6: Submitted to Approved. The request then joins the queue.",
@@ -6636,6 +9508,65 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/reject": {
+      "post": {
+        "description": "REQ-13: the client sends the work back. In one transaction the request goes Client Review\nto Reopened and straight on to Assigned with the same staff; the review clock stops and the\nrework period starts (`rework_since`). The staff and admins are told the reason.",
+        "operationId": "reject_request_api_v1_requests__id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Request",
+        "tags": [
+          "requests"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/release": {
       "post": {
         "description": "A technician lets go of their claim, or an admin unassigns everyone. With nobody left\nthe request returns to the queue (Assigned to Approved).",
@@ -6992,22 +9923,6 @@
           },
           {
             "in": "query",
-            "name": "needs_review",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Needs Review"
-            }
-          },
-          {
-            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -7179,7 +10094,7 @@
         ]
       },
       "patch": {
-        "description": "Serial and model corrections (SEN-5 review), status in or out of stock, the interval\noverride (CAL-3), notes. Installing and removing have their own actions.",
+        "description": "Serial and model corrections, status in or out of stock, the interval\noverride (CAL-3), notes. Installing and removing have their own actions.",
         "operationId": "patch_unit_api_v1_sensor_units__id__patch",
         "parameters": [
           {
@@ -8190,6 +11105,1570 @@
         ]
       }
     },
+    "/api/v1/sync": {
+      "post": {
+        "description": "OFF-5: apply a batch of offline operations in order. Always 200 for a well-formed batch:\neach operation has its own answer (`applied`, `duplicate`, `conflict`, `error`, `skipped`).",
+        "operationId": "sync_api_v1_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync",
+        "tags": [
+          "sync"
+        ]
+      }
+    },
+    "/api/v1/visits": {
+      "get": {
+        "description": "Soonest first. A client sees their organization's visits (VIS-11).",
+        "operationId": "list_visits_api_v1_visits_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "request_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Request Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "staff_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Staff Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Visits",
+        "tags": [
+          "visits"
+        ]
+      },
+      "post": {
+        "description": "VIS-1: the request's assigned staff or an admin plan a visit: dates, who attends (one the\nlead), which of the request's stations, and who owns each. The request becomes Scheduled.\nSending the same `id` again returns the visit that was made (200).",
+        "operationId": "schedule_visit_api_v1_visits_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Schedule Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/mine": {
+      "get": {
+        "description": "The visits I attend that are planned or under way, soonest first (AFD \"My upcoming\nvisits\").",
+        "operationId": "my_visits_api_v1_visits_mine_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Visits",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/staff": {
+      "get": {
+        "description": "The active technicians and admins to pick from when scheduling (VIS-1). Operations keeps\nno copy of users (rule 1): auth answers, and only names and roles come back. Admins can list\nusers in auth; a technician who is assigned to the request cannot, so the list is here.",
+        "operationId": "attending_staff_api_v1_visits_staff_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Attending Staff",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}": {
+      "get": {
+        "description": "A client reads their organization's visits only; another's is not found (rule 4).",
+        "operationId": "get_visit_api_v1_visits__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Visit",
+        "tags": [
+          "visits"
+        ]
+      },
+      "patch": {
+        "description": "VIS-2, AFD J5 steps 5 and 5b. A planned visit: dates, people, lead, stations, owners and\nnotes. A started visit: only who owns which station, by the lead or an admin.",
+        "operationId": "change_visit_api_v1_visits__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/cancel": {
+      "post": {
+        "description": "VIS-2: a planned visit is cancelled; the request returns to Assigned when no other visit\nis planned.",
+        "operationId": "cancel_visit_api_v1_visits__id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitCancelIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/end": {
+      "post": {
+        "description": "VIS-9: end the visit and say whether another is needed. If so the request goes back to\nAssigned to be scheduled again; if not it waits for the visit report (Phase 6). Incomplete\ntasks are only a warning in the End dialog: an end synced from a phone can't answer a\nquestion, so the server never refuses it for them (W11-33).",
+        "operationId": "end_visit_api_v1_visits__id__end_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "End Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/field-bundle": {
+      "get": {
+        "description": "OFF-1: the request, the visit's stations with their sensors, calibration status, latest\nconfiguration version, documents and boards. Everyone attending (and an admin) may prepare a\nplanned or started visit; asking again from the same phone refreshes the record of it.",
+        "operationId": "field_bundle_api_v1_visits__id__field_bundle_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldBundle"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Field Bundle",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/restore": {
+      "post": {
+        "description": "An admin brings a cancelled visit back: work was recorded on it offline (TRD \u00a77.4).",
+        "operationId": "restore_visit_api_v1_visits__id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Restore Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/start": {
+      "post": {
+        "description": "VIS-4: attending staff start the visit; the request is In progress.",
+        "operationId": "start_visit_api_v1_visits__id__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Visit",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/arrive": {
+      "post": {
+        "description": "VIS-4: the station's owner records arriving there.",
+        "operationId": "arrive_api_v1_visits__id__stations__station_id__arrive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Arrive",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/depart": {
+      "post": {
+        "description": "VIS-4: the station's owner records leaving it (after arriving).",
+        "operationId": "depart_api_v1_visits__id__stations__station_id__depart_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Depart",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements": {
+      "get": {
+        "description": "A station's board, newest first. A client sees the shared elements once the visit has\nended, and nothing before (W11-28).",
+        "operationId": "list_elements_api_v1_visits__id__stations__station_id__elements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Elements",
+        "tags": [
+          "visits"
+        ]
+      },
+      "post": {
+        "description": "VIS-5, VIS-7: a Note, Task, Recommendation or Config on the station's board. Sending the\nsame `id` and content again returns the element that was made (200).",
+        "operationId": "add_element_api_v1_visits__id__stations__station_id__elements_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Element",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}": {
+      "delete": {
+        "description": "Take an element off the board and delete its files. A tombstone stays, so a late save\nfrom another device cannot bring it back (W11-26). Deleting it again changes nothing.",
+        "operationId": "delete_element_api_v1_visits__id__stations__station_id__elements__element_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "base_version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Base Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Element",
+        "tags": [
+          "visits"
+        ]
+      },
+      "get": {
+        "operationId": "get_element_api_v1_visits__id__stations__station_id__elements__element_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Element",
+        "tags": [
+          "visits"
+        ]
+      },
+      "put": {
+        "description": "The whole content, against `base_version` (W11-26). A save that says what is already\nsaved succeeds whatever its version: it is a retry after a lost answer.",
+        "operationId": "save_element_api_v1_visits__id__stations__station_id__elements__element_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Element",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/config-version": {
+      "post": {
+        "description": "After the end, the Config element's changed After files become the station's next\nconfiguration version (CFG-2: a version never changes). Nothing changed: nothing is made,\nso pressing it twice makes one version.",
+        "operationId": "save_config_version_api_v1_visits__id__stations__station_id__elements__element_id__config_version_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Config Version",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media": {
+      "post": {
+        "description": "A photo, a video or (on Config) any file, for a section of the element.",
+        "operationId": "add_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementMediaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Element Media",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/media/{media_id}": {
+      "delete": {
+        "description": "Take a file off the element and delete it.",
+        "operationId": "remove_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Element Media",
+        "tags": [
+          "visits"
+        ]
+      },
+      "patch": {
+        "description": "A caption, or hide a file from the client (W11-13) and show it again.",
+        "operationId": "change_element_media_api_v1_visits__id__stations__station_id__elements__element_id__media__media_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Media Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementMediaPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Element Media",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
+    "/api/v1/visits/{id}/stations/{station_id}/elements/{element_id}/request": {
+      "post": {
+        "description": "A new maintenance request for this station, from the recommendation: a technician's\nstarts Submitted for an admin to approve, an admin's Approved, as any request. The request\nand the link on the element are one transaction; the same request `id` again changes\nnothing. Online only (OFF-10).",
+        "operationId": "request_from_recommendation_api_v1_visits__id__stations__station_id__elements__element_id__request_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "station_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Station Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "element_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Element Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request From Recommendation",
+        "tags": [
+          "visits"
+        ]
+      }
+    },
     "/internal/attachable": {
       "get": {
         "description": "The owner check on upload (TRD \u00a73.3): may this user attach a file to this owner, and\nwhich organization does the file then belong to? Not found for an owner that does not\nexist or that a client cannot see (rule 4); forbidden for a role that may not write.",
@@ -8335,6 +12814,57 @@
         ]
       }
     },
+    "/internal/client-reports/{report_id}": {
+      "get": {
+        "description": "What a client's online-form report prints (CRP-3): its text, stations and pictures. The\nevent that announces a submission carries none of it (W18-10).",
+        "operationId": "client_report_facts_route_internal_client_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Client Report Facts Route Internal Client Reports  Report Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Client Report Facts Route",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
     "/internal/labels": {
       "post": {
         "description": "What a label sheet prints (QR-6): the code, name and QR token of each station, in the\norder asked. Stations that do not exist are left out. Tokens never travel in events or\nsnapshots, so this is the only place report can read them.",
@@ -8386,9 +12916,60 @@
         ]
       }
     },
+    "/internal/requests/{request_id}/closeout-facts": {
+      "get": {
+        "description": "What the close-out report prints (RPT-8): the request, its timeline, visits and the\nreports in force, the comments clients may read, and the client's decision with the drawn\nsignature, which no event carries (W18-3).",
+        "operationId": "request_closeout_facts_internal_requests__request_id__closeout_facts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Request Closeout Facts Internal Requests  Request Id  Closeout Facts Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Closeout Facts",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
     "/internal/snapshot/{entity}": {
       "get": {
-        "description": "Current state for read-model backfill (TRD \u00a78.6), shaped like the events' data.\nVisits join in Phase 4.",
+        "description": "Current state for read-model backfill (TRD \u00a78.6), shaped like the events' data.\nVisits are in `site_visits`.",
         "operationId": "snapshot_internal_snapshot__entity__get",
         "parameters": [
           {
@@ -8396,7 +12977,7 @@
             "name": "entity",
             "required": true,
             "schema": {
-              "pattern": "^(stations|sensor_units|calibrations|requests)$",
+              "pattern": "^(stations|sensor_units|calibrations|requests|visits|sensor_models|installations|config_versions)$",
               "title": "Entity",
               "type": "string"
             }
@@ -8459,6 +13040,175 @@
           }
         ],
         "summary": "Snapshot",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/internal/visits/{visit_id}/lock": {
+      "post": {
+        "description": "Lock an ended visit's boards for one version of its report (VIS-12; TRD 11.2 step 4.2).\nThe same pair again changes nothing; another report version on a locked visit is 409.",
+        "operationId": "lock_visit_internal_visits__visit_id__lock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lock Visit",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/internal/visits/{visit_id}/report-facts": {
+      "get": {
+        "description": "The visit, its request, its stations and their boards, for the report service's draft\n(TRD 11.2, W16-2). Staff-side facts: the report service decides who may read a report.",
+        "operationId": "visit_report_facts_internal_visits__visit_id__report_facts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Visit Report Facts Internal Visits  Visit Id  Report Facts Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Visit Report Facts",
+        "tags": [
+          "internal"
+        ]
+      }
+    },
+    "/internal/visits/{visit_id}/unlock": {
+      "post": {
+        "description": "Unlock the visit if this report version holds the lock (a failed finalize, or a reopen).\nAnything else changes nothing and the answer says whether the visit is still locked.",
+        "operationId": "unlock_visit_internal_visits__visit_id__unlock_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "visit_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "title": "Visit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LockIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LockOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlock Visit",
         "tags": [
           "internal"
         ]

@@ -7,6 +7,8 @@ video (Phase 4) reuse them.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
 
 from mms_common.events.registry import register
@@ -38,6 +40,12 @@ class MediaProcessed(MediaData):
 
     scan_status: str
     checksum_sha256: str
+    # Photos and video (W11): the size of the copy people look at and, for a video, how long it
+    # runs. Optional, so version 1 still holds for documents
+    width: int | None = None
+    height: int | None = None
+    duration_s: float | None = None
+    captured_at: datetime | None = None
 
 
 @register("media.failed")
