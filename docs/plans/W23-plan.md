@@ -70,3 +70,12 @@ By the end of W23 (or the day after the host arrives, if later):
 ## Status (2026-11-13)
 
 Plan written; questions 1 to 8 open. Slices 1 to 4 can start at once on their defaults.
+
+**Slice 1 is built** on `feat/p8-w23-runbook` (2026-11-13): the docs site's Infrastructure › Production, day one (fourteen steps, each with a person; charts: from an empty host to the first invitation, and W23 to go-live), `infra/scripts/readiness.sh` and `infra/tests/test_readiness.py` (33 tests, no stack needed). The outside mode ran against staging: 34 passed, 0 failed (release 0.8.0). The host mode is tested with a made-up host only.
+
+Where the build differs from the text above:
+
+- **The readiness check has two modes.** From outside (curl, GET only) and `--on-host` (the `.env`, the containers, the audit chain, the backups). The backup age and the audit chain cannot be seen from outside, so they are in the host mode.
+- **The load run comes before the first admin**, on the empty host, and the data is wiped after it (W20-11): it is step 3 of the runbook, not a W24 item.
+- **Labels are printed again from production** (step 8): a label holds the site's address and a token the import makes anew.
+- **Of question 7's three charts, the go-live gantt is in** (with the day-one flow, which was not on the list). The hypercare workflow goes in with the triage routine (slice 4) and the client onboarding journey with the client guide (slice 3), where their content is decided.
