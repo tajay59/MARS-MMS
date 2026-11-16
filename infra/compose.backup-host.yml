@@ -9,7 +9,7 @@
 services:
   seaweedfs-replica:
     restart: unless-stopped
-    image: chrislusf/seaweedfs:4.48
+    image: chrislusf/seaweedfs:4.53
     entrypoint: ["/bin/sh", "/opt/mms/seaweedfs-entrypoint.sh"]
     environment:
       APP_ORIGIN: https://${MMS_HOST}

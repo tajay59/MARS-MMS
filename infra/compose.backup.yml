@@ -58,7 +58,7 @@ services:
   # A volume belongs to root until something changes it, and `backup` runs as a user of its own.
   textfile-init:
     profiles: [backup]
-    image: busybox:1.37.0
+    image: busybox:1.38.0
     command: ["chown", "10002:10002", "/textfile"]
     volumes:
       - textfile:/textfile
@@ -68,7 +68,7 @@ services:
   filer-sync:
     <<: *restart
     profiles: [backup]
-    image: chrislusf/seaweedfs:4.48
+    image: chrislusf/seaweedfs:4.53
     entrypoint: ["/usr/bin/weed"]
     command:
       - filer.sync
