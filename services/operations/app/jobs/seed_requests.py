@@ -211,7 +211,22 @@ async def run(
     return made
 
 
-async def remove(db: AsyncDatabase[dict[str, Any]]) -> int:
-    """Deletes the example requests (and only those). The reference counter is left as it is."""
-    result = await repo.col(db).delete_many({MARKER: True})
-    return int(result.deleted_count)
+async def remove(db: AsyncDatabase[dict[str, Any]]) -> tuple[int, list[str]]:
+    """Deletes the example requests nobody has worked on, and names the ones it kept.
+
+    An example taken further through the API (a change, a visit, a comment, a client report) has
+    sent events: the report service's read model and the audit chain hold it, and deleting it here
+    would leave its visits, board and close-out without a request (found on staging, 2026-11-19).
+    Those are kept and named, to be cleared by hand across services. The reference counter is
+    left as it is.
+    """
+    ids = [d["_id"] async for d in repo.col(db).find({MARKER: True}, {"_id": 1})]
+    # The seed signs every example as the example requester; any change through the API signs it
+    # with a real person
+    worked: set[str] = {d["_id"] async for d in repo.col(db).find(
+        {MARKER: True, "updated_by": {"$ne": EXAMPLE_REQUESTER[0]}}, {"_id": 1})}
+    for name in ("site_visits", "comments", "client_reports"):
+        worked |= set(await db[name].distinct("request_id", {"request_id": {"$in": ids}}))
+    result = await repo.col(db).delete_many({MARKER: True, "_id": {"$nin": sorted(worked)}})
+    kept = [d["ref"] async for d in repo.col(db).find({"_id": {"$in": sorted(worked)}}, {"ref": 1})]
+    return int(result.deleted_count), sorted(kept)
