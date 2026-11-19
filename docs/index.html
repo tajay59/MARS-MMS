@@ -168,7 +168,7 @@
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5 · W13 built in four slices (the device store and PIN session, <code>/unlock</code> and the offline start, Prepare for field with the field bundle, offline station lookup with the install prompt, diagnostics and the storage check); W14 built in four slices (<code>POST /api/v1/sync</code>, the outbox and the runner, the local-first board for prepared visits, the <code>/sync</code> screens with Needs attention and Export); W15 (field test) next · the Android and iPhone checks are still to do</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P7</span><div><div class="phase-name">Summaries and hardening</div><div class="phase-meta">W19–W20 · summary reports, dashboards, audit viewer, production stack, backups, security review · release 0.7 · W19 built (summary reports, dashboards, audit viewer, History) · W20 in progress (plan <code>docs/plans/W20-plan.md</code>; metrics, monitoring, backups, the restore drill, the production stack, the security review and the load test built; hosts and people pending) · W21 and W22 (buffer weeks) built: MongoDB 9, and two-step sign-in for admins (release 0.8.0, plan <code>docs/plans/W22-plan.md</code>; staging checks pending)</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge planned">Planned</span></div>
+          <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge progress">W23 under way · no production host yet</span></div>
         </div>
 
         <div class="sub" id="status-built">
@@ -4130,6 +4130,97 @@ flowchart LR
           </ol>
         </div>
 
+        <div class="sub" id="infrastructure-day-one">
+          <h3>Production, day one (W23: written and rehearsed on staging; no host yet)</h3>
+          <p>The order in which an empty production host becomes the site the pilot uses (decisions W23-1 to W23-3; plan <code>docs/plans/W23-plan.md</code>). Each step names who does it. Nothing here has run on production, because there is no host: the readiness check has run against staging, and the import, the first admin, the backup and the restore are the commands staging and CI already use. <b>Production is set up from scratch, never copied from staging</b>: new secrets, a fresh export, no seed users.</p>
+          <figure class="diagram" id="production-day-one" data-title="From an empty host to the first invitation" data-kind="Process flow diagram">
+            <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    H["Host handed over, prepared&lt;br/&gt;(the steps above)"] --> S{"readiness.sh on staging:&lt;br/&gt;the release passes?"}
+    S -->|no| FX["Fix on staging first"]
+    S -->|yes| D["production.yml with that SHA&lt;br/&gt;a reviewer approves"]
+    D --> L["Load run on the empty host,&lt;br/&gt;then wipe and deploy again"]
+    L --> A["create-admin, two-step sign-in,&lt;br/&gt;a second admin"]
+    A --> M{"Test email to an outside mailbox:&lt;br/&gt;SPF and DKIM pass?"}
+    M -->|no| T3["Stop: no client is invited (T3)"]
+    M -->|yes| I["Import: organizations, then stations&lt;br/&gt;dry run, then --commit"]
+    I --> B["First backup, decrypted once&lt;br/&gt;by the key holder"]
+    B --> R["Restore that backup into staging"]
+    R --> C{"readiness.sh, outside&lt;br/&gt;and --on-host: all pass?"}
+    C -->|no| FX2["Fix, run it again"]
+    C -->|yes| INV["Invite pilot staff,&lt;br/&gt;then the pilot clients' admins"]
+</pre>
+            </div>
+            <figcaption>Two gates stop the day: a release that does not pass on staging, and email that outside mailboxes would not trust.</figcaption>
+          </figure>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Step</th><th>Who</th><th>How, and what proves it</th></tr></thead>
+              <tbody>
+                <tr><td class="num">0</td><td>Inputs</td><td>Product owner, IT</td><td>The host and the backup host (prepared as listed under Production above), DNS and certificates for both names, the SMTP relay (T3), the backup key pair made by its holder with <code>age-keygen</code> (only the public key comes to the host), alert recipients, reviewers on the <code>production</code> environment, the pilot organizations and technicians.</td></tr>
+                <tr><td class="num">1</td><td>Choose the release</td><td>Developer</td><td>The commit on <code>main</code> that staging runs. <code>infra/scripts/readiness.sh https://rnd.yanacreations.com --expect-version X.Y.Z</code> must end with 0 failed.</td></tr>
+                <tr><td class="num">2</td><td>Deploy</td><td>Developer, a reviewer</td><td>Actions › production › Run workflow with that SHA. It ends with the <code>@smoke</code> tests and writes <code>/opt/mms/.deployed-tag</code>.</td></tr>
+                <tr><td class="num">3</td><td>Load run, then wipe</td><td>Developer</td><td><b>Only now, while the host is empty.</b> <code>loadtest.yml</code> with <code>LOAD_URL</code> (it needs the seed users, so <code>MMS_ENVIRONMENT</code> is not yet <code>production</code> for this step). Write the numbers down, then <code>docker compose … down -v</code>, set <code>MMS_ENVIRONMENT=production</code>, remove <code>AUTH_SEED_PASSWORD</code>, and deploy again. Never after real data is in.</td></tr>
+                <tr><td class="num">4</td><td>First admin</td><td>Developer, the admin</td><td><code>docker compose … exec auth python -m app.cli create-admin --email … --name …</code>. The admin signs in and <b>sets up two-step sign-in at once</b> (My profile), without waiting for the 7-day window, and keeps the ten recovery codes in the organization&rsquo;s password store. Then invites a <b>second admin</b>, who does the same: a lost phone needs another admin to reset it (W22-8).</td></tr>
+                <tr><td class="num">5</td><td>Email</td><td>Admin, IT</td><td>The second admin&rsquo;s invitation is the test: it arrives, and the mailbox shows SPF and DKIM as passed (Gmail: Show original). <b>No client is invited before this passes.</b></td></tr>
+                <tr><td class="num">6</td><td>Settings</td><td>Admin</td><td>Brand colours (Settings › Brand colours). On the host: <code>REPORT_LABEL_CONTACT_PHONE</code>, and the map file in <code>MMS_TILES_DIR</code> (<code>infra/scripts/extract-tiles.sh</code>; the map is blank without it).</td></tr>
+                <tr><td class="num">7</td><td>Import</td><td>Developer</td><td>A <b>fresh</b> <code>mongoexport</code> of the existing system&rsquo;s <code>entities</code> and <code>sites</code> (W5-8). Before the file goes anywhere, keep only <code>id</code>, <code>name</code>, <code>organization</code> and <code>code</code> of each entity: the rest holds credentials. <code>docker compose cp</code> each file in, then <code>exec auth python -m app.cli import-orgs /tmp/org.json</code> and <code>exec operations python -m app.cli import-stations /tmp/site.json</code>: a dry run first, then <code>--commit</code>. A second run skips every row. Delete the files (<code>exec -u root auth rm -f /tmp/org.json</code>, the same in operations, and on the host).</td></tr>
+                <tr><td class="num">8</td><td>Labels</td><td>Admin</td><td><b>Labels printed from staging open staging.</b> A label holds the site&rsquo;s address (<code>REPORT_APP_URL</code>) and the station&rsquo;s token, and production makes new tokens at import: print the pilot stations&rsquo; labels again from production (Admin › Station tools) and replace the old ones.</td></tr>
+                <tr><td class="num">9</td><td>First backup</td><td>Developer, the key holder</td><td><code>docker compose … exec backup /opt/backup/backup.sh all</code> (do not wait for 02:00 UTC). The key holder decrypts the file once, on their own machine.</td></tr>
+                <tr><td class="num">10</td><td>Restore into staging</td><td>Developer, the key holder</td><td>On the <b>staging</b> host: <code>infra/scripts/restore.sh --file … --identity … --drill</code> with the production file. Staging then holds production&rsquo;s data, and everyone there signs in again. Production starts at MongoDB feature compatibility version 9.0 and staging is held at 8.0 (W21-1): a dump is logical and should restore, but this is the first time it is tried. <b>Never run <code>restore.sh</code> on production as a drill once people use it.</b></td></tr>
+                <tr><td class="num">11</td><td>One alert for real</td><td>Developer, an alert recipient</td><td>Stop one service for three minutes: ServiceDown arrives in the recipients&rsquo; mailbox, and the resolved message after it is started.</td></tr>
+                <tr><td class="num">12</td><td>Readiness</td><td>Developer</td><td><code>readiness.sh https://HOST --expect-version X.Y.Z</code> from a PC and <code>readiness.sh --on-host</code> on the host: 0 failed in both. The result (pass or fail per line, nothing else) goes in <code>docs/checks/</code>.</td></tr>
+                <tr><td class="num">13</td><td>Invitations</td><td>Admin</td><td>Pilot staff first; each checks their own sign-in. Then the pilot clients&rsquo; admins (AUTH-6), each linked to the organization the import made. A technician who used staging <b>syncs everything there first</b>: production is another address, so the phone installs it as another app with its own storage, and nothing queued on staging moves across.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><b>The readiness check.</b></p>
+          <p><code>infra/scripts/readiness.sh</code> answers &ldquo;is this site set up as the TRD says?&rdquo; with one line per check and exit code 1 when any failed. It prints names and counts, never a value from <code>.env</code>, so its output can go in a public log.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Mode</th><th>Needs</th><th>Checks</th></tr></thead>
+              <tbody>
+                <tr><td><code>readiness.sh URL [--files HOST] [--expect-version X.Y.Z] [--insecure] [--via HOST:PORT]</code></td><td>curl and openssl, from anywhere. GET requests only, no account.</td><td>HTTPS and the redirect to it; both certificates trusted and good for 21 days; the CSP exactly as TRD §15; the security headers on a page and on an API error; <code>sw.js</code>, <code>index.html</code>, <code>theme-init.js</code> and the manifest served <code>no-cache</code> and hashed files for a year (the phone&rsquo;s update depends on both); the manifest standalone and its icons loading; the version in the bundle; <code>/internal/</code>, <code>/metrics</code>, <code>/.well-known/</code> and <code>/.releases/</code> answering 404 and integrations 501; each of the five services answering through the gateway; the files host listing nothing to a stranger.</td></tr>
+                <tr><td><code>readiness.sh --on-host [DIR]</code></td><td>A shell on the host, in the <code>docker</code> group. Reads only.</td><td><code>.env</code> mode 600; every key of <code>.env.example</code> present (production; staging is told which are not); no secret still at the example&rsquo;s value; no seed password; Compose accepts the file; in production also scanning on, the backup profile, an <code>age1</code> public key, alert recipients and a relay that is not the Gmail interim sender; the kernel outside 6.19 to 7.0.13; every container healthy; the audit chain verified; each backup under 26 hours old and the last drill under 8 days (the alerts&rsquo; own limits); the disk under 80%. It prints the release tag and the MongoDB feature compatibility version.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted"><code>--via</code> sends every request to one address whatever the URL says: <code>--via 127.0.0.1:443 --insecure</code> for the local stack, <code>--via 127.0.0.1:8453</code> from the staging host itself. A site that does not answer at all fails once and stops. Tested without a stack (<code>infra/tests/test_readiness.py</code>): a small HTTPS server answers as Nginx should and is changed one thing at a time, and the host checks run against a made-up stack folder with a <code>docker</code> that answers from files. <b>Run against staging on 2026-11-13: 34 passed, 0 failed</b> (release 0.8.0). The host mode has not run on a real host.</p>
+          <figure class="diagram" id="go-live-plan" data-title="W23 to go-live, and what each week waits for" data-kind="PERT chart">
+            <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+gantt
+    dateFormat YYYY-MM-DD
+    excludes weekends
+    axisFormat %d %b
+    title Phase 8 (dates move a day for each day the host is late)
+    section Inputs from people
+    Production and backup hosts, due :crit, milestone, host, 2026-11-18, 0d
+    Pilot organizations and technicians named, due :crit, milestone, names, 2026-11-17, 0d
+    Email relay trusted (T3), due    :crit, milestone, mail, 2026-11-19, 0d
+    section W23 without the host
+    Runbook and readiness check      :done, rb, 2026-11-13, 2d
+    Device checklist, written        :dc, 2026-11-16, 1d
+    Guides and the client page       :gd, after dc, 2d
+    Triage routine                   :tr, after gd, 1d
+    section W23 with the host
+    Device checks on the pilot phones :dev, after names, 2d
+    Production day one               :crit, d1, after host, 2d
+    Training, phones moved to production :trn, after d1, 1d
+    Pilot users invited              :milestone, inv, after trn, 0d
+    section W24 and W25
+    Pilot and daily triage           :pilot, 2026-11-23, 5d
+    Fixes, go or no-go               :fix, 2026-11-30, 4d
+    Go-live, remaining clients invited :milestone, live, 2026-12-04, 0d
+    section After
+    Hypercare (W26 and W27)          :hc, 2026-12-07, 10d
+</pre>
+            </div>
+            <figcaption>The red milestones are not the developer&rsquo;s: the pilot cannot start before all three.</figcaption>
+          </figure>
+        </div>
+
         <div class="sub" id="infrastructure-staging">
           <h3>Staging</h3>
           <p>Staging (issue #4) runs <code>compose.yml</code> + <code>compose.prod.yml</code> + <code>compose.staging.yml</code>: images from GHCR tagged with the commit SHA, no builds, no Mailpit. <code>release.yml</code> deploys every push to <code>main</code>. Staff only until the Phase 8 pilot.</p>
@@ -4529,6 +4620,9 @@ flowchart TD
                 <tr><td>W20-9</td><td><b>After a restore everyone signs in again (slice 3, as built; finding F18).</b> <code>revoke-all-sessions</code> ends every refresh session and writes a Redis revocation for every user and organization (<code>revoke_all</code> in <code>mms_common.auth.revocation</code>), so a user disabled since the backup, or a token revoked since, cannot come back by being restored. The audit trail of what changed between the backup and the failure is not in the dump; the runbook says so.</td><td>2026-11-06</td></tr>
                 <tr><td>W20-10</td><td><b>The security review is a checklist of results, and findings stay private until fixed (slice 5, as built).</b> <code>docs/security/asvs-l2.md</code> answers ASVS 4.0.3 level 2 line by line with the code or test behind each. Known design differences are numbered deviations (D-1 to D-5) for you to accept or close; none is hidden. <b>The CI gate is &ldquo;no known vulnerability in a runtime dependency&rdquo;</b>, not &ldquo;high or critical&rdquo;: <code>pip-audit</code> reports no severity, so every advisory fails until it is fixed or accepted with a reason in the ignore file, and <code>npm audit</code> fails at high. <b>The ZAP job is passive, nightly, against staging only, and prints counts</b>: the repository is public, so a report or a finding&rsquo;s name in a log would publish it. The 10-character password minimum, no multi-factor sign-in and the 30-day session are product decisions, so they are recorded and not changed.</td><td>2026-11-06</td></tr>
                 <tr><td>W20-11</td><td><b>The load test is a regression test with numbers, run where it can hurt nothing (slice 6, as built).</b> The mix, the uploads and the thresholds are code in <code>infra/loadtest/</code>, and the verdict script is itself tested with made-up statistics (it fails each kind of bad run). <b>The seeder uses the real API</b>, so the data went through validation, the outbox and the consumers, and it refuses any host that is not local unless the operator names it a throwaway. <b>Virtual users share six seed users and must choose who they are before signing in</b>; a technician takes a planned visit whose first station it owns, so two never write the same board. The 10-a-minute sign-in limit makes the ramp slow on purpose. <b>Video processing is not judged</b>: the plan sets no number, and the first full run on the production host writes it down. The full run is never on staging (shared with other sites).</td><td>2026-11-06</td></tr>
+                <tr><td>W23-1</td><td><b>Production is set up from scratch, not copied from staging (proposed; not run, no host).</b> New secrets, a fresh export of the existing system imported with <code>import-orgs</code> then <code>import-stations</code>, no seed users or example requests. The load run happens on the empty host before the first admin exists, and the data is wiped after it. Labels are printed again from production: a label holds the site&rsquo;s address.</td></tr>
+                <tr><td>W23-2</td><td><b>Day one is a numbered runbook with a named person per step (as written).</b> Infrastructure › Production, day one: fourteen steps from the inputs to the invitations, with two gates (the release passes on staging; a test email passes SPF and DKIM before any client is invited).</td></tr>
+                <tr><td>W23-3</td><td><b>Readiness is a script, not a judgement (as built).</b> <code>infra/scripts/readiness.sh</code> has two modes, from outside (curl, GET only) and on the host (reads only), prints pass or fail per line and never a value from <code>.env</code>. A drill reading that is absent is information, not a failure: <code>restore.sh --drill</code> records it on the host it ran on, and the drill runs into staging.</td></tr>
                 <tr><td>W22-1</td><td><b>Two steps, and no session until the second. (As built.)</b> <code>POST /login</code> answers <code>{mfa_required, enrol, challenge, expires_in}</code> for a person with TOTP and creates no session; <code>POST /login/totp</code> finishes it. The challenge is a random token (hash in Redis, 5 minutes, 5 tries, single use, a purpose), not a JWT, so no other service has to learn about MFA. The app sends <code>supports_mfa</code>; an older one gets 401 <code>update_required</code>.</td></tr>
                 <tr><td>W22-2</td><td><b>A wrong code uses the account lock. (As built.)</b> Same per-account throttle as a wrong password (5 failures, 15 minutes), the answer says only that the code is incorrect, and the password alone never clears the count while a code is owed.</td></tr>
                 <tr><td>W22-3</td><td><b>RFC 6238, with replay refused. (As built.)</b> HMAC-SHA1, 6 digits, 30 s, one step either side, no dependency (<code>domain/totp.py</code>, tested with the RFC's vectors). The last accepted step is kept and a code at or before it fails.</td></tr>
@@ -4717,6 +4811,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-11-13</td><td>P8 &middot; W23 (slice 1)</td><td><b>Production day one and the readiness check</b> (decisions W23-1 to W23-3; plan <code>docs/plans/W23-plan.md</code>). Phase 8 starts with no production host, so this slice is what can be done without one: the runbook (Infrastructure › Production, day one), <code>infra/scripts/readiness.sh</code> (outside: 34 checks, run against staging, all passed; on the host: the <code>.env</code>, the containers, the audit chain, the backups) and <code>infra/tests/test_readiness.py</code> (33 tests, no stack needed). Two charts: from an empty host to the first invitation, and W23 to go-live with the inputs it waits for. No change to the app.</td></tr>
               <tr><td>2026-11-12</td><td>P7 &middot; W22 &middot; release 0.8.0</td><td><b>Two-step sign-in for admins</b> (decisions W22-1 to W22-10; plan <code>docs/plans/W22-plan.md</code>; closes ASVS deviation D-2). Back end in auth: <code>domain/{totp,recovery,mfa}.py</code>, <code>repo/{totp,mfa_challenges}.py</code>, <code>api/{totp_routes,signin}.py</code>, migration <code>0004</code>, six events, the <code>reset-totp</code> command, <code>AUTH_TOTP_*</code> settings. Screens: the code step and the set-up step on Log in, a Two-step sign-in card on My profile, the banner (app and field shells), Reset on Users. The code is asked at sign-in only: refresh, the offline PIN and sync are untouched. Docs: TRD 2.25 (§6.1.2), PRD 1.6 (AUTH-14), AFD 1.9, BSD 1.12, TP 1.5, ASVS lines 2.2.x, 2.8.x and 4.3.1 now <b>met</b> (90 lines: 83 met, 2 deviations, 5 n/a). Two charts: the <a href="#auth-twostep-seq">two-step sign-in sequence</a> and the <a href="#auth-twostep-rules">enforcement decision tree</a>. Frontend version 0.8.0. <b>Before the merge:</b> <code>AUTH_TOTP_KEY</code> on the staging host's <code>infra/.env</code>.</td></tr>
               <tr><td>2026-11-11</td><td>P7 &middot; W21</td><td><b>MongoDB 9</b> (decisions W21-1, W21-2). Images pinned to <code>mongo:9.0.8</code> (stack, dev stack, backup tools, test fixture), <code>pymongo&gt;=4.18</code>, the rollback guard refuses a rollback over a database image change. Also in W21: release 0.7.0 on staging; the Python version floors moved in one change (#152) and Dependabot now groups by dependency across services (#169); Trivy found zlib1g (CVE-2026-85091) in every image, fixed by <code>apt-get upgrade</code> in the five Dockerfiles (#168); a backup test that failed one run in 64 was fixed.</td></tr>
               <tr><td>2026-11-11</td><td>P7 &middot; W21 (close-out)</td><td><b>Dependencies and pipeline.</b> Python version floors raised in one change, the service images run <code>apt-get -y upgrade</code> so a Trivy finding on a Debian package does not block a release, Dependabot groups by dependency name across the services (<code>group-by: dependency-name</code>) and no longer raises floors, ESLint 10 and <code>@types/node</code> 26 merged, TypeScript 7 closed until <code>openapi-typescript</code> accepts it. The test fixture restarts a Mongo container that has not started after 45&nbsp;s. The MongoDB feature compatibility version is not raised yet (decision W21-1).</td></tr>
