@@ -1,0 +1,120 @@
+name: Pilot defect
+description: Something in MARS-MMS went wrong during the pilot (W23-6). This repository is public.
+title: "[Pilot] "
+labels: ["pilot", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public.** Anyone can read this issue. Do not write client or organization names, people's names, email addresses, phone numbers, station names or places. Use the reference numbers instead (`MR-2026-0042`, a visit's date and station code). Do not attach screenshots that show client data: describe what you saw.
+
+        **If a phone has work that has not been sent** (the Sync badge shows a number, or Needs attention lists a visit): do not uninstall the app, clear the browser's data or sign out. Open Sync › Needs attention and use **Export** first, then report.
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: What you did, and what the app did. Copy any message on the screen word for word.
+      placeholder: I tapped End visit and the screen said "Something went wrong on our side".
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      placeholder: The visit ends and the Sync badge counts the changes.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to see it again
+      description: Leave empty if you could not make it happen again.
+      placeholder: |
+        1. Open the visit with no signal
+        2. Add a photo
+        3. End the visit
+  - type: dropdown
+    id: role
+    attributes:
+      label: Your role
+      options:
+        - Technician
+        - Admin
+        - Viewer
+        - Client
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Reference
+      description: The request number, or the visit's date and station code. No names.
+      placeholder: MR-2026-0042, or the visit on 24 Nov at station code ABC-01
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it happened
+      options:
+        - Signing in, the PIN or two-step sign-in
+        - Requests
+        - Visits and the board
+        - Working with no signal, or Sync
+        - Photos, video and files
+        - Reports and signatures
+        - Stations, sensors or labels
+        - Emails and notifications
+        - Dashboard or summary reports
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Phone or computer, and browser
+      placeholder: iPhone 15, iOS 26.1, installed app / Pixel 8, Android 16, Chrome / Windows laptop, Edge
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: It is on the Log in page ("Version 0.8.0") and on Sync › This phone.
+      placeholder: 0.8.0
+    validations:
+      required: true
+  - type: dropdown
+    id: signal
+    attributes:
+      label: Signal at the time
+      options:
+        - Good signal or Wi-Fi
+        - Weak or coming and going
+        - No signal
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Phone report (technicians)
+      description: On the phone, open Sync › This phone › Copy report and paste it here. It holds versions and counts only, no names or notes.
+      render: text
+  - type: dropdown
+    id: impact
+    attributes:
+      label: How bad is it for you?
+      description: The person who triages sets the severity; this is your view.
+      options:
+        - Work was lost, sent twice, or someone saw what they should not
+        - I could not finish the job
+        - I finished it another way
+        - It looks wrong or reads badly
+    validations:
+      required: true
+  - type: checkboxes
+    id: public
+    attributes:
+      label: Before you send
+      options:
+        - label: This issue holds no names, contact details, station names or places, and no screenshot of client data.
+          required: true

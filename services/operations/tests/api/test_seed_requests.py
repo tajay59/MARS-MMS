@@ -119,10 +119,30 @@ async def test_they_can_be_removed_without_touching_a_real_request(ops):
     assert real.status_code == 201
     await seed(ops)
     assert await seed_requests.count_examples(ops.db) == 50
-    assert await seed_requests.remove(ops.db) == 50
+    assert await seed_requests.remove(ops.db) == (50, [])
     assert await ops.db["requests"].count_documents({}) == 1
     left = await ops.db["requests"].find_one({})
     assert left["title"] == "A real one" and "example" not in left
+
+
+async def test_an_example_someone_worked_on_is_kept_and_named(ops):
+    # Found on staging, 2026-11-19: removing every example left visits, a board and a close-out
+    # without their request, and the report service's copies of them
+    await two_orgs(ops)
+    await seed(ops, count=9)
+    examples = [d async for d in ops.db["requests"].find({"example": True}).sort("ref", 1)]
+    commented, visited = examples[0], examples[1]
+    r = await ops.http.post(f"/api/v1/requests/{commented['_id']}/comments",
+                            json={"body": "Checked", "internal": False},
+                            headers=ops.bearer("admin"))
+    assert r.status_code == 201, r.text
+    await ops.db["site_visits"].insert_one({"_id": "v-test", "request_id": visited["_id"]})
+
+    removed, kept = await seed_requests.remove(ops.db)
+
+    assert removed == 7
+    assert kept == sorted([commented["ref"], visited["ref"]])
+    assert await ops.db["requests"].count_documents({}) == 2
 
 
 async def test_without_stations_nothing_is_made(ops):
