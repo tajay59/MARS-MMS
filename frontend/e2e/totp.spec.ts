@@ -39,9 +39,27 @@ function totp (secret: string, shift = 0): string {
   return String(number).padStart(6, '0')
 }
 
-/** Waits for the next 30-second step, so a code used a moment ago is not a replay. */
-async function nextStep (page: Page): Promise<void> {
-  await page.waitForTimeout(STEP_MS - (Date.now() % STEP_MS) + 1500)
+/*
+  The server takes a code for the step either side of now, and never a step at or before the last
+  one it took. A code made from the clock at any moment was flaky (CI on main, 2026-11-19): it could
+  fall in a step an earlier sign-in had used (refused), or the step could turn between using a
+  code and replaying it. So each code is for a step not used yet, with time left in it. The start
+  counts as used, because a retry (a new worker) cannot know what the last attempt took.
+*/
+let lastStep = Math.floor(Date.now() / STEP_MS)
+
+/** A code for a step this file has not used, with at least 10 s of the step left. */
+async function freshCode (page: Page): Promise<string> {
+  for (;;) {
+    const now = Date.now()
+    const step = Math.floor(now / STEP_MS)
+    const left = STEP_MS - (now % STEP_MS)
+    if (step > lastStep && left > 10_000) {
+      lastStep = step
+      return totp(MFA_SECRET)
+    }
+    await page.waitForTimeout(left + 500)
+  }
 }
 
 async function password (page: Page, email: string): Promise<void> {
@@ -100,21 +118,20 @@ test('an admin with two-step sign-in logs in with a code, and a code works once 
   await submitCode(page)
   await expect(page.getByText('That code is incorrect. Enter the current code from your app.')).toBeVisible()
 
-  await type(page, '6-digit code', totp(MFA_SECRET))
+  const code = await freshCode(page)
+  await type(page, '6-digit code', code)
   await submitCode(page)
   await expect(page).toHaveURL(/\/dashboard$/)
   // This admin has two-step sign-in on: no setup banner
   await expect(page.getByText(/Set up two-step sign-in/)).toHaveCount(0)
-  const code = totp(MFA_SECRET)
 
-  // The same code again, in the same 30 seconds, is a replay
+  // The same code again is a replay, even while its step is still current
   await logout(page)
   await password(page, MFA_ADMIN)
   await type(page, '6-digit code', code)
   await submitCode(page)
   await expect(page.getByText('That code is incorrect. Enter the current code from your app.')).toBeVisible()
-  await nextStep(page)
-  await type(page, '6-digit code', totp(MFA_SECRET))
+  await type(page, '6-digit code', await freshCode(page))
   await submitCode(page)
   await expect(page).toHaveURL(/\/dashboard$/)
 })
