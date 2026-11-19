@@ -233,6 +233,21 @@ tests:
               summary: "The audit chain check failed"
               description: "Open the audit log's integrity check for the first bad record (rule 10)."
 
+  # --- RevocationFailed ----------------------------------------------------------------------
+  - name: one revocation Redis refused raises RevocationFailed at once
+    interval: 15s
+    input_series:
+      - {series: 'revocation_write_failures_total{service="auth",kind="org"}', values: '0x10 1x20'}
+    alert_rule_test:
+      - {eval_time: 1m, alertname: RevocationFailed, exp_alerts: []}
+      - eval_time: 4m
+        alertname: RevocationFailed
+        exp_alerts:
+          - exp_labels: {severity: critical, service: auth, kind: org}
+            exp_annotations:
+              summary: "A sign-in revocation did not reach Redis (org)"
+              description: "A disabled person or organization may keep an access token up to 15 minutes. Check Redis, then repeat the change (disable, reset or deactivate) so the revocation is written."
+
   # --- ClamAvSignaturesOld -------------------------------------------------------------------
   - name: signatures older than three days for an hour raise ClamAvSignaturesOld
     interval: 15s

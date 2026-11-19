@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, Response
 from mms_common import logging as mms_logging
-from mms_common import migrations, mongo
+from mms_common import migrations, mongo, redisconn
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.service_client import ServiceTokens
@@ -23,7 +23,6 @@ from mms_common.cron import run_periodic
 from mms_common.kafka import consume_forever
 from mms_common.time import Clock, SystemClock
 from mms_common.web import ReadyCheck, install
-from redis.asyncio import Redis
 
 from app import migrations as app_migrations
 from app.api import audit as audit_routes
@@ -51,7 +50,7 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         client = mongo.connect(settings.mongo_uri)
         audit_client = mongo.connect(settings.audit_mongo_uri)
-        redis = Redis.from_url(settings.redis_url)
+        redis = redisconn.connect(settings.redis_url)
         db = client[settings.mongo_db]
         audit_db = audit_client[settings.audit_db]
         app.state.mongo, app.state.db, app.state.redis = client, db, redis

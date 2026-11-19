@@ -79,6 +79,10 @@ JOB_DURATION = Histogram(
     "job_duration_seconds", "Queue job duration", ["queue"], buckets=JOB_BUCKETS,
 )
 JOB_FAILURES = Counter("job_failures_total", "Queue jobs that raised", ["queue"])
+# A committed change whose access-token revocation Redis refused (alert RevocationFailed)
+REVOCATION_FAILURES = Counter(
+    "revocation_write_failures_total", "Sign-in revocations Redis did not take", ["kind"]
+)
 JOB_QUEUE_DEPTH = Gauge(
     "job_queue_depth", "Jobs in a Redis queue, claimed ones included", ["queue"],
     multiprocess_mode="livemax",

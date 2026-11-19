@@ -108,8 +108,8 @@ async def create_admin(email: str, name: str, password: str) -> int:
 
 
 async def revoke_all_sessions(reason: str) -> int:
+    from mms_common import redisconn
     from mms_common.auth import revocation
-    from redis.asyncio import Redis
 
     from app.repo import sessions
 
@@ -117,7 +117,7 @@ async def revoke_all_sessions(reason: str) -> int:
     clock = SystemClock()
     client = mongo.connect(settings.mongo_uri)
     db = client[settings.mongo_db]
-    redis = Redis.from_url(settings.redis_url)
+    redis = redisconn.connect(settings.redis_url)
     try:
         now = clock.now()
         emitter = Emitter(db, clock, CLI, correlation_id=None)
@@ -167,8 +167,8 @@ async def _enrol_seed_admin(
 
 
 async def reset_totp(email: str) -> int:
+    from mms_common import redisconn
     from mms_common.auth import revocation
-    from redis.asyncio import Redis
 
     from app.events import totp_reset
 
@@ -176,7 +176,7 @@ async def reset_totp(email: str) -> int:
     clock = SystemClock()
     client = mongo.connect(settings.mongo_uri)
     db = client[settings.mongo_db]
-    redis = Redis.from_url(settings.redis_url)
+    redis = redisconn.connect(settings.redis_url)
     try:
         user = await users_repo.find_by_email(db, rules.normalize_email(email))
         if user is None:
