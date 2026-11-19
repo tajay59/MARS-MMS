@@ -1,0 +1,488 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T18:39:19+00:00",
+  "title": "Design System: MARS-MMS",
+  "extensions": {
+    "colorMeta": {
+      "caribbean-depth": {
+        "role": "primary",
+        "displayName": "Caribbean Depth",
+        "canonical": "#0A6780",
+        "tonalRamp": [
+          "#001F29",
+          "#003544",
+          "#004D62",
+          "#006781",
+          "#4A9AB7",
+          "#83D1EF",
+          "#B9EAFF",
+          "#DEF4FF"
+        ],
+        "dark": "#89D0ED"
+      },
+      "caribbean-depth-container": {
+        "role": "primary",
+        "displayName": "Caribbean Shallows",
+        "canonical": "#B9EAFF",
+        "tonalRamp": [
+          "#001F29",
+          "#003544",
+          "#004D62",
+          "#006781",
+          "#4A9AB7",
+          "#83D1EF",
+          "#B9EAFF",
+          "#DEF4FF"
+        ],
+        "dark": "#004D62"
+      },
+      "harbour-slate": {
+        "role": "secondary",
+        "displayName": "Harbour Slate",
+        "canonical": "#4C626B",
+        "tonalRamp": [
+          "#0E1E24",
+          "#233339",
+          "#3A4950",
+          "#516168",
+          "#83939B",
+          "#B9C9D1",
+          "#D5E5ED",
+          "#E3F3FC"
+        ],
+        "dark": "#B3CAD5"
+      },
+      "dusk-lavender": {
+        "role": "tertiary",
+        "displayName": "Dusk Lavender",
+        "canonical": "#5B5B7E",
+        "tonalRamp": [
+          "#191930",
+          "#2E2E46",
+          "#44455D",
+          "#5C5C76",
+          "#8F8EAA",
+          "#C5C4E2",
+          "#E1E0FF",
+          "#F2EFFF"
+        ],
+        "dark": "#C4C3EB"
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground Grey",
+        "canonical": "#EAEEF2",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#0A0F11"
+      },
+      "tile": {
+        "role": "neutral",
+        "displayName": "Page White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#171C1F"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Logbook Ink",
+        "canonical": "#171C1F",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#DEE3E6"
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "#40484C",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#C0C8CC"
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Faded Pencil",
+        "canonical": "#70787C",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#8A9296"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Ruled Line",
+        "canonical": "#DEE3E6",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#303638"
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Ruled Line, strong",
+        "canonical": "#C0C8CC",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#40484C"
+      },
+      "surface-50": {
+        "role": "neutral",
+        "displayName": "Faint Fill",
+        "canonical": "#F0F4F7",
+        "tonalRamp": [
+          "#171C1F",
+          "#2B3134",
+          "#42484A",
+          "#595F62",
+          "#8C9295",
+          "#C2C7CB",
+          "#DEE3E7",
+          "#ECF1F5"
+        ],
+        "dark": "#1B2023"
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Danger",
+        "canonical": "#BA1A1A",
+        "dark": "#FFB4AB"
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Success",
+        "canonical": "#15803D",
+        "dark": "#22C55E"
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Warning",
+        "canonical": "#B45309",
+        "dark": "#F59E0B"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page and record titles; 24/32 px on phones."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings and dialog titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card, tab panel, form section and sticky-note titles."
+      },
+      "kpi": {
+        "displayName": "KPI",
+        "purpose": "Dashboard numbers, tabular figures."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs, inputs, comments; at most 75 characters wide."
+      },
+      "body-sm": {
+        "displayName": "Body small",
+        "purpose": "Table cells, list meta, staff menus."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels, chips, buttons."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Timestamps and counts; the smallest size allowed."
+      },
+      "field-action": {
+        "displayName": "Field action",
+        "purpose": "Primary buttons in the field shell."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "References, serials, hashes, file names."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float-low",
+        "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "Tooltips and small menus."
+      },
+      {
+        "name": "float-mid",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Menus and popovers."
+      },
+      {
+        "name": "float-high",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "Dialogs, toasts, the field action bar."
+      }
+    ],
+    "motion": [
+      {
+        "name": "hover",
+        "value": "150ms ease-out",
+        "purpose": "Hovers, menus, tooltips."
+      },
+      {
+        "name": "dialog",
+        "value": "200ms",
+        "purpose": "Dialogs and drawers."
+      },
+      {
+        "name": "pane-open",
+        "value": "400ms emphasized (GSAP CustomEase path M0,0 C0.05,0 0.133333,0.06 0.166666,0.4 0.208333,0.82 0.25,1 1,1)",
+        "purpose": "The pane's width opening (Material 3 emphasized)."
+      },
+      {
+        "name": "pane-close",
+        "value": "300ms emphasized",
+        "purpose": "The pane's width closing."
+      },
+      {
+        "name": "page-enter",
+        "value": "220ms, rise 8px and fade",
+        "purpose": "A new page in the view."
+      },
+      {
+        "name": "record-enter",
+        "value": "450ms cubic-bezier(0.05, 0.7, 0.1, 1), rise 14px and fade",
+        "purpose": "A record opened from the pane (Material 3 emphasized decelerate)."
+      },
+      {
+        "name": "row-press",
+        "value": "80ms ease-out to 96%, 320ms back.out(4) back",
+        "purpose": "A list row pressed and released."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "2xl",
+        "value": "1536px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action of a view; verb-first label. 48 px with 18 px text in the field shell.",
+      "html": "<button class=\"ds-btn-primary\">Submit request</button>",
+      "css": ".ds-btn-primary { background: #0A6780; color: #FFFFFF; height: 40px; padding: 0 16px; border: 0; border-radius: 6px; font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-primary:hover { background: #004D62; } .ds-btn-primary:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Alternatives beside the primary: Save draft, Preview PDF.",
+      "html": "<button class=\"ds-btn-secondary\">Save draft</button>",
+      "css": ".ds-btn-secondary { background: #FFFFFF; color: #0A6780; height: 40px; padding: 0 16px; border: 1px solid #0A6780; border-radius: 6px; font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-secondary:hover { background: #DEF4FF; } .ds-btn-secondary:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
+    },
+    {
+      "name": "Field Action Button",
+      "kind": "button",
+      "refersTo": "button-primary-field",
+      "description": "The field shell's main action, full width at 48 px: Arrive, Depart station, End visit.",
+      "html": "<button class=\"ds-btn-field\">Arrive</button>",
+      "css": ".ds-btn-field { background: #0A6780; color: #FFFFFF; width: 100%; max-width: 360px; height: 48px; border: 0; border-radius: 6px; font: 600 18px/24px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-field:hover { background: #004D62; } .ds-btn-field:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filled input with a plain label above and a full-strength hint below.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-serial\">Serial number</label><input class=\"ds-field-input\" id=\"ds-serial\" placeholder=\"HMP155-K1230045\"><p class=\"ds-field-hint\">As printed on the sensor.</p></div>",
+      "css": ".ds-field { display: grid; gap: 8px; max-width: 320px; font-family: 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-label { font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #171C1F; } .ds-field-input { height: 40px; padding: 0 12px; background: #F0F4F7; color: #171C1F; border: 0; border-radius: 6px; font: 400 16px/24px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-input::placeholder { color: #40484C; } .ds-field-input:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; } .ds-field-hint { margin: 0; font: 400 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip-in-progress",
+      "description": "Every record's status as an icon and a word; never clickable, colours reserved for status.",
+      "html": "<span class=\"ds-chip ds-chip-progress\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M13,2.03V2.05L13,4.05C17.39,4.59 20.5,8.58 19.96,12.97C19.5,16.61 16.64,19.5 13,19.93V21.93C18.5,21.38 22.5,16.5 21.95,11C21.5,6.25 17.73,2.5 13,2.03M11,2.06C9.05,2.25 7.19,3 5.67,4.26L7.1,5.74C8.22,4.84 9.57,4.26 11,4.06V2.06M4.26,5.67C3,7.19 2.25,9.04 2.05,11H4.05C4.24,9.58 4.8,8.23 5.69,7.1L4.26,5.67M2.06,13C2.26,14.96 3.03,16.81 4.27,18.33L5.69,16.9C4.81,15.77 4.24,14.42 4.06,13H2.06M7.1,18.37L5.67,19.74C7.18,21 9.04,21.79 11,22V20C9.58,19.82 8.23,19.25 7.1,18.37M16.82,15.19L12.71,11.08C13.12,10.04 12.89,8.82 12.03,7.97C11.13,7.06 9.78,6.88 8.69,7.38L10.63,9.32L9.28,10.68L7.29,8.73C6.75,9.82 7,11.17 7.88,12.08C8.74,12.94 9.96,13.16 11,12.76L15.11,16.86C15.29,17.05 15.56,17.05 15.74,16.86L16.78,15.83C17,15.65 17,15.33 16.82,15.19Z\"/></svg>In progress</span> <span class=\"ds-chip ds-chip-closed\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M19,19H5V5H15V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V11H19M7.91,10.08L6.5,11.5L11,16L21,6L19.59,4.58L11,13.17L7.91,10.08Z\"/></svg>Closed</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 9999px; font: 500 12px/16px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-chip-progress { background: #EDE9FE; color: #5B21B6; } .ds-chip-closed { background: #DCFCE7; color: #166534; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Public pages, dialogs and menus only; never inside an app-shell tile.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Calibration due</h3><p class=\"ds-card-body\">4 sensors are due in the next 30 days.</p></div>",
+      "css": ".ds-card { max-width: 360px; padding: 24px; background: #FFFFFF; border: 1px solid #DEE3E6; border-radius: 10px; } .ds-card-title { margin: 0 0 8px; font: 600 16px/24px 'Google Sans Variable', 'Roboto Flex Variable', system-ui, sans-serif; color: #171C1F; } .ds-card-body { margin: 0; font: 400 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; }"
+    },
+    {
+      "name": "Rail",
+      "kind": "nav",
+      "refersTo": "rail-icon-active",
+      "description": "The 64 px tile of section icons; the active fill is one rounded tile that slides to the section chosen.",
+      "html": "<nav class=\"ds-rail\" aria-label=\"Sections\"><a class=\"ds-rail-item\" href=\"#\" aria-label=\"Dashboard\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M19,5V7H15V5H19M9,5V11H5V5H9M19,13V19H15V13H19M9,17V19H5V17H9M21,3H13V9H21V3M11,3H3V13H11V3M21,11H13V21H21V11M11,15H3V21H11V15Z\"/></svg></a><a class=\"ds-rail-item ds-rail-active\" href=\"#\" aria-current=\"page\" aria-label=\"Stations\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M12 4C14.2 4 16 5.8 16 8C16 10.1 13.9 13.5 12 15.9C10.1 13.4 8 10.1 8 8C8 5.8 9.8 4 12 4M12 2C8.7 2 6 4.7 6 8C6 12.5 12 19 12 19S18 12.4 18 8C18 4.7 15.3 2 12 2M12 6C10.9 6 10 6.9 10 8S10.9 10 12 10 14 9.1 14 8 13.1 6 12 6\"/></svg></a><a class=\"ds-rail-item\" href=\"#\" aria-label=\"Sync\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M13 19C13 19.34 13.04 19.67 13.09 20H6.5C5 20 3.69 19.5 2.61 18.43C1.54 17.38 1 16.09 1 14.58C1 13.28 1.39 12.12 2.17 11.1S4 9.43 5.25 9.15C5.67 7.62 6.5 6.38 7.75 5.43S10.42 4 12 4C13.95 4 15.6 4.68 16.96 6.04C18.32 7.4 19 9.05 19 11C20.15 11.13 21.1 11.63 21.86 12.5C22.37 13.07 22.7 13.71 22.86 14.42C21.82 13.54 20.5 13 19 13C18.89 13 18.79 13 18.68 13C18.62 13 18.56 13 18.5 13H17V11C17 9.62 16.5 8.44 15.54 7.46C14.56 6.5 13.38 6 12 6S9.44 6.5 8.46 7.46C7.5 8.44 7 9.62 7 11H6.5C5.53 11 4.71 11.34 4.03 12.03C3.34 12.71 3 13.53 3 14.5S3.34 16.29 4.03 17C4.71 17.66 5.53 18 6.5 18H13.09C13.04 18.33 13 18.66 13 19M17.75 19.43L16.16 17.84L15 19L17.75 22L22.5 17.25L21.34 15.84L17.75 19.43Z\"/></svg></a></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 64px; padding: 12px 0; background: #FFFFFF; } .ds-rail-item { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; color: #40484C; transition: background 150ms ease-out, transform 150ms ease-out; } .ds-rail-item:hover { background: #F0F4F7; transform: translateY(-1px); } .ds-rail-item:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; } .ds-rail-active { background: #B9EAFF; color: #004D62; }"
+    },
+    {
+      "name": "Sticky Note",
+      "kind": "custom",
+      "refersTo": "sticky-note-card",
+      "description": "A visit board element: white card, 4 px top stripe in its kind's accent, the whole card opens the sheet.",
+      "html": "<article class=\"ds-sticky\"><p class=\"ds-sticky-kind\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M19,19H5V5H15V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V11H19M7.91,10.08L6.5,11.5L11,16L21,6L19.59,4.58L11,13.17L7.91,10.08Z\"/></svg>Task</p><h3 class=\"ds-sticky-title\"><button class=\"ds-sticky-open\">Replace RH sensor</button></h3><p class=\"ds-sticky-desc\">Swap the humidity probe and log the new serial.</p><div class=\"ds-sticky-bar\"><span style=\"width:66%\"></span></div><p class=\"ds-sticky-foot\">2 of 3 · Shared · <span class=\"ds-mono\">JR</span></p></article>",
+      "css": ".ds-sticky { position: relative; max-width: 300px; padding: 16px; background: #FFFFFF; border: 1px solid #C0C8CC; border-top: 4px solid #1B6B34; border-radius: 10px; transition: background 150ms ease-out; } .ds-sticky:hover { background: #F0F4F7; } .ds-sticky-kind { display: flex; align-items: center; gap: 4px; margin: 0 0 4px; font: 500 12px/16px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1B6B34; } .ds-sticky-title { margin: 0; font: 600 16px/24px 'Google Sans Variable', 'Roboto Flex Variable', system-ui, sans-serif; color: #171C1F; } .ds-sticky-open { all: unset; cursor: pointer; } .ds-sticky-open::after { content: ''; position: absolute; inset: 0; } .ds-sticky-open:focus-visible::after { outline: 2px solid #0A6780; outline-offset: 2px; border-radius: 10px; } .ds-sticky-desc { margin: 4px 0 12px; font: 400 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; } .ds-sticky-bar { height: 4px; background: #D3F2DA; border-radius: 9999px; overflow: hidden; } .ds-sticky-bar span { display: block; height: 100%; background: #1B6B34; } .ds-sticky-foot { margin: 12px 0 0; font: 500 12px/16px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; } .ds-mono { font-family: 'JetBrains Mono Variable', ui-monospace, Consolas, monospace; }"
+    },
+    {
+      "name": "Sync Badge",
+      "kind": "custom",
+      "refersTo": "button-secondary",
+      "description": "Always visible in the field: green check when synced, amber count while work waits, red on failure.",
+      "html": "<a class=\"ds-sync\" href=\"#\" aria-label=\"3 changes waiting to sync\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M13 19C13 19.34 13.04 19.67 13.09 20H6.5C5 20 3.69 19.5 2.61 18.43C1.54 17.38 1 16.09 1 14.58C1 13.28 1.39 12.12 2.17 11.1S4 9.43 5.25 9.15C5.67 7.62 6.5 6.38 7.75 5.43S10.42 4 12 4C13.95 4 15.6 4.68 16.96 6.04C18.32 7.4 19 9.05 19 11C20.15 11.13 21.1 11.63 21.86 12.5C22.37 13.07 22.7 13.71 22.86 14.42C21.82 13.54 20.5 13 19 13C18.89 13 18.79 13 18.68 13C18.62 13 18.56 13 18.5 13H17V11C17 9.62 16.5 8.44 15.54 7.46C14.56 6.5 13.38 6 12 6S9.44 6.5 8.46 7.46C7.5 8.44 7 9.62 7 11H6.5C5.53 11 4.71 11.34 4.03 12.03C3.34 12.71 3 13.53 3 14.5S3.34 16.29 4.03 17C4.71 17.66 5.53 18 6.5 18H13.09C13.04 18.33 13 18.66 13 19M17.75 19.43L16.16 17.84L15 19L17.75 22L22.5 17.25L21.34 15.84L17.75 19.43Z\"/></svg><span class=\"ds-sync-count\">3</span></a>",
+      "css": ".ds-sync { position: relative; display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; color: #40484C; } .ds-sync:hover { background: #F0F4F7; } .ds-sync:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; } .ds-sync-count { position: absolute; top: 6px; right: 4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9999px; background: #B45309; color: #FFFFFF; font: 500 12px/18px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; text-align: center; }"
+    },
+    {
+      "name": "Reference",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Anything copyable (references, serials, hashes) in JetBrains Mono; records look official.",
+      "html": "<p class=\"ds-ref\"><span class=\"ds-ref-code\">VR-2026-0042-02</span> · final · <span class=\"ds-ref-code\">a3f9…9c21</span></p>",
+      "css": ".ds-ref { margin: 0; font: 400 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; } .ds-ref-code { font: 500 14px/20px 'JetBrains Mono Variable', ui-monospace, Consolas, monospace; color: #171C1F; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Logbook",
+    "overview": "MARS-MMS is the book a technician carries up the hill and the record a client signs at the end. It has to survive the field: no signal, sun on the screen, wet or gloved hands, a visit recorded over days before it syncs. And it has to read as official once it is signed. The look is a well-kept logbook: plain ruled pages, a clear hand, and colour only where something needs attention.\n\nThe office sees a dense, quiet instrument: three square tiles on a grey ground, a rail of section icons, a pane with the list, a view with the record. The field sees the same book opened wide, with 48 px targets, 16 px text and one main action per screen. Clients see roomier pages in plain words. Records (references, serials, hashes, signed reports) take a print-like, monospaced, versioned form, because an auditor will read them.\n\nIt is not a weather app. No animated clouds, glossy icons, stock illustrations or decorative gradients; the only gradient is a person's avatar.",
+    "keyCharacteristics": [
+      "Tonal, flat surfaces: tiles stand out from the ground by colour alone.",
+      "Status first: every record shows its status as a chip with an icon and a word.",
+      "Colour is reserved: status colours mean status, sticky tints mean board kinds, the brand blue-teal means \"act here\".",
+      "Three typefaces with three jobs: Google Sans titles, Roboto Flex text, JetBrains Mono for anything someone might copy.",
+      "Field mode scales up, never redesigns: same components at 48 px."
+    ],
+    "rules": [
+      {
+        "name": "The Reserved Ink Rule",
+        "body": "A status colour appears only where it states a status. If removing the colour would lose no information, it was decoration: take it out.",
+        "section": "colors"
+      },
+      {
+        "name": "The Theme-Proof Status Rule",
+        "body": "Status, feedback and sticky colours never come from the Material theme, so no admin's brand change can make two statuses look alike.",
+        "section": "colors"
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "body": "Headings, buttons and menu items are in sentence case. The only capitals are DRAFT and SUPERSEDED watermarks.",
+        "section": "typography"
+      },
+      {
+        "name": "The Copyable Is Mono Rule",
+        "body": "Anything a person might read aloud, copy or compare (a reference, a serial, a hash, a file name) is in JetBrains Mono; nothing else is.",
+        "section": "typography"
+      },
+      {
+        "name": "The Upright Rule",
+        "body": "No italics for emphasis; use 600 weight. Numbers in tables, readings and dates use tabular figures and right-align.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Primary Rule",
+        "body": "Each view has one primary button. Alternatives are outlined; low-weight actions are text.",
+        "section": "layout"
+      },
+      {
+        "name": "The Frame Stays Put Rule",
+        "body": "Never add a top bar, a floating panel or a second navigation to a shell. A page fills the view with its header and body and puts its list or controls in the pane.",
+        "section": "layout"
+      },
+      {
+        "name": "The No Cards In Tiles Rule",
+        "body": "A tile never holds a bordered card. Cards are for public pages, dialogs, menus and sticky notes.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do take every colour from a token (`bg-primary`, `text-surface-600`); Tailwind's default palette is removed.",
+      "Do keep field pages at 48 px targets, 16 px or larger text and the strongest ink only.",
+      "Do show every status as a chip with an icon and a word, so colour is never the only signal.",
+      "Do give secondary text full-strength Pencil, never reduced opacity; text meets 4.5:1 in light and dark.",
+      "Do separate sections inside a tile with 1 px ruled lines.",
+      "Do keep motion short (150 ms hovers, 200 ms dialogs; the shell's GSAP motion through `dur()`), and off under reduced motion or Settings › Animations off."
+    ],
+    "donts": [
+      "Don't use decorative gradients; the person avatar is the only exception.",
+      "Don't use stock illustrations or weather-app theatrics (animated clouds, glossy icons).",
+      "Don't use a status, feedback or sticky colour for decoration, or a brand colour for a status.",
+      "Don't put bordered cards inside the app shell's tiles, or shadows on anything that does not float.",
+      "Don't add custom component CSS when a Vuetify default or Tailwind utility can do it.",
+      "Don't use italics for emphasis or title case in UI text."
+    ]
+  }
+}
