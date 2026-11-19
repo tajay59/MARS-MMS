@@ -78,7 +78,8 @@ services:
       - -b.path=/buckets  # the same place on the backup host: the default is /
       - -isActivePassive
     depends_on: [seaweedfs]
-    mem_limit: 128m
+    # 128m was OOM-killed in a loop while replaying a 12-day backlog that included video files
+    mem_limit: 512m
     networks: [backend]
 
 volumes:
