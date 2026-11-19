@@ -98,6 +98,7 @@
   import { storeToRefs } from 'pinia'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { clientHelp } from '@/app/navigation'
   import { icons } from '@/app/theme/icons'
   import { useSyncLabel } from '@/features/field/useSyncOverview'
   import { badgeText } from '@/features/notifications/notifications'
@@ -131,6 +132,7 @@
     { label: notifications.unread > 0 ? `Notifications (${badgeText(notifications.unread)})` : 'Notifications', to: 'notifications', icon: icons.notifications },
     ...(isClient.value ? [] : [{ label: syncLabel.value ? `Sync (${syncLabel.value})` : 'Sync', to: 'sync', icon: syncLabel.value ? mdiCloudUploadOutline : mdiCloudCheckOutline }]),
     ...(admin.value ? [{ label: props.badges[admin.value.key] ? `Admin (${props.badges[admin.value.key]})` : 'Admin', to: admin.value.items[0]!.to, icon: admin.value.icon }] : []),
+    ...(isClient.value ? [clientHelp] : []),
   ])
   const inMe = computed(() => !shown.value.some(s => s.key === props.current?.key))
 

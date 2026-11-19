@@ -49,7 +49,7 @@
     />
 
     <div class="mt-1 flex size-11 shrink-0 items-center justify-center">
-      <UserMenu rail />
+      <UserMenu :extra="isClient ? [clientHelp] : undefined" rail />
     </div>
   </nav>
 </template>
@@ -62,6 +62,7 @@
   import { useRoute } from 'vue-router'
   import { APP_NAME } from '@/app/brand'
   import { dur, DURATION, EASE, gsap } from '@/app/motion'
+  import { clientHelp } from '@/app/navigation'
   import { icons } from '@/app/theme/icons'
   import AppLogo from '@/components/AppLogo.vue'
   import UserMenu from '@/components/UserMenu.vue'

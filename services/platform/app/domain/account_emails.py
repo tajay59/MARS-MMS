@@ -52,6 +52,9 @@ class EmailJob:
     reason: str | None = None
     notification_id: str | None = None
     digest_id: str | None = None
+    # An invitation to a client also links the client guide (W23-5); staff get the quick
+    # references at training instead.
+    client: bool = False
 
 
 def job_for(event_type: str, data: Mapping[str, Any]) -> EmailJob | None:
@@ -65,7 +68,10 @@ def job_for(event_type: str, data: Mapping[str, Any]) -> EmailJob | None:
                 Kind.REJECTED, user_id, to=data["email"], name=data["name"], reason=data["reason"]
             )
         case "user.invited":
-            return EmailJob(Kind.INVITATION, user_id, link_id=str(data["invitation_id"]))
+            return EmailJob(
+                Kind.INVITATION, user_id, link_id=str(data["invitation_id"]),
+                client="client" in data.get("roles", ()),
+            )
         case "auth.password_reset_requested":
             return EmailJob(Kind.RESET, user_id, link_id=str(data["reset_id"]))
     return None
@@ -153,15 +159,25 @@ def _copy(kind: Kind, reason: str | None) -> _Copy:
 _FONT = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 
 
-def render(kind: Kind, *, name: str, url: str | None, reason: str | None = None) -> Rendered:
+GUIDE_PATH = "/help/client"
+GUIDE_LEAD = f"New to {PRODUCT_NAME}? Read the client guide"
+
+
+def render(
+    kind: Kind, *, name: str, url: str | None, reason: str | None = None,
+    guide_url: str | None = None,
+) -> Rendered:
     """Subject, plain text and HTML (a single 600 px column, one primary button). Every value
-    from the event or from auth is escaped in the HTML part."""
+    from the event or from auth is escaped in the HTML part. `guide_url` adds a quiet text link
+    to the client guide under the button (a client's invitation, W23-5)."""
     copy = _copy(kind, reason)
     greeting = f"Hello {name},"
 
     text_parts = [greeting, copy.heading + ".", *copy.paragraphs]
     if copy.button and url:
         text_parts.append(f"{copy.button}: {url}")
+    if guide_url:
+        text_parts.append(f"{GUIDE_LEAD}: {guide_url}")
     text_parts.append(f"{PRODUCT_NAME} · {PRODUCT_LONG_NAME}")
     text = "\n\n".join(text_parts) + "\n"
 
@@ -181,6 +197,13 @@ def render(kind: Kind, *, name: str, url: str | None, reason: str | None = None)
             '<p style="margin:0 0 16px;font-size:14px;line-height:20px;color:#475569">'
             "If the button doesn't work, copy this address into your browser:<br>"
             f'<span style="word-break:break-all;color:#22569A">{e(url)}</span></p>'
+        )
+    if guide_url:
+        button += (
+            '<p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#0F172A">'
+            f"New to {PRODUCT_NAME}? "
+            f'<a href="{e(guide_url, quote=True)}" style="color:#22569A">Read the client guide</a>'
+            "</p>"
         )
     body = (
         "<!doctype html>"

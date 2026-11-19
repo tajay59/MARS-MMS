@@ -29,7 +29,7 @@ USER = {"user_id": "u1", "email": "maria@example.org", "name": "Maria Lopez",
          EmailJob(Kind.REJECTED, "u1", to="maria@example.org", name="Maria Lopez",
                   reason="Unknown org")),
         ("user.invited", {**USER, "status": "invited", "invitation_id": "i1"},
-         EmailJob(Kind.INVITATION, "u1", link_id="i1")),
+         EmailJob(Kind.INVITATION, "u1", link_id="i1", client=True)),
         ("auth.password_reset_requested", {"user_id": "u1", "reset_id": "r1"},
          EmailJob(Kind.RESET, "u1", link_id="r1")),
     ],
@@ -51,6 +51,27 @@ def test_invitation_and_reset_jobs_hold_no_token_or_address():
     """The token is minted on send and the address comes back with it (TRD §6.2)."""
     job = job_for("auth.password_reset_requested", {"user_id": "u1", "reset_id": "r1"})
     assert job is not None and job.to is None and job.name is None
+
+
+@pytest.mark.req("NOT-3")
+@pytest.mark.parametrize(("roles", "client"), [(["client"], True), (["technician"], False),
+                                              (["admin", "technician"], False)])
+def test_only_a_client_invitation_asks_for_the_guide(roles, client):
+    """W23-5: the client guide is for clients; staff learn at training."""
+    job = job_for("user.invited", {**USER, "roles": roles, "status": "invited",
+                                   "invitation_id": "i1"})
+    assert job is not None and job.client is client
+
+
+def test_invitation_links_the_client_guide_under_the_button():
+    url = "https://mms.example.org/invite/abc"
+    guide = "https://mms.example.org/help/client"
+    out = render(Kind.INVITATION, name="Maria", url=url, guide_url=guide)
+    assert f"Set your password: {url}" in out.text
+    assert f"New to MARS-MMS? Read the client guide: {guide}" in out.text
+    assert f'href="{guide}"' in out.html
+    assert out.html.index(url) < out.html.index(guide)  # the button stays the first action
+    assert "/help/client" not in render(Kind.INVITATION, name="Maria", url=url).text
 
 
 def test_html_escapes_every_value():

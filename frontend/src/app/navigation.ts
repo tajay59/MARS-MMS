@@ -4,6 +4,7 @@ import {
   mdiAccountGroupOutline,
   mdiClipboardTextOutline,
   mdiDomain,
+  mdiHelpCircleOutline,
   mdiInboxOutline,
   mdiShieldAccountOutline,
   mdiViewDashboardOutline,
@@ -38,6 +39,9 @@ export interface Section {
   also?: readonly string[]
   roles?: readonly Role[]
 }
+
+/** The client guide (W23-5), in a client's account menu. */
+export const clientHelp: MenuItem = { label: 'Client guide', to: 'help-client', icon: mdiHelpCircleOutline }
 
 const dashboard: MenuItem = { label: 'Dashboard', to: 'dashboard', icon: mdiViewDashboardOutline }
 

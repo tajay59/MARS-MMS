@@ -59,6 +59,10 @@
       </p>
 
       <v-btn block class="text-primary" :to="{ name: 'register' }" variant="outlined">Create an account</v-btn>
+
+      <p class="m-0 text-sm text-surface-600">
+        A client? <router-link class="font-medium text-primary underline underline-offset-2" :to="{ name: 'help-client' }">Read the client guide</router-link>
+      </p>
     </div>
   </AuthCard>
 </template>
