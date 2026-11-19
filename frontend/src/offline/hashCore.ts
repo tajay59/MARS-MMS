@@ -8,8 +8,8 @@
   worker and, where workers are missing, on the main thread.
 */
 
-import { sha256 } from '@noble/hashes/sha2'
-import { bytesToHex } from '@noble/hashes/utils'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { bytesToHex } from '@noble/hashes/utils.js'
 
 export const SLICE = 8 * 1024 * 1024
 
