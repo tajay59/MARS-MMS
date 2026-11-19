@@ -15,6 +15,8 @@ export interface PaneContext {
   pinned: Ref<boolean>
   /** A record is open in the view: phones show the view alone, with a Back button. */
   selected: Ref<boolean>
+  /** The page fills the view and wants no pane; the section's pages show as tabs in the view. */
+  paneless: Ref<boolean>
   /** The person hid the pane (from 1024 px). */
   collapsed: Ref<boolean>
   /** The pane is hidden by the person and can be shown again from the view's header. */
@@ -42,5 +44,23 @@ export function usePaneSelection (isOpen: () => boolean): void {
   })
   onBeforeUnmount(() => {
     pane.selected.value = false
+  })
+}
+
+/**
+ * Tells the shell the page wants no pane while `isPaneless()` holds (the stations list and the
+ * new-station form, approved Stations redesign): the view takes the width, and the section's
+ * pages move to a row of tabs at the top of the view.
+ */
+export function usePaneless (isPaneless: () => boolean): void {
+  const pane = usePane()
+  if (!pane) {
+    return
+  }
+  watchEffect(() => {
+    pane.paneless.value = isPaneless()
+  })
+  onBeforeUnmount(() => {
+    pane.paneless.value = false
   })
 }

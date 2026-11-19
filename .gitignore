@@ -56,3 +56,8 @@ zap-report/
 
 # Impeccable engine binaries: the launcher downloads and verifies one on first use (engine-checksums.txt)
 .claude/skills/impeccable/scripts/bin/
+# Impeccable scratch: decision sketches and review captures (the surface briefs are kept)
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/build/
+.impeccable/critique/

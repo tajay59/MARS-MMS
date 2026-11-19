@@ -139,7 +139,7 @@ components:
     rounded: "{rounded.md}"
     height: "40px"
   input:
-    backgroundColor: "{colors.surface-50}"
+    backgroundColor: "{colors.ground}"
     textColor: "{colors.ink}"
     typography: "{typography.body}"
     rounded: "{rounded.md}"
@@ -211,7 +211,7 @@ A cool slate logbook page with one deep blue-teal ink for action, and a strictly
 - **Ground Grey** (`ground`): behind the app shell's tiles (dark: the lowest surface container).
 - **Page White** (`tile`): tiles, cards, dialogs, sticky notes.
 - **Ruled Line** (`rule`, `rule-strong`): 1 px dividers inside tiles and card borders; the stronger one around sticky notes and inputs that need an edge.
-- **Faint Fill** (`surface-50`): filled inputs, row hover.
+- **Faint Fill** (`surface-50`): row hover.
 - **Logbook Ink** (`ink`): all primary text; field pages use only this.
 - **Pencil** (`ink-secondary`): secondary text, hints, meta. Always at full strength, never by opacity.
 - **Faded Pencil** (`ink-muted`): icons in empty states, outlines.
@@ -305,7 +305,7 @@ Vuetify components used as they come, styled once through global defaults; Tailw
 - **Internal Padding:** 24 px (16 px on phones).
 
 ### Inputs / Fields
-- **Style:** filled (a faint fill), no border, 6 px corners, 40 px tall (48 in the field); label above as a plain label, hint below in Pencil at full strength; optional fields say "(optional)".
+- **Style:** filled (Ground Grey) with a 1 px bottom rule in Faded Pencil, so an empty field reads as a field (about 4.5:1 on a tile; red under an error), no other border, 6 px corners, 40 px tall (48 in the field); label above as a plain label, hint below in Pencil at full strength; optional fields say "(optional)".
 - **Focus:** the shared 2 px focus ring.
 - **Error / Disabled:** error text in the danger container's dark red with an alert icon; a form with two or more errors adds a linked summary at the top.
 

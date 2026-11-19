@@ -53,7 +53,7 @@ test('Only an admin opens the audit log @REQ-AUD-4 @NFR-6', async ({ watched: pa
 
 test('Staff read a station History and a client has no such tab @REQ-AUD-6 @NFR-6 @J10', async ({ watched: page, browser }) => {
   await logIn(page, 'tech1@example.org')
-  await page.goto('/stations')
+  await page.goto('/stations?view=all')
   await page.getByRole('link', { name: /JM-KIN-001/ }).first().click()
   await page.getByRole('tab', { name: 'History' }).click()
   await expect(page).toHaveURL(/tab=history/)
@@ -65,7 +65,7 @@ test('Staff read a station History and a client has no such tab @REQ-AUD-6 @NFR-
   const clientContext = await browser.newContext({ ignoreHTTPSErrors: true })
   const client = await clientContext.newPage()
   await logIn(client, 'client.a1@example.org')
-  await client.goto('/stations')
+  await client.goto('/stations?view=all')
   await client.getByRole('link', { name: /JM-KIN-001/ }).first().click()
   await expect(client.getByRole('tab', { name: 'Overview' })).toBeVisible()
   await expect(client.getByRole('tab', { name: 'History' })).toHaveCount(0)

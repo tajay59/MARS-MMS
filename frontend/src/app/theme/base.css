@@ -81,6 +81,19 @@
   color: rgb(var(--v-theme-surface-600));
 }
 
+/*
+  Filled fields at rest: Vuetify paints solo-inverted in the surface colour and `flat` removes its
+  shadow, so an empty field was white on a white tile (Impeccable critique, 2026-11-19; WCAG
+  1.4.11). A light grey fill and a 1 px bottom rule in the outline colour (about 4.5:1 on the tile)
+  show where to type; an error turns the rule red. Focus keeps Vuetify's inverted look.
+*/
+.v-field--variant-solo-inverted:not(.v-field--focused) {
+  background: rgb(var(--v-theme-surface-100));
+  box-shadow: inset 0 -1px 0 rgb(var(--v-theme-surface-500));
+}
+.v-field--variant-solo-inverted.v-field--error:not(.v-field--focused) {
+  box-shadow: inset 0 -2px 0 rgb(var(--v-theme-error));
+}
 /* Hints line up with the label above the field, as in the DBD forms */
 .v-input__details {
   padding-inline: 0;

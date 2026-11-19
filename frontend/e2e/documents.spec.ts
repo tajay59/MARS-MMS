@@ -22,7 +22,7 @@ function pdf (text: string): Buffer {
 }
 
 async function openStation (page: Page, tab: string): Promise<void> {
-  await page.goto('/stations')
+  await page.goto('/stations?view=all')
   await page.getByRole('table', { name: /Stations/ }).getByRole('link', { name: 'JM-KIN-001' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Kingston Harbour' })).toBeVisible()
   await page.getByRole('tab', { name: tab }).click()
@@ -294,7 +294,7 @@ test('A client cannot open the staff pages @DOC-1', async ({ watched: page }) =>
 
 test('On a phone the documents are a list and the upload is a sheet @phone @DOC-3', async ({ watched: page }) => {
   await logIn(page, 'tech1@example.org')
-  await page.goto('/stations')
+  await page.goto('/stations?view=all')
   await page.getByRole('list', { name: 'Stations' }).or(page.getByRole('table', { name: /Stations/ })).getByRole('link', { name: /JM-KIN-001|Kingston Harbour/ }).first().click()
   await page.getByRole('tab', { name: 'Documents' }).click()
   await expect(page.getByRole('list', { name: 'Documents for Kingston Harbour' })).toBeVisible()

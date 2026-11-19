@@ -115,6 +115,12 @@ export default defineConfig(({ mode }) => ({
         secure: false,
         headers: { host: 'mms.localhost' },
       },
+      // The basemap (W7-9): without it Vite answers with index.html and every map is blank
+      '/tiles': {
+        target: 'https://127.0.0.1',
+        secure: false,
+        headers: { host: 'mms.localhost' },
+      },
       '/ws': {
         target: 'wss://127.0.0.1',
         ws: true,

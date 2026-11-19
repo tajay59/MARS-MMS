@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-19T18:39:19+00:00",
+  "generatedAt": "2026-11-19T23:22:39+00:00",
   "title": "Design System: MARS-MMS",
   "extensions": {
     "colorMeta": {
@@ -365,7 +365,7 @@
       "refersTo": "input",
       "description": "Filled input with a plain label above and a full-strength hint below.",
       "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-serial\">Serial number</label><input class=\"ds-field-input\" id=\"ds-serial\" placeholder=\"HMP155-K1230045\"><p class=\"ds-field-hint\">As printed on the sensor.</p></div>",
-      "css": ".ds-field { display: grid; gap: 8px; max-width: 320px; font-family: 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-label { font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #171C1F; } .ds-field-input { height: 40px; padding: 0 12px; background: #F0F4F7; color: #171C1F; border: 0; border-radius: 6px; font: 400 16px/24px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-input::placeholder { color: #40484C; } .ds-field-input:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; } .ds-field-hint { margin: 0; font: 400 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; }"
+      "css": ".ds-field { display: grid; gap: 8px; max-width: 320px; font-family: 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-label { font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #171C1F; } .ds-field-input { height: 40px; padding: 0 12px; background: #EAEEF2; color: #171C1F; border: 0; border-radius: 6px; box-shadow: inset 0 -1px 0 #70787C; font: 400 16px/24px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; } .ds-field-input::placeholder { color: #40484C; } .ds-field-input:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; } .ds-field-hint { margin: 0; font: 400 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #40484C; }"
     },
     {
       "name": "Status Chip",
