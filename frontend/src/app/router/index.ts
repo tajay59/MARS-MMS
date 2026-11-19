@@ -10,7 +10,17 @@ import { routes } from './routes'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
+  scrollBehavior: (to, _from, saved) => {
+    if (saved) {
+      return saved
+    }
+    // A guide's contents link to its sections (W23-5); every other page opens at the top
+    if (to.hash && to.meta.wide) {
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      return { el: to.hash, top: 16, behavior: still ? 'auto' : 'smooth' }
+    }
+    return { top: 0 }
+  },
 })
 
 // Login gates and redirects (AFD §5.2). The server still checks every rule.

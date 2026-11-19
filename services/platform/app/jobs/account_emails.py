@@ -24,7 +24,15 @@ from mms_common.time import Clock
 from pymongo.asynchronous.database import AsyncDatabase
 
 from app.domain import notification_emails, preferences
-from app.domain.account_emails import LINK_KIND, EmailJob, Kind, Rendered, render, retry_at
+from app.domain.account_emails import (
+    GUIDE_PATH,
+    LINK_KIND,
+    EmailJob,
+    Kind,
+    Rendered,
+    render,
+    retry_at,
+)
 from app.repo import digests, directory, emails
 from app.repo import notifications as notification_repo
 from app.repo import preferences as preference_repo
@@ -212,7 +220,13 @@ class Sender:
         else:
             to, name = job.to or "", job.name or ""
             url = self.app_url.rstrip("/") + "/login" if job.kind is Kind.APPROVED else ""
-        rendered = render(job.kind, name=name, url=url or None, reason=job.reason)
+        guide = (
+            self.app_url.rstrip("/") + GUIDE_PATH
+            if job.kind is Kind.INVITATION and job.client else None
+        )
+        rendered = render(
+            job.kind, name=name, url=url or None, reason=job.reason, guide_url=guide
+        )
         return self._compose(rendered, to, name, email_id)
 
 

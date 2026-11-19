@@ -5,10 +5,17 @@
       <!-- Split panel (DBD "The three shells"): primary-950 with the logo; no station photo yet (D5) -->
       <aside
         class="flex h-[120px] shrink-0 items-end bg-primary-950 px-4 pb-6 text-white md:h-auto md:w-2/5 md:flex-col md:items-stretch md:justify-between md:p-12 dark:bg-primary-900"
+        :class="wide ? 'md:sticky md:top-0 md:h-dvh md:w-1/3 lg:w-2/5' : ''"
       >
         <AppLogo :size="mdAndUp ? 48 : 36" surface="dark" />
 
-        <div aria-hidden="true" class="hidden grow items-center justify-center md:flex">
+        <!--
+          A wide page (a guide, W23-5) puts its own contents here with <Teleport defer to="#public-aside">;
+          a form page gets the large mark.
+        -->
+        <div v-if="wide" id="public-aside" class="hidden min-h-0 grow flex-col justify-center overflow-y-auto py-8 md:flex" />
+
+        <div v-else aria-hidden="true" class="hidden grow items-center justify-center md:flex">
           <img
             alt=""
             class="h-auto w-full max-w-72 opacity-95"
@@ -24,9 +31,12 @@
         </div>
       </aside>
 
-      <main class="flex grow justify-center px-4 py-8 md:items-center md:px-6 md:py-12">
+      <main
+        class="flex grow justify-center px-4 py-8 md:px-6 md:py-12"
+        :class="wide ? 'min-w-0 lg:px-12 lg:py-16' : 'md:items-center'"
+      >
         <v-defaults-provider :defaults="mdAndUp ? {} : phoneDefaults">
-          <div class="w-full max-w-[440px]">
+          <div class="w-full" :class="wide ? 'max-w-[680px]' : 'max-w-[440px]'">
             <slot />
           </div>
         </v-defaults-provider>
@@ -36,11 +46,17 @@
 </template>
 
 <script lang="ts" setup>
+  import { computed } from 'vue'
+  import { useRoute } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import { APP_LONG_NAME, APP_VERSION, logo } from '@/app/brand'
   import AppLogo from '@/components/AppLogo.vue'
 
   const { mdAndUp } = useDisplay()
+  const route = useRoute()
+
+  // A page to read rather than a form: a wider column and the side kept in view (route meta `wide`)
+  const wide = computed(() => route.meta.wide === true)
 
   // Phones: 48 px fields and buttons, as in the field shell (TRD §13.2).
   const phoneDefaults = {

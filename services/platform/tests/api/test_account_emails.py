@@ -129,6 +129,21 @@ async def test_invitation_and_rejection_are_emailed(env):
     assert links.minted == [("invitation", "inv-1")]
 
 
+@pytest.mark.req("NOT-3")
+async def test_a_client_invitation_links_the_client_guide_and_staff_ones_do_not(env):
+    """W23-5: the flag survives the queue, and the guide's address is built from app_url."""
+    proc, sender, mailer, _, _, _, _ = env
+    await proc.process(event("user.invited", user("invited", invitation_id="inv-c")))
+    await sender.send_due()
+    client_text = mailer.sent[-1].get_body(("plain",)).get_content()
+    assert "Read the client guide: https://mms.example.org/help/client" in client_text
+
+    await proc.process(event("user.invited", user("invited", invitation_id="inv-t",
+                                                  roles=["technician"])))
+    await sender.send_due()
+    assert "/help/client" not in mailer.sent[-1].get_body(("plain",)).get_content()
+
+
 async def test_events_without_an_email_queue_nothing(env):
     proc, sender, mailer, _, db, _, _ = env
     for type_, data in [("user.registered", user("pending", proposed_org_name="X")),

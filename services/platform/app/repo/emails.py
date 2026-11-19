@@ -59,6 +59,7 @@ def to_job(row: dict[str, Any]) -> EmailJob:
         reason=row.get("reason"),
         notification_id=row.get("notification_id"),
         digest_id=row.get("digest_id"),
+        client=bool(row.get("client", False)),
     )
 
 

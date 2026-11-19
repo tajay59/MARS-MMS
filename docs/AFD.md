@@ -118,6 +118,7 @@ flowchart TD
 | Public | Accept invitation | `/invite/:token` | Invited user | Invitation email |
 | Public | QR landing | `/s/:token` | Everyone (resolves after login) | Phone camera or in-app scanner |
 | Public | Verify a report | `/verify` | Everyone | Link printed on signed PDFs (RPT-11, could-have) |
+| Public | Client guide | `/help/client` | Everyone (signed in or not) | A client's invitation email, "Read the client guide" on Log in, Client guide in a client's account menu (W23-5) |
 | Public | Unlock | `/unlock` | Staff with an offline session on this device | App start with no signal and no live session (AUTH-12) |
 | Shared | Dashboard | `/dashboard` | All roles (one variant each) | Login, logo, `/` |
 | Shared | Stations list | `/stations` | All roles (clients: own org) | Main menu |

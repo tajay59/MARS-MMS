@@ -15,6 +15,8 @@ declare module 'vue-router' {
     layout?: 'public' | 'app' | 'field'
     /** Public pages a signed-in user skips (AFD §5.2: /login, /register, / go to /dashboard). */
     guestOnly?: boolean
+    /** A public page to read (a guide): a wider column, and the split panel's side holds its contents. */
+    wide?: boolean
     /** Who may open it; anyone signed in when absent. Others get the Not found page. */
     roles?: readonly Role[]
     /** For pages not built yet: the IP phase that delivers them. */
@@ -46,6 +48,13 @@ export const routes: RouteRecordRaw[] = [
     name: 'login',
     component: () => import('@/features/auth/LoginPage.vue'),
     meta: { title: 'Log in', layout: 'public', guestOnly: true },
+  },
+  {
+    // Public, signed in or not: the invitation email and the Log in page link here (W23-5)
+    path: '/help/client',
+    name: 'help-client',
+    component: () => import('@/features/help/ClientGuidePage.vue'),
+    meta: { title: 'Client guide', layout: 'public', wide: true },
   },
   {
     path: '/register',
