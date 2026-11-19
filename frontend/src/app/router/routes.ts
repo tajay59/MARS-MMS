@@ -2,9 +2,8 @@ import type { Role } from '@/api/models'
 import type { RouteRecordRaw } from 'vue-router'
 
 /*
-  Routes from docs/AFD.md §3. Pages built in later phases point at PlannedPage, so the shells'
-  menus work on staging from the start. The server checks every rule again; `roles` only decides
-  which page to show (AFD §5.2).
+  Routes from docs/AFD.md §3. The server checks every rule again; `roles` only decides which page
+  to show (AFD §5.2).
 */
 
 declare module 'vue-router' {
@@ -19,8 +18,6 @@ declare module 'vue-router' {
     wide?: boolean
     /** Who may open it; anyone signed in when absent. Others get the Not found page. */
     roles?: readonly Role[]
-    /** For pages not built yet: the IP phase that delivers them. */
-    phase?: number
     /**
      * Opens with no signal for someone unlocked with the device PIN (OFF-10). `record` means only
      * with an :id in the address, because the list needs the server. Everything else shows
@@ -32,12 +29,6 @@ declare module 'vue-router' {
 
 const STAFF = ['technician', 'admin', 'viewer'] as const
 const ADMIN = ['admin'] as const
-
-const planned = () => import('@/app/pages/PlannedPage.vue')
-
-function later (path: string, name: string, title: string, phase: number, roles?: readonly Role[]): RouteRecordRaw {
-  return { path, name, component: planned, meta: { title, layout: 'app', phase, roles } }
-}
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', redirect: { name: 'dashboard' } },
@@ -273,7 +264,13 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/features/admin/UsersPage.vue'),
     meta: { title: 'Users', layout: 'app', roles: ADMIN },
   },
-  later('/admin/organizations', 'admin-organizations', 'Organizations', 2, ADMIN),
+  {
+    // Client organizations (PRD ORG-1, ORG-4)
+    path: '/admin/organizations',
+    name: 'admin-organizations',
+    component: () => import('@/features/admin/OrganizationsPage.vue'),
+    meta: { title: 'Organizations', layout: 'app', roles: ADMIN },
+  },
   {
     // Label sheets (PRD QR-6); the station import joins this page later
     path: '/admin/stations-tools',

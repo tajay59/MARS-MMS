@@ -11,6 +11,7 @@ import type {
   OrgIn,
   OrgOut,
   OrgPage,
+  OrgPatch,
   RecoveryCodesOut,
   RegisterIn,
   TokenResponse,
@@ -77,9 +78,12 @@ export const usersApi = {
 }
 
 export const orgsApi = {
-  list: (status?: 'active' | 'inactive') => api.get<OrgPage>('/organizations', { query: { status, limit: 200 } }),
+  list: (status?: 'active' | 'inactive', after?: string) =>
+    api.get<OrgPage>('/organizations', { query: { status, limit: 200, after } }),
   get: (id: string) => api.get<OrgOut>(`/organizations/${id}`),
   create: (body: OrgIn) => api.post<OrgOut>('/organizations', body),
+  // A change, or status active/inactive (ORG-4: deactivating signs its people out at once)
+  update: (id: string, body: OrgPatch) => api.patch<OrgOut>(`/organizations/${id}`, body),
 }
 
 // The organization-wide brand colours (decision W4-12): anyone reads them, before sign-in too
