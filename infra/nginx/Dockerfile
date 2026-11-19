@@ -6,7 +6,7 @@
 # release's manifest into dist/.releases/ and copies the assets of releases replaced in the
 # last 7 days into infra/nginx/carry/ (PWA finding F9). dist is copied over carry.
 
-FROM nginx:1.31.7-alpine
+FROM nginx:1.31.8-alpine
 # Alpine fixes land before the next nginx tag; take them so Trivy's HIGH/CRITICAL gate passes
 # (libexpat CVE-2026-77214 was the first, 2026-10-17)
 RUN apk upgrade --no-cache
