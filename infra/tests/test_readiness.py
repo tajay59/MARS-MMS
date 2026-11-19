@@ -292,7 +292,12 @@ PRODUCTION = STAGING | {
 HEALTHY = "nginx running healthy 0\nauth running healthy 0\nredis running  0\nkafka-init exited  0\n"
 DOCKER = """\
 #!/usr/bin/env bash
-# A docker that answers from files in $FAKE
+# A docker that answers from files in $FAKE, and refuses like compose without the image tag
+if [ "$1" = compose ] && [ -z "${MMS_TAG:-}" ]; then
+  echo 'required variable MMS_TAG is missing a value' >&2
+  exit 1
+fi
+[ "$1" = compose ] && echo "$MMS_TAG" >> "$FAKE/tags"
 case "$*" in
   *" config -q") cat "$FAKE/config" >&2; exit "$(cat "$FAKE/config.code")" ;;
   *" ps -a "*) cat "$FAKE/ps" ;;
@@ -341,6 +346,8 @@ def host(tmp_path):
         "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
         "FAKE": fake.as_posix(),
         "READINESS_KERNEL": "5.15.0-100-generic",
+        # The PC's own disk is no reading of a host's (one at 88% failed every test here)
+        "READINESS_DISK_USED": "40",
     })
     made.write("config", "")
     made.write("config.code", "0")
@@ -382,6 +389,24 @@ def test_no_value_from_the_env_file_is_ever_printed(host):
         done = host.run(values)
         for secret in ("s3cr3t-value-one", "s3cr3t-value-two", "dev-redis-password", "age1qqqqqqqq", "ops@example.org"):
             assert secret not in done.stdout + done.stderr
+
+
+def test_every_compose_call_gets_the_deployed_tag(host):
+    # Found on the staging host, 2026-11-19: only `config` had a tag, so ps and exec failed
+    # and the check said nothing was running
+    (host.infra.parent / ".deployed-tag").write_text("abc123\n", encoding="utf-8")
+    host.env = {k: v for k, v in host.env.items() if k != "MMS_TAG"}
+    done = host.run(STAGING)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "PASS  every container is healthy (4 in all)" in done.stdout
+    assert set((host.fake / "tags").read_text(encoding="utf-8").split()) == {"abc123"}
+
+
+def test_without_a_recorded_release_any_tag_will_do(host):
+    host.env = {k: v for k, v in host.env.items() if k != "MMS_TAG"}
+    done = host.run(STAGING)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "PASS  the audit chain verifies (373 records)" in done.stdout
 
 
 def test_a_secret_left_at_the_examples_value_is_named(host):

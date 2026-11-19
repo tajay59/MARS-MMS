@@ -183,10 +183,13 @@ async def _remove_example_requests() -> int:
     settings = Settings()
     client = mongo.connect(settings.mongo_uri)
     try:
-        removed = await seed_requests.remove(client[settings.mongo_db])
+        removed, kept = await seed_requests.remove(client[settings.mongo_db])
     finally:
         await client.close()
     print(f"{removed} example requests removed")
+    if kept:
+        print(f"{len(kept)} kept because someone worked on them (visits, comments, reports or "
+              f"changes, which other services hold too): {', '.join(kept)}", file=sys.stderr)
     return 0
 
 

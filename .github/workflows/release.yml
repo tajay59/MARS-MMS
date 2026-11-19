@@ -110,6 +110,9 @@ jobs:
               exit 1
             fi
           done
+          # Only now is this the release that runs. The pilot runs on staging (W23-8), so a
+          # rollback and readiness.sh --on-host need to know which one it is, as on production
+          echo "$MMS_TAG" > /opt/mms/.deployed-tag
           docker logout ghcr.io
           EOF
 

@@ -132,10 +132,16 @@ on_host() {
   fi
   compose=(docker compose)
   for key in $files; do compose+=(-f "$key"); done
+  # Every compose call needs the image tag, even ps and exec, which find containers by their
+  # labels only: the deployed one where it is recorded, any word otherwise
+  if [ -z "${MMS_TAG:-}" ] && [ -f "$dir/../.deployed-tag" ]; then
+    MMS_TAG="$(head -n 1 "$dir/../.deployed-tag")"
+  fi
+  export MMS_TAG="${MMS_TAG:-check}"
 
   # Compose refuses a missing required variable; -q prints nothing of what it rendered
   local words
-  if words="$(MMS_TAG="${MMS_TAG:-check}" "${compose[@]}" config -q 2>&1)"; then
+  if words="$("${compose[@]}" config -q 2>&1)"; then
     pass "the stack's files accept this .env"
   else
     fail "the stack's files accept this .env" "$(echo "$words" | tail -n 1)"
@@ -203,7 +209,7 @@ on_host() {
   info "MongoDB feature compatibility version: ${words:-unknown}"
 
   local used
-  used="$(df -P "$(docker info --format '{{.DockerRootDir}}' 2> /dev/null || echo "$dir")" 2> /dev/null | awk 'NR == 2 { print int($5) }')"
+  used="${READINESS_DISK_USED:-$(df -P "$(docker info --format '{{.DockerRootDir}}' 2> /dev/null || echo "$dir")" 2> /dev/null | awk 'NR == 2 { print int($5) }')}"
   if [ -n "$used" ]; then
     check "the disk is under 80% full" "$used% used" test "$used" -lt 80
   else
