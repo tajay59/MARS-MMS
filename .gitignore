@@ -53,3 +53,6 @@ desktop.ini
 infra/nginx/certs/
 visual-out/
 zap-report/
+
+# Impeccable engine binaries: the launcher downloads and verifies one on first use (engine-checksums.txt)
+.claude/skills/impeccable/scripts/bin/
