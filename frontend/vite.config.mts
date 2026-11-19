@@ -104,5 +104,23 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     port: 3000,
+    // `npm run dev` talks to the local stack's gateway (infra/, `docker compose ... up`). Node does
+    // not resolve mms.localhost, so connect to 127.0.0.1 and name the site in the Host header, which
+    // is how Nginx picks the server block. The refresh cookie has no Domain, so the browser keeps it
+    // for localhost. Not covered: the files host allows only https://mms.localhost (CORS), so
+    // uploads and file links need the built app at https://mms.localhost.
+    proxy: {
+      '/api': {
+        target: 'https://127.0.0.1',
+        secure: false,
+        headers: { host: 'mms.localhost' },
+      },
+      '/ws': {
+        target: 'wss://127.0.0.1',
+        ws: true,
+        secure: false,
+        headers: { host: 'mms.localhost' },
+      },
+    },
   },
 }))
