@@ -168,7 +168,7 @@
           <div class="phase"><span class="phase-no">P5</span><div><div class="phase-name">Offline field mode</div><div class="phase-meta">W13–W15 · PWA, PIN session, prepare for field, outbox, /sync, conflicts · release 0.5 · W13 built in four slices (the device store and PIN session, <code>/unlock</code> and the offline start, Prepare for field with the field bundle, offline station lookup with the install prompt, diagnostics and the storage check); W14 built in four slices (<code>POST /api/v1/sync</code>, the outbox and the runner, the local-first board for prepared visits, the <code>/sync</code> screens with Needs attention and Export); W15 (field test) next · the Android and iPhone checks are still to do</div></div><span class="badge progress">In progress</span></div>
           <div class="phase"><span class="phase-no">P6</span><div><div class="phase-name">Reports and signatures</div><div class="phase-meta">W16–W18 · report drafts, finalize saga, client review, close-out · release 0.6</div></div><span class="badge planned">Planned</span></div>
           <div class="phase"><span class="phase-no">P7</span><div><div class="phase-name">Summaries and hardening</div><div class="phase-meta">W19–W20 · summary reports, dashboards, audit viewer, production stack, backups, security review · release 0.7 · W19 built (summary reports, dashboards, audit viewer, History) · W20 in progress (plan <code>docs/plans/W20-plan.md</code>; metrics, monitoring, backups, the restore drill, the production stack, the security review and the load test built; hosts and people pending) · W21 and W22 (buffer weeks) built: MongoDB 9, and two-step sign-in for admins (release 0.8.0, plan <code>docs/plans/W22-plan.md</code>; staging checks pending)</div></div><span class="badge progress">In progress</span></div>
-          <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge progress">W23 slices 1–3 done · no production host yet</span></div>
+          <div class="phase"><span class="phase-no">P8</span><div><div class="phase-name">Pilot, data import and go-live</div><div class="phase-meta">W23–W25 (after a 2-week buffer) · import, training, pilot, go-live · 1.0</div></div><span class="badge progress">W23 slices 1–4 done · no production host yet</span></div>
         </div>
 
         <div class="sub" id="status-built">
@@ -4222,8 +4222,8 @@ gantt
     section W23 without the host
     Runbook and readiness check      :done, rb, 2026-11-13, 2d
     Device checklist, written        :dc, 2026-11-16, 1d
-    Guides and the client page       :gd, after dc, 2d
-    Triage routine                   :tr, after gd, 1d
+    Guides and the client page       :done, gd, after dc, 2d
+    Triage routine                   :done, tr, after gd, 1d
     section W23 with the host
     Device checks on the pilot phones :dev, after names, 2d
     Production day one               :crit, d1, after host, 2d
@@ -4238,6 +4238,51 @@ gantt
 </pre>
             </div>
             <figcaption>The red milestones are not the developer&rsquo;s: the pilot cannot start before all three.</figcaption>
+          </figure>
+        </div>
+
+        <div class="sub" id="infrastructure-triage">
+          <h3>Pilot triage and fix releases (W23-6; from the pilot through hypercare)</h3>
+          <p>How a problem found in the pilot (W24, W25) and in hypercare (W26, W27) becomes a fix on production. <b>The repository is public</b>, so a report holds reference numbers, never client names, people, stations or places, and no screenshot of client data.</p>
+          <ul>
+            <li><b>Reporting:</b> the <b>Pilot defect</b> issue form (<code>.github/ISSUE_TEMPLATE/pilot-defect.yml</code>) asks what happened, what was expected, the role, the reference (<code>MR-2026-0042</code> or a visit&rsquo;s date and station code), the phone and browser, the app version (on Log in and on Sync › This phone), the signal, and for technicians the phone report from Sync › This phone › Copy report (versions and counts only, W15-4). It labels the issue <code>pilot</code> and <code>triage</code>. People without a GitHub account send the same facts to the developer, who files the issue.</li>
+            <li><b>A phone with unsent work comes first.</b> Nobody uninstalls the app, clears site data or signs out on it: <b>Export</b> from Sync › Needs attention first (W14), then investigate. A sign-out keeps the outbox for the same person, but clearing site data deletes it (OFF-8).</li>
+            <li><b>Labels</b> (<code>infra/scripts/pilot-labels.sh</code>, safe to run again): <code>pilot</code>, <code>triage</code> and one severity each.</li>
+          </ul>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Severity</th><th>Means</th><th>Answer</th></tr></thead>
+              <tbody>
+                <tr><td><code>severity:critical</code></td><td>Work lost or sent twice, one organization&rsquo;s data seen by another, nobody can sign in, or the site is down (the launch criterion, PRD §8)</td><td>The same day: roll back if the previous release does not have it, else a fix release. Tell the pilot users what to avoid until then</td></tr>
+                <tr><td><code>severity:high</code></td><td>A journey is blocked for someone and there is no other way to finish it</td><td>A fix release within two working days</td></tr>
+                <tr><td><code>severity:medium</code></td><td>Wrong, but there is another way to finish the job</td><td>Before go-live if it is small, otherwise after</td></tr>
+                <tr><td><code>severity:low</code></td><td>Looks wrong, reads badly, a small inconvenience</td><td>After go-live, gathered into one release</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><b>Daily triage at 09:00 America/Jamaica</b> (the developer, with the product owner for anything that changes behaviour), every working day from the first invitation to the end of hypercare. For each issue labelled <code>triage</code>: read it, reproduce it on staging (never on production with real data), set one severity, remove <code>triage</code>, give it the P8 milestone and add it to the board. An issue that holds a name or a place is edited before anything else. <b>Go or no-go</b> (W25) needs no open issue labelled <code>pilot</code> with <code>severity:critical</code> or <code>severity:high</code>: <code>gh issue list --label pilot --label severity:high --state open</code> and the same for critical.</p>
+          <p><b>A fix release:</b> a branch and a test that fails without the fix; raise the patch version in <code>frontend/package.json</code> (0.8.0 &rarr; 0.8.1; never a commit SHA in the bundle, or every phone prompts on every deploy); a pull request that closes the issue, merged when green; the staging deploy and its <code>@smoke</code>; <code>readiness.sh</code> against staging with <code>--expect-version</code>; then <code>production.yml</code> with that commit SHA and an approval, and <code>readiness.sh</code> against production. Phones pick the release up through the update prompt, never a silent reload, and never while a field form or the camera is open. A <b>rollback</b> is <code>production.yml</code> with the previous tag; when <code>rollback-guard.sh</code> refuses (a migration, an event schema change or the database image), the way out is a revert shipped as a new release.</p>
+          <figure class="diagram" id="hypercare-triage" data-title="From a pilot report to a fix on the phones" data-kind="Workflow diagram">
+            <div class="view" data-label="Mermaid">
+<pre class="mermaid-def">
+flowchart TD
+    R["Pilot defect form&lt;br/&gt;labels pilot, triage"] --> U{"A phone holds&lt;br/&gt;unsent work?"}
+    U -->|"Yes"| X["Export from Sync, Needs attention&lt;br/&gt;no uninstall, no clearing data"]
+    U -->|"No"| T
+    X --> T["Daily triage, 09:00&lt;br/&gt;reproduce on staging"]
+    T --> S{"Severity"}
+    S -->|"critical"| B{"Is the previous release&lt;br/&gt;free of it?"}
+    B -->|"Yes, guard allows"| RB["production.yml with the previous tag"]
+    B -->|"No, or guard refuses"| F
+    S -->|"high"| F["Fix release&lt;br/&gt;test, patch version, pull request"]
+    S -->|"medium or low"| L["Later release&lt;br/&gt;before go-live if small"]
+    F --> ST["Staging deploy, smoke tests,&lt;br/&gt;readiness.sh --expect-version"]
+    ST --> P["production.yml with the SHA&lt;br/&gt;approval, readiness.sh"]
+    P --> PH["Phones take the update prompt&lt;br/&gt;issue closed with the version"]
+    RB --> PH
+</pre>
+            </div>
+            <figcaption>Critical problems are answered the same day; nothing that could drop queued work is done to a phone before Export.</figcaption>
           </figure>
         </div>
 
@@ -4654,6 +4699,7 @@ flowchart TD
                 <tr><td>W22-9</td><td><b>Six security events, no secrets in them. (As built.)</b> Six new <code>auth.*</code> events (the sixth, <code>recovery_codes_regenerated</code>, was added in the build; the plan listed five) and <code>mfa</code> on <code>login_succeeded</code>. The rollback guard refuses a rollback over this release without <code>--allow-older-schema</code>, as intended.</td></tr>
                 <tr><td>W23-4</td><td><b>One device checklist for everything put off (as written).</b> <code>docs/checks/pilot-device-check.md</code>, ten parts (A to J), one run per pilot phone; not run yet: it needs the pilot technicians&rsquo; phones and an iPhone.</td></tr>
                 <tr><td>W23-5</td><td><b>Training material in the repo; the client guide is a page the app serves (as built).</b> <code>docs/guides/admin-quick-reference.md</code> and <code>technician-quick-reference.md</code> (one printed page each). <code>/help/client</code> (<code>features/help/</code>) is public, on the split panel with its contents on the dark side (route meta <code>wide</code>), from the approved mock-up. It is in the <code>app</code> chunk like every page, so it is precached and opens offline too (the plan said &ldquo;not precached&rdquo;; it adds no file: the precache stays at 29). Linked from a <b>client&rsquo;s</b> invitation email only (staff learn at training), from &ldquo;Read the client guide&rdquo; on Log in, and from Client guide in a client&rsquo;s account menu. Help for clients is a comment on the request; there is no contact setting.</td></tr>
+                <tr><td>W23-6</td><td><b>Pilot triage routine (as built).</b> The <b>Pilot defect</b> issue form (<code>.github/ISSUE_TEMPLATE/pilot-defect.yml</code>: references, never names; the phone report from Sync › This phone; a required tick that nothing private is in it, because the repository is public), labels <code>pilot</code>, <code>triage</code>, <code>severity:critical|high|medium|low</code> (<code>infra/scripts/pilot-labels.sh</code>), daily triage at 09:00 America/Jamaica, the fix-release routine (patch version, staging, <code>@smoke</code>, <code>readiness.sh</code>, <code>production.yml</code> with approval) and rollback by tag. <b>A phone with unsent work is exported before anyone touches it.</b> Go or no-go needs no open critical or high <code>pilot</code> issue.</td></tr>
                 <tr><td>W22-10</td><td><b>A reset signs nobody in. (As built.)</b> <code>/password-reset/confirm</code> answers 204, so it cannot skip the code; an invitation signs in at acceptance inside the window like any first sign-in; changing a password leaves TOTP alone.</td></tr>
                 <tr><td>W21-2</td><td><b>The rollback guard knows the database image.</b> <code>infra/scripts/rollback-guard.sh</code> now also refuses a rollback over a change to a <code>mongo:</code> image in <code>compose.yml</code>, <code>compose.production.yml</code> or <code>infra/backup/Dockerfile</code> (<code>--allow-older-schema</code> overrides it). Before the feature compatibility version (FCV) is raised a rollback to 8.0 is safe; after it the older server refuses the data and only a restore brings it back. <code>infra/tests/test_rollback_guard.py</code> covers it.</td></tr>
                 <tr><td>W21-3</td><td><b>The five ASVS deviations are decided (2026-11-12, the product owner).</b> D-1: the password minimum is 12 characters (<code>MIN_LENGTH</code> in auth, <code>MIN_PASSWORD</code> in the front end, AUTH-9); passwords already set stay valid until changed. D-2: TOTP for admins is built before the pilot (<code>docs/plans/W22-plan.md</code>). D-3 (30-day sliding sessions), D-4 (no TLS between containers on one host) and D-5 (<code>style-src 'unsafe-inline'</code>) are accepted, each with its revisit condition in <code>docs/security/asvs-l2.md</code>.</td></tr>
@@ -4763,7 +4809,7 @@ flowchart TD
               <thead><tr><th>Type</th><th>Figma: best for</th><th>In AWS-MMS, use it for</th><th>Tool</th><th>Status</th></tr></thead>
               <tbody>
                 <tr><td>Process flow diagram</td><td>Outlining steps and decisions in a process</td><td>One actor's steps with decisions: field visit (J6), CI pipeline, station import</td><td>Mermaid flowchart</td><td>In these docs (J6, pipeline)</td></tr>
-                <tr><td>Workflow diagram</td><td>Illustrating and refining team workflows</td><td>Staff routines outside the app's own flow: hypercare triage, calibration-due follow-up, release routine</td><td>Mermaid or draw.io</td><td>Suggested · Phase 7–8</td></tr>
+                <tr><td>Workflow diagram</td><td>Illustrating and refining team workflows</td><td>Staff routines outside the app's own flow: hypercare triage, calibration-due follow-up, release routine</td><td>Mermaid or draw.io</td><td>Drawn: <a href="#production-deploy">deploy and rollback</a>, <a href="#hypercare-triage">pilot triage</a></td></tr>
                 <tr><td>Data flow diagram</td><td>How data moves through a process or system</td><td>Event wiring between services, where secrets and tokens live, theme tokens, notification fan-out, backups</td><td>Mermaid flowchart</td><td>In these docs (events, theme, notifications) · Suggested · Phase 1 (credentials)</td></tr>
                 <tr><td>Swimlane flowchart</td><td>Cross-functional processes between teams</td><td>Hand-offs between roles and services: J1 registration and approval, J4 approve and assign, J8 client review</td><td>draw.io (true lanes); Mermaid subgraphs as a stand-in</td><td>In these docs: <a href="#auth-j1">J1 registration</a> (draw.io, true lanes) and request roles (approximated in Mermaid)</td></tr>
                 <tr><td>Decision tree diagram</td><td>Branching decisions (Figma: process improvement)</td><td>Rules with many branches: <code>derive_status</code>, sync conflict handling, document access for clients</td><td>Mermaid flowchart</td><td>In these docs: <a href="#requests-file-access">file access for clients</a>, <a href="#platform-recipients">who is notified</a>, <code>derive_status</code> · Suggested · Phase 5 (sync conflicts)</td></tr>
@@ -4833,6 +4879,7 @@ flowchart TD
           <table>
             <thead><tr><th>Date</th><th>Phase</th><th>Change</th></tr></thead>
             <tbody>
+              <tr><td>2026-11-19</td><td>P8 &middot; W23 (slice 4)</td><td><b>The pilot triage routine</b> (decision W23-6). The Pilot defect issue form, the labels (<code>infra/scripts/pilot-labels.sh</code>), severities with their answer times, the daily triage, the fix-release and rollback routine, and the go or no-go rule, in <a href="#infrastructure-triage">Infrastructure › Pilot triage</a>. One chart: <a href="#hypercare-triage">from a pilot report to a fix on the phones</a> (workflow).</td></tr>
               <tr><td>2026-11-19</td><td>P8 &middot; W23 (slices 2 and 3)</td><td><b>The device checklist, the guides and the client guide</b> (decisions W23-4, W23-5). <code>docs/checks/pilot-device-check.md</code>; <code>docs/guides/</code> (admin and technician quick references); <code>/help/client</code> (<code>features/help/ClientGuidePage.vue</code>, <code>clientGuide.ts</code>, PublicShell&rsquo;s <code>wide</code> mode, a hash-aware <code>scrollBehavior</code>), &ldquo;Read the client guide&rdquo; on Log in, Client guide in a client&rsquo;s account menu; platform adds the guide link to a client&rsquo;s invitation (<code>EmailJob.client</code>, <code>render(guide_url=)</code>). Tests: Vitest 4, platform 4, Playwright <code>e2e/help.spec.ts</code> (<code>@smoke</code>, desktop and phone, axe light and dark). One chart: the <a href="#client-onboarding">client onboarding journey</a>.</td></tr>
               <tr><td>2026-11-13</td><td>P8 &middot; W23 (slice 1)</td><td><b>Production day one and the readiness check</b> (decisions W23-1 to W23-3; plan <code>docs/plans/W23-plan.md</code>). Phase 8 starts with no production host, so this slice is what can be done without one: the runbook (Infrastructure › Production, day one), <code>infra/scripts/readiness.sh</code> (outside: 34 checks, run against staging, all passed; on the host: the <code>.env</code>, the containers, the audit chain, the backups) and <code>infra/tests/test_readiness.py</code> (33 tests, no stack needed). Two charts: from an empty host to the first invitation, and W23 to go-live with the inputs it waits for. No change to the app.</td></tr>
               <tr><td>2026-11-12</td><td>P7 &middot; W22 &middot; release 0.8.0</td><td><b>Two-step sign-in for admins</b> (decisions W22-1 to W22-10; plan <code>docs/plans/W22-plan.md</code>; closes ASVS deviation D-2). Back end in auth: <code>domain/{totp,recovery,mfa}.py</code>, <code>repo/{totp,mfa_challenges}.py</code>, <code>api/{totp_routes,signin}.py</code>, migration <code>0004</code>, six events, the <code>reset-totp</code> command, <code>AUTH_TOTP_*</code> settings. Screens: the code step and the set-up step on Log in, a Two-step sign-in card on My profile, the banner (app and field shells), Reset on Users. The code is asked at sign-in only: refresh, the offline PIN and sync are untouched. Docs: TRD 2.25 (§6.1.2), PRD 1.6 (AUTH-14), AFD 1.9, BSD 1.12, TP 1.5, ASVS lines 2.2.x, 2.8.x and 4.3.1 now <b>met</b> (90 lines: 83 met, 2 deviations, 5 n/a). Two charts: the <a href="#auth-twostep-seq">two-step sign-in sequence</a> and the <a href="#auth-twostep-rules">enforcement decision tree</a>. Frontend version 0.8.0. <b>Before the merge:</b> <code>AUTH_TOTP_KEY</code> on the staging host's <code>infra/.env</code>.</td></tr>

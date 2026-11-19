@@ -1,0 +1,2 @@
+# Pilot users report through the "Pilot defect" form (W23-6). Blank issues stay open for developers.
+blank_issues_enabled: true
