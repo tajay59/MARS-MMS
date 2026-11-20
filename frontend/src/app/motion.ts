@@ -35,11 +35,14 @@ gsap.registerPlugin(CustomEase)
 CustomEase.create('emphasized', 'M0,0 C0.05,0 0.133333,0.06 0.166666,0.4 0.208333,0.82 0.25,1 1,1')
 // ... and its decelerate form for things arriving: no slow start, a long, soft landing
 CustomEase.create('emphasizedDecelerate', '0.05,0.7,0.1,1')
+// ... and its accelerate form for things leaving for good: a quick start, gone at speed
+CustomEase.create('emphasizedAccelerate', '0.3,0,0.8,0.15')
 
 export const EASE = {
   out: 'power2.out',
   emphasized: 'emphasized',
   decelerate: 'emphasizedDecelerate',
+  accelerate: 'emphasizedAccelerate',
   pop: 'back.out(2.5)',
 } as const
 
