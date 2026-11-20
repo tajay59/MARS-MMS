@@ -31,7 +31,7 @@
         Any authenticator app works, including the one built into your phone’s password manager. You have until {{ deadline }}.
       </p>
 
-      <div><v-btn variant="outlined" @click="enrolOpen = true">{{ required ? 'Set up two-step sign-in' : 'Turn on' }}</v-btn></div>
+      <div><v-btn variant="tonal" @click="enrolOpen = true">{{ required ? 'Set up two-step sign-in' : 'Turn on' }}</v-btn></div>
     </template>
 
     <!-- On -->
@@ -47,7 +47,7 @@
       </FeedbackBanner>
 
       <div class="flex flex-wrap gap-2">
-        <v-btn variant="outlined" @click="open('codes')">Make new recovery codes</v-btn>
+        <v-btn variant="tonal" @click="open('codes')">Make new recovery codes</v-btn>
         <v-btn v-if="!required" class="text-primary" variant="text" @click="open('off')">Turn off</v-btn>
       </div>
 

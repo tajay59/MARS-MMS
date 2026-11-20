@@ -10,7 +10,7 @@
         :href="link.url"
         :prepend-icon="mdiDownloadOutline"
         rel="noopener"
-        variant="outlined"
+        variant="tonal"
       >Download</v-btn>
 
       <v-btn aria-label="Close" icon variant="text" @click="open = false"><v-icon :icon="mdiClose" /></v-btn>
@@ -22,7 +22,7 @@
 
     <div v-else-if="state === 'failed'" class="flex h-[40dvh] flex-col items-center justify-center gap-3 text-center">
       <p class="m-0 max-w-[34ch] text-sm text-surface-700" role="alert">{{ problem }}</p>
-      <v-btn variant="outlined" @click="load()">Try again</v-btn>
+      <v-btn variant="tonal" @click="load()">Try again</v-btn>
     </div>
 
     <div v-else-if="link" class="mt-2 flex h-[70dvh] min-h-0 flex-col overflow-hidden rounded-lg border border-surface-300">

@@ -30,7 +30,7 @@
           <v-icon class="text-surface-600" :icon="icons.upload" size="28" />
           <div class="text-label text-surface-900">Choose a file, or drop it here</div>
           <div class="text-xs text-surface-600">{{ isPhoto ? 'PNG or JPEG · up to 50 MB' : 'PDF, Word, Excel, PowerPoint, images or text · up to 50 MB' }}</div>
-          <v-btn class="mt-1.5" color="primary" variant="outlined" @click="picker?.click()">{{ file ? 'Choose another file' : 'Choose file' }}</v-btn>
+          <v-btn class="mt-1.5" color="primary" variant="tonal" @click="picker?.click()">{{ file ? 'Choose another file' : 'Choose file' }}</v-btn>
 
           <input
             ref="picker"
@@ -177,8 +177,8 @@
       <div class="mt-1 flex justify-end gap-2">
         <v-btn class="text-primary" variant="text" @click="cancel">{{ upload ? 'Cancel upload' : 'Cancel' }}</v-btn>
 
-        <v-btn v-if="upload?.state === 'failed' || saveFailed" color="primary" variant="outlined" @click="retry">Try again</v-btn>
-        <v-btn v-else-if="paused" color="primary" variant="outlined" @click="nudge">Try now</v-btn>
+        <v-btn v-if="upload?.state === 'failed' || saveFailed" color="primary" variant="tonal" @click="retry">Try again</v-btn>
+        <v-btn v-else-if="paused" color="primary" variant="tonal" @click="nudge">Try now</v-btn>
 
         <v-btn
           v-else

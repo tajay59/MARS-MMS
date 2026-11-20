@@ -28,7 +28,7 @@
           @change="add"
         >
 
-        <v-btn :disabled="working || total >= MAX_FILES" variant="outlined" @click="picker?.click()">Add photos and videos</v-btn>
+        <v-btn :disabled="working || total >= MAX_FILES" variant="tonal" @click="picker?.click()">Add photos and videos</v-btn>
         <p class="m-0 text-sm text-surface-700">Up to {{ MAX_FILES }} files. Each one is read and fingerprinted as it is stored.</p>
 
         <div v-if="working" class="flex flex-col gap-2" role="status">
@@ -65,7 +65,7 @@
       </section>
 
       <div class="mt-auto flex gap-3 pt-2">
-        <v-btn class="grow" :disabled="working || total === 0" variant="outlined" @click="remove">Remove test files</v-btn>
+        <v-btn class="grow" :disabled="working || total === 0" variant="tonal" @click="remove">Remove test files</v-btn>
         <v-btn class="grow" color="primary" :disabled="working || total === 0" @click="check">Verify</v-btn>
       </div>
     </div>

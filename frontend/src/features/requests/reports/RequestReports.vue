@@ -39,7 +39,7 @@
               :block="!mdAndUp"
               :loading="saving === closeouts.current.id"
               :prepend-icon="mdiDownloadOutline"
-              variant="outlined"
+              variant="tonal"
               @click="download(closeouts.current)"
             >Download PDF</v-btn>
           </div>
@@ -61,7 +61,7 @@
               <span class="text-sm text-surface-600">Made {{ formatDateTime(old.finalized_at) }}</span>
             </span>
 
-            <v-btn v-if="online" size="small" variant="outlined" @click="openReport(old)">Open</v-btn>
+            <v-btn v-if="online" size="small" variant="tonal" @click="openReport(old)">Open</v-btn>
           </li>
         </ul>
       </section>
@@ -85,8 +85,8 @@
             </span>
 
             <span class="flex items-center gap-1">
-              <v-btn v-if="!isClient && r.status !== 'final' && r.status !== 'superseded'" size="small" :to="{ name: 'visit-report', params: { id: r.id } }" variant="outlined">Open the editor</v-btn>
-              <v-btn v-else-if="online" size="small" variant="outlined" @click="openReport(r)">Open</v-btn>
+              <v-btn v-if="!isClient && r.status !== 'final' && r.status !== 'superseded'" size="small" :to="{ name: 'visit-report', params: { id: r.id } }" variant="tonal">Open the editor</v-btn>
+              <v-btn v-else-if="online" size="small" variant="tonal" @click="openReport(r)">Open</v-btn>
             </span>
           </li>
         </ul>
@@ -101,7 +101,7 @@
             v-if="canAdd"
             :prepend-icon="mdiPlus"
             :to="{ name: 'client-report-new', params: { id: requestId } }"
-            variant="outlined"
+            variant="tonal"
           >Add a client report</v-btn>
         </div>
 
@@ -138,18 +138,18 @@
                 v-if="look(c) === 'draft' && c.can_edit"
                 size="small"
                 :to="{ name: 'client-report-draft', params: { id: requestId, reportId: c.id } }"
-                variant="outlined"
+                variant="tonal"
               >Continue draft</v-btn>
 
               <v-btn
                 v-else-if="look(c) === 'failed' && isAuthor(c)"
                 :loading="retrying === c.id"
                 size="small"
-                variant="outlined"
+                variant="tonal"
                 @click="tryAgain(c)"
               >Try again</v-btn>
 
-              <v-btn v-else-if="online && (look(c) === 'file' || look(c) === 'ready')" size="small" variant="outlined" @click="openClient(c)">Open</v-btn>
+              <v-btn v-else-if="online && (look(c) === 'file' || look(c) === 'ready')" size="small" variant="tonal" @click="openClient(c)">Open</v-btn>
             </span>
           </li>
         </ul>

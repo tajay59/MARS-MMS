@@ -20,7 +20,7 @@
         <div class="text-sm text-surface-600">Up to 25 MB.</div>
       </div>
 
-      <v-btn color="primary" variant="outlined" @click="pdfInput?.click()">Choose a PDF</v-btn>
+      <v-btn color="primary" variant="tonal" @click="pdfInput?.click()">Choose a PDF</v-btn>
     </div>
 
     <div

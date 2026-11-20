@@ -24,7 +24,7 @@
       <v-btn
         :loading="busy === 'preview'"
         :prepend-icon="mdiFileEyeOutline"
-        variant="outlined"
+        variant="tonal"
         @click="preview()"
       >{{ editable ? 'Preview PDF' : 'Open PDF' }}</v-btn>
     </template>
@@ -52,7 +52,7 @@
           <div v-for="item in conflict.lost" :key="item.label" class="mt-2 flex flex-col gap-1">
             <span class="text-xs font-medium">{{ item.label }}</span>
             <div class="whitespace-pre-wrap rounded-sm border border-current px-2 py-1">{{ item.text }}</div>
-            <v-btn class="self-start" size="small" variant="outlined" @click="copy(item.text)">Copy my text</v-btn>
+            <v-btn class="self-start" size="small" variant="tonal" @click="copy(item.text)">Copy my text</v-btn>
           </div>
 
           <v-btn class="mt-2" size="small" variant="text" @click="dismissConflict()">Dismiss</v-btn>
@@ -213,12 +213,12 @@
               </dl>
 
               <v-btn color="primary" :disabled="!online" :prepend-icon="mdiDownloadOutline" @click="download()">Download PDF</v-btn>
-              <v-btn v-if="mayReopen(report, who)" :disabled="!online" variant="outlined" @click="reopening = true">Reopen for correction</v-btn>
+              <v-btn v-if="mayReopen(report, who)" :disabled="!online" variant="tonal" @click="reopening = true">Reopen for correction</v-btn>
               <p v-if="mayReopen(report, who)" class="m-0 text-xs text-surface-600">Admins only. The report is kept as it is and a new version starts.</p>
             </template>
 
             <template v-else-if="report.status === 'superseded'">
-              <v-btn :disabled="!online" :prepend-icon="mdiDownloadOutline" variant="outlined" @click="download()">Download this version</v-btn>
+              <v-btn :disabled="!online" :prepend-icon="mdiDownloadOutline" variant="tonal" @click="download()">Download this version</v-btn>
             </template>
           </section>
 

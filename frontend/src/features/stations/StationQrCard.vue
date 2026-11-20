@@ -34,7 +34,7 @@
 
         <div v-if="isAdmin" class="flex flex-wrap gap-2">
           <v-btn :prepend-icon="mdiPrinterOutline" size="small" :to="{ name: 'admin-stations-tools', query: { station: station.id } }" variant="tonal">Print this label</v-btn>
-          <v-btn :prepend-icon="mdiRefresh" size="small" variant="outlined" @click="ask">Replace the label</v-btn>
+          <v-btn :prepend-icon="mdiRefresh" size="small" variant="tonal" @click="ask">Replace the label</v-btn>
         </div>
       </div>
     </div>

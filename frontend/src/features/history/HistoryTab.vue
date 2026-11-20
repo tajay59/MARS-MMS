@@ -45,7 +45,7 @@
       </section>
 
       <div v-if="next !== null" class="flex justify-center">
-        <v-btn :loading="loadingMore" variant="outlined" @click="more">Show earlier changes</v-btn>
+        <v-btn :loading="loadingMore" variant="tonal" @click="more">Show earlier changes</v-btn>
       </div>
     </template>
   </section>

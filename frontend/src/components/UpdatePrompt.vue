@@ -24,7 +24,7 @@
 
     <template #actions>
       <v-btn class="text-primary" variant="text" @click="updates.later()">Later</v-btn>
-      <v-btn class="text-primary" variant="outlined" @click="updates.reload()">Reload now</v-btn>
+      <v-btn class="text-primary" variant="tonal" @click="updates.reload()">Reload now</v-btn>
     </template>
   </v-snackbar>
 </template>

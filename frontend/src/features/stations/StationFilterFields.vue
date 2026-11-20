@@ -1,41 +1,32 @@
 <template>
   <div class="flex flex-col gap-4">
-    <FormField v-if="showOrg" :id="`${uid}-org`" label="Organization">
+    <!-- Organization (staff), country and type: labelled fields in the sheet; in the pane the label sits inside -->
+    <template v-for="field in selects" :key="field.key">
       <v-select
-        :id="`${uid}-org`"
+        v-if="inline"
         clearable
         hide-details
-        :items="facets.orgs"
-        :model-value="filters.org"
-        placeholder="All organizations"
-        @update:model-value="emit('change', { org: $event ?? null })"
+        :items="field.items"
+        :label="field.label"
+        :model-value="filters[field.key]"
+        :no-data-text="field.empty"
+        single-line
+        @update:model-value="emit('change', { [field.key]: $event ?? null })"
       />
-    </FormField>
 
-    <FormField :id="`${uid}-country`" label="Country">
-      <v-select
-        :id="`${uid}-country`"
-        clearable
-        hide-details
-        :items="countryItems"
-        :model-value="filters.country"
-        placeholder="All countries"
-        @update:model-value="emit('change', { country: $event ?? null })"
-      />
-    </FormField>
-
-    <FormField :id="`${uid}-type`" label="Type">
-      <v-select
-        :id="`${uid}-type`"
-        clearable
-        hide-details
-        :items="facets.types"
-        :model-value="filters.type"
-        no-data-text="No types recorded"
-        placeholder="All types"
-        @update:model-value="emit('change', { type: $event ?? null })"
-      />
-    </FormField>
+      <FormField v-else :id="`${uid}-${field.key}`" :label="field.label">
+        <v-select
+          :id="`${uid}-${field.key}`"
+          clearable
+          hide-details
+          :items="field.items"
+          :model-value="filters[field.key]"
+          :no-data-text="field.empty"
+          :placeholder="field.placeholder"
+          @update:model-value="emit('change', { [field.key]: $event ?? null })"
+        />
+      </FormField>
+    </template>
 
     <div v-if="facets.parameters.length > 0" :aria-labelledby="`${uid}-measures`" class="flex flex-col gap-2" role="group">
       <span :id="`${uid}-measures`" class="text-label text-surface-900">Measures</span>
@@ -88,11 +79,18 @@
     filters: StationFilters
     facets: { orgs: { value: string, title: string }[], countries: string[], types: string[], parameters: string[] }
     showOrg: boolean
+    /** In the pane: each select's label sits inside it (approved "Stations pane filters"). */
+    inline?: boolean
   }>()
   const emit = defineEmits<{ change: [patch: Partial<StationFilters>] }>()
 
   const uid = useId()
   const countryItems = computed(() => props.facets.countries.map(code => ({ value: code, title: countryName(code) })))
+  const selects = computed(() => [
+    ...(props.showOrg ? [{ key: 'org' as const, label: 'Organization', placeholder: 'All organizations', items: props.facets.orgs, empty: 'No organizations' }] : []),
+    { key: 'country' as const, label: 'Country', placeholder: 'All countries', items: countryItems.value, empty: 'No countries' },
+    { key: 'type' as const, label: 'Type', placeholder: 'All types', items: props.facets.types, empty: 'No types recorded' },
+  ])
   const active = computed(() => extraFilterCount(props.filters) > 0)
   const measures = computed(() => splitParameters(props.facets.parameters))
   /** The field shows the chosen measure only when it is one of the others (a chip shows its own). */

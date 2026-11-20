@@ -108,7 +108,7 @@
 
     <div v-else-if="state === 'failed'" class="flex flex-col gap-1.5 px-2 pb-2 pt-1.5 text-xs text-surface-700" role="alert">
       <span><b class="font-semibold text-surface-900">Couldn’t read <span class="font-mono" translate="no">{{ item.filename }}</span>.</b> {{ detail?.error ?? 'The file could not be processed.' }} Remove it and add the file again.</span>
-      <span v-if="canRemove"><v-btn size="small" variant="outlined" @click="emit('remove')">Remove</v-btn></span>
+      <span v-if="canRemove"><v-btn size="small" variant="tonal" @click="emit('remove')">Remove</v-btn></span>
     </div>
 
     <div v-else class="flex flex-col gap-0.5 px-2 pb-2 pt-1.5 text-xs text-surface-700" role="status">

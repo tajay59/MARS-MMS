@@ -13,7 +13,7 @@
 
       <div class="flex flex-col gap-2.5">
         <v-btn block color="primary" :height="52" @click="emit('prepare')">Prepare now</v-btn>
-        <v-btn block :height="48" variant="outlined" @click="emit('anyway')">Start anyway</v-btn>
+        <v-btn block :height="48" variant="tonal" @click="emit('anyway')">Start anyway</v-btn>
       </div>
     </div>
   </ModalSheet>

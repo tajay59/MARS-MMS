@@ -9,8 +9,8 @@
         <span><b class="font-semibold text-surface-900"><span class="font-mono" translate="no">{{ item.name }}</span> didn’t go.</b> {{ item.error }}</span>
 
         <span class="flex flex-wrap gap-1.5">
-          <v-btn size="small" variant="outlined" @click="emit('retry')">Try again</v-btn>
-          <v-btn size="small" variant="outlined" @click="emit('discard')">Remove</v-btn>
+          <v-btn size="small" variant="tonal" @click="emit('retry')">Try again</v-btn>
+          <v-btn size="small" variant="tonal" @click="emit('discard')">Remove</v-btn>
         </span>
       </div>
     </template>
@@ -29,7 +29,7 @@
 
       <div class="flex flex-col gap-1 px-2 pb-2 pt-1.5 text-xs text-surface-700">
         <span><b class="font-semibold text-surface-900">{{ wording }}</b> <span class="font-mono" translate="no">{{ item.name }}</span></span>
-        <span v-if="item.state === 'uploading'"><v-btn size="small" variant="outlined" @click="emit('discard')">Cancel</v-btn></span>
+        <span v-if="item.state === 'uploading'"><v-btn size="small" variant="tonal" @click="emit('discard')">Cancel</v-btn></span>
       </div>
     </template>
   </li>

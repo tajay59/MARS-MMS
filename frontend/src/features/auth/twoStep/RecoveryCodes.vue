@@ -13,8 +13,8 @@
     </ul>
 
     <div class="flex flex-wrap gap-2">
-      <v-btn :prepend-icon="copied ? mdiCheck : mdiContentCopy" variant="outlined" @click="copy">{{ copied ? 'Copied' : 'Copy codes' }}</v-btn>
-      <v-btn :prepend-icon="mdiDownload" variant="outlined" @click="save">Download as text</v-btn>
+      <v-btn :prepend-icon="copied ? mdiCheck : mdiContentCopy" variant="tonal" @click="copy">{{ copied ? 'Copied' : 'Copy codes' }}</v-btn>
+      <v-btn :prepend-icon="mdiDownload" variant="tonal" @click="save">Download as text</v-btn>
     </div>
 
     <span aria-live="polite" class="sr-only">{{ copied ? 'Recovery codes copied.' : '' }}</span>

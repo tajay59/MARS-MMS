@@ -16,7 +16,7 @@ function pdf (text: string): Buffer {
 }
 
 async function openKingston (page: Page, tab: string): Promise<void> {
-  await page.goto('/stations')
+  await page.goto('/stations?view=all')
   await page.getByRole('table', { name: /Stations/ }).getByRole('link', { name: 'JM-KIN-001' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Kingston Harbour' })).toBeVisible()
   await page.getByRole('tab', { name: tab }).click()
