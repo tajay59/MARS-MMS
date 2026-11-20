@@ -12,7 +12,7 @@
     <p class="m-0 text-sm">Installing also lets the phone keep your saved visits safe. You need it for field work.</p>
 
     <div class="flex gap-3">
-      <v-btn class="grow" variant="outlined" @click="hideInstallOffer()">Not now</v-btn>
+      <v-btn class="grow" variant="tonal" @click="hideInstallOffer()">Not now</v-btn>
       <v-btn class="grow" color="primary" @click="promptInstall()">Install</v-btn>
     </div>
   </section>

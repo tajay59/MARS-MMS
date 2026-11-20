@@ -128,6 +128,8 @@ export interface AttentionRow {
   fact: string
   /** The reference of the open work, shown with the organization. */
   workRef: string | null
+  /** The station's other problems, worst first ("Also calibration overdue"). */
+  also: Problem[]
   next: NextStep | null
 }
 
@@ -210,6 +212,7 @@ export function attentionRows (stations: readonly StationSummary[], work: Work, 
       problem,
       fact: open ? `${lead} · ${open.text}` : base,
       workRef: open?.ref ?? null,
+      also: found.filter(p => p !== problem),
       next: nextStep(station.id, work, canAct),
     })
   }

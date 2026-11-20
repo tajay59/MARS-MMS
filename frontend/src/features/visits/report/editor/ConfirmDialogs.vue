@@ -8,7 +8,7 @@
       <FeedbackBanner v-if="failure" type="error">{{ failure }}</FeedbackBanner>
 
       <div class="flex flex-wrap justify-end gap-2">
-        <v-btn :disabled="busy" variant="outlined" @click="finalizing = false">Not yet</v-btn>
+        <v-btn :disabled="busy" variant="tonal" @click="finalizing = false">Not yet</v-btn>
         <v-btn color="primary" :loading="busy" @click="emit('finalize')">Finalize</v-btn>
       </div>
     </div>
@@ -34,7 +34,7 @@
       </FormField>
 
       <div class="flex flex-wrap justify-end gap-2">
-        <v-btn :disabled="busy" variant="outlined" @click="reopening = false">Cancel</v-btn>
+        <v-btn :disabled="busy" variant="tonal" @click="reopening = false">Cancel</v-btn>
         <v-btn color="error" :loading="busy" type="submit">Reopen</v-btn>
       </div>
     </form>

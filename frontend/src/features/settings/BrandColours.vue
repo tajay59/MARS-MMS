@@ -14,7 +14,7 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-          <v-btn class="text-primary" :prepend-icon="icons.upload" variant="outlined" @click="fileInput?.click()">Upload a theme file</v-btn>
+          <v-btn class="text-primary" :prepend-icon="icons.upload" variant="tonal" @click="fileInput?.click()">Upload a theme file</v-btn>
           <v-btn class="text-primary" :prepend-icon="icons.download" variant="text" @click="download">Download</v-btn>
         </div>
 
@@ -148,7 +148,7 @@
             </FormField>
 
             <div class="flex flex-wrap gap-2">
-              <v-btn color="primary" variant="outlined" @click="applyJson">Preview this JSON</v-btn>
+              <v-btn color="primary" variant="tonal" @click="applyJson">Preview this JSON</v-btn>
               <v-btn class="text-primary" variant="text" @click="jsonText = toExportJson(working)">Undo my typing</v-btn>
             </div>
           </div>

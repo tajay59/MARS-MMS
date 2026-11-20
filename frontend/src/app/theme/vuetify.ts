@@ -7,9 +7,9 @@ import 'vuetify/styles'
 
 /*
   The one createVuetify call (TRD §13.2). Global defaults give the DBD look, so pages don’t
-  repeat props: flat 40 px buttons with a 6 px radius, filled (solo-inverted, flat) compact inputs, flat cards with
+  repeat props: flat 40 px pill buttons (secondary ones tonal), filled (solo-inverted, flat) compact inputs, flat cards with
   a 1 px border and 10 px radius, no ripple. The field shell raises sizes to 48 px with a
-  VDefaultsProvider. rounded="md" / "card" resolve to Tailwind’s rounded-md / rounded-card.
+  VDefaultsProvider. rounded="full" / "md" / "card" resolve to Tailwind’s rounded-full / rounded-md / rounded-card.
 */
 
 // hideDetails 'auto': room for a hint or error only when there is one, so forms keep a 16 px rhythm
@@ -50,7 +50,8 @@ export default createVuetify({
     VBtn: {
       variant: 'flat',
       height: 40,
-      rounded: 'md',
+      // Pills (2026-11-20, DBD 1.9): every button; secondary actions are tonal, not outlined
+      rounded: 'full',
     },
     VTextField: input,
     VTextarea: input,

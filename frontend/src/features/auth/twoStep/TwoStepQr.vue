@@ -27,7 +27,7 @@
           aria-label="Copy the key"
           icon
           size="40"
-          variant="outlined"
+          variant="tonal"
           @click="copy"
         >
           <v-icon :icon="copied ? mdiCheck : mdiContentCopy" size="20" />

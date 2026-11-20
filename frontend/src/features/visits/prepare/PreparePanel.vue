@@ -40,7 +40,7 @@
         Keep {{ APP_NAME }} open until this finishes. The screen stays on. A phone stops downloading when you leave the app.
       </FeedbackBanner>
 
-      <v-btn variant="outlined" @click="prep.stop">Stop</v-btn>
+      <v-btn variant="tonal" @click="prep.stop">Stop</v-btn>
     </div>
 
     <!-- Ready (or ready with gaps) -->
@@ -76,7 +76,7 @@
       <template v-if="!offline">
         <v-btn
           :color="prep.changed.value || prep.gaps.value.length > 0 ? 'primary' : undefined"
-          :variant="prep.changed.value || prep.gaps.value.length > 0 ? 'flat' : 'outlined'"
+          :variant="prep.changed.value || prep.gaps.value.length > 0 ? 'flat' : 'tonal'"
           @click="prep.start"
         >{{ prep.gaps.value.length > 0 ? 'Try again' : 'Update offline copy' }}</v-btn>
       </template>

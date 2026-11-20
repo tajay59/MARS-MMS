@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.8 |
+| **Version** | 1.9 |
 | **Date** | 2026-10-22 |
 | **Status** | Draft for review |
 | **Changes in 1.1** | Components are built on Vuetify 4 instead of PrimeVue 4 (TRD 1.2, ADR-11). Icons are Material Design Icons instead of PrimeIcons. Colours, type, spacing, shells and page designs are unchanged. |
@@ -13,6 +13,7 @@
 | **Changes in 1.5** | **Brand colours from a Material 3 theme** (decision W4-12, 2026-10-17; closes D1's colour part): the built-in theme is `frontend/src/app/theme/material-theme.json` (Material Theme Builder, seed `#026D88`), and admins can replace it for everyone on **Settings** (`/admin/settings`). Status colours stay fixed. **Motion with GSAP** (W4-10): the pane's width, page and list entrances, the rail's hover, sliding indicator and tooltips. **Person avatars** with initials on a brand gradient (W4-13), the one allowed gradient. **Settings** page for admins (W4-11) |
 | **Changes in 1.6** | Below 1024 px the rail becomes a docked, translucent **bottom bar** with the open section as a filled pill (decision W4-14, 2026-10-18); tablets keep the pane and view side by side above it. Pane lists of people are **message-style** rows: 48 px avatar, name with a short time on its right, one line below, the open row fully round (W4-15). **Motion curves** (W4-15): the pane's width on Material 3's emphasized curve, a record opened from the pane rises in, list rows shrink while pressed and spring back |
 | **Changes in 1.7** | **Inputs are filled, not outlined** (2026-10-21): `VTextField`, `VSelect`, `VAutocomplete` and `VDateInput` use `variant="solo-inverted"` with `flat`, set once in `app/theme/vuetify.ts`. Labels and placeholders are drawn at full strength (`base.css`) so they pass 4.5:1 on the light grey fill. |
+| **Changes in 1.9** | **Pill buttons, tonal secondaries** (2026-11-20, from the approved "Stations pane filters" mock-up): every `VBtn` is fully round (`rounded: 'full'` in `app/theme/vuetify.ts`), and secondary buttons are `variant="tonal"` (a light fill of their colour, no border) instead of outlined. Primary, danger, text and icon buttons keep their roles. The Stations list's search is a pill without the bottom rule (its icon and placeholder mark it); other fields are unchanged |
 | **Changes in 1.8** | **The visit board** (decisions W11-16 to W11-35, 2026-10-22): sticky-note tints for Note, Task, Recommendation and Config (a new palette part, never status colours); the Sticky note, Board and Element sheet components and the in-place File viewer replace the Stepper and `MediaCapture`'s phase tags; the field visit, visit page and media viewer follow; the Checklist templates page and the checklist status row are removed |
 | **Changes in 1.4** | [PRD.md](PRD.md) v1.1 (Product Requirements), [TRD.md](TRD.md) v2.0 (Technical Requirements), [AFD.md](AFD.md) v1.1 (App Flow) |
 | **Live copy** | [Claude Doc](https://claude.ai/code/artifact/b14d2c1e-0106-470a-bd5a-ffc28c4eea37) (1.1; superseded by this file) |
@@ -351,7 +352,7 @@ Public pages (login, register, password reset, invitation, QR landing when logge
 - Inside a tile there are no bordered cards: sections are separated by 1 px surface-200 rules, and list rows are plain rows with a hover and a primary-50 selected state. **Cards** (surface-0, 1 px surface-200 border, no shadow) remain for public pages, dialogs and menus.
 - The active rail icon, pane tab and tab-tile item use primary-100 with primary-700 (dark: primary-800 with primary-100). Status colours stay reserved for status.
 - **Shadows** only on things that float: menus, dialogs, toasts and the field action bar (`shadow-lg`).
-- **Corner radius:** 0 for the app shell's tiles, 6 px for inputs, buttons and tooltips, 10 px for cards, dialogs and list rows (pane lists of people are message-style: 72 px rows, 48 px avatar, name with a short time on its right, one line below, and the open row fully round), 12 px for rail icons, fully round for chips, badges and pane tabs, 0 for tables.
+- **Corner radius:** 0 for the app shell's tiles, 6 px for inputs and tooltips, fully round for buttons (1.9), 10 px for cards, dialogs and list rows (pane lists of people are message-style: 72 px rows, 48 px avatar, name with a short time on its right, one line below, and the open row fully round), 12 px for rail icons, fully round for chips, badges and pane tabs, 0 for tables.
 - **Motion** (W4-10): 150 ms ease-out for hovers, menus and tooltips, 200 ms for dialogs and drawers. The app shell's motion is GSAP (`app/motion.ts`): the **pane's width** tweens on Material 3's emphasized curve (400 ms opening, 300 ms closing) when it opens, closes or changes size, and the view tile follows (a short ease-in-out read as a jump); a new **page** rises 8 px and fades in (220 ms) while the old one goes at once; a **record** opened from the pane rises 14 px and fades in (450 ms, Material 3 emphasized decelerate, title then body) and the view scrolls to its top; a **list row** shrinks to 96 % while pressed (80 ms, ease-out) and springs back past full size (320 ms, `back.out(4)`), with a hover tint and the avatar growing to 105 %; a new page's **pane list** slides in from the rail's side; on phones the list and the record slide in from their sides. On the **rail**, the hovered icon lifts and grows a little with a soft overshoot and a fill grows out from it; pressing shrinks it; the **active fill is one tile that slides** to the section chosen; **tooltips** fade and slide out from the rail (and Escape hides them). Nothing loops except loading spinners. All motion is off under `prefers-reduced-motion`, and on a device where the person turned **Animations** off in Settings.
 
 ## Core components
@@ -360,8 +361,8 @@ Vuetify components are used as they come and styled only through the brand theme
 
 | Component | Vuetify base | Look | Rules |
 | --- | --- | --- | --- |
-| **Primary button** | `VBtn color="primary"` | Solid primary-600, white 14 px/500 text, 40 px tall (48 px in field mode, 18 px text), 6 px radius | One per view. Verb-first label (“Submit request”, “Sign and accept”). |
-| **Secondary button** | `VBtn variant="outlined"` | White, 1 px primary-600 border, primary-600 text | Alternatives next to the primary (“Save draft”, “Preview PDF”) |
+| **Primary button** | `VBtn color="primary"` | Solid primary-600, white 14 px/500 text, 40 px tall (48 px in field mode, 18 px text), fully round (pill) | One per view. Verb-first label (“Submit request”, “Sign and accept”). |
+| **Secondary button** | `VBtn variant="tonal"` (with `text-primary`, or `text-error` for a destructive alternative) | Pill; a light fill of the text colour (Vuetify's tonal overlay), no border, primary-600 text; the fill darkens on hover and press | Alternatives next to the primary (“Save draft”, “Preview PDF”) |
 | **Text button** | `VBtn variant="text"` | No border; primary-600 text, underline on hover | Low-weight actions (“Cancel”, “Clear signature”) |
 | **Danger button** | `VBtn color="error"` (Vuetify's `error` is the Danger red) | Solid `#B91C1C`, white text | Only on the final confirm of Deny, Cancel request, Reject work, Disable user, Revoke QR |
 | **Icon button** | `VBtn icon variant="text"` | 40 px square (48 in field), surface-600 icon | Always has an `aria-label` and a `VTooltip` |
@@ -460,7 +461,7 @@ Every page follows the same order from the top: **title and status, then the one
 ```
 
 1. Header: reference and title, status and priority chips, organization, country, stations.
-2. One primary action for the current status (**Schedule visit**); other actions are outlined.
+2. One primary action for the current status (**Schedule visit**); other actions are tonal.
 3. At most one page banner, for the current state.
 4. Tabs: Overview · Comments · Visits · Reports · History.
 5. Status timeline in the right column on xl screens; it moves above Overview on smaller screens. `*` done, `@` current, `o` future (hollow grey).

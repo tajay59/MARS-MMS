@@ -355,7 +355,7 @@
       <p class="m-0 hidden text-sm text-surface-600 md:block">{{ station ? 'Saving updates the station for everyone.' : 'Saving adds the station and its QR label.' }}</p>
 
       <div class="flex grow gap-2 md:grow-0">
-        <v-btn class="grow md:grow-0" variant="outlined" @click="cancel">Cancel</v-btn>
+        <v-btn class="grow md:grow-0" variant="tonal" @click="cancel">Cancel</v-btn>
         <v-btn class="grow md:grow-0" color="primary" :loading="busy" type="submit">{{ station ? 'Save changes' : 'Create station' }}</v-btn>
       </div>
     </div>

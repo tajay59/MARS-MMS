@@ -4,7 +4,7 @@
     v-if="canDo(visit, 'reschedule')"
     :block="full"
     color="primary"
-    variant="outlined"
+    variant="tonal"
     @click="emit('reschedule')"
   >Reschedule</v-btn>
 
@@ -12,7 +12,7 @@
     v-if="canDo(visit, 'cancel')"
     :block="full"
     color="primary"
-    variant="outlined"
+    variant="tonal"
     @click="emit('cancel')"
   >Cancel visit</v-btn>
 
@@ -21,7 +21,7 @@
     :block="full"
     color="primary"
     :loading="busy === 'restore'"
-    variant="outlined"
+    variant="tonal"
     @click="emit('restore')"
   >Restore visit</v-btn>
 

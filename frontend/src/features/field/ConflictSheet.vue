@@ -26,7 +26,7 @@
 
         <div class="flex flex-wrap justify-end gap-2">
           <v-btn v-if="concern.canExport" color="primary" @click="startExport">Export</v-btn>
-          <v-btn v-if="concern.canRetry" variant="outlined" @click="retry">Try again</v-btn>
+          <v-btn v-if="concern.canRetry" variant="tonal" @click="retry">Try again</v-btn>
           <v-btn class="text-primary" variant="text" @click="mode = 'confirm'">Done with this</v-btn>
           <v-btn class="text-primary" variant="text" @click="open = false">Close</v-btn>
         </div>
@@ -65,7 +65,7 @@
             block
             :disabled="!built"
             :height="48"
-            variant="outlined"
+            variant="tonal"
             @click="send('save')"
           >Save to this phone</v-btn>
 

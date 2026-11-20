@@ -118,25 +118,25 @@ components:
     backgroundColor: "{colors.caribbean-depth}"
     textColor: "{colors.on-caribbean-depth}"
     typography: "{typography.label}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.full}"
     padding: "0 16px"
     height: "40px"
   button-primary-field:
     backgroundColor: "{colors.caribbean-depth}"
     textColor: "{colors.on-caribbean-depth}"
     typography: "{typography.field-action}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.full}"
     height: "48px"
   button-secondary:
-    backgroundColor: "{colors.tile}"
+    backgroundColor: "{colors.caribbean-depth-50}"
     textColor: "{colors.caribbean-depth}"
     typography: "{typography.label}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.full}"
     height: "40px"
   button-danger:
     backgroundColor: "{colors.danger}"
     textColor: "{colors.on-caribbean-depth}"
-    rounded: "{rounded.md}"
+    rounded: "{rounded.full}"
     height: "40px"
   input:
     backgroundColor: "{colors.ground}"
@@ -261,7 +261,7 @@ Three frames, and only their content changes. The **app shell** (staff and clien
 Spacing is on a 4 px grid (4, 8, 12, 16, 24, 32, 48). Breakpoints are in px and match Vuetify's thresholds: 640, 768, 1024, 1280, 1536. Staff pages may be dense; client pages are roomy.
 
 ### Named Rules
-**The One Primary Rule.** Each view has one primary button. Alternatives are outlined; low-weight actions are text.
+**The One Primary Rule.** Each view has one primary button. Alternatives are tonal; low-weight actions are text.
 
 **The Frame Stays Put Rule.** Never add a top bar, a floating panel or a second navigation to a shell. A page fills the view with its header and body and puts its list or controls in the pane.
 
@@ -279,17 +279,17 @@ Flat by default, tonal by structure. Tiles are separated from the ground by colo
 
 ## Shapes
 
-Square where the structure is, softly rounded where a hand touches. The shell's tiles and tables have no radius. Inputs, buttons and tooltips have gently curved corners (6 px); cards, dialogs, sticky notes and list rows a little more (10 px); rail icons 12 px; chips, badges and pane tabs are fully round. Message-style rows in the pane (72 px, 48 px avatar) round fully when open. Borders are 1 px; the one heavier edge is a sticky note's 4 px top stripe or a banner's 4 px left stripe, in its kind's or feedback's colour.
+Square where the structure is, softly rounded where a hand touches. The shell's tiles and tables have no radius. Inputs and tooltips have gently curved corners (6 px); buttons are pills; cards, dialogs, sticky notes and list rows a little more (10 px); rail icons 12 px; chips, badges and pane tabs are fully round. Message-style rows in the pane (72 px, 48 px avatar) round fully when open. Borders are 1 px; the one heavier edge is a sticky note's 4 px top stripe or a banner's 4 px left stripe, in its kind's or feedback's colour.
 
 ## Components
 
 Vuetify components used as they come, styled once through global defaults; Tailwind does layout. No ripple anywhere.
 
 ### Buttons
-- **Shape:** gently curved (6 px).
+- **Shape:** pills (fully round), since 2026-11-20 (DBD 1.9).
 - **Primary:** Caribbean Depth fill, white 14 px/500 text, 40 px tall; 48 px with 18 px/600 text in the field shell. Verb-first labels ("Submit request", "Sign and accept").
 - **Hover / Focus:** a 150 ms ease-out tint; the focus ring is a 2 px Caribbean Depth outline 2 px out.
-- **Secondary:** page white with a 1 px Caribbean Depth border and text.
+- **Secondary (tonal):** a light Caribbean Depth fill (Vuetify `tonal`), no border, Caribbean Depth text; the fill deepens on hover and press.
 - **Text:** no border, Caribbean Depth text, underline on hover ("Cancel", "Clear signature").
 - **Danger:** the danger red with white text, only on the final confirm of Deny, Cancel request, Reject work, Disable user, Revoke QR.
 

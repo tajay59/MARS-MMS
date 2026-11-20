@@ -70,7 +70,7 @@
 
     <FeedbackBanner v-if="error" type="error">
       <p class="m-0">{{ error }}</p>
-      <v-btn class="mt-2" size="small" variant="outlined" @click="load()">Try again</v-btn>
+      <v-btn class="mt-2" size="small" variant="tonal" @click="load()">Try again</v-btn>
     </FeedbackBanner>
 
     <div v-else-if="loading" aria-label="Loading the board…" class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3" role="status">

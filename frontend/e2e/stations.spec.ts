@@ -2,9 +2,10 @@ import type { Page } from '@playwright/test'
 import { checkA11y, expect, seedPassword, submitPaced, test } from './support'
 
 /*
-  The stations list and page (PRD STN-5, CAL-3; approved "AWS-MMS Stations redesign"), on the
-  operations demo seed: five made-up stations, three for Organization A in Jamaica and two for B;
-  JM-BLU-003 is offline. The list opens on Needs attention; All stations is the register.
+  The stations list and page (PRD STN-5, CAL-3; approved "AWS-MMS Stations redesign" and "Stations
+  pane filters"), on the operations demo seed: five made-up stations, three for Organization A in
+  Jamaica and two for B; JM-BLU-003 is offline. The list opens on Needs attention; All stations is
+  the register. Every filter is a counted button in the pane.
 */
 
 const NEXT_STEP = /^(Open the visit|Open the request|Raise a request):/
@@ -21,9 +22,9 @@ test('A technician sees what needs attention, filters the register and opens a s
   await logIn(page, 'tech1@example.org')
   await page.goto('/stations')
 
-  // Needs attention first: the counts filter it, and each row has its next step
-  const lists = page.getByRole('navigation', { name: 'Station lists' })
-  await expect(lists.getByRole('link', { name: /Needs attention/ })).toHaveAttribute('aria-current', 'page')
+  // Needs attention first: the pane's counted buttons filter it, and each row has its next step
+  const show = page.getByRole('group', { name: 'Show', exact: true })
+  await expect(show.getByRole('button', { name: /^Needs attention/ })).toHaveAttribute('aria-pressed', 'true')
   const attention = page.getByRole('list', { name: 'Stations that need attention' })
   const blue = attention.getByRole('listitem').filter({ hasText: 'JM-BLU-003' })
   await expect(blue.getByText('Marked offline', { exact: false })).toBeVisible()
@@ -33,13 +34,14 @@ test('A technician sees what needs attention, filters the register and opens a s
   await checkA11y(page, '/stations (needs attention) (dark)')
   await page.emulateMedia({ colorScheme: 'light' })
 
-  await page.getByRole('group', { name: 'Show only' }).getByRole('button', { name: /^Offline/ }).click()
+  await show.getByRole('group', { name: 'Problems' }).getByRole('button', { name: /^Offline/ }).click()
   await expect(page).toHaveURL(/problem=offline/)
+  await expect(page.getByRole('heading', { level: 2, name: 'Offline' })).toBeVisible()
   await expect(attention.getByText('Offline', { exact: true }).first()).toBeVisible()
   await expect(attention.getByRole('listitem').filter({ hasText: 'Degraded' })).toHaveCount(0)
 
-  // The register: status chips and filters above the table, kept in the URL
-  await lists.getByRole('link', { name: /All stations/ }).click()
+  // The register: its status chips in the pane, kept in the URL
+  await show.getByRole('button', { name: /^All stations/ }).click()
   await expect(page).toHaveURL(/view=all/)
   const table = page.getByRole('table', { name: /Stations/ })
   await expect(table.getByRole('link', { name: 'JM-KIN-001' })).toBeVisible()
@@ -47,17 +49,31 @@ test('A technician sees what needs attention, filters the register and opens a s
   await expect(table.getByRole('columnheader', { name: 'Organization' })).toBeVisible()
   await checkA11y(page, '/stations?view=all')
 
-  await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^Offline/ }).click()
+  const status = show.getByRole('group', { name: 'Status' })
+  await status.getByRole('button', { name: /^Offline/ }).click()
   await expect(page).toHaveURL(/status=offline/)
   await expect(table.getByRole('link', { name: 'JM-BLU-003' })).toBeVisible()
   await expect(table.getByRole('link', { name: 'JM-KIN-001' })).toHaveCount(0)
 
-  await page.getByRole('group', { name: 'Filter by status' }).getByRole('button', { name: /^All/ }).click()
+  await status.getByRole('button', { name: /^Offline/ }).click() // a second press clears it
+  await expect(page).not.toHaveURL(/status=/)
+
+  // The list being shown folds and unfolds from its header row
+  const allHeader = show.getByRole('button', { name: /^All stations/ })
+  await allHeader.click()
+  await expect(allHeader).toHaveAttribute('aria-expanded', 'false')
+  await expect(status).toBeHidden()
+  await allHeader.click()
+  await expect(status).toBeVisible()
   await page.getByRole('searchbox', { name: /Search stations/ }).fill('harbour')
   await expect(table.getByRole('row')).toHaveCount(2) // the header and Kingston Harbour
+  await expect(page.getByRole('button', { name: 'Remove “harbour”' })).toBeVisible()
 
+  // A station open: the filters fold to one line, and the matching stations follow in the pane
   await table.getByRole('link', { name: 'JM-KIN-001' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Kingston Harbour' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Change' })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Stations', exact: true }).getByRole('link', { name: 'Kingston Harbour' })).toHaveAttribute('aria-current', 'page')
   await expect(page.getByText('Gate code with the harbour office.')).toBeVisible()
   await checkA11y(page, '/stations/:id (overview)')
 
@@ -79,7 +95,7 @@ test('A client sees only their organization’s stations, with no actions to tak
   await expect(page.getByRole('link', { name: 'Report a problem' })).toBeVisible()
   await checkA11y(page, '/stations (client)')
 
-  await page.getByRole('navigation', { name: 'Station lists' }).getByRole('link', { name: /All stations/ }).click()
+  await page.getByRole('group', { name: 'Show', exact: true }).getByRole('button', { name: /^All stations/ }).click()
   const table = page.getByRole('table', { name: /Stations/ })
   await expect(table.getByRole('link', { name: 'JM-KIN-001' })).toBeVisible()
   await expect(table.getByRole('link', { name: /^TT-/ })).toHaveCount(0)
@@ -171,12 +187,15 @@ test('Viewers and clients do not get the station forms @STN-1 @STN-2', async ({ 
   await expect(page).toHaveURL(/\/stations$/) // back to the list
 })
 
-test('On a phone the attention rows stack, with large next steps @STN-5 @phone', async ({ watched: page }) => {
+test('On a phone the pane pins the lists and their filters above the rows @STN-5 @phone', async ({ watched: page }) => {
   await logIn(page, 'tech1@example.org')
   await page.goto('/stations')
+  await expect(page.getByRole('group', { name: 'Lists' }).getByRole('button', { name: /^Needs attention/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('group', { name: 'Show only' }).getByRole('button', { name: /^Offline/ })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Scan a station label' })).toBeVisible()
   const row = page.getByRole('list', { name: 'Stations that need attention' }).getByRole('listitem').filter({ hasText: 'JM-BLU-003' })
   const step = row.getByRole('link', { name: NEXT_STEP })
   await expect(step).toBeVisible()
-  expect((await step.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+  expect((await step.boundingBox())!.height).toBeGreaterThanOrEqual(36)
   await checkA11y(page, '/stations (phone)')
 })

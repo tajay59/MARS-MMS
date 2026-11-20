@@ -17,7 +17,7 @@
         <div class="text-sm text-surface-600">or choose them from this device. Photos can be added to the visit later.</div>
       </div>
 
-      <v-btn color="primary" :disabled="drafts.full.value" variant="outlined" @click="picker?.click()">Choose files</v-btn>
+      <v-btn color="primary" :disabled="drafts.full.value" variant="tonal" @click="picker?.click()">Choose files</v-btn>
     </div>
 
     <v-btn
@@ -27,7 +27,7 @@
       :disabled="drafts.full.value"
       :prepend-icon="mdiPaperclip"
       size="small"
-      variant="outlined"
+      variant="tonal"
       @click="picker?.click()"
     >Attach PDF</v-btn>
 

@@ -54,7 +54,7 @@
     <div class="flex flex-col gap-4 border-t border-surface-200 pt-6">
       <p v-if="!useRecovery" class="m-0 text-sm text-surface-600">Lost your phone? Each recovery code you saved when you set this up works once.</p>
 
-      <v-btn block class="text-primary" variant="outlined" @click="swap">{{ useRecovery ? 'Back to the 6-digit code' : 'Use a recovery code' }}</v-btn>
+      <v-btn block class="text-primary" variant="tonal" @click="swap">{{ useRecovery ? 'Back to the 6-digit code' : 'Use a recovery code' }}</v-btn>
     </div>
   </AuthCard>
 </template>

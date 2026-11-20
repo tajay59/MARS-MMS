@@ -5,7 +5,7 @@
         :disabled="integrity.starting.value || running"
         :loading="integrity.starting.value"
         :prepend-icon="mdiShieldCheckOutline"
-        variant="outlined"
+        variant="tonal"
         @click="integrity.start()"
       >Check integrity</v-btn>
 
@@ -162,7 +162,7 @@
         <div v-else-if="items.length === 0" class="flex flex-col items-start gap-1.5 rounded-card bg-surface-50 p-5">
           <p class="m-0 font-semibold text-surface-900">No records match these filters.</p>
           <p class="m-0 text-sm text-surface-600">Try a wider range of dates, or clear a filter.</p>
-          <v-btn size="small" variant="outlined" @click="clear">Clear filters</v-btn>
+          <v-btn size="small" variant="tonal" @click="clear">Clear filters</v-btn>
         </div>
 
         <template v-else>
@@ -199,7 +199,7 @@
           </div>
 
           <div v-if="next !== null" class="flex justify-center">
-            <v-btn :loading="loadingMore" variant="outlined" @click="more">Show more</v-btn>
+            <v-btn :loading="loadingMore" variant="tonal" @click="more">Show more</v-btn>
           </div>
         </template>
       </div>

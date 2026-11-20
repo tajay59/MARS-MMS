@@ -37,7 +37,7 @@
           :block="!mdAndUp"
           :loading="saving"
           :prepend-icon="mdiDownloadOutline"
-          variant="outlined"
+          variant="tonal"
           @click="download()"
         >Download PDF</v-btn>
       </div>

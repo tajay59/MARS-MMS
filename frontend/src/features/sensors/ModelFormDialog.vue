@@ -96,7 +96,7 @@
       <div class="mt-1 flex justify-end gap-2">
         <v-btn class="text-primary" variant="text" @click="requestClose">{{ modelSaved ? 'Close' : 'Cancel' }}</v-btn>
 
-        <v-btn v-if="stale" color="primary" variant="outlined" @click="reload">Reload</v-btn>
+        <v-btn v-if="stale" color="primary" variant="tonal" @click="reload">Reload</v-btn>
 
         <v-btn
           v-else

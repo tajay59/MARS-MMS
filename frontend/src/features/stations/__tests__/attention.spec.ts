@@ -107,6 +107,14 @@ describe('the Needs attention rows', () => {
     expect(attentionRows([both], emptyWork(), NOW, true, 'overdue').map(r => r.problem)).toEqual(['overdue'])
     expect(attentionRows([both], emptyWork(), NOW, true).map(r => r.problem)).toEqual(['offline'])
   })
+
+  it('names the other problems of a station, so a filtered row still says what else is wrong', () => {
+    const both = station({ id: 'both', status: 'offline', next_calibration_due_at: '2026-11-01T04:00:00Z' })
+    const [overdue] = attentionRows([both], emptyWork(), NOW, true, 'overdue')
+    expect(overdue!.fact).toMatch(/^Calibration \d+ days overdue/)
+    expect(overdue!.also).toEqual(['offline'])
+    expect(attentionRows([both], emptyWork(), NOW, true)[0]!.also).toEqual(['overdue'])
+  })
 })
 
 describe('the page state in the address', () => {

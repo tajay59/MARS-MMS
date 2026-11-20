@@ -76,7 +76,7 @@
       <b class="text-base text-surface-900">{{ fallback.title }}</b>
       <p class="m-0 max-w-[34ch] text-sm text-surface-700">{{ fallback.text }}</p>
 
-      <v-btn v-if="offline" variant="outlined" @click="look()">Try again</v-btn>
+      <v-btn v-if="offline" variant="tonal" @click="look()">Try again</v-btn>
       <v-btn v-else-if="urls.download" color="primary" :href="urls.download" :prepend-icon="icons.download">Download</v-btn>
     </div>
   </div>

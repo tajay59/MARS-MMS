@@ -48,14 +48,14 @@
           color="primary"
           :prepend-icon="mdiPencilOutline"
           :to="{ name: 'visit-report', params: { id: report.id } }"
-          :variant="report.status === 'draft' && mayDraw ? 'flat' : 'outlined'"
+          :variant="report.status === 'draft' && mayDraw ? 'flat' : 'tonal'"
         >{{ openWords }}</v-btn>
 
         <v-btn
           v-if="words.canOpen && !words.canDraw"
           :block="!mdAndUp"
           :prepend-icon="mdiFileEyeOutline"
-          variant="outlined"
+          variant="tonal"
           @click="opened = true"
         >Preview</v-btn>
 
@@ -73,7 +73,7 @@
             v-if="words.canOpen"
             :block="!mdAndUp"
             :prepend-icon="mdiFileOutline"
-            variant="outlined"
+            variant="tonal"
             @click="opened = true"
           >Open the last drawing</v-btn>
         </template>

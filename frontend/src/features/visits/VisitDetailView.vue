@@ -77,7 +77,7 @@
                     v-if="station.actions.includes('arrive')"
                     :loading="busy === `arrive-${station.station_id}`"
                     size="small"
-                    variant="outlined"
+                    variant="tonal"
                     @click="emit('arrive', station.station_id)"
                   >Arrive</v-btn>
 
@@ -85,7 +85,7 @@
                     v-if="station.actions.includes('depart')"
                     :loading="busy === `depart-${station.station_id}`"
                     size="small"
-                    variant="outlined"
+                    variant="tonal"
                     @click="emit('depart', station.station_id)"
                   >Depart</v-btn>
 
@@ -116,7 +116,7 @@
             block
             class="mt-2"
             :loading="busy === `arrive-${station.station_id}`"
-            variant="outlined"
+            variant="tonal"
             @click="emit('arrive', station.station_id)"
           >Arrive</v-btn>
 
@@ -125,7 +125,7 @@
             block
             class="mt-2"
             :loading="busy === `depart-${station.station_id}`"
-            variant="outlined"
+            variant="tonal"
             @click="emit('depart', station.station_id)"
           >Depart</v-btn>
 

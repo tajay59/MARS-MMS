@@ -341,7 +341,7 @@
       "refersTo": "button-primary",
       "description": "The one primary action of a view; verb-first label. 48 px with 18 px text in the field shell.",
       "html": "<button class=\"ds-btn-primary\">Submit request</button>",
-      "css": ".ds-btn-primary { background: #0A6780; color: #FFFFFF; height: 40px; padding: 0 16px; border: 0; border-radius: 6px; font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-primary:hover { background: #004D62; } .ds-btn-primary:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
+      "css": ".ds-btn-primary { background: #0A6780; color: #FFFFFF; height: 40px; padding: 0 16px; border: 0; border-radius: 9999px; font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-primary:hover { background: #004D62; } .ds-btn-primary:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
     },
     {
       "name": "Secondary Button",
@@ -349,7 +349,7 @@
       "refersTo": "button-secondary",
       "description": "Alternatives beside the primary: Save draft, Preview PDF.",
       "html": "<button class=\"ds-btn-secondary\">Save draft</button>",
-      "css": ".ds-btn-secondary { background: #FFFFFF; color: #0A6780; height: 40px; padding: 0 16px; border: 1px solid #0A6780; border-radius: 6px; font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-secondary:hover { background: #DEF4FF; } .ds-btn-secondary:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
+      "css": ".ds-btn-secondary { background: #DEF4FF; color: #0A6780; height: 40px; padding: 0 16px; border: 0; border-radius: 9999px; font: 500 14px/20px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-secondary:hover { background: #B9EAFF; } .ds-btn-secondary:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
     },
     {
       "name": "Field Action Button",
@@ -357,7 +357,7 @@
       "refersTo": "button-primary-field",
       "description": "The field shell's main action, full width at 48 px: Arrive, Depart station, End visit.",
       "html": "<button class=\"ds-btn-field\">Arrive</button>",
-      "css": ".ds-btn-field { background: #0A6780; color: #FFFFFF; width: 100%; max-width: 360px; height: 48px; border: 0; border-radius: 6px; font: 600 18px/24px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-field:hover { background: #004D62; } .ds-btn-field:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
+      "css": ".ds-btn-field { background: #0A6780; color: #FFFFFF; width: 100%; max-width: 360px; height: 48px; border: 0; border-radius: 9999px; font: 600 18px/24px 'Roboto Flex Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; cursor: pointer; transition: background 150ms ease-out; } .ds-btn-field:hover { background: #004D62; } .ds-btn-field:focus-visible { outline: 2px solid #0A6780; outline-offset: 2px; }"
     },
     {
       "name": "Text Field",

@@ -31,7 +31,7 @@
       <div class="flex gap-3">
         <v-btn
           class="grow"
-          variant="outlined"
+          variant="tonal"
           @click="step === 'enter' ? close() : back()"
         >{{ step === 'enter' ? 'Not now' : 'Back' }}</v-btn>
 

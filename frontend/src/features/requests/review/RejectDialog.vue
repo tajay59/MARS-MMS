@@ -29,7 +29,7 @@
       </FormField>
 
       <div class="flex flex-wrap justify-end gap-2">
-        <v-btn :disabled="busy" variant="outlined" @click="open = false">Cancel</v-btn>
+        <v-btn :disabled="busy" variant="tonal" @click="open = false">Cancel</v-btn>
         <v-btn color="primary" :loading="busy" type="submit">Send</v-btn>
       </div>
     </form>

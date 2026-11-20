@@ -37,7 +37,7 @@
             class="mt-2"
             color="primary"
             :loading="busy === `depart-${current.station_id}`"
-            variant="outlined"
+            variant="tonal"
             @click="depart(current.station_id)"
           >Depart</v-btn>
         </section>
@@ -101,7 +101,7 @@
                     block
                     color="primary"
                     :loading="busy === `depart-${station.station_id}`"
-                    variant="outlined"
+                    variant="tonal"
                     @click="depart(station.station_id)"
                   >Depart</v-btn>
                 </div>

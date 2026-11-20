@@ -19,7 +19,7 @@
           v-if="item.canExport"
           :aria-label="`Export your work for ${label(item)}`"
           size="small"
-          variant="outlined"
+          variant="tonal"
           @click="show(item, 'export')"
         >Export</v-btn>
 
@@ -27,7 +27,7 @@
           v-if="item.canRetry"
           :aria-label="`Try again for ${label(item)}`"
           size="small"
-          variant="outlined"
+          variant="tonal"
           @click="retry(item)"
         >Try again</v-btn>
 

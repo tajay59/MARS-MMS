@@ -14,8 +14,8 @@
     </p>
 
     <div class="mt-3 flex flex-wrap gap-2">
-      <v-btn :to="{ name: 'storage-check' }" variant="outlined">Storage check</v-btn>
-      <v-btn :loading="copying" variant="outlined" @click="copyReport">Copy report</v-btn>
+      <v-btn :to="{ name: 'storage-check' }" variant="tonal">Storage check</v-btn>
+      <v-btn :loading="copying" variant="tonal" @click="copyReport">Copy report</v-btn>
     </div>
 
     <p v-if="copied" class="m-0 pt-2 text-sm text-surface-600" role="status">Copied. Paste it into a message to the office.</p>
