@@ -355,7 +355,9 @@ jobs:
   stack:
     name: compose stack
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    # (2026-11-20) Playwright takes 19 to 28 minutes and setup about 7: at 35 the job was cancelled
+    # on #204 with every step green. 45 leaves room for a slow runner.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 

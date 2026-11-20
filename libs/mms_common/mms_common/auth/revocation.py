@@ -11,11 +11,17 @@ users and sessions as they were, so anyone disabled since would be valid again.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable
 from datetime import datetime
 from typing import Any, Protocol
 
+from redis.exceptions import RedisError
+
 from mms_common.auth.tokens import ACCESS_TTL
+from mms_common.metrics import REVOCATION_FAILURES
+
+log = logging.getLogger(__name__)
 
 KEY_TTL_S = int(ACCESS_TTL.total_seconds()) + 120
 
@@ -47,6 +53,24 @@ async def revoke_org(store: Store, org_id: str, at: datetime) -> None:
 async def revoke_all(store: Store, at: datetime) -> None:
     """Every access token issued at or before `at` is refused, whoever holds it."""
     await store.set(ALL_KEY, str(int(at.timestamp())), ex=KEY_TTL_S)
+
+
+async def after_commit(write: Awaitable[None], *, kind: str) -> bool:
+    """Writes a revocation for a change that is already committed, and never undoes the answer.
+
+    The client retries a dropped connection (mms_common.redisconn); when Redis still refuses,
+    the change stays saved and its refresh tokens are already revoked in its transaction, so the
+    person's access token lasts at most ACCESS_TTL more. Reporting a 500 for a saved change made
+    the admin retry into a version conflict (2026-11-19), so the failure is logged and counted
+    instead, and the RevocationFailed alert tells someone at once.
+    """
+    try:
+        await write
+    except RedisError:
+        log.exception("access-token revocation not written", extra={"kind": kind})
+        REVOCATION_FAILURES.labels(kind).inc()
+        return False
+    return True
 
 
 async def is_revoked(store: Store, *, user_id: str, org_id: str | None, issued_at: int) -> bool:

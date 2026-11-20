@@ -394,7 +394,7 @@ async def confirm_reset(body: ResetConfirmIn, ctx: CtxDep) -> None:
 
     await ctx.tx(save)
     # Logged out of every device, including access tokens still within their 15 minutes.
-    await revocation.revoke_user(ctx.redis, user["_id"], now)
+    await revocation.after_commit(revocation.revoke_user(ctx.redis, user["_id"], now), kind="user")
     await throttle.clear(ctx.redis, email_hash)
 
 
