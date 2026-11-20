@@ -7,9 +7,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from mms_common import redisconn
 from mms_common import logging as mms_logging
-from mms_common import migrations, mongo
+from mms_common import migrations, mongo, redisconn
 from mms_common.auth import Authenticator, install_auth
 from mms_common.auth.jwks import JwksKeys
 from mms_common.auth.tokens import KeySource
