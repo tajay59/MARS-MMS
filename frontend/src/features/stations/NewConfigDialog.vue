@@ -74,7 +74,7 @@
           color="primary"
           :disabled="saving || items.length >= MAX_FILES"
           :prepend-icon="mdiPlus"
-          variant="outlined"
+          variant="tonal"
           @click="picker?.click()"
         >Add files</v-btn>
 

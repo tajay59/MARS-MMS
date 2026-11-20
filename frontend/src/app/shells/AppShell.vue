@@ -82,6 +82,32 @@
       tabindex="-1"
     >
       <MfaNotices />
+
+      <!-- A page with no pane: the section's pages as a row of tabs at the top of the view -->
+      <nav
+        v-if="paneless && tabs.length > 1"
+        :aria-label="`${paneTitle} pages`"
+        class="flex shrink-0 flex-wrap gap-1 px-4 pt-3 md:px-8 md:pt-4"
+      >
+        <router-link
+          v-for="tab in tabs"
+          :key="tab.to"
+          v-slot="{ href, navigate }"
+          custom
+          :to="{ name: tab.to }"
+        >
+          <a
+            :aria-current="tab.current ? 'page' : undefined"
+            class="inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium"
+            :class="tab.current
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-100'
+              : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'"
+            :href="href"
+            @click="navigate"
+          >{{ tab.label }}</a>
+        </router-link>
+      </nav>
+
       <slot />
     </main>
 
@@ -136,12 +162,13 @@
   const target = ref<HTMLElement | null>(null)
   const blocks = ref(0)
   const selected = ref(false)
+  const paneless = ref(false)
   const pinned = ref(false)
   const rootEl = ref<HTMLElement | null>(null)
   // Phones only (the classes undo it from 768 px); the list is showing, not a record
   const stuck = computed(() => pinned.value && !selected.value)
   const collapsed = ref(readCollapsed())
-  const hasPane = computed(() => tabs.value.length > 1 || blocks.value > 0)
+  const hasPane = computed(() => !paneless.value && (tabs.value.length > 1 || blocks.value > 0))
   const canExpand = computed(() => hasPane.value && collapsed.value && lgAndUp.value)
   // Phones show the list, then the record alone once one is open
   const paneShown = computed(() => hasPane.value && (mdAndUp.value ? !(lgAndUp.value && collapsed.value) : !selected.value))
@@ -253,7 +280,7 @@
     }
   }
 
-  provide(paneKey, { target, blocks, selected, pinned, collapsed, canExpand, toggle })
+  provide(paneKey, { target, blocks, selected, paneless, pinned, collapsed, canExpand, toggle })
   provide(shellKey, 'app')
 
   watch(() => route.name, () => {

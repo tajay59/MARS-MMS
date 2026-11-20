@@ -4,7 +4,7 @@
       <v-icon class="text-surface-500" :icon="mdiMapMarkerQuestionOutline" size="32" />
       <h2 class="m-0 text-h3 text-surface-900">We can’t find that page</h2>
       <p class="m-0 text-surface-600">The link may be wrong, or the page isn’t one you can open.</p>
-      <v-btn class="text-primary" :to="{ name: 'dashboard' }" variant="outlined">Go to the dashboard</v-btn>
+      <v-btn class="text-primary" :to="{ name: 'dashboard' }" variant="tonal">Go to the dashboard</v-btn>
     </div>
   </PageBody>
 </template>

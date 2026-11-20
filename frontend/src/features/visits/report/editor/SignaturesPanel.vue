@@ -33,7 +33,7 @@
         <v-btn
           v-else-if="row.canSign"
           :color="row.lead ? 'primary' : undefined"
-          :variant="row.lead ? 'flat' : 'outlined'"
+          :variant="row.lead ? 'flat' : 'tonal'"
           @click="emit('sign')"
         >{{ row.cleared ? 'Sign again' : 'Sign' }}</v-btn>
       </li>

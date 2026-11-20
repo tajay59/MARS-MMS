@@ -171,7 +171,7 @@
           <!-- Phones: the buttons come at the end of the form -->
           <div v-if="!mdAndUp" class="flex flex-col gap-2">
             <v-btn block color="primary" :disabled="!online" type="submit">Submit</v-btn>
-            <v-btn block :disabled="!online" variant="outlined" @click="saveNow()">Save draft</v-btn>
+            <v-btn block :disabled="!online" variant="tonal" @click="saveNow()">Save draft</v-btn>
           </div>
         </form>
 
@@ -181,7 +181,7 @@
 
           <div class="flex flex-wrap gap-2">
             <v-btn color="primary" :disabled="!online" @click="ask()">Submit</v-btn>
-            <v-btn :disabled="!online" variant="outlined" @click="saveNow()">Save draft</v-btn>
+            <v-btn :disabled="!online" variant="tonal" @click="saveNow()">Save draft</v-btn>
           </div>
 
           <span class="text-xs text-surface-600">You can leave and come back: the draft is under Continue draft on the Reports tab.</span>
@@ -195,7 +195,7 @@
         <p class="m-0 text-surface-700">“{{ form.model.title }}” goes to the technicians and your organization. You cannot change it afterwards.</p>
 
         <div class="flex flex-wrap justify-end gap-2">
-          <v-btn :disabled="form.sending.value" variant="outlined" @click="confirming = false">Keep editing</v-btn>
+          <v-btn :disabled="form.sending.value" variant="tonal" @click="confirming = false">Keep editing</v-btn>
           <v-btn color="primary" :loading="form.sending.value" @click="send()">Submit</v-btn>
         </div>
       </div>

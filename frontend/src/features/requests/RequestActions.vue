@@ -30,7 +30,7 @@
     :block="full"
     color="primary"
     :loading="busy === 'claim'"
-    :variant="can(detail, 'assign') ? 'outlined' : 'flat'"
+    :variant="can(detail, 'assign') ? 'tonal' : 'flat'"
     @click="emit('claim')"
   >Claim</v-btn>
 
@@ -39,7 +39,7 @@
     :block="full"
     color="primary"
     :loading="busy === 'release'"
-    variant="outlined"
+    variant="tonal"
     @click="emit('release')"
   >{{ isAdmin ? 'Unassign' : 'Release to queue' }}</v-btn>
 
@@ -47,7 +47,7 @@
     v-if="can(detail, 'deny')"
     :block="full"
     color="primary"
-    variant="outlined"
+    variant="tonal"
     @click="emit('deny')"
   >Deny</v-btn>
 
@@ -57,14 +57,14 @@
     color="primary"
     :prepend-icon="mdiPencilOutline"
     :to="{ name: 'requests', params: { id: detail.id, mode: 'edit' }, query: route.query }"
-    variant="outlined"
+    variant="tonal"
   >Edit</v-btn>
 
   <v-btn
     v-if="can(detail, 'cancel')"
     :block="full"
     color="primary"
-    variant="outlined"
+    variant="tonal"
     @click="emit('cancel')"
   >Cancel request</v-btn>
 </template>

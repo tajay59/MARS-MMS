@@ -213,19 +213,13 @@
           />
         </FormField>
 
-        <!-- Preview only: the Map page draws the real map -->
+        <!-- Click or tap to move the pin; the fields stay the source (approved Stations redesign) -->
         <div class="flex flex-col gap-2 sm:col-span-2">
-          <div
-            :aria-label="point ? `Location ${point.label}` : 'No location yet'"
-            class="relative grid h-32 place-items-center rounded-card bg-surface-50"
-            role="img"
-          >
-            <v-icon v-if="point" class="text-station-operational" :icon="mdiMapMarker" size="34" />
-            <span v-else class="text-sm text-surface-600">Enter the latitude and longitude to see the place.</span>
-            <span v-if="point" class="absolute bottom-2 left-2.5 rounded-md bg-surface px-2 py-0.5 text-xs tabular-nums text-surface-700">{{ point.label }}</span>
+          <div class="h-72 overflow-hidden rounded-card">
+            <PinMap :latitude="pinLat" :longitude="pinLon" :others="others" @pick="pick" />
           </div>
 
-          <p class="m-0 text-sm text-surface-600">Preview only. The Map page draws the real map.</p>
+          <p class="m-0 text-sm text-surface-600">Click or tap the map to move the pin, or type the coordinates.</p>
         </div>
 
         <div class="sm:col-span-2">
@@ -361,7 +355,7 @@
       <p class="m-0 hidden text-sm text-surface-600 md:block">{{ station ? 'Saving updates the station for everyone.' : 'Saving adds the station and its QR label.' }}</p>
 
       <div class="flex grow gap-2 md:grow-0">
-        <v-btn class="grow md:grow-0" variant="outlined" @click="cancel">Cancel</v-btn>
+        <v-btn class="grow md:grow-0" variant="tonal" @click="cancel">Cancel</v-btn>
         <v-btn class="grow md:grow-0" color="primary" :loading="busy" type="submit">{{ station ? 'Save changes' : 'Create station' }}</v-btn>
       </div>
     </div>
@@ -372,8 +366,8 @@
 
 <script lang="ts" setup>
   import type { FieldErrors, FieldKey } from './stationFormModel'
-  import type { StationDetail } from '@/api/models'
-  import { mdiLockOutline, mdiMapMarker } from '@mdi/js'
+  import type { StationDetail, StationSummary } from '@/api/models'
+  import { mdiLockOutline } from '@mdi/js'
   import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
   import { orgsApi } from '@/api/auth'
   import { stationsApi } from '@/api/operations'
@@ -383,6 +377,7 @@
   import DiscardConfirm from '@/components/DiscardConfirm.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
   import FormField from '@/components/FormField.vue'
+  import PinMap from './PinMap.vue'
   import {
     createBody,
     emptyValues,
@@ -405,6 +400,8 @@
     station?: StationDetail | null
     /** Types and parameters other stations use, offered as suggestions. */
     suggestions: { types: string[], parameters: string[] }
+    /** The other stations, drawn as grey dots on the map. */
+    stations?: readonly StationSummary[]
   }>()
 
   const emit = defineEmits<{
@@ -467,14 +464,22 @@
     }
   }
 
-  const point = computed(() => {
-    const lat = parseNumber(values.latitude)
-    const lon = parseNumber(values.longitude)
-    if (lat === null || lon === null || Number.isNaN(lat) || Number.isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-      return null
-    }
-    return { label: `${lat.toFixed(4)}, ${lon.toFixed(4)}` }
-  })
+  function coordinate (text: string, limit: number): number | null {
+    const n = parseNumber(text)
+    return n === null || Number.isNaN(n) || Math.abs(n) > limit ? null : n
+  }
+
+  const pinLat = computed(() => coordinate(values.latitude, 90))
+  const pinLon = computed(() => pinLat.value === null ? null : coordinate(values.longitude, 180))
+  const others = computed(() => (props.stations ?? []).flatMap(s =>
+    s.id !== props.station?.id && s.latitude !== null && s.longitude !== null
+      ? [{ latitude: s.latitude, longitude: s.longitude, code: s.code }]
+      : []))
+
+  function pick (latitude: number, longitude: number): void {
+    values.latitude = String(latitude)
+    values.longitude = String(longitude)
+  }
 
   async function loadChoices (): Promise<void> {
     orgsLoading.value = !props.station

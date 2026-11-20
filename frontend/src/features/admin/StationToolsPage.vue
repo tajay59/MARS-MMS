@@ -179,7 +179,7 @@
 
       <template v-else-if="failure">
         <FeedbackBanner type="error"><strong>The sheet couldn’t be made.</strong> {{ failure }}</FeedbackBanner>
-        <div><v-btn color="primary" variant="outlined" @click="make">Try again</v-btn></div>
+        <div><v-btn color="primary" variant="tonal" @click="make">Try again</v-btn></div>
       </template>
     </div>
   </PageBody>

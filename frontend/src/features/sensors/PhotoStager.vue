@@ -18,7 +18,7 @@
         color="primary"
         :disabled="disabled || files.length >= MAX_STAGED_PHOTOS"
         :prepend-icon="icons.photo"
-        variant="outlined"
+        variant="tonal"
         @click="picker?.click()"
       >Take a photo or choose pictures</v-btn>
 

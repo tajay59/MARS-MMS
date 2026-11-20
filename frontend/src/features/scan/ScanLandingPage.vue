@@ -63,7 +63,7 @@
             color="primary"
             :prepend-icon="mdiRefresh"
             size="large"
-            variant="outlined"
+            variant="tonal"
             @click="lookUp"
           >Try again</v-btn>
 
@@ -86,7 +86,7 @@
             color="primary"
             :prepend-icon="mdiRefresh"
             size="large"
-            variant="outlined"
+            variant="tonal"
             @click="lookUp"
           >Try again</v-btn>
         </template>

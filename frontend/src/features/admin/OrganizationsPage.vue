@@ -221,7 +221,7 @@
               <p class="m-0 text-sm text-surface-600">{{ deactivateText }}</p>
 
               <div>
-                <v-btn class="text-error" variant="outlined" @click="confirming = true">Deactivate {{ editing.name }}</v-btn>
+                <v-btn class="text-error" variant="tonal" @click="confirming = true">Deactivate {{ editing.name }}</v-btn>
               </div>
             </template>
 
@@ -230,7 +230,7 @@
               <p class="m-0 text-sm text-surface-600">Its people can sign in again with their own passwords.</p>
 
               <div>
-                <v-btn class="text-primary" :loading="reactivating" variant="outlined" @click="reactivate">Reactivate {{ editing.name }}</v-btn>
+                <v-btn class="text-primary" :loading="reactivating" variant="tonal" @click="reactivate">Reactivate {{ editing.name }}</v-btn>
               </div>
             </template>
           </section>

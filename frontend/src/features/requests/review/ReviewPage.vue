@@ -28,23 +28,23 @@
 
         <FeedbackBanner v-if="failure" :type="failure.tone">
           <b class="font-semibold">{{ failure.title }}</b> {{ failure.text }}
-          <div v-if="failure.reload" class="mt-2"><v-btn size="small" variant="outlined" @click="load()">Show the new reports</v-btn></div>
+          <div v-if="failure.reload" class="mt-2"><v-btn size="small" variant="tonal" @click="load()">Show the new reports</v-btn></div>
         </FeedbackBanner>
 
         <!-- After the answer went through -->
         <FeedbackBanner v-if="answered === 'accepted'" type="success">
           <b class="font-semibold">Work accepted.</b> The request is closed. Your close-out report is being made.
-          <div class="mt-2"><v-btn size="small" :to="{ name: 'requests', params: { id: detail.id }, query: { tab: 'reports' } }" variant="outlined">See the reports</v-btn></div>
+          <div class="mt-2"><v-btn size="small" :to="{ name: 'requests', params: { id: detail.id }, query: { tab: 'reports' } }" variant="tonal">See the reports</v-btn></div>
         </FeedbackBanner>
 
         <FeedbackBanner v-else-if="answered === 'rejected'" type="info">
           <b class="font-semibold">Sent back.</b> The technicians have been told and will contact you if they need more.
-          <div class="mt-2"><v-btn size="small" :to="backTo" variant="outlined">Back to the request</v-btn></div>
+          <div class="mt-2"><v-btn size="small" :to="backTo" variant="tonal">Back to the request</v-btn></div>
         </FeedbackBanner>
 
         <FeedbackBanner v-else-if="notice" :type="notice.tone">
           <b class="font-semibold">{{ notice.title }}</b> {{ notice.text }}
-          <div class="mt-2"><v-btn size="small" :to="backTo" variant="outlined">Back to the request</v-btn></div>
+          <div class="mt-2"><v-btn size="small" :to="backTo" variant="tonal">Back to the request</v-btn></div>
         </FeedbackBanner>
       </div>
 
@@ -69,7 +69,7 @@
               </span>
 
               <span v-if="row.report" class="flex items-center gap-1">
-                <v-btn :prepend-icon="mdiFileOutline" size="small" variant="outlined" @click="openVisit(row.report)">Open</v-btn>
+                <v-btn :prepend-icon="mdiFileOutline" size="small" variant="tonal" @click="openVisit(row.report)">Open</v-btn>
                 <v-btn size="small" variant="text" @click="downloadVisit(row.report)">Download</v-btn>
               </span>
             </li>
@@ -86,7 +86,7 @@
                 <span class="text-sm text-surface-600">{{ kindLabel(c.kind) }} · {{ clientReportSub(c, formatPlainDate) }}</span>
               </span>
 
-              <v-btn v-if="clientReportLook(c) === 'file' || clientReportLook(c) === 'ready'" size="small" variant="outlined" @click="openClient(c)">Open</v-btn>
+              <v-btn v-if="clientReportLook(c) === 'file' || clientReportLook(c) === 'ready'" size="small" variant="tonal" @click="openClient(c)">Open</v-btn>
               <span v-else class="text-sm text-surface-600">Making the PDF</span>
             </li>
           </ul>
@@ -98,7 +98,7 @@
         <span class="min-w-0 max-w-[52ch] text-sm text-surface-700">You are answering for {{ detail.org_name ?? 'your organization' }}. The first answer closes the review.</span>
 
         <div class="flex flex-wrap gap-2 max-md:w-full max-md:flex-col">
-          <v-btn :block="!mdAndUp" :disabled="!online" variant="outlined" @click="rejecting = true">Reject</v-btn>
+          <v-btn :block="!mdAndUp" :disabled="!online" variant="tonal" @click="rejecting = true">Reject</v-btn>
           <v-btn :block="!mdAndUp" color="primary" :disabled="!online" @click="accepting = true">Accept work</v-btn>
         </div>
       </div>

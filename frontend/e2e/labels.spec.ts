@@ -18,7 +18,7 @@ async function logIn (page: Page, email: string, next?: string): Promise<void> {
 
 /** Opens a station from the list and returns its id and QR token, as the page received them. */
 async function stationOf (page: Page, code: string): Promise<{ id: string, token: string }> {
-  await page.goto('/stations')
+  await page.goto('/stations?view=all')
   const [response] = await Promise.all([
     page.waitForResponse(r => r.request().method() === 'GET' && /\/api\/v1\/stations\/[\da-f-]{36}$/.test(r.url())),
     page.getByRole('table', { name: /Stations/ }).getByRole('link', { name: code }).click(),

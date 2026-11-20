@@ -69,7 +69,7 @@
                 v-if="files.has(file.media_id)"
                 :aria-label="`Open ${file.filename}`"
                 size="small"
-                variant="outlined"
+                variant="tonal"
                 @click="open(file.media_id)"
               >Open</v-btn>
             </li>
@@ -91,7 +91,7 @@
                 v-if="doc.media_id && files.has(doc.media_id)"
                 :aria-label="`Open ${doc.title}`"
                 size="small"
-                variant="outlined"
+                variant="tonal"
                 @click="open(doc.media_id)"
               >Open</v-btn>
             </li>

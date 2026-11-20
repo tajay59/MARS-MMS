@@ -7,7 +7,7 @@
         v-else-if="!isClient"
         :loading="loading"
         :prepend-icon="mdiRefresh"
-        variant="outlined"
+        variant="tonal"
         @click="reload"
       >Refresh</v-btn>
     </template>

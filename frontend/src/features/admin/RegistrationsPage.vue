@@ -167,7 +167,7 @@
 
       <div class="flex flex-wrap justify-end gap-2 border-t border-surface-200 pt-5">
         <template v-if="mode === 'approve'">
-          <v-btn class="text-primary" variant="outlined" @click="mode = 'reject'">Reject</v-btn>
+          <v-btn class="text-primary" variant="tonal" @click="mode = 'reject'">Reject</v-btn>
           <v-btn color="primary" :loading="busy" @click="approve">Approve {{ selected.name }}</v-btn>
         </template>
 
@@ -181,7 +181,7 @@
     <div v-else-if="routeId && !loading && !loadError" class="flex max-w-xl flex-col items-start gap-3">
       <h2 class="m-0 text-h3 text-surface-900">This registration isn’t waiting any more</h2>
       <p class="m-0 text-surface-600">Someone may have approved or rejected it already.</p>
-      <v-btn class="text-primary" :to="{ name: 'admin-registrations' }" variant="outlined">See who is waiting</v-btn>
+      <v-btn class="text-primary" :to="{ name: 'admin-registrations' }" variant="tonal">See who is waiting</v-btn>
     </div>
 
     <div v-else-if="!loading && !loadError" class="flex max-w-xl flex-col items-start gap-2">

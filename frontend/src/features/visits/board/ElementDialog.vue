@@ -58,7 +58,7 @@
               <p v-if="conflict.description" class="m-0 whitespace-pre-line text-surface-700">{{ conflict.description }}</p>
             </div>
 
-            <v-btn class="self-start" variant="outlined" @click="conflict = null">Edit the saved copy</v-btn>
+            <v-btn class="self-start" variant="tonal" @click="conflict = null">Edit the saved copy</v-btn>
           </template>
 
           <FeedbackBanner v-else-if="readOnlyReason" type="info">{{ readOnlyReason }}</FeedbackBanner>
