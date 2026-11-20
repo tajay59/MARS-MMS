@@ -186,7 +186,7 @@ async def patch_user(id: IdPath, body: UserPatch, admin: Admin, ctx: CtxDep) -> 
     updated = await ctx.tx(save)
     if ends_sessions:
         # Roles live in the access token, so a role change also needs a fresh sign-in.
-        await revocation.revoke_user(ctx.redis, id, now)
+        await revocation.after_commit(revocation.revoke_user(ctx.redis, id, now), kind="user")
     return UserOut.of(updated)
 
 
@@ -205,7 +205,7 @@ async def reset_totp(id: IdPath, admin: Admin, ctx: CtxDep) -> UserOut:
     updated = await totp_reset.apply(
         ctx.tx, ctx.db, ctx.settings, current, emitter, now=now, via="admin", by=admin.id
     )
-    await revocation.revoke_user(ctx.redis, id, now)
+    await revocation.after_commit(revocation.revoke_user(ctx.redis, id, now), kind="user")
     return UserOut.of(updated)
 
 
@@ -365,6 +365,6 @@ async def _save_org(
     except DuplicateKeyError as exc:
         raise _org_conflict(exc) from exc
     if deactivating:
-        await revocation.revoke_org(ctx.redis, org_id, now)
+        await revocation.after_commit(revocation.revoke_org(ctx.redis, org_id, now), kind="org")
     return updated
 

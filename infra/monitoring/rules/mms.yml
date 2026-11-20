@@ -108,6 +108,13 @@ groups:
           summary: "The audit chain check failed"
           description: "Open the audit log's integrity check for the first bad record (rule 10)."
 
+      - alert: RevocationFailed
+        expr: increase(revocation_write_failures_total[15m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "A sign-in revocation did not reach Redis ({{ $labels.kind }})"
+          description: "A disabled person or organization may keep an access token up to 15 minutes. Check Redis, then repeat the change (disable, reset or deactivate) so the revocation is written."
+
       - alert: ClamAvSignaturesOld
         expr: clamav_signature_age_seconds > 259200
         for: 1h

@@ -13,11 +13,10 @@ import signal
 
 import httpx
 from mms_common import logging as mms_logging
-from mms_common import metrics, mongo
+from mms_common import metrics, mongo, redisconn
 from mms_common.jobs import JobQueue, run_worker
 from mms_common.jobs import Retry as DeferJob
 from mms_common.time import SystemClock
-from redis.asyncio import Redis
 
 from app.config import Settings
 from app.jobs.finalize import finalize_report
@@ -57,7 +56,7 @@ async def main() -> None:
     metrics.serve()  # the worker has no web server: Prometheus scrapes this port
     clock = SystemClock()
     client = mongo.connect(settings.mongo_uri)
-    redis = Redis.from_url(settings.redis_url)
+    redis = redisconn.connect(settings.redis_url)
     http = httpx.AsyncClient()
     operations = make_stations(settings, clock, http)
     svc = Services(
