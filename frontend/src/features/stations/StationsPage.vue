@@ -86,128 +86,148 @@
         <!-- From 768 px: the ledger -->
         <template v-if="mdAndUp">
           <!-- A station open: what the pane is showing, folded to one line -->
-          <div v-if="open" class="flex min-h-12 items-center gap-2 rounded-card bg-surface-100 py-1 pl-3 pr-1">
-            <span class="flex min-w-0 grow flex-col">
-              <span class="text-xs text-surface-600">Showing</span>
-              <span class="truncate font-semibold text-surface-900">{{ listLabel }}</span>
-            </span>
+          <HeightTransition>
+            <div v-if="open" class="flex min-h-12 items-center gap-2 rounded-card bg-surface-100 py-1 pl-3 pr-1">
+              <span class="flex min-w-0 grow flex-col">
+                <span class="text-xs text-surface-600">Showing</span>
+                <span class="truncate font-semibold text-surface-900">{{ listLabel }}</span>
+              </span>
 
-            <span v-if="narrowing.length > 0" class="whitespace-nowrap rounded-full bg-primary-100 px-2 text-xs font-semibold text-primary-700 dark:bg-primary-800 dark:text-primary-100">+{{ narrowing.length }} more</span>
+              <span v-if="narrowing.length > 0" class="whitespace-nowrap rounded-full bg-primary-100 px-2 text-xs font-semibold text-primary-700 dark:bg-primary-800 dark:text-primary-100">+{{ narrowing.length }} more</span>
 
-            <v-btn
-              aria-controls="station-filters"
-              :aria-expanded="changing"
-              class="text-primary"
-              height="36"
-              variant="text"
-              @click="changing = !changing"
-            >{{ changing ? 'Done' : 'Change' }}</v-btn>
-          </div>
+              <v-btn
+                aria-controls="station-filters"
+                :aria-expanded="changing"
+                class="text-primary"
+                height="36"
+                variant="text"
+                @click="changing = !changing"
+              >{{ changing ? 'Done' : 'Change' }}</v-btn>
+            </div>
+          </HeightTransition>
 
-          <div v-show="!open || changing" id="station-filters" class="flex flex-col gap-5">
-            <div class="flex flex-col">
-              <h3 :id="`${uid}-show`" class="m-0 px-2 pb-1.5 text-sm font-semibold text-surface-900">Show</h3>
+          <HeightTransition>
+            <div v-show="!open || changing" id="station-filters" class="flex flex-col gap-5">
+              <div class="flex flex-col">
+                <h3 :id="`${uid}-show`" class="m-0 px-2 pb-1.5 text-sm font-semibold text-surface-900">Show</h3>
 
-              <div :aria-labelledby="`${uid}-show`" class="flex flex-col" role="group">
-                <button
-                  :aria-controls="`${uid}-attention`"
-                  :aria-expanded="!folded.attention"
-                  :aria-pressed="listPressed('attention')"
-                  class="flex w-full items-center gap-3 rounded-card pl-3 pr-1.5 text-left font-semibold transition-colors duration-150"
-                  :class="[open ? 'h-10' : 'h-12', listPressed('attention') ? pressedClass : 'text-surface-900 hover:bg-surface-100']"
-                  type="button"
-                  @click="onHeader('attention')"
-                >
-                  <v-icon :icon="mdiAlertOutline" size="20" />
-                  <span class="grow">Needs attention</span>
-                  <span class="font-heading font-semibold tabular-nums" :class="open ? 'text-base' : 'text-2xl'">{{ attentionTotal }}</span>
-                  <v-icon class="text-surface-600 transition-transform duration-150" :class="folded.attention ? '-rotate-90' : ''" :icon="mdiChevronDown" size="20" />
-                </button>
-
-                <div
-                  v-show="!folded.attention"
-                  :id="`${uid}-attention`"
-                  aria-label="Problems"
-                  class="mb-2.5 ml-5.5 mt-0.5 flex flex-col gap-0.5 border-l border-surface-200 pl-2.5"
-                  role="group"
-                >
+                <div :aria-labelledby="`${uid}-show`" class="flex flex-col" role="group">
                   <button
-                    v-for="p in PROBLEMS"
-                    :key="p"
-                    :aria-pressed="problem === p"
-                    class="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-card px-2.5 text-left transition-colors duration-150"
-                    :class="[open ? 'min-h-10 py-1' : 'min-h-13 py-1.5', problem === p ? pressedClass : 'hover:bg-surface-100']"
+                    :aria-controls="`${uid}-attention`"
+                    :aria-expanded="!folded.attention"
+                    :aria-pressed="listPressed('attention')"
+                    class="flex w-full items-center gap-3 rounded-card pl-3 pr-1.5 text-left font-semibold transition-colors duration-150"
+                    :class="[open ? 'h-10' : 'h-12', listPressed('attention') ? pressedClass : 'text-surface-900 hover:bg-surface-100']"
                     type="button"
-                    @click="setProblem(problem === p ? null : p)"
+                    @click="onHeader('attention')"
                   >
-                    <v-icon :class="problemLook[p].mark" :icon="problemLook[p].icon" size="16" />
-                    <span class="text-sm font-medium text-surface-900">{{ problemLook[p].label }}</span>
-
-                    <span
-                      class="col-start-3 row-span-2 row-start-1 min-w-[2ch] text-right font-heading font-semibold tabular-nums"
-                      :class="[open ? 'text-base' : 'text-2xl', counts[p] === 0 ? 'text-surface-600' : 'text-surface-900']"
-                    >{{ counts[p] }}</span>
-
-                    <span v-if="!open" class="col-start-2 text-xs text-surface-600">{{ hints[p] }}</span>
+                    <v-icon :icon="mdiAlertOutline" size="20" />
+                    <span class="grow">Needs attention</span>
+                    <TallyNumber class="font-heading font-semibold" :class="open ? 'text-base' : 'text-2xl'" :value="attentionTotal" />
+                    <v-icon class="text-surface-600 transition-transform duration-150" :class="folded.attention ? '-rotate-90' : ''" :icon="mdiChevronDown" size="20" />
                   </button>
-                </div>
 
-                <button
-                  :aria-controls="`${uid}-all`"
-                  :aria-expanded="!folded.all"
-                  :aria-pressed="listPressed('all')"
-                  class="flex w-full items-center gap-3 rounded-card pl-3 pr-1.5 text-left font-semibold transition-colors duration-150"
-                  :class="[open ? 'h-10' : 'h-12', listPressed('all') ? pressedClass : 'text-surface-900 hover:bg-surface-100']"
-                  type="button"
-                  @click="onHeader('all')"
-                >
-                  <v-icon :icon="mdiFormatListBulleted" size="20" />
-                  <span class="grow">All stations</span>
-                  <span class="font-heading font-semibold tabular-nums" :class="open ? 'text-base' : 'text-2xl'">{{ inScope.length }}</span>
-                  <v-icon class="text-surface-600 transition-transform duration-150" :class="folded.all ? '-rotate-90' : ''" :icon="mdiChevronDown" size="20" />
-                </button>
+                  <HeightTransition>
+                    <div
+                      v-show="!folded.attention"
+                      :id="`${uid}-attention`"
+                      aria-label="Problems"
+                      class="mb-2.5 ml-5.5 mt-0.5 flex flex-col gap-0.5 border-l border-surface-200 pl-2.5"
+                      role="group"
+                    >
+                      <button
+                        v-for="p in PROBLEMS"
+                        :key="p"
+                        :aria-pressed="problem === p"
+                        class="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-card px-2.5 text-left transition-colors duration-150"
+                        :class="[open ? 'min-h-10 py-1' : 'min-h-13 py-1.5', problem === p ? pressedClass : 'hover:bg-surface-100']"
+                        type="button"
+                        @click="setProblem(problem === p ? null : p)"
+                      >
+                        <v-icon :class="problemLook[p].mark" :icon="problemLook[p].icon" size="16" />
+                        <span class="text-sm font-medium text-surface-900">{{ problemLook[p].label }}</span>
 
-                <div
-                  v-show="!folded.all"
-                  :id="`${uid}-all`"
-                  aria-label="Status"
-                  class="ml-5.5 mt-0.5 flex flex-wrap gap-1.5 border-l border-surface-200 py-1.5 pl-3"
-                  role="group"
-                >
+                        <TallyNumber
+                          class="col-start-3 row-span-2 row-start-1 min-w-[2ch] text-right font-heading font-semibold"
+                          :class="[open ? 'text-base' : 'text-2xl', counts[p] === 0 ? 'text-surface-600' : 'text-surface-900']"
+                          :value="counts[p]"
+                        />
+
+                        <span v-if="!open" class="col-start-2 text-xs text-surface-600">{{ hints[p] }}</span>
+                      </button>
+                    </div>
+                  </HeightTransition>
+
                   <button
-                    v-for="option in statusOptions"
-                    :key="option.value"
-                    :aria-pressed="filters.status === option.value"
-                    class="inline-flex h-8 items-center gap-1.5 rounded-full border pl-2 pr-2.5 text-[13px] font-medium transition-colors duration-150"
-                    :class="filters.status === option.value ? chipOnClass : 'border-surface-300 text-surface-900 hover:bg-surface-100'"
+                    :aria-controls="`${uid}-all`"
+                    :aria-expanded="!folded.all"
+                    :aria-pressed="listPressed('all')"
+                    class="flex w-full items-center gap-3 rounded-card pl-3 pr-1.5 text-left font-semibold transition-colors duration-150"
+                    :class="[open ? 'h-10' : 'h-12', listPressed('all') ? pressedClass : 'text-surface-900 hover:bg-surface-100']"
                     type="button"
-                    @click="setStatus(filters.status === option.value ? null : option.value)"
+                    @click="onHeader('all')"
                   >
-                    <StationStatusMark :status="option.value" />
-                    {{ option.label }}<span class="font-semibold tabular-nums" :class="filters.status === option.value ? '' : 'text-surface-600'">{{ option.count }}</span>
+                    <v-icon :icon="mdiFormatListBulleted" size="20" />
+                    <span class="grow">All stations</span>
+                    <TallyNumber class="font-heading font-semibold" :class="open ? 'text-base' : 'text-2xl'" :value="inScope.length" />
+                    <v-icon class="text-surface-600 transition-transform duration-150" :class="folded.all ? '-rotate-90' : ''" :icon="mdiChevronDown" size="20" />
                   </button>
+
+                  <HeightTransition>
+                    <div
+                      v-show="!folded.all"
+                      :id="`${uid}-all`"
+                      aria-label="Status"
+                      class="ml-5.5 mt-0.5 flex flex-wrap gap-1.5 border-l border-surface-200 py-1.5 pl-3"
+                      role="group"
+                    >
+                      <button
+                        v-for="option in statusOptions"
+                        :key="option.value"
+                        :aria-pressed="filters.status === option.value"
+                        class="inline-flex h-8 items-center gap-1.5 rounded-full border pl-2 pr-2.5 text-[13px] font-medium transition-colors duration-150"
+                        :class="filters.status === option.value ? chipOnClass : 'border-surface-300 text-surface-900 hover:bg-surface-100'"
+                        type="button"
+                        @click="setStatus(filters.status === option.value ? null : option.value)"
+                      >
+                        <StationStatusMark :status="option.value" />
+                        {{ option.label }}<span class="font-semibold tabular-nums" :class="filters.status === option.value ? '' : 'text-surface-600'">{{ option.count }}</span>
+                      </button>
+                    </div>
+                  </HeightTransition>
                 </div>
               </div>
+
+              <!-- Organization, country, type and measures narrow both lists -->
+              <!-- Narrow both lists: a header that folds the fields, on the same curve as the lists -->
+              <div class="border-t border-surface-200 pt-2">
+                <button
+                  :aria-controls="`${uid}-narrow`"
+                  :aria-expanded="narrowOpen"
+                  class="flex min-h-10 w-full items-center gap-2 rounded-card px-2 text-left hover:bg-surface-100"
+                  type="button"
+                  @click="narrowOpen = !narrowOpen"
+                >
+                  <span class="text-sm font-semibold text-surface-900">Narrow both lists</span>
+                  <span v-if="extraFilters > 0" class="rounded-full bg-primary-100 px-2 text-xs font-semibold text-primary-700 dark:bg-primary-800 dark:text-primary-100">{{ extraFilters }} on</span>
+                  <v-icon class="ml-auto text-surface-600 transition-transform duration-150" :class="narrowOpen ? 'rotate-180' : ''" :icon="mdiChevronDown" size="20" />
+                </button>
+
+                <HeightTransition>
+                  <div v-show="narrowOpen" :id="`${uid}-narrow`">
+                    <StationFilterFields
+                      class="px-1 pt-3"
+                      :facets="facets"
+                      :filters="filters"
+                      inline
+                      :show-org="isStaff"
+                      @change="setFilters"
+                    />
+                  </div>
+                </HeightTransition>
+              </div>
             </div>
-
-            <!-- Organization, country, type and measures narrow both lists -->
-            <details class="border-t border-surface-200 pt-2" :open="narrowOpen" @toggle="narrowOpen = ($event.target as HTMLDetailsElement).open">
-              <summary class="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-card px-2 hover:bg-surface-100 [&::-webkit-details-marker]:hidden">
-                <span class="text-sm font-semibold text-surface-900">Narrow both lists</span>
-                <span v-if="extraFilters > 0" class="rounded-full bg-primary-100 px-2 text-xs font-semibold text-primary-700 dark:bg-primary-800 dark:text-primary-100">{{ extraFilters }} on</span>
-                <v-icon class="ml-auto text-surface-600 transition-transform duration-150" :class="narrowOpen ? 'rotate-180' : ''" :icon="mdiChevronDown" size="20" />
-              </summary>
-
-              <StationFilterFields
-                class="px-1 pt-3"
-                :facets="facets"
-                :filters="filters"
-                inline
-                :show-org="isStaff"
-                @change="setFilters"
-              />
-            </details>
-          </div>
+          </HeightTransition>
 
           <!-- A station open: the matching stations to switch between, the open one highlighted -->
           <div v-if="open" class="flex flex-col border-t border-surface-200 pt-3">
@@ -391,7 +411,7 @@
             <button v-else class="inline-flex min-h-6 items-center font-medium text-primary hover:underline" type="button" @click="setList('all')">See all stations</button>
           </div>
 
-          <ul v-else aria-label="Stations that need attention" class="m-0 list-none p-0">
+          <ul v-else ref="rowsEl" aria-label="Stations that need attention" class="m-0 list-none p-0">
             <li
               v-for="row in rows"
               :key="row.station.id"
@@ -460,7 +480,7 @@
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody ref="rowsEl">
                 <tr
                   v-for="row in shown"
                   :key="row.id"
@@ -552,14 +572,16 @@
   import { ApiError, NetworkError } from '@/api/problem'
   import { countryName } from '@/app/countries'
   import { formatDate, zoneAbbreviation } from '@/app/format'
-  import { pressDown, pressPulse, pressUp } from '@/app/motion'
+  import { dur, EASE, gsap, pressDown, pressPulse, pressUp } from '@/app/motion'
   import { usePaneless, usePaneSelection } from '@/app/shells/pane'
   import CalibrationDueChip from '@/components/CalibrationDueChip.vue'
   import FeedbackBanner from '@/components/FeedbackBanner.vue'
+  import HeightTransition from '@/components/HeightTransition.vue'
   import PageBody from '@/components/PageBody.vue'
   import PaneContent from '@/components/PaneContent.vue'
   import StationStatusChip from '@/components/StationStatusChip.vue'
   import StationStatusMark from '@/components/StationStatusMark.vue'
+  import TallyNumber from '@/components/TallyNumber.vue'
   import { useSessionStore } from '@/stores/session'
   import {
     attentionRows,
@@ -746,11 +768,37 @@
     setList(which)
   }
 
+  /*
+    When the list is replaced (another list, problem, status or field; not each keystroke of a
+    search), its first rows rise in one after another, so the change reads as a new list. Capped at
+    ten rows and about 0.4 s; the rows are visible before and after, and nothing moves under reduced
+    motion.
+  */
+  const rowsEl = ref<HTMLElement | null>(null)
+  const listKey = computed(() => [view.value, problem.value, filters.value.status, filters.value.org, filters.value.country, filters.value.type, filters.value.parameter].join('|'))
+  watch(listKey, async () => {
+    await nextTick()
+    const rowsShown = rowsEl.value ? [...rowsEl.value.children].slice(0, 10) : []
+    if (rowsShown.length === 0 || dur(1) === 0) {
+      return
+    }
+    gsap.fromTo(rowsShown, { autoAlpha: 0, y: 6 }, {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.22,
+      stagger: 0.02,
+      ease: EASE.decelerate,
+      overwrite: true,
+      clearProps: 'opacity,visibility,transform',
+    })
+  })
+
   function listPressed (which: StationsView): boolean {
     return view.value === which && (which === 'attention' ? !problem.value : !filters.value.status)
   }
 
-  const pressedClass = 'bg-primary-50 text-primary-700 shadow-[inset_0_0_0_1px] shadow-primary dark:text-primary'
+  // The chosen list or problem: a soft tint and the brand ink, no ring (a ring read as loud)
+  const pressedClass = 'bg-primary-50 text-primary-700 dark:bg-primary-800/40 dark:text-primary-100'
   const chipOnClass = 'border-transparent bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-100'
 
   /** Search and the fields that narrow both lists, each shown above the rows with a way to remove it. */

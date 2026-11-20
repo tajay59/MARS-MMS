@@ -68,7 +68,7 @@
 
         <div
           ref="target"
-          class="flex grow flex-col pb-4 md:min-h-0 md:overflow-y-auto"
+          class="flex grow flex-col pb-4 md:min-h-0 md:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           :class="[tabs.length > 1 ? 'pt-3' : 'pt-1', stuck ? 'max-md:pb-2' : '']"
         />
       </div>
@@ -183,6 +183,47 @@
   /** The pane is in the layout: true while it shows, and while it animates closed. */
   const paneOpen = ref(paneShown.value)
   let tween: gsap.core.Tween | null = null
+  let innerTween: gsap.core.Tween | null = null
+  /** The next pane change comes from Hide the list / Show the list, not from changing section. */
+  let docking = false
+
+  /*
+    Hide and Show the list (the dock button): the pane tucks under the rail. Hiding, its contents
+    slide toward the rail and fade while the tile closes fast on the accelerate curve, so it reads as
+    put away, not cropped. Showing, the tile opens on the decelerate curve and the contents follow a
+    beat later, sliding out from under the rail. Changing section keeps the plain width tween.
+  */
+  function dockPane (width: number, done?: () => void): void {
+    const pane = paneEl.value!
+    const inner = paneInner.value!
+    const from = pane.getBoundingClientRect().width
+    const opening = width > from
+    paneOpen.value = true
+    gsap.set(pane, { width: from, marginLeft: from === 0 ? -GAP : 0, overflow: 'hidden' })
+    gsap.set(inner, { width: Math.max(from, width) })
+    innerTween = opening
+      ? gsap.fromTo(inner, { x: -40, autoAlpha: 0 }, {
+        x: 0, autoAlpha: 1, duration: dur(0.38), delay: dur(0.08), ease: EASE.decelerate, clearProps: 'transform,opacity,visibility',
+      })
+      : gsap.to(inner, { x: -32, autoAlpha: 0, duration: dur(0.2), ease: 'power2.in' })
+    tween = gsap.to(pane, {
+      width,
+      marginLeft: width === 0 ? -GAP : 0,
+      duration: dur(opening ? 0.45 : 0.28),
+      ease: opening ? EASE.decelerate : EASE.accelerate,
+      onComplete: () => {
+        tween = null
+        gsap.set(pane, { clearProps: 'width,marginLeft,overflow' })
+        if (opening) {
+          gsap.set(inner, { clearProps: 'width' })
+        } else {
+          // Ready to come back: the contents rest in place, hidden with the pane
+          gsap.set(inner, { clearProps: 'width,transform,opacity,visibility' })
+        }
+        done?.()
+      },
+    })
+  }
 
   /** Tweens the pane from its current width to `width` (0 = closed); the view fills the rest. */
   function tweenPane (width: number, done?: () => void): void {
@@ -195,6 +236,13 @@
       return
     }
     tween?.kill()
+    innerTween?.kill()
+    if (docking) {
+      docking = false
+      dockPane(width, done)
+      return
+    }
+    gsap.set(inner, { clearProps: 'transform,opacity,visibility' })
     // 0 while hidden (display: none). v-show only touches display, so these inline sizes stay.
     const from = pane.getBoundingClientRect().width
     paneOpen.value = true
@@ -264,7 +312,12 @@
   onBeforeUnmount(() => paneObserver?.disconnect())
 
   function toggle (): void {
+    docking = true
     collapsed.value = !collapsed.value
+    // Spent by the pane's watcher; cleared if this click changed nothing on screen (below 1024 px)
+    void nextTick(() => {
+      docking = false
+    })
     try {
       localStorage.setItem(COLLAPSED_KEY, collapsed.value ? '1' : '0')
     } catch {
