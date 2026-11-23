@@ -113,7 +113,7 @@ services:
 
   node-exporter:
     <<: *restart
-    image: prom/node-exporter:v1.12.1
+    image: prom/node-exporter:v1.13.1
     command:
       - --path.rootfs=/host
       - --collector.textfile.directory=/textfile

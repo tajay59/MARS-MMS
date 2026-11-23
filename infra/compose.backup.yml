@@ -68,7 +68,7 @@ services:
   filer-sync:
     <<: *restart
     profiles: [backup]
-    image: chrislusf/seaweedfs:4.53
+    image: chrislusf/seaweedfs:4.54
     entrypoint: ["/usr/bin/weed"]
     command:
       - filer.sync
