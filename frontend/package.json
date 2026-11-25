@@ -74,5 +74,14 @@
     "workbox-precaching": "^7.4.1",
     "workbox-routing": "^7.4.1",
     "workbox-window": "^7.4.1"
+  },
+  "overrides": {
+    "js-beautify": {
+      "glob": "^14.0.6",
+      "editorconfig": "^4.0.1"
+    },
+    "workbox-build": {
+      "glob": "^14.0.6"
+    }
   }
 }
