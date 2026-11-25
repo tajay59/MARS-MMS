@@ -110,7 +110,7 @@ async def socket(websocket: WebSocket) -> None:
         await asyncio.gather(*tasks, return_exceptions=True)
         with contextlib.suppress(Exception, asyncio.CancelledError):
             await pubsub.unsubscribe()
-            await pubsub.aclose()  # type: ignore[no-untyped-call]
+            await pubsub.aclose()  # type: ignore[no-untyped-call, unused-ignore]
 
 
 async def _close(websocket: WebSocket, code: int) -> None:
