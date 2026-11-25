@@ -113,7 +113,7 @@ services:
 
   node-exporter:
     <<: *restart
-    image: prom/node-exporter:v1.12.1
+    image: prom/node-exporter:v1.13.1
     command:
       - --path.rootfs=/host
       - --collector.textfile.directory=/textfile
@@ -149,7 +149,7 @@ services:
 
   redis-exporter:
     <<: *restart
-    image: oliver006/redis_exporter:v1.97.0
+    image: oliver006/redis_exporter:v1.98.0
     environment:
       REDIS_ADDR: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
