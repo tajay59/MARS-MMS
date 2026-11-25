@@ -29,7 +29,7 @@
           inset
           :model-value="item.email"
           role="switch"
-          @update:model-value="set(item.key, $event === true)"
+          @update:model-value="set(item, $event === true)"
         />
       </div>
     </section>
@@ -67,7 +67,14 @@
     }
   }
 
-  async function set (key: string, on: boolean): Promise<void> {
+  type Item = Preferences['groups'][number]['items'][number]
+
+  // The switch shows the new choice at once; the server's answer then replaces the list, and a
+  // failure reloads what is really stored. (Vuetify 4.3.4 holds a controlled switch in its old
+  // position until the model changes, so waiting for the answer left it looking stuck.)
+  async function set (item: Item, on: boolean): Promise<void> {
+    const key = item.key
+    item.email = on
     saving.value = key
     saved.value = false
     problem.value = null
